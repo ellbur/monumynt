@@ -1,0 +1,15 @@
+{
+  "name": "monumynt",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rescript",
+    "clean": "rescript clean",
+    "dev": "rescript -w",
+    "start": "node src/Main.res.mjs"
+  },
+  "devDependencies": {
+    "rescript": "^12.2.0"
+  }
+}
