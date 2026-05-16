@@ -22,7 +22,7 @@ This is an experimental sandbox for a visual flow-based programming language. De
 - `src/JsAst.res` — typed AST for a useful subset of JavaScript (literals, member/index, calls, arrows, function expressions, binary/unary/update/assignment, ternary, sequence, spread, await; statements covering let/const/var, if, while, do, for/for-of/for-in, return/break/continue/throw, try, function decl, label; ESM import/export). No classes, generators, JSX, decorators, template-literal substitutions, or destructuring patterns beyond simple parameters.
 - `src/JsPrint.res` — precedence-aware pretty-printer. Handles the tricky cases (`**` right-associativity with no-unary-on-the-left, `??` mixing with `&&`/`||`, statement-start ambiguity with `function` and `{`, arrow bodies that begin with `{`). Falls back to bracket notation for property accesses when the name isn't a valid identifier.
 - `src/JsBuild.res` — smart constructors mirroring `JsAst` variants for ergonomic construction. `JsBuild` shadows several short names (`add`, `mul`, etc.) — be aware when `open`ing it.
-- `src/Expr.res` — visual-language expressions. Five node kinds: `Lit`, `App`, `Open`, `Close`, `Join`. Every node is wrapped as `{id: int, kind: kind}`; smart constructors (`lit`, `app`, `open_`, `close_`, `join_`) mint fresh ids from a module-local counter. Currently only the `(Open ListIter, Close ListCollect)` flow combination is implemented.
+- `src/Expr.res` — visual-language expressions. Six node kinds: `Lit`, `App`, `Open`, `Close`, `Join`, `Branch`. Every node is wrapped as `{id: int, kind: kind}`; smart constructors (`lit`, `app`, `open_`, `close_`, `caseClose`, `join_`, `branch_`) mint fresh ids from a module-local counter. Open's `flow` is `ListIter | CaseSplit({alts, discriminator})`. Close's `flow` is `ListCollect | CaseJoin`, with branches as `{altName: option<string>, flow: expr, value: expr}` (single None-branch for ListCollect, one Some(name)-branch per alt for CaseJoin). Branch picks one output port from a CaseSplit Open — same node serves both value and flow contexts.
 - `src/Compile.res` — compiles `Expr.expr` to JS. See "Compile architecture" below.
 - `src/ExprPrint.res` — human-readable rendering of `Expr.expr` for test logs and debugging. Time-forward and flat: each line is a chain of single-input ops separated by `->`, optionally prefixed by a comma-separated source list when the head op has 1+ inputs. Sharing is shown via `#N` labels (renumbered per-render). Trivially-used literals are inlined into their consumer's source list; literals with multiple consumers get a label and their own line.
 - `src/Main.res` — test runner. Builds Exprs, prints the Expr rendering, compiles to IIFE, prints the generated JS, evals, compares against an expected `JsAst.expr` via `JSON.stringify`. Prints outer-stmt count per test so the effect of sharing/joining is visible.
@@ -39,16 +39,18 @@ This is an experimental sandbox for a visual flow-based programming language. De
 
 Per-binding dispatch goes through `bufferOf(ctx, innermost)` — a one-line lookup, no walking.
 
-A pre-pass (`preprocessCloseGroups`) walks the root once and groups every `Close` by the id of its **underlying** Open (after stripping `Join` wrappers). When `go` first hits any Close in a group, `compileGroup` compiles the whole group atomically. The function reads top-to-bottom in named stages, with the heavy lifting delegated to four helpers also defined in `Compile.res`:
+A pre-pass (`preprocess`) walks the root once and builds two maps:
 
-- `gatherOpenerChain(start, joinDepth)` — walk `Open.input` outward `joinDepth` times, returning `joinDepth + 1` Opens (innermost-first).
-- `establishScopes(ctx, chain, outermostParent)` — set up loop scopes for every Open in the chain. **Scope reuse**: if an Open is already in the memo (because an enclosing `compileGroup` is mid-compile and put it there), reuse the existing scope instead of creating a duplicate. Returns a `scopeBundle` with `scopeFor`, `elemFor`, `createdHere`, and the `innermost` scope.
-- `cleanupOpeners(ctx, chain, createdHere)` — delete memo entries only for openers this group created (reused openers belong to an enclosing group that's still using them).
-- `emitForOfs(ctx, chain, setup, outermostInputExpr)` — emit a `for…of` for each created scope, innermost-first, into its parent's buffer.
+- `closeGroups: Map<int, array<Expr.expr>>` — every `Close` grouped by its **underlying** opener id (`underlyingOpenerForClose`: peels Joins for ListCollect, reads `Branch.source` for CaseJoin).
+- `branchesBySource: Map<int, Map<string, array<Expr.expr>>>` — every `Branch` node grouped by its source's id, then by alt name. Used by `compileCaseGroup` to know which Branch ids to memoise per alt.
 
-`compileGroup` itself: validate, analyse closes (extract per-close join count), compute `maxJoinCount`, gather chain, compile outermost input, establish scopes, allocate one output array per close at `walkUp(innermost, joinCount + 1)`, compile each value and push at `deeper(innermost, valueScope)`, cleanup, emit for-ofs.
+When `go` first hits any Close in a group, it dispatches based on the underlying's flow kind:
 
-Mixed joinCounts within one group are supported — joined and unjoined closes can coexist on the same opener, each with its own output array at its own joined-out scope. The only validations: the underlying is `Open ListIter`, every close is `Close ListCollect`, and the input chain has enough Opens to cover the deepest join.
+- **`compileListGroup`** — for `Open ListIter`. Reads the per-close join count, gathers the join-chain via `gatherOpenerChain`, sets up nested loop scopes via `establishScopes` (with reuse for already-active opens), allocates output arrays at `walkUp(innermost, joinCount + 1)`, compiles each close's value and pushes at `deeper(innermost, valueScope)`, then `cleanupOpeners` + `emitForOfs`. Supports mixed joined/unjoined closes within one group.
+
+- **`compileCaseGroup`** — for `Open CaseSplit`. Compiles the input, calls the user-supplied discriminator on it for a `{tag, value}` split, allocates one `let v_close` per Close at the parent scope. For each alt: builds a fresh branch scope, memoises every Branch node referencing (this Open, this alt) to a fresh `const v = split.value` binding, compiles each Close's per-alt value subtree and emits `v_close = value` at the end of the branch body, cleans up Branch memos. Finally builds an `if (split.tag === alt0) {…} else if (…) {…} else { throw }` chain in the parent buffer.
+
+`Open`, `Join`, and `Branch` nodes are never compiled directly — `go` raises with a clear message if reached. Their values are bound by the surrounding `compileGroup` via the memo.
 
 **`go` raises on `Open` and `Join`**:
 

@@ -1,37 +1,25 @@
 // Human-readable rendering of Expr.expr for test logs and debugging.
 //
 // Format: time-forward (inputs first), flat (no nesting), one statement
-// per line. Each statement either kicks off a chain from a literal or
-// from one or more labelled inputs:
+// per line. Single-input ops chain together with `->`; multi-input ops
+// list their inputs at the start of a line and produce one new value.
 //
-//     [[1, 2], [3]] -> open -> open (#1) -> join (#2)
-//     #1 -> (x => x + 1) (#3)
-//     #2, #3 -> close (#4)
-//     #1, #3 -> close (#5)
-//     #4, #5 -> ((a, b) => ({flat: a, nested: b}))
+// For Close, the source is rendered with structure:
+//   - ListCollect: `<flow>, <value>` — the single (flow, value) pair.
+//   - CaseJoin: `Just: <flow>/<value>, Nothing: <flow>/<value>, …` —
+//     one labelled (alt: flow/value) per branch.
 //
-// Each value the program computes maps to a node, and each node ends up
-// somewhere in the rendering. Single-input ops chain together when the
-// data flow is straightforward — `<source> -> op1 -> op2 -> …` — so a
-// short pipeline shows up on one line. Multi-input ops (Close, App with
-// more than one arg) start a fresh line and list their inputs as the
-// source.
+// Open kinds are rendered as their name plus a small descriptor:
+//   - ListIter → `open`
+//   - CaseSplit({alts, discriminator}) → `caseSplit({alts}, <disc>)`
 //
-// Labels (`#1`, `#2`, …) are assigned per-render in encounter order
-// and only to nodes that are referenced from a different chain than
-// their own. Single-use values consumed within their chain don't need
-// a label.
+// Branches are rendered as `.<altName>` (a postfix-like single-input op
+// that picks a port off its source).
 //
-// Trivial inlining: a Lit whose only consumer is a single (different-
-// chain) node is inlined directly into that consumer's source list,
-// instead of being given its own line. So `2, 3 -> add` rather than
-// `2 (#1)` / `3 (#2)` / `#1, #2 -> add`. A Lit with multiple consumer
-// nodes still gets a label, since the sharing matters.
-//
-// JsAst.expr payloads (Lit values, App fns) are rendered inline by
-// JsPrint without any wrapping syntax — the JS code stands on its own.
+// Sharing: nodes referenced from a different chain than their own get
+// labels `#1`, `#2`, … (renumbered per-render in encounter order).
+// Trivially-used literals are inlined into their consumer's source list.
 
-// Topological sort: each node appears after all its dependencies.
 let topoSort = (root: Expr.expr): array<Expr.expr> => {
   let result: array<Expr.expr> = []
   let visited: Map.t<int, bool> = Map.make()
@@ -42,10 +30,13 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
       | Lit(_) => ()
       | App({args}) => args->Array.forEach(visit)
       | Open({input}) => visit(input)
-      | Close({opener, value}) =>
-        visit(opener)
-        visit(value)
+      | Close({branches}) =>
+        branches->Array.forEach(b => {
+          visit(b.flow)
+          visit(b.value)
+        })
       | Join({inner}) => visit(inner)
+      | Branch({source}) => visit(source)
       }
       result->Array.push(e)
     }
@@ -53,19 +44,23 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
   result
 }
 
-// The (immediate) inputs of a node, in source order.
+// The (immediate) inputs of a node, in source order. For Close, this
+// is a flat sequence: branch[0].flow, branch[0].value, branch[1].flow,
+// branch[1].value, … — used for chain detection and labelling. The
+// renderChain function renders Close differently to expose the
+// branch structure.
 let inputsOf = (e: Expr.expr): array<Expr.expr> =>
   switch e.kind {
   | Lit(_) => []
   | App({args}) => args
   | Open({input}) => [input]
-  | Close({opener, value}) => [opener, value]
+  | Close({branches}) =>
+    branches->Array.flatMap(b => [b.flow, b.value])
   | Join({inner}) => [inner]
+  | Branch({source}) => [source]
   }
 
-// Greedy chain detection: walking the topo-sorted nodes, a 1-input op
-// extends the current chain when its input is the previous chain
-// element. Anything else starts a fresh chain.
+// Greedy chain detection.
 let computeChains = (sorted: array<Expr.expr>): array<array<Expr.expr>> => {
   let chains: array<array<Expr.expr>> = []
   let current: ref<array<Expr.expr>> = ref([])
@@ -97,13 +92,11 @@ let render = (root: Expr.expr): string => {
   let sorted = topoSort(root)
   let chains = computeChains(sorted)
 
-  // chainIdxOf: node id → index of its chain.
   let chainIdxOf: Map.t<int, int> = Map.make()
   chains->Array.forEachWithIndex((chain, i) =>
     chain->Array.forEach(n => chainIdxOf->Map.set(n.id, i))
   )
 
-  // consumersOf: input id → unique consumer ids that reference it.
   let consumersOf: Map.t<int, array<int>> = Map.make()
   sorted->Array.forEach(consumer =>
     inputsOf(consumer)->Array.forEach(input => {
@@ -120,9 +113,6 @@ let render = (root: Expr.expr): string => {
     })
   )
 
-  // A Lit with exactly one consumer (a single distinct parent), where
-  // that consumer is on a different chain, gets inlined into that
-  // consumer's source list rather than getting its own line and label.
   let inlineable: Map.t<int, bool> = Map.make()
   sorted->Array.forEach(n =>
     switch n.kind {
@@ -139,8 +129,6 @@ let render = (root: Expr.expr): string => {
     }
   )
 
-  // A node needs a label iff some consumer of it lives on a different
-  // chain AND it isn't being inlined.
   let needsLabel: Map.t<int, bool> = Map.make()
   sorted->Array.forEach(consumer => {
     let consumerChain = chainIdxOf->Map.get(consumer.id)
@@ -154,7 +142,6 @@ let render = (root: Expr.expr): string => {
     })
   })
 
-  // Label assignment, in encounter order.
   let labelFor: Map.t<int, string> = Map.make()
   let nextLabel = ref(1)
   let getLabel = (id: int): string =>
@@ -167,17 +154,23 @@ let render = (root: Expr.expr): string => {
       l
     }
 
-  // Op token (just the operation name, or the JS payload for Lit/App).
+  // Op token (just the operation's name/payload).
   let opToken = (e: Expr.expr): string =>
     switch e.kind {
     | Lit(js) => JsPrint.printExpr(js)
     | App({fn}) => JsPrint.printExpr(fn)
-    | Open(_) => "open"
-    | Close(_) => "close"
+    | Open({flow: ListIter}) => "open"
+    | Open({flow: CaseSplit({alts, discriminator})}) =>
+      "caseSplit({" ++
+      alts->Array.join(", ") ++
+      "}, " ++
+      JsPrint.printExpr(discriminator) ++ ")"
+    | Close({flow: ListCollect}) => "close"
+    | Close({flow: CaseJoin}) => "caseJoin"
     | Join(_) => "join"
+    | Branch({alt}) => "." ++ alt
     }
 
-  // The op-token possibly followed by `(#N)` if labelled.
   let renderOp = (e: Expr.expr): string => {
     let base = opToken(e)
     if needsLabel->Map.has(e.id) {
@@ -187,8 +180,6 @@ let render = (root: Expr.expr): string => {
     }
   }
 
-  // How to refer to a node from another chain's source list: either an
-  // inlined Lit value, or a label.
   let referenceTo = (e: Expr.expr): string =>
     if inlineable->Map.has(e.id) {
       opToken(e)
@@ -196,22 +187,35 @@ let render = (root: Expr.expr): string => {
       getLabel(e.id)
     }
 
-  // Whether to emit a chain at all. A singleton chain whose only node
-  // is being inlined elsewhere doesn't need its own line.
   let shouldEmit = (chain: array<Expr.expr>): bool =>
     !(Array.length(chain) == 1 && inlineable->Map.has((chain->Array.getUnsafe(0)).id))
+
+  // Render the source-list that prefixes a chain. For Close-CaseJoin
+  // we structure it as `Just: flow/value, Nothing: flow/value`; for
+  // everything else it's a plain comma-separated list.
+  let renderSource = (head: Expr.expr): string =>
+    switch head.kind {
+    | Close({flow: CaseJoin, branches}) =>
+      branches
+      ->Array.map(b => {
+        let altLabel = switch b.altName {
+        | Some(name) => name
+        | None => "?"
+        }
+        altLabel ++ ": " ++ referenceTo(b.flow) ++ "/" ++ referenceTo(b.value)
+      })
+      ->Array.join(", ")
+    | _ =>
+      inputsOf(head)->Array.map(referenceTo)->Array.join(", ")
+    }
 
   let renderChain = (chain: array<Expr.expr>): string => {
     let head = chain->Array.getUnsafe(0)
     let opStrs = chain->Array.map(renderOp)
     let opChain = opStrs->Array.join(" -> ")
     switch inputsOf(head) {
-    | [] =>
-      // 0-input head (a Lit). The op-token IS the chain start.
-      opChain
-    | inputs =>
-      let source = inputs->Array.map(referenceTo)->Array.join(", ")
-      source ++ " -> " ++ opChain
+    | [] => opChain
+    | _ => renderSource(head) ++ " -> " ++ opChain
     }
   }
 

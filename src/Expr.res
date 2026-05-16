@@ -19,64 +19,75 @@
 //
 // Node kinds:
 //
-//   - Lit:   a literal constant. Holds a JsAst.expr describing the JS value.
+//   - Lit:    a literal constant. Holds a JsAst.expr describing the JS value.
 //
-//   - App:   a function application. `fn` is a JsAst.expr; `args` are
-//            sub-expressions in this language.
+//   - App:    a function application. `fn` is a JsAst.expr; `args` are
+//             sub-expressions in this language.
 //
-//   - Open:  opens a flow. `flow` describes how the flow is opened (currently
-//            only `ListIter` — open a list for element-by-element iteration).
-//            `input` is the value being opened (currently a list).
+//   - Open:   opens a flow. `flow` describes what kind:
+//               - `ListIter` — open a list for element-by-element iteration.
+//               - `CaseSplit({alts, discriminator})` — open a value for
+//                 case-by-case dispatch. The discriminator is a JS
+//                 function `(input) => {tag, value}` that tells the
+//                 compiler which alt this input belongs to and what
+//                 per-alt payload to expose.
 //
-//            An Open's "value" is the per-iteration current element. That
-//            value is only meaningful inside the corresponding Close's
-//            `value` subtree. Referencing an Open from anywhere else is an
-//            error and the compiler will fail.
+//             A ListIter Open has one value output (the per-iteration
+//             element) and one flow output (the iteration). A CaseSplit
+//             Open has *N* value outputs and *N* flow outputs (one per
+//             alt). The way to refer to a specific port is via Branch.
 //
-//   - Close: closes a flow. `opener` must be an opener-shaped node — an
-//            Open, or an Open wrapped in one or more Joins. The Close's
-//            `flow` (currently only `ListCollect`) must be compatible
-//            with the underlying Open's. `value` is the per-iteration
-//            expression whose results are accumulated; the Close's
-//            overall value is the collected list (flattened by N levels
-//            if its opener is wrapped in N Joins).
+//   - Close:  closes a flow. Carries a `flow` discriminator and one or
+//             more `branches`, each a {altName, flow, value} triple:
+//               - ListCollect: exactly one branch, altName = None, flow
+//                 = the opener (an Open ListIter, possibly wrapped in
+//                 Joins), value = the per-iteration expression to push.
+//               - CaseJoin: one branch per alt, altName = Some(name),
+//                 flow = a Branch node referencing the alt's flow port,
+//                 value = the per-alt expression.
 //
-//   - Join:  pure flow operation; takes an opener and returns an opener.
-//            Conceptually `join : flow → flow`. Doesn't touch values.
-//            Wrapping an opener in `Join` (and stacking gives more
-//            levels) tells the consuming Close that its output array
-//            should be allocated one level higher per Join — so a
-//            `Close(Join(Open(Open(input))), …)` collects the
-//            inner-elements into one flat list rather than a list of
-//            lists. The loops are still nested; only the output
-//            placement changes.
+//   - Join:   pure flow operation; takes a list-iteration opener and
+//             returns an opener tagged "joined" — the consuming Close
+//             flattens one level on output. Stacking gives more levels.
+//             A Join has only a flow output port; calling `go` on one
+//             raises.
 //
-//            A Join has no value output port. Calling `go` on a Join is
-//            meaningless and the compiler raises if it ever happens.
+//   - Branch: picks a specific output port from a CaseSplit Open. The
+//             same Branch node serves both roles — value port (used in
+//             App args, etc.) or flow port (used as a CaseJoin Close's
+//             branch.flow). Context determines. A Branch reached by `go`
+//             outside its alt's case-close scope raises.
 //
-// Only the (Open ListIter, Close ListCollect) flow combination is
-// supported by the compiler at the moment. Future flow kinds (case
-// splits, configuration scopes, effects, …) and richer combinations
-// (commutes, mixed-join multi-close groups, …) will be added later.
+// Currently supported flow combinations:
+//   - (Open ListIter, Close ListCollect) — possibly with Joins.
+//   - (Open CaseSplit, Close CaseJoin) — exhaustive over the alts.
+//
+// Other flow kinds (configuration scopes, effects, …) and richer
+// combinations (commutes, joining case-split flows, …) will be added
+// later.
 
 type rec expr = {id: int, kind: kind}
 and kind =
   | Lit(JsAst.expr)
   | App({fn: JsAst.expr, args: array<expr>})
   | Open({flow: openFlow, input: expr})
-  | Close({flow: closeFlow, opener: expr, value: expr})
-  // Pure flow operation: wraps an opener (Open or another Join) in a
-  // "joined" tag. Has only a flow output port — no value output port —
-  // so a Join is meaningful only as the `opener` field of a Close.
-  // Calling the compiler's `go` on a Join raises (it would be using a
-  // flow wire as a value, which is meaningless).
+  | Close({flow: closeFlow, branches: array<closeBranch>})
   | Join({inner: expr})
+  | Branch({source: expr, alt: string})
 
 and openFlow =
   | ListIter
+  | CaseSplit({alts: array<string>, discriminator: JsAst.expr})
 
 and closeFlow =
   | ListCollect
+  | CaseJoin
+
+and closeBranch = {
+  altName: option<string>,
+  flow: expr,
+  value: expr,
+}
 
 // --- Identity minting ---
 
@@ -102,9 +113,26 @@ let open_ = (flow: openFlow, input: expr): expr => {
   kind: Open({flow, input}),
 }
 
+// Backward-compatible single-branch Close, used for ListCollect.
 let close_ = (flow: closeFlow, opener: expr, value: expr): expr => {
   id: freshId(),
-  kind: Close({flow, opener, value}),
+  kind: Close({
+    flow,
+    branches: [{altName: None, flow: opener, value: value}],
+  }),
+}
+
+// Multi-branch Close for CaseJoin. Each branch supplies altName, flow
+// (a Branch node referencing the alt's flow port), and the per-alt
+// value expression.
+let caseClose = (branches: array<closeBranch>): expr => {
+  id: freshId(),
+  kind: Close({flow: CaseJoin, branches}),
 }
 
 let join_ = (inner: expr): expr => {id: freshId(), kind: Join({inner: inner})}
+
+let branch_ = (source: expr, alt: string): expr => {
+  id: freshId(),
+  kind: Branch({source, alt}),
+}

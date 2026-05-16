@@ -54,40 +54,50 @@ let x = lit(int_(7))
 let y = app(addFn, [x, x])     // both args are the same node
 ```
 
-Five node kinds:
+Six node kinds:
 
 - **`Lit(JsAst.expr)`** — a literal constant. The payload is any constant
   JS expression (number, string, `Math.PI`, an array or object literal).
 - **`App({fn, args})`** — a function application. `fn` is itself a
   `JsAst.expr` (typically an identifier or member access); `args` are
   sub-expressions in this language.
-- **`Open({flow, input})`** — opens a flow. Currently the only
-  `openFlow` is `ListIter` — open a list for element-by-element
-  iteration. An Open's "value" is the per-iteration current element and
-  is only meaningful inside a Close that consumes it.
-- **`Close({flow, opener, value})`** — closes a flow. `opener` is an
-  opener-shaped node (an `Open` or an `Open` wrapped in any number of
-  `Join`s); `value` is the per-iteration expression whose results are
-  accumulated. The Close's overall value is the collected list, with
-  `N` levels of flattening if its opener is wrapped in `N` `Join`s.
-- **`Join({inner})`** — a *pure* flow operation: takes an opener and
-  returns an opener. Stacking joins produces deeper flatten on output.
-  A `Join` has only a flow output port, no value output port — calling
-  the compiler's `go` on a `Join` raises with a clear message.
+- **`Open({flow, input})`** — opens a flow. Two flow kinds so far:
+    - `ListIter` — open a list for element-by-element iteration. One
+      value output (the current element) and one flow output.
+    - `CaseSplit({alts, discriminator})` — open an alternative-typed
+      value for case-by-case dispatch. `discriminator` is a JS function
+      `(input) => {tag, value}`. *N* value outputs and *N* flow outputs
+      (one per alt). Specific ports are referenced via `Branch`.
+- **`Close({flow, branches})`** — closes a flow. `branches` is an
+  array of `{altName, flow, value}`:
+    - For `ListCollect`: exactly one branch with `altName: None`.
+    - For `CaseJoin`: one branch per alt with `altName: Some(name)`,
+      `flow` a `Branch` node selecting that alt's flow port, and the
+      per-alt `value` expression.
+- **`Join({inner})`** — a *pure* flow operation: wraps a list-iteration
+  opener and tells the consuming Close to flatten one level on output.
+  Stacking gives more levels. Join has only a flow output port; calling
+  `go` on one raises.
+- **`Branch({source, alt})`** — picks an output port from a CaseSplit
+  Open. The same Branch node serves both roles — value port (used as a
+  value in App args, etc.) or flow port (used as a CaseJoin Close's
+  branch.flow). Context determines. A Branch reached by `go` outside
+  its alt's case-close scope raises.
 
 What's supported on the flow side:
 
-- **Single Open / single Close** — basic list iteration.
-- **Single Open / multiple Closes** — many output arrays from one loop.
-- **Nested Opens / nested Closes** — list-of-lists in, list-of-lists out.
-- **Joined Closes** — `Close(Join(Open(Open(input))), …)` flattens one
-  level on output; stacking gives N-level flatten.
-- **Mixed joined and unjoined Closes on the same opener** — both kinds
-  can coexist, sharing the loops, with each Close getting its own output
-  array at its own joined-out scope.
+- **List-iteration**: single/multi Close per Open, nested loops,
+  joined closes (stacking Joins gives N-level flatten), mixed joined +
+  unjoined closes on one opener.
+- **Case-split**: `Open CaseSplit` + `Close CaseJoin` over an
+  alternative type, exhaustive over the alts. Multi-close on a
+  case-split (multiple result variables, one if/else chain). Case-split
+  inside a list iter, list iter inside a case branch, nested
+  case-splits, shared values across branches — all work via the same
+  scope/memo machinery as list flows.
 
-Not yet represented: case splits, configuration scopes, effect handles,
-iteration rails, custom flows, commutes.
+Not yet represented: configuration scopes, effect handles, iteration
+rails, custom flows, commutes, joining a case-split flow.
 
 ### Compile pipeline
 
@@ -158,7 +168,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**52 tests** cover:
+**61 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -181,6 +191,11 @@ visibly shared between the unjoined close (#4) and the joined close
 - **Mixed joined + unjoined on one opener**: outer-close wrapping the
   unjoined while a sibling joined Close pushes flat, with and without
   a shared per-element body.
+- **Case-split**: Maybe-double of Just/Nothing, Either<string,int>
+  with different per-branch result types, multi-close on one
+  case-split, sign-discriminator that maps raw ints into tagged
+  shapes, case-split inside a list iter, shared bonus across branches,
+  nested Maybe<Either<…>>.
 
 ## Running
 
@@ -196,13 +211,17 @@ npm start           # node lib/es6/src/Main.res.mjs — runs the test suite
 
 These are the natural directions. None is committed to.
 
-- **Case-split flow.** The next flow kind in the spec —
-  `Open CaseSplit` and `Close CaseJoin` over a sum type. The compile
-  target is an `if`/`else` (or `switch`), not a loop. Will exercise
-  whether the `Open`/`Close`/`Join` machinery generalises across flow
-  kinds; "join" on a case-split flow has different semantics from
-  "join" on a list flow, and it's worth seeing what the abstractions
-  share once both are in.
+- **Make the value/flow port distinction explicit.** `go` currently
+  operates on nodes, conflating the node with its single value output
+  port. `Join` has only a flow port, `Branch` is a port-selector but
+  carries both ports together — both are surfaced via `failwith`s and
+  ad-hoc context. A first-class port concept would let us:
+    - eliminate the redundant `const v_b = split.value;` we currently
+      emit for Branch nodes whose value port isn't used (only the flow
+      port is — e.g. for a Nothing-branch with a literal value);
+    - express case-split-flow operations cleanly (e.g. joining a Just
+      case across Closes);
+    - validate well-formedness at compile time.
 
 - **Time-travel check.** Today the compile assumes well-formed input.
   Specifically `deeper(a, b)` quietly picks one when given two
@@ -210,15 +229,16 @@ These are the natural directions. None is committed to.
   a closed scope can still be referenced via the memo (which would
   produce JS that references an out-of-scope variable). Cheap way to
   detect: `mutable closed: bool` on `scopeRef`, raise if `bufferOf` is
-  asked for a closed scope. Worth adding before adding more flow kinds.
+  asked for a closed scope.
 
-- **Make the value/flow port distinction explicit.** Right now `go`
-  operates on nodes, conflating the node with its single value output
-  port. `Join` has no value port and we surface that with a `failwith`,
-  but there's nothing structural preventing a misuse. When case-splits
-  arrive (a node with multiple value output ports — one per case), the
-  conflation will start to bite for real, and that's the time to model
-  ports explicitly.
+- **Partial conditionals (one-sided case-split).** The spec's
+  `PARTIAL_BRANCH` — open just one alt of an alternative type, with
+  the other alt(s) propagating "no value" through. This is what filter
+  is built out of. With case-split in place, it's a natural extension.
+
+- **Joining case-split flows.** What does it mean to "join" a Just
+  flow with the surrounding flow? Not yet implemented — `Join`
+  currently only wraps list openers.
 
 - **More expression node kinds.** `Aggregate`/`Disaggregate` for struct
   construction and field projection, instead of the current

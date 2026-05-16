@@ -851,6 +851,215 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   )
 }
 
+// =====================================================================
+// Case-split flow. `Open CaseSplit({alts, discriminator})` opens an
+// alternative-typed value into one value port + one flow port per alt.
+// `Branch({source, alt})` selects a port. `Close CaseJoin` collects the
+// branches back together. The compile target is an `if/else if/else`
+// chain with a `let v_close` per Close, assigned in each branch.
+// =====================================================================
+
+// A do-nothing discriminator that assumes the input is already
+// `{tag, value}`-shaped.
+let identity = arrowExpr([p("x")], id("x"))
+
+// (1) Maybe-double: if Just, double the int; if Nothing, return 0.
+//     Test both alternatives.
+let maybeDouble = (input: JsAst.expr): Expr.expr => {
+  let inputE = lit(input)
+  let opened = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    inputE,
+  )
+  let justB = branch_(opened, "Just")
+  let nothingB = branch_(opened, "Nothing")
+  caseClose([
+    {altName: Some("Just"), flow: justB, value: app(double, [justB])},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(int_(0))},
+  ])
+}
+
+runTest(
+  ~name="case-split: Maybe-double of Just(42)",
+  ~expr=maybeDouble(obj([("tag", str("Just")), ("value", int_(42))])),
+  ~expected=int_(84),
+)
+
+runTest(
+  ~name="case-split: Maybe-double of Nothing",
+  ~expr=maybeDouble(obj([("tag", str("Nothing"))])),
+  ~expected=int_(0),
+)
+
+// (2) Either-with-different-result-types: take an Either<string, int>;
+//     for Left return its length, for Right return it doubled.
+{
+  let inputE = lit(obj([("tag", str("Left")), ("value", str("hello"))]))
+  let opened = open_(
+    CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
+    inputE,
+  )
+  let leftB = branch_(opened, "Left")
+  let rightB = branch_(opened, "Right")
+  let lengthFn = arrowExpr([p("s")], member(id("s"), "length"))
+  runTest(
+    ~name="case-split: Either<string,int> — Left.length / Right * 2",
+    ~expr=caseClose([
+      {altName: Some("Left"), flow: leftB, value: app(lengthFn, [leftB])},
+      {altName: Some("Right"), flow: rightB, value: app(double, [rightB])},
+    ]),
+    ~expected=int_(5),
+  )
+}
+
+// (3) Multi-close on a case-split: produce two outputs from the same
+//     CaseSplit Open. One returns "tag-or-zero", another returns the
+//     payload-or-empty-string. Both share the same if/else chain.
+{
+  let inputE = lit(obj([("tag", str("Just")), ("value", int_(7))]))
+  let opened = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    inputE,
+  )
+  let justB = branch_(opened, "Just")
+  let nothingB = branch_(opened, "Nothing")
+  let valOrZero = caseClose([
+    {altName: Some("Just"), flow: justB, value: justB},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(int_(0))},
+  ])
+  let tagOnly = caseClose([
+    {altName: Some("Just"), flow: justB, value: lit(str("present"))},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(str("absent"))},
+  ])
+  runTest(
+    ~name="case-split: multi-close — value-or-zero + tag",
+    ~expr=app(bundle2("v", "tag"), [valOrZero, tagOnly]),
+    ~expected=obj([("v", int_(7)), ("tag", str("present"))]),
+  )
+}
+
+// (4) Case-split on a sign predicate: positive → x*x, negative → -x.
+//     The discriminator is a real function (not identity) that maps the
+//     raw int into a tagged shape.
+{
+  let signDisc = arrowExpr(
+    [p("x")],
+    cond(
+      gte(id("x"), int_(0)),
+      obj([("tag", str("Pos")), ("value", id("x"))]),
+      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
+    ),
+  )
+  let mkProg = (n: int): Expr.expr => {
+    let inputE = lit(int_(n))
+    let opened = open_(
+      CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
+      inputE,
+    )
+    let posB = branch_(opened, "Pos")
+    let negB = branch_(opened, "Neg")
+    let square = arrowExpr([p("x")], mul(id("x"), id("x")))
+    caseClose([
+      {altName: Some("Pos"), flow: posB, value: app(square, [posB])},
+      {altName: Some("Neg"), flow: negB, value: negB}, // -x is already in the value port via the disc
+    ])
+  }
+  runTest(
+    ~name="case-split: sign disc — Pos(5) -> 25",
+    ~expr=mkProg(5),
+    ~expected=int_(25),
+  )
+  runTest(
+    ~name="case-split: sign disc — Neg(-7) -> 7",
+    ~expr=mkProg(-7),
+    ~expected=int_(7),
+  )
+}
+
+// (5) Case-split inside a list iteration: for each element of a list of
+//     Maybes, return either `value*2` or `0`, collecting into a list.
+{
+  let input = lit(array_([
+    obj([("tag", str("Just")), ("value", int_(1))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(5))]),
+  ]))
+  let opened = open_(ListIter, input)
+  // Per element: case-split.
+  let inner = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(inner, "Just")
+  let nothingB = branch_(inner, "Nothing")
+  let perElemResult = caseClose([
+    {altName: Some("Just"), flow: justB, value: app(double, [justB])},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(int_(0))},
+  ])
+  runTest(
+    ~name="case-split inside list iter: [Just(1), Nothing, Just(5)] -> [2, 0, 10]",
+    ~expr=close_(ListCollect, opened, perElemResult),
+    ~expected=array_([int_(2), int_(0), int_(10)]),
+  )
+}
+
+// (6) Shared computation across branches: both branches reference a
+//     value computed once outside the if. Verify it's emitted once at
+//     the parent scope.
+{
+  let inputE = lit(obj([("tag", str("Just")), ("value", int_(10))]))
+  let bonus = lit(int_(100))  // shared between Just and Nothing
+  let opened = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    inputE,
+  )
+  let justB = branch_(opened, "Just")
+  let nothingB = branch_(opened, "Nothing")
+  runTest(
+    ~name="case-split: shared `bonus` used in both branches",
+    ~expr=caseClose([
+      {altName: Some("Just"), flow: justB, value: app(jsAdd, [justB, bonus])},
+      {altName: Some("Nothing"), flow: nothingB, value: bonus},
+    ]),
+    ~expected=int_(110),
+  )
+}
+
+// (7) Nested case-splits: outer split of a Maybe<Either<…>>. Just
+//     branch contains another split.
+{
+  let inputE = lit(obj([
+    ("tag", str("Just")),
+    ("value", obj([("tag", str("Right")), ("value", int_(7))])),
+  ]))
+  let outerSplit = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    inputE,
+  )
+  let justB = branch_(outerSplit, "Just")
+  let nothingB = branch_(outerSplit, "Nothing")
+  // Inside Just: split again.
+  let innerSplit = open_(
+    CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
+    justB,
+  )
+  let leftB = branch_(innerSplit, "Left")
+  let rightB = branch_(innerSplit, "Right")
+  let innerResult = caseClose([
+    {altName: Some("Left"), flow: leftB, value: lit(int_(-1))},
+    {altName: Some("Right"), flow: rightB, value: app(double, [rightB])},
+  ])
+  let outerResult = caseClose([
+    {altName: Some("Just"), flow: justB, value: innerResult},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(int_(0))},
+  ])
+  runTest(
+    ~name="case-split: nested Maybe<Either<_, int>> — Just(Right(7)) -> 14",
+    ~expr=outerResult,
+    ~expected=int_(14),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++
