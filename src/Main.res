@@ -1051,6 +1051,101 @@ runTest(
   )
 }
 
+// =====================================================================
+// Filter — the case-split-in-list analogue of Join. Wraps a Branch and
+// tells the consuming Close to push inside that alt's if-body, putting
+// the output array at the surrounding list's parent scope. Lets you
+// keep only the elements whose case matches the filtered alt.
+// =====================================================================
+
+// (1) Basic filter: keep only Justs from a list of Maybes, doubled.
+{
+  let input = lit(array_([
+    obj([("tag", str("Just")), ("value", int_(1))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(5))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(3))]),
+  ]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(split, "Just")
+  runTest(
+    ~name="filter: keep only Justs, doubled",
+    ~expr=close_(filter_(justB), app(double, [justB])),
+    ~expected=array_([int_(2), int_(10), int_(6)]),
+  )
+}
+
+// (2) Filter to identity: just collect the inner values of all Justs.
+{
+  let input = lit(array_([
+    obj([("tag", str("Just")), ("value", int_(7))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(11))]),
+  ]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(split, "Just")
+  runTest(
+    ~name="filter: identity — extract Just values",
+    ~expr=close_(filter_(justB), justB),
+    ~expected=array_([int_(7), int_(11)]),
+  )
+}
+
+// (3) Filter with no matches: input has no Justs.
+{
+  let input = lit(array_([
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Nothing"))]),
+  ]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(split, "Just")
+  runTest(
+    ~name="filter: no Justs in input -> []",
+    ~expr=close_(filter_(justB), app(double, [justB])),
+    ~expected=array_([]),
+  )
+}
+
+// (4) Filter with a real predicate: keep only positive numbers from a
+//     list of ints. Discriminator splits Pos vs Neg; we filter to Pos
+//     and square.
+{
+  let signDisc = arrowExpr(
+    [p("x")],
+    cond(
+      gte(id("x"), int_(0)),
+      obj([("tag", str("Pos")), ("value", id("x"))]),
+      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
+    ),
+  )
+  let input = lit(array_([int_(3), int_(-2), int_(5), int_(0), int_(-7), int_(4)]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
+    opened,
+  )
+  let posB = branch_(split, "Pos")
+  let square = arrowExpr([p("x")], mul(id("x"), id("x")))
+  runTest(
+    ~name="filter: positives only, squared (Pos/Neg disc, [3,-2,5,0,-7,4] -> [9,25,0,16])",
+    ~expr=close_(filter_(posB), app(square, [posB])),
+    ~expected=array_([int_(9), int_(25), int_(0), int_(16)]),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++

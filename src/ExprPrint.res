@@ -38,6 +38,7 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
         })
       | Join({inner}) => visit(inner)
       | Branch({source}) => visit(source)
+      | Filter({inner}) => visit(inner)
       }
       result->Array.push(e)
     }
@@ -59,6 +60,7 @@ let inputsOf = (e: Expr.expr): array<Expr.expr> =>
     branches->Array.flatMap(b => [b.flow, b.value])
   | Join({inner}) => [inner]
   | Branch({source}) => [source]
+  | Filter({inner}) => [inner]
   }
 
 // Greedy chain detection.
@@ -168,6 +170,7 @@ let render = (root: Expr.expr): string => {
       JsPrint.printExpr(discriminator) ++ ")"
     | Close(_) => "close"
     | Join(_) => "join"
+    | Filter(_) => "filter"
     | Branch({alt}) => "." ++ alt
     }
 

@@ -54,7 +54,7 @@ let x = lit(int_(7))
 let y = app(addFn, [x, x])     // both args are the same node
 ```
 
-Six node kinds:
+Seven node kinds:
 
 - **`Lit(JsAst.expr)`** — a literal constant. The payload is any constant
   JS expression (number, string, `Math.PI`, an array or object literal).
@@ -87,6 +87,13 @@ Six node kinds:
   branch.flow). Context determines. A Branch reached by `go` outside
   its alt's case-close scope raises.
 
+- **`Filter({inner})`** — pure flow operation analogous to Join, but
+  for a CaseSplit nested inside a list flow. Wraps a Branch and tells
+  the consuming Close to push *inside that alt's if-body*, putting the
+  output array at the surrounding list's parent scope. The compile
+  target is a `for…of` containing an `if` that pushes only when the
+  filtered alt fires (no `else`). Filter has only a flow output port.
+
 What's supported on the flow side:
 
 - **List-iteration**: single/multi Close per Open, nested loops,
@@ -98,9 +105,13 @@ What's supported on the flow side:
   inside a list iter, list iter inside a case branch, nested
   case-splits, shared values across branches — all work via the same
   scope/memo machinery as list flows.
+- **Filter** for case-split-in-list: `Filter(Branch(Open CaseSplit))`
+  as a list-style Close's flow gives a JS `for…of` containing a
+  guarded `if` that pushes only when the filtered alt fires.
 
 Not yet represented: configuration scopes, effect handles, iteration
-rails, custom flows, commutes, joining a case-split flow.
+rails, custom flows, commutes, multi-filter on one case-split, filter
+under joined lists.
 
 ### Compile pipeline
 
@@ -171,7 +182,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**61 tests** cover:
+**65 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -199,6 +210,9 @@ visibly shared between the unjoined close (#4) and the joined close
   case-split, sign-discriminator that maps raw ints into tagged
   shapes, case-split inside a list iter, shared bonus across branches,
   nested Maybe<Either<…>>.
+- **Filter**: keep only the Justs (doubled), identity filter
+  extracting Just values, no-match input giving `[]`,
+  positives-only-squared with a sign discriminator.
 
 ## Running
 
@@ -234,14 +248,17 @@ These are the natural directions. None is committed to.
   detect: `mutable closed: bool` on `scopeRef`, raise if `bufferOf` is
   asked for a closed scope.
 
+- **Multi-filter and filter mixing.** Today a case-split nested in a
+  list flow can be either filtered (one alt's value flows out to the
+  list) or case-closed exhaustively, but not both. Multiple filters on
+  different alts of the same case-split — partitioning a list — would
+  fall out of generalising the same machinery. Filter under nested /
+  joined lists likewise.
+
 - **Partial conditionals (one-sided case-split).** The spec's
   `PARTIAL_BRANCH` — open just one alt of an alternative type, with
-  the other alt(s) propagating "no value" through. This is what filter
-  is built out of. With case-split in place, it's a natural extension.
-
-- **Joining case-split flows.** What does it mean to "join" a Just
-  flow with the surrounding flow? Not yet implemented — `Join`
-  currently only wraps list openers.
+  the other alt(s) propagating "no value" through. With Filter in
+  place, this is a related but distinct generalisation.
 
 - **More expression node kinds.** `Aggregate`/`Disaggregate` for struct
   construction and field projection, instead of the current

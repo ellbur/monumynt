@@ -63,13 +63,24 @@
 //             branch.flow). Context determines. A Branch reached by
 //             `go` outside its alt's case-close scope raises.
 //
+//   - Filter: pure flow operation analogous to Join, but for a
+//             case-split nested inside a list flow. Wraps a Branch and
+//             tells the consuming Close to push *inside that alt's
+//             if-body* and put the output array at the surrounding
+//             list's parent scope. Lets you express filters: only
+//             elements matching the filtered alt contribute to the
+//             output. Filter has only a flow output port.
+//
 // Currently supported flow combinations:
 //   - (Open ListIter, list Close) — possibly with Joins on the opener.
 //   - (Open CaseSplit, case Close) — exhaustive over the alts.
+//   - (Filter(Branch(Open CaseSplit)), list-style Close) — for a
+//     CaseSplit nested directly inside a ListIter; "filters" the list
+//     to only the rows whose case matches the filtered alt.
 //
 // Other flow kinds (configuration scopes, effects, …) and richer
-// combinations (commutes, joining a case-split flow, …) will be added
-// later.
+// combinations (commutes, joining a case-split flow, multi-filter on
+// one case-split, filter under joined lists, …) will be added later.
 
 type rec expr = {id: int, kind: kind}
 and kind =
@@ -79,6 +90,7 @@ and kind =
   | Close({branches: array<closeBranch>})
   | Join({inner: expr})
   | Branch({source: expr, alt: string})
+  | Filter({inner: expr})
 
 and openFlow =
   | ListIter
@@ -134,4 +146,9 @@ let join_ = (inner: expr): expr => {id: freshId(), kind: Join({inner: inner})}
 let branch_ = (source: expr, alt: string): expr => {
   id: freshId(),
   kind: Branch({source, alt}),
+}
+
+let filter_ = (inner: expr): expr => {
+  id: freshId(),
+  kind: Filter({inner: inner}),
 }
