@@ -105,7 +105,7 @@ Key characteristics:
 - Flows have **identity** separate from the data they contain
 - Multiple flows can exist simultaneously (for parallel iteration, conditional branches, etc.)
 - Flows can be **opened** (created), **operated on**, and **closed** (completed)
-- Flows can be **partitioned** (split into sub-cases) and **joined** (combined)
+- Flows can be **partitioned** (split into sub-cases) and **closed** together (recombined)
 
 ### Flow vs Value Wires
 

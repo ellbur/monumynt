@@ -22,22 +22,23 @@
 //   first hits any Close in a group, the appropriate compileGroup
 //   compiles the entire group atomically.
 //
-//   - `compileListGroup` — for groups whose underlying is `Open ListIter`.
-//     Sets up nested for-of loops (one per Join in the chain), emits
-//     each Close's output array at its own joined-out scope, pushes
-//     each per-iteration value at the deeper of innermost-loop and
-//     value-scope. Reuses already-active scopes from the memo so that
-//     mixed nested + multi-close + joined patterns work.
+//   - `compileListGroup` — for groups whose underlying is `Open ListIter`
+//     (a "list close"). Sets up nested for-of loops (one per Join in
+//     the chain), emits each Close's output array at its own joined-out
+//     scope, pushes each per-iteration value at the deeper of
+//     innermost-loop and value-scope. Reuses already-active scopes from
+//     the memo so that mixed nested + multi-close + joined patterns
+//     work.
 //
-//   - `compileCaseGroup` — for groups whose underlying is `Open CaseSplit`.
-//     Calls the discriminator on the input to get a `{tag, value}`
-//     split. Allocates a `let` result variable per Close. For each alt:
-//     creates a fresh branch scope, memoises every Branch node
-//     referencing (this Open, this alt) to a fresh `const v = split.value;`
-//     binding, compiles each Close's per-alt value subtree, and emits
-//     the per-Close assignment. Then builds an `if (split.tag === alt0)
-//     { ... } else if (...) { ... } else { throw }` chain in the parent
-//     scope.
+//   - `compileCaseGroup` — for groups whose underlying is `Open CaseSplit`
+//     (a "case close"). Calls the discriminator on the input to get a
+//     `{tag, value}` split. Allocates a `let` result variable per Close.
+//     For each alt: creates a fresh branch scope, memoises every Branch
+//     node referencing (this Open, this alt) to a fresh `const v =
+//     split.value;` binding, compiles each Close's per-alt value
+//     subtree, and emits the per-Close assignment. Then builds an
+//     `if (split.tag === alt0) { ... } else if (...) { ... } else
+//     { throw }` chain in the parent scope.
 //
 //   Open, Branch, and Join nodes are never compiled "directly". An
 //   Open's element / a Branch's value port is bound by the surrounding
@@ -49,8 +50,7 @@
 //   - Nested list flows are supported.
 //   - Joined list flows are supported, with arbitrary join depth.
 //   - Mixed join counts within a list-flow group are supported.
-//   - Case-split (Open CaseSplit / Close CaseJoin) is supported with
-//     exhaustive branches.
+//   - Case-split flows are supported with exhaustive branches.
 //   - Joining a case-split flow is not supported (Joins are list-only
 //     for now).
 //   - No commutes, no other flow kinds.
@@ -168,26 +168,21 @@ let gatherOpenerChain = (start: Expr.expr, joinDepth: int): array<Expr.expr> => 
   chain
 }
 
-// Given a Close, find the underlying Open it ultimately consumes:
-//   - For ListCollect: peel any Joins off branches[0].flow.
-//   - For CaseJoin: branches[0].flow must be a Branch node; its source
-//     is the underlying CaseSplit Open. (All branches must reference
-//     the same source — validated separately at compile time.)
+// Given a Close, find the underlying Open it ultimately consumes. We
+// distinguish list-close vs case-close by the shape of branches[0].flow:
+//   - If it's a Branch node, the close is a case close and the
+//     Branch's source is the underlying CaseSplit Open.
+//   - Otherwise it's a list close; peel any Joins off the flow to find
+//     the underlying ListIter Open.
 let underlyingOpenerForClose = (close: Expr.expr): Expr.expr =>
   switch close.kind {
-  | Close({flow: ListCollect, branches}) =>
-    let firstFlow = (branches->Array.getUnsafe(0)).flow
-    let (u, _) = unwrapJoinedOpener(firstFlow)
-    u
-  | Close({flow: CaseJoin, branches}) =>
+  | Close({branches}) =>
     let firstFlow = (branches->Array.getUnsafe(0)).flow
     switch firstFlow.kind {
     | Branch({source}) => source
     | _ =>
-      failwith(
-        "CaseJoin Close must have each branch's flow be a Branch node " ++
-        "referencing the underlying CaseSplit Open.",
-      )
+      let (u, _) = unwrapJoinedOpener(firstFlow)
+      u
     }
   | _ =>
     failwith(
@@ -293,7 +288,7 @@ let rec go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         Int.toString(e.id) ++
         ") was reached as a value. A Join is a pure flow operation — it " ++
         "has only a flow output port, no value output port — and should " ++
-        "appear only in the `flow` field of a ListCollect Close's branch.",
+        "appear only in the `flow` field of a list Close's branch.",
       )
     | Branch(_) =>
       failwith(
@@ -301,9 +296,9 @@ let rec go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         Int.toString(e.id) ++
         ") was reached as a value outside its case-close scope. A Branch's " ++
         "value port is only meaningful inside the corresponding alt's " ++
-        "branch in a CaseJoin Close.",
+        "branch in a case Close.",
       )
-    | Close({flow}) =>
+    | Close(_) =>
       let underlying = underlyingOpenerForClose(e)
       let group = mustGet(
         ctx.closeGroups,
@@ -314,15 +309,16 @@ let rec go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         Int.toString(underlying.id) ++
         ").",
       )
-      switch (flow, underlying.kind) {
-      | (ListCollect, Open({flow: ListIter})) =>
+      switch underlying.kind {
+      | Open({flow: ListIter}) =>
         compileListGroup(ctx, underlying, group)
-      | (CaseJoin, Open({flow: CaseSplit(_)})) =>
+      | Open({flow: CaseSplit(_)}) =>
         compileCaseGroup(ctx, underlying, group)
       | _ =>
         failwith(
-          "Mismatched Close flow and underlying Open flow for Close id=" ++
-          Int.toString(e.id),
+          "Internal error: underlying opener for Close (id=" ++
+          Int.toString(e.id) ++
+          ") is not an Open node.",
         )
       }
       mustGet(
@@ -351,26 +347,33 @@ and compileListGroup = (
     )
   }
 
-  // Each list-collect Close has exactly one branch (altName=None,
+  // Each list close has exactly one branch (altName=None,
   // flow=opener-with-joins, value=per-iteration expression).
   let closesData = group->Array.map(c =>
     switch c.kind {
-    | Close({flow: ListCollect, branches}) =>
+    | Close({branches}) =>
       if Array.length(branches) != 1 {
         failwith(
-          "ListCollect Close must have exactly one branch, but Close (id=" ++
+          "A list close must have exactly one branch, but Close (id=" ++
           Int.toString(c.id) ++
           ") has " ++
           Int.toString(Array.length(branches)) ++ ".",
         )
       }
       let branch = branches->Array.getUnsafe(0)
+      switch branch.altName {
+      | None => ()
+      | Some(name) =>
+        failwith(
+          "A list close's branch must have altName=None, but Close (id=" ++
+          Int.toString(c.id) ++
+          ")'s branch has altName=Some(\"" ++ name ++ "\").",
+        )
+      }
       let (_, joinCount) = unwrapJoinedOpener(branch.flow)
       (c, branch.value, joinCount)
     | _ =>
-      failwith(
-        "Internal error: compileListGroup got a non-ListCollect Close.",
-      )
+      failwith("Internal error: compileListGroup got a non-Close.")
     }
   )
 
@@ -519,7 +522,7 @@ and emitForOfs = (
   }
 }
 
-// CaseSplit / CaseJoin compile.
+// Case-split / case-close compile.
 //
 //   const v_split = disc(input);
 //   let v_close_0;
@@ -550,18 +553,28 @@ and compileCaseGroup = (
     )
   }
 
-  // Validate every Close's branches: CaseJoin, all branch.flow are
-  // Branch nodes referencing this underlying Open, and altNames cover
-  // every alt exactly once.
+  // Validate every Close's branches: each branch.flow is a Branch node
+  // referencing this underlying Open, each branch has altName = Some,
+  // and altNames cover every alt exactly once.
   group->Array.forEach(c =>
     switch c.kind {
-    | Close({flow: CaseJoin, branches}) =>
-      branches->Array.forEach(b =>
+    | Close({branches}) =>
+      branches->Array.forEach(b => {
+        switch b.altName {
+        | Some(_) => ()
+        | None =>
+          failwith(
+            "A case close's branches must each have altName=Some(name), " ++
+            "but Close (id=" ++
+            Int.toString(c.id) ++
+            ") has a branch with altName=None.",
+          )
+        }
         switch b.flow.kind {
         | Branch({source}) =>
           if source.id != underlying.id {
             failwith(
-              "CaseJoin Close (id=" ++
+              "Case close (id=" ++
               Int.toString(c.id) ++
               ") has a branch whose flow's source is a different Open " ++
               "than the rest of the group's underlying.",
@@ -569,23 +582,23 @@ and compileCaseGroup = (
           }
         | _ =>
           failwith(
-            "CaseJoin Close (id=" ++
+            "Case close (id=" ++
             Int.toString(c.id) ++
             ") branch.flow must be a Branch node.",
           )
         }
-      )
+      })
       // Every alt must be covered exactly once.
       alts->Array.forEach(altName => {
         let count = branches->Array.reduce(0, (acc, b) =>
           switch b.altName {
-          | Some(name) when name == altName => acc + 1
+          | Some(name) if name == altName => acc + 1
           | _ => acc
           }
         )
         if count != 1 {
           failwith(
-            "CaseJoin Close (id=" ++
+            "Case close (id=" ++
             Int.toString(c.id) ++
             ") must have exactly one branch for alt \"" ++
             altName ++
@@ -595,9 +608,7 @@ and compileCaseGroup = (
         }
       })
     | _ =>
-      failwith(
-        "Internal error: compileCaseGroup got a non-CaseJoin Close.",
-      )
+      failwith("Internal error: compileCaseGroup got a non-Close.")
     }
   )
 

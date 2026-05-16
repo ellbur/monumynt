@@ -68,19 +68,22 @@ Six node kinds:
       value for case-by-case dispatch. `discriminator` is a JS function
       `(input) => {tag, value}`. *N* value outputs and *N* flow outputs
       (one per alt). Specific ports are referenced via `Branch`.
-- **`Close({flow, branches})`** — closes a flow. `branches` is an
-  array of `{altName, flow, value}`:
-    - For `ListCollect`: exactly one branch with `altName: None`.
-    - For `CaseJoin`: one branch per alt with `altName: Some(name)`,
-      `flow` a `Branch` node selecting that alt's flow port, and the
-      per-alt `value` expression.
+- **`Close({branches})`** — closes one or more flows. `branches` is an
+  array of `{altName, flow, value}`. The kind of close is determined
+  by the underlying Open it consumes:
+    - List close (underlying is `Open ListIter`): exactly one branch
+      with `altName: None`, `flow` the opener (possibly Join-wrapped),
+      `value` the per-iteration expression to push.
+    - Case close (underlying is `Open CaseSplit`): one branch per alt
+      with `altName: Some(name)`, `flow` a `Branch` selecting that
+      alt's flow port, and the per-alt `value` expression.
 - **`Join({inner})`** — a *pure* flow operation: wraps a list-iteration
   opener and tells the consuming Close to flatten one level on output.
   Stacking gives more levels. Join has only a flow output port; calling
   `go` on one raises.
 - **`Branch({source, alt})`** — picks an output port from a CaseSplit
   Open. The same Branch node serves both roles — value port (used as a
-  value in App args, etc.) or flow port (used as a CaseJoin Close's
+  value in App args, etc.) or flow port (used as a case Close's
   branch.flow). Context determines. A Branch reached by `go` outside
   its alt's case-close scope raises.
 
@@ -89,7 +92,7 @@ What's supported on the flow side:
 - **List-iteration**: single/multi Close per Open, nested loops,
   joined closes (stacking Joins gives N-level flatten), mixed joined +
   unjoined closes on one opener.
-- **Case-split**: `Open CaseSplit` + `Close CaseJoin` over an
+- **Case-split**: `Open CaseSplit` + a case `Close` over an
   alternative type, exhaustive over the alts. Multi-close on a
   case-split (multiple result variables, one if/else chain). Case-split
   inside a list iter, list iter inside a case branch, nested

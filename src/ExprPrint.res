@@ -4,9 +4,10 @@
 // per line. Single-input ops chain together with `->`; multi-input ops
 // list their inputs at the start of a line and produce one new value.
 //
-// For Close, the source is rendered with structure:
-//   - ListCollect: `<flow>, <value>` — the single (flow, value) pair.
-//   - CaseJoin: `Just: <flow>/<value>, Nothing: <flow>/<value>, …` —
+// Both kinds of Close render as `close`. The source list distinguishes
+// them:
+//   - List close: `<flow>, <value>` — the single (flow, value) pair.
+//   - Case close: `Just: <flow>/<value>, Nothing: <flow>/<value>, …` —
 //     one labelled (alt: flow/value) per branch.
 //
 // Open kinds are rendered as their name plus a small descriptor:
@@ -165,8 +166,7 @@ let render = (root: Expr.expr): string => {
       alts->Array.join(", ") ++
       "}, " ++
       JsPrint.printExpr(discriminator) ++ ")"
-    | Close({flow: ListCollect}) => "close"
-    | Close({flow: CaseJoin}) => "caseJoin"
+    | Close(_) => "close"
     | Join(_) => "join"
     | Branch({alt}) => "." ++ alt
     }
@@ -190,12 +190,19 @@ let render = (root: Expr.expr): string => {
   let shouldEmit = (chain: array<Expr.expr>): bool =>
     !(Array.length(chain) == 1 && inlineable->Map.has((chain->Array.getUnsafe(0)).id))
 
-  // Render the source-list that prefixes a chain. For Close-CaseJoin
-  // we structure it as `Just: flow/value, Nothing: flow/value`; for
-  // everything else it's a plain comma-separated list.
+  // Render the source-list that prefixes a chain. Case closes (whose
+  // first branch's flow is a Branch node) get a structured form like
+  // `Just: flow/value, Nothing: flow/value`; everything else is a plain
+  // comma-separated list.
   let renderSource = (head: Expr.expr): string =>
     switch head.kind {
-    | Close({flow: CaseJoin, branches}) =>
+    | Close({branches})
+      if (
+        switch (branches->Array.getUnsafe(0)).flow.kind {
+        | Branch(_) => true
+        | _ => false
+        }
+      ) =>
       branches
       ->Array.map(b => {
         let altLabel = switch b.altName {

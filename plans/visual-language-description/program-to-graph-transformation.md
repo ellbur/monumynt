@@ -244,7 +244,7 @@ Each node kind defines **named output ports** that correspond to the `outputName
 - **Label**: `"@"` (the collect/recollect symbol) with variant indicator
 - **Inputs vary by variant**:
   - *Iteration*: `value` + `flow` (one each)
-  - *CaseJoin*: one `value` + `flow` pair per alternative
+  - *Case*: one `value` + `flow` pair per alternative
   - *ConfigScope*: slot outputs + `flow`
 - **Outputs**: `"result"` — one value port
 - **Annotations**: Variant label as corner badge

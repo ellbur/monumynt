@@ -218,7 +218,7 @@ For `ConfigScope`, the inputs are whatever the diagram requires, and the outputs
 
 ### Collect
 
-Destroys a flow by "closing" an iteration, case join, or configuration scope.
+Destroys a flow by "closing" an iteration, case split, or configuration scope.
 
 ```
 Collect:
@@ -234,14 +234,14 @@ Collect:
 CollectVariant:
   | Iteration(operation: OperationName, value: ValueSource, flow: FlowSource)
 
-  | CaseJoin(alternativeType: AlternativeType, branches: Map<AlternativeName, {value: ValueSource, flow: FlowSource}>)
+  | Case(alternativeType: AlternativeType, branches: Map<AlternativeName, {value: ValueSource, flow: FlowSource}>)
 
   | ConfigScope(diagram: DiagramId, slotName: String, slotOutputs: Map<String, ValueSource>, flow: FlowSource)
 ```
 
 For `Iteration`, the inputs are the computed value and flow; the output is the collected result (e.g., a list).
 
-For `CaseJoin`, each branch provides its computed value and flow; the output is the rejoined alternative value.
+For `Case`, each branch provides its computed value and flow; the output is the recombined alternative value.
 
 For `ConfigScope`, the inputs are what the slot produced plus the flow; the outputs are what the diagram produces.
 
@@ -774,7 +774,7 @@ Flows created by different mechanisms have different capabilities:
 - Represent being in a particular branch of a sum type
 - Cannot be case-split further (they already represent a specific case)
 - No zipper structure
-- Must eventually be rejoined via Collect CaseJoin
+- Must eventually be recombined via Collect Case
 
 **Opaque flows** (from Uncollect ConfigScope):
 - Cannot be case-split or inspected

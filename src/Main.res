@@ -327,7 +327,7 @@ runTest(
 
 // =====================================================================
 // Flow tests. Single-open / single-close list iteration only — Open is
-// always ListIter, Close is always ListCollect. The compiled output is
+// always ListIter, Close is a list close. The compiled output is
 // a `for…of` loop that builds an array and pushes per-iteration values
 // into it. Loop-invariant computations are hoisted to the outer level.
 // =====================================================================
@@ -339,7 +339,7 @@ runTest(
   let opened = open_(ListIter, input)
   runTest(
     ~name="list iter: identity map of [1,2,3]",
-    ~expr=close_(ListCollect, opened, opened),
+    ~expr=close_(opened, opened),
     ~expected=array_([int_(1), int_(2), int_(3)]),
   )
 }
@@ -351,7 +351,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let opened = open_(ListIter, input)
   runTest(
     ~name="list iter: map double over [1,2,3]",
-    ~expr=close_(ListCollect, opened, app(double, [opened])),
+    ~expr=close_(opened, app(double, [opened])),
     ~expected=array_([int_(2), int_(4), int_(6)]),
   )
 }
@@ -362,7 +362,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let opened = open_(ListIter, input)
   runTest(
     ~name="list iter: map double over []",
-    ~expr=close_(ListCollect, opened, app(double, [opened])),
+    ~expr=close_(opened, app(double, [opened])),
     ~expected=array_([]),
   )
 }
@@ -377,7 +377,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let square = app(jsMul, [opened, opened])
   runTest(
     ~name="list iter: square — element shared inside body",
-    ~expr=close_(ListCollect, opened, square),
+    ~expr=close_(opened, square),
     ~expected=array_([int_(4), int_(9), int_(16)]),
   )
 }
@@ -393,7 +393,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let ten = lit(int_(10))
   runTest(
     ~name="list iter: loop-invariant constant hoisted out",
-    ~expr=close_(ListCollect, opened, app(jsAdd, [ten, opened])),
+    ~expr=close_(opened, app(jsAdd, [ten, opened])),
     ~expected=array_([int_(11), int_(12), int_(13)]),
   )
 }
@@ -406,7 +406,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let k = lit(int_(100))
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
-  let mapped = close_(ListCollect, opened, app(jsAdd, [k, opened]))
+  let mapped = close_(opened, app(jsAdd, [k, opened]))
   runTest(
     ~name="list iter: shared k=100 used both inside and outside loop",
     ~expr=app(bundle2("base", "mapped"), [k, mapped]),
@@ -423,7 +423,7 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
   let lengthOf = arrowExpr([p("a")], member(id("a"), "length"))
   let input = lit(array_([int_(5), int_(10), int_(15), int_(20)]))
   let opened = open_(ListIter, input)
-  let mapped = close_(ListCollect, opened, app(double, [opened]))
+  let mapped = close_(opened, app(double, [opened]))
   runTest(
     ~name="list iter: post-process — length of mapped result",
     ~expr=app(lengthOf, [mapped]),
@@ -446,8 +446,8 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
-  let doubled = close_(ListCollect, opened, app(double, [opened]))
-  let tripled = close_(ListCollect, opened, app(triple, [opened]))
+  let doubled = close_(opened, app(double, [opened]))
+  let tripled = close_(opened, app(triple, [opened]))
   runTest(
     ~name="multi-close: doubled and tripled, one loop two pushes",
     ~expr=app(bundle2("doubled", "tripled"), [doubled, tripled]),
@@ -463,9 +463,9 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let plusOne = arrowExpr([p("x")], add(id("x"), int_(1)))
   let input = lit(array_([int_(10), int_(20), int_(30)]))
   let opened = open_(ListIter, input)
-  let asIs = close_(ListCollect, opened, opened)
-  let dbl = close_(ListCollect, opened, app(double, [opened]))
-  let inc = close_(ListCollect, opened, app(plusOne, [opened]))
+  let asIs = close_(opened, opened)
+  let dbl = close_(opened, app(double, [opened]))
+  let inc = close_(opened, app(plusOne, [opened]))
   runTest(
     ~name="multi-close: identity + double + +1, one loop three pushes",
     ~expr=app(bundle3("a", "b", "c"), [asIs, dbl, inc]),
@@ -487,8 +487,8 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let square = app(jsMul, [opened, opened])
   let one = lit(int_(1))
   let two = lit(int_(2))
-  let close1 = close_(ListCollect, opened, app(jsAdd, [square, one]))
-  let close2 = close_(ListCollect, opened, app(jsMul, [square, two]))
+  let close1 = close_(opened, app(jsAdd, [square, one]))
+  let close2 = close_(opened, app(jsMul, [square, two]))
   runTest(
     ~name="multi-close: shared intermediate (square computed once per iter)",
     ~expr=app(bundle2("plusOne", "timesTwo"), [close1, close2]),
@@ -507,8 +507,8 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let opened = open_(ListIter, input)
   let ten = lit(int_(10))
   let hundred = lit(int_(100))
-  let plus10 = close_(ListCollect, opened, app(jsAdd, [ten, opened]))
-  let plus100 = close_(ListCollect, opened, app(jsAdd, [hundred, opened]))
+  let plus10 = close_(opened, app(jsAdd, [ten, opened]))
+  let plus100 = close_(opened, app(jsAdd, [hundred, opened]))
   runTest(
     ~name="multi-close: each Close has its own loop-invariant constant",
     ~expr=app(bundle2("p10", "p100"), [plus10, plus100]),
@@ -525,10 +525,10 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 {
   let inputA = lit(array_([int_(1), int_(2), int_(3)]))
   let openedA = open_(ListIter, inputA)
-  let resultA = close_(ListCollect, openedA, app(double, [openedA]))
+  let resultA = close_(openedA, app(double, [openedA]))
   let inputB = lit(array_([int_(10), int_(20)]))
   let openedB = open_(ListIter, inputB)
-  let resultB = close_(ListCollect, openedB, app(triple, [openedB]))
+  let resultB = close_(openedB, app(triple, [openedB]))
   runTest(
     ~name="two independent loops in sequence",
     ~expr=app(bundle2("first", "second"), [resultA, resultB]),
@@ -546,8 +546,8 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
-  let doubled = close_(ListCollect, opened, app(double, [opened]))
-  let tripled = close_(ListCollect, opened, app(triple, [opened]))
+  let doubled = close_(opened, app(double, [opened]))
+  let tripled = close_(opened, app(triple, [opened]))
   runTest(
     ~name="multi-close: one Close used twice downstream + sibling Close",
     ~expr=app(bundle3("d1", "d2", "t"), [doubled, doubled, tripled]),
@@ -574,11 +574,10 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let outerOpened = open_(ListIter, input)
   let innerOpened = open_(ListIter, outerOpened)
   let innerClosed = close_(
-    ListCollect,
     innerOpened,
     app(double, [innerOpened]),
   )
-  let outerClosed = close_(ListCollect, outerOpened, innerClosed)
+  let outerClosed = close_(outerOpened, innerClosed)
   runTest(
     ~name="nested list flows: double each elem of [[1,2],[3,4]]",
     ~expr=outerClosed,
@@ -601,11 +600,10 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let outerOpened = open_(ListIter, input)
   let innerOpened = open_(ListIter, outerOpened)
   let innerClosed = close_(
-    ListCollect,
     innerOpened,
     app(double, [innerOpened]),
   )
-  let outerClosed = close_(ListCollect, outerOpened, innerClosed)
+  let outerClosed = close_(outerOpened, innerClosed)
   runTest(
     ~name="nested list flows: with an empty inner list",
     ~expr=outerClosed,
@@ -630,17 +628,15 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let outerOpened = open_(ListIter, input)
   let innerOpened = open_(ListIter, outerOpened)
   let innerDoubled = close_(
-    ListCollect,
     innerOpened,
     app(double, [innerOpened]),
   )
   let innerTripled = close_(
-    ListCollect,
     innerOpened,
     app(triple, [innerOpened]),
   )
   let perOuter = app(bundle2("d", "t"), [innerDoubled, innerTripled])
-  let outerClosed = close_(ListCollect, outerOpened, perOuter)
+  let outerClosed = close_(outerOpened, perOuter)
   runTest(
     ~name="nested + multi-close on inner: each outer elem -> {d, t}",
     ~expr=outerClosed,
@@ -673,8 +669,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   runTest(
     ~name="join: nested map flattened — [[1,2],[3,4]] -> [2,4,6,8]",
     ~expr=close_(
-      ListCollect,
-      join_(innerOpened),
+        join_(innerOpened),
       app(double, [innerOpened]),
     ),
     ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
@@ -692,7 +687,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let innerOpened = open_(ListIter, outerOpened)
   runTest(
     ~name="join: flatten of [[1,2],[],[3]] -> [1,2,3]",
-    ~expr=close_(ListCollect, join_(innerOpened), innerOpened),
+    ~expr=close_(join_(innerOpened), innerOpened),
     ~expected=array_([int_(1), int_(2), int_(3)]),
   )
 }
@@ -704,7 +699,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let innerOpened = open_(ListIter, outerOpened)
   runTest(
     ~name="join: empty outer -> []",
-    ~expr=close_(ListCollect, join_(innerOpened), innerOpened),
+    ~expr=close_(join_(innerOpened), innerOpened),
     ~expected=array_([]),
   )
 }
@@ -723,8 +718,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   runTest(
     ~name="join: with hoisted constant — flat list of x+10",
     ~expr=close_(
-      ListCollect,
-      join_(innerOpened),
+        join_(innerOpened),
       app(jsAdd, [ten, innerOpened]),
     ),
     ~expected=array_([int_(11), int_(12), int_(13)]),
@@ -744,8 +738,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   runTest(
     ~name="join x2: flatten of [[[1,2],[3]],[[4]]] mapped *2 -> [2,4,6,8]",
     ~expr=close_(
-      ListCollect,
-      join_(join_(l3)),
+        join_(join_(l3)),
       app(double, [l3]),
     ),
     ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
@@ -761,14 +754,12 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let openOuter1 = open_(ListIter, input)
   let openInner1 = open_(ListIter, openOuter1)
   let nested = close_(
-    ListCollect,
     openOuter1,
-    close_(ListCollect, openInner1, app(double, [openInner1])),
+    close_(openInner1, app(double, [openInner1])),
   )
   let openOuter2 = open_(ListIter, input)
   let openInner2 = open_(ListIter, openOuter2)
   let flat = close_(
-    ListCollect,
     join_(openInner2),
     app(double, [openInner2]),
   )
@@ -807,9 +798,9 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   ]))
   let outer = open_(ListIter, input)
   let inner = open_(ListIter, outer)
-  let unjoined = close_(ListCollect, inner, app(double, [inner]))
-  let flat = close_(ListCollect, join_(inner), app(double, [inner]))
-  let nested = close_(ListCollect, outer, unjoined)
+  let unjoined = close_(inner, app(double, [inner]))
+  let flat = close_(join_(inner), app(double, [inner]))
+  let nested = close_(outer, unjoined)
   runTest(
     ~name="mixed: unjoined + joined on one opener; nested wraps unjoined",
     ~expr=app(bundle2("nested", "flat"), [nested, flat]),
@@ -835,9 +826,9 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let outer = open_(ListIter, input)
   let inner = open_(ListIter, outer)
   let body = app(double, [inner])  // shared between both closes
-  let unjoined = close_(ListCollect, inner, body)
-  let flat = close_(ListCollect, join_(inner), body)
-  let nested = close_(ListCollect, outer, unjoined)
+  let unjoined = close_(inner, body)
+  let flat = close_(join_(inner), body)
+  let nested = close_(outer, unjoined)
   runTest(
     ~name="mixed (shared body): one double per iter, two pushes",
     ~expr=app(bundle2("nested", "flat"), [nested, flat]),
@@ -854,7 +845,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 // =====================================================================
 // Case-split flow. `Open CaseSplit({alts, discriminator})` opens an
 // alternative-typed value into one value port + one flow port per alt.
-// `Branch({source, alt})` selects a port. `Close CaseJoin` collects the
+// `Branch({source, alt})` selects a port. A case `Close` collects the
 // branches back together. The compile target is an `if/else if/else`
 // chain with a `let v_close` per Close, assigned in each branch.
 // =====================================================================
@@ -998,7 +989,7 @@ runTest(
   ])
   runTest(
     ~name="case-split inside list iter: [Just(1), Nothing, Just(5)] -> [2, 0, 10]",
-    ~expr=close_(ListCollect, opened, perElemResult),
+    ~expr=close_(opened, perElemResult),
     ~expected=array_([int_(2), int_(0), int_(10)]),
   )
 }
