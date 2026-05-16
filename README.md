@@ -240,7 +240,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**79 tests** cover:
+**80 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -287,7 +287,10 @@ visibly shared between the unjoined close (#4) and the joined close
   loop's element but is referenced only by an option-close's
   per-iter value sinks into the if-body, so it runs only on
   Some-iters even though its inputs would otherwise place it
-  unconditionally in the loop body.
+  unconditionally in the loop body. The flip side is also pinned:
+  an App that depends only on outer values but is used inside a
+  loop body *stays* outside the loop (computed once), because the
+  loopDepth cap forbids sinking past a list-iter boundary.
 
 ## Running
 

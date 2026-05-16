@@ -1435,6 +1435,26 @@ runTest(
   )
 }
 
+// (2) The flip side: an App that depends only on outer values but is
+//     used inside a loop body MUST NOT sink into the loop (that would
+//     turn a once-per-program computation into a once-per-iteration
+//     one). The loopDepth cap on the sink pass guarantees this. The
+//     generated JS for this test has the `const v_magic = ...` line
+//     OUTSIDE the for-of.
+{
+  let l1 = lit(int_(100))
+  let l2 = lit(int_(50))
+  let magic = app(jsAdd, [l1, l2])
+  let inE = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, inE)
+  let perIter = app(jsAdd, [magic, opened])
+  runTest(
+    ~name="sink: outer-only App used inside loop stays outside (loopDepth cap)",
+    ~expr=close_(NodeFlow(opened), perIter),
+    ~expected=array_([int_(151), int_(152), int_(153)]),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++

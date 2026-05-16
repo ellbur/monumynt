@@ -171,6 +171,13 @@ and iterLoopData = {
   // The iter body scope (loop body or if body). Push consumers append
   // into this buffer.
   scope: scopeRef,
+  // Set true the first time a consume moves this iter's placeholder
+  // to the end of its parent buffer. Subsequent consumes of the same
+  // flow (multi-close on one opener) leave the placeholder alone —
+  // otherwise the second move would overshoot any stmts the first
+  // consume's *parent* emitted into the same buffer after the first
+  // move.
+  mutable placeholderMoved: bool,
   // For ListLoop: identifier bound by the for-of header.
   // For OptionLoop: the identifier the option input compiled to
   // (also used in the if test as `elemName !== undefined`).
@@ -213,6 +220,8 @@ and caseDispatchData = {
   // Set by case-close consumers; finalisation adds an else-throw if
   // true.
   mutable demandsExhaustive: bool,
+  // Same purpose as iterLoopData.placeholderMoved.
+  mutable dispPlaceholderMoved: bool,
   // BranchOf flows cached by alt name, so distinct Branch nodes for
   // the same (this CaseDispatch, alt) share one v binding.
   altBranchCache: Map.t<string, openFlow>,
@@ -440,6 +449,19 @@ let recordConsumer = (
   arr->Array.push(c)
 }
 
+// Splice `stmt` out of its current position in `buf` and push it to
+// the end. Used at the end of each consume to relocate the flow's
+// placeholder past any Apps the consume's value-subtree just emitted
+// to the same buffer — preserving the OLD-code invariant that the
+// for-of / if-chain comes after all of the work that feeds into it.
+let moveToEnd = (buf: array<JsAst.stmt>, stmt: JsAst.stmt): unit =>
+  switch buf->Array.indexOfOpt(stmt) {
+  | Some(i) =>
+    buf->Array.splice(~start=i, ~remove=1, ~insert=[])
+    buf->Array.push(stmt)
+  | None => ()
+  }
+
 // Peel any Joined wrappers off a flowRef; return the inner flowRef and
 // the number of Joineds peeled.
 let unwrapJoinedRef = (fr: Expr.flowRef): (Expr.flowRef, int) => {
@@ -482,6 +504,7 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
           id: e.id,
           kind: ListLoop({
             scope,
+            placeholderMoved: false,
             elemName,
             parentBuf,
             placeholder,
@@ -520,6 +543,7 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
           id: e.id,
           kind: OptionLoop({
             scope,
+            placeholderMoved: false,
             elemName,
             parentBuf,
             placeholder,
@@ -563,6 +587,7 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
             preDispatchBuf: [],
             dispInputNode: input,
             demandsExhaustive: false,
+            dispPlaceholderMoved: false,
             altBranchCache: Map.make(),
           }),
         }
@@ -949,6 +974,27 @@ and consumeIterClose = (
   let (valueExpr, valueScope) = go(ctx, branch.value)
   let pushBuf = bufferOf(ctx, deeper(Some(innerScope), valueScope))
   pushBuf->Array.push(pushStmt(valueExpr))
+  // Move the iter's placeholder past any Apps the value subtree just
+  // emitted into the same parent buffer, so the for-of / if ends up
+  // *after* its inputs even when value compilation produced bindings
+  // at the parent scope. Only the *first* consume of a given flow
+  // does the move; subsequent consumes (multi-close on one opener)
+  // leave the placeholder alone, since later moves could overshoot
+  // stmts the first consume's parent emitted into the same buffer
+  // after the first move.
+  switch innermost.kind {
+  | ListLoop(d) =>
+    if !d.placeholderMoved {
+      moveToEnd(d.parentBuf, d.placeholder)
+      d.placeholderMoved = true
+    }
+  | OptionLoop(d) =>
+    if !d.placeholderMoved {
+      moveToEnd(d.parentBuf, d.placeholder)
+      d.placeholderMoved = true
+    }
+  | _ => ()
+  }
 }
 
 and consumeCaseClose = (
@@ -1038,6 +1084,14 @@ and consumeCaseClose = (
       JsBuild.exprStmt(JsBuild.assign(JsBuild.id(resultName), valueExpr)),
     )
   })
+  // Move the dispatch's placeholder past any Apps emitted into its
+  // parent buffer during value compilation, so the if-chain ends up
+  // after its inputs. (See iter close for the why-only-first
+  // explanation.)
+  if !dispatchData.dispPlaceholderMoved {
+    moveToEnd(dispatchData.dispParentBuf, dispatchData.dispPlaceholder)
+    dispatchData.dispPlaceholderMoved = true
+  }
 }
 
 and consumeFilterClose = (
@@ -1121,6 +1175,12 @@ and consumeFilterClose = (
       ),
     ),
   )
+  // Move the case-dispatch's placeholder past any Apps emitted into
+  // its parent buffer during value compilation. (Only first consume.)
+  if !dispatchData.dispPlaceholderMoved {
+    moveToEnd(dispatchData.dispParentBuf, dispatchData.dispPlaceholder)
+    dispatchData.dispPlaceholderMoved = true
+  }
 }
 
 // --- Finalisation: replace placeholders with for-of / if-chain ---
