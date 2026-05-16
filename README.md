@@ -147,41 +147,35 @@ rails, custom flows, commutes.
 - `compileToIIFE(e)` wraps the body in `(() => { …; return v_N; })()`
   so the result is a single self-contained JS expression.
 
-Three design ideas drive the compile:
+The compile is deliberately simple: **every Expr node becomes a lazy
+JS binding; every reference forces.** No placement analysis, no
+sinking, no clever ordering — runtime laziness handles "compute only
+when needed" and "compute only once" automatically. Each binding goes
+in the scope its inputs deem (`deeper(args' bodies)`), and that's it.
 
-1. **Flows are first-class entities.** A `flowRef` (from Expr.res)
-   names a flow — `NodeFlow(e)` refers to a node's flow output port,
-   `Joined(inner)` and `Filtered(inner)` are pure structural wrappers.
-   `flowFor(ctx, fr: flowRef)` returns the `openFlow` for that ref,
-   constructing it lazily on first reference (and memoising by the
-   underlying node id for NodeFlow refs). Constructing an Open ListIter
-   sets up a loop scope and pushes a placeholder stmt into its parent
-   buffer; constructing an Open CaseSplit emits `const split = disc
-   (input)` and pushes a placeholder for the if-chain; constructing a
-   Branch picks an alt off its source's CaseDispatch and emits a
-   `const v = split.value` at the top of that alt's scope (cached per
-   `(CaseDispatch, alt)` so distinct Branch nodes share it).
+Runtime helpers emitted at the top of each IIFE:
 
-2. **`go(ctx, e: expr)` is the value-port entry point** and returns
-   `(JsAst.expr, option<scopeRef>)` — the JS expression *and* the
-   innermost loop scope the value lives in. `Open ListIter` returns
-   the per-iteration element binding (built or cached via `flowFor`);
-   `Branch` returns the per-alt v binding; `Close` calls a consumer
-   that attaches lazily to existing flows. `Open CaseSplit` has no
-   single value port and `failwith`s (use Branch for per-alt values).
+```js
+const __lazy__ = (t) => ({v: undefined, t, c: false});
+const __lazyDone__ = (v) => ({v, t: null, c: true});
+const __force__ = (z) => {
+  if (!z.c) { z.v = z.t(); z.t = null; z.c = true; }
+  return z.v;
+};
+```
 
-3. **One node = one binding, memoised by id**. A node visited more than
-   once compiles to a single binding; subsequent encounters return the
-   cached value. Sharing a node = `let`-binding it in ReScript.
+Each Close compiles to one lazy whose thunk contains the entire
+iteration logic (for-of, if, if-chain, or nested combinations).
+Multi-close on one opener compiles to one lazy per close; each thunk
+iterates independently — the cost of the simple model.
 
-Apps emit eagerly during DFS at `deeper(args' scopes)`, then a sink
-pass moves each App as deep as its consumers allow — bounded by a
-`loopDepth` cap so we never sink past a list-iter boundary
-(which would turn a once-per-outer-iter computation into a per-inner-
-iter one). The practical effect: a value used only inside an option's
-some-body or a case-split alt lands inside that body, computed only
-on the iterations where the body fires. No runtime laziness; just
-compile-time placement that follows where values actually flow.
+An earlier compile did compile-time consumer-driven placement with a
+loopDepth-bounded sink pass to generate much tighter JS for pure
+code. It was retired in favour of runtime laziness so the language
+semantics could move forward without optimisation logic in the
+compiler; see `plans/placement-algorithm-notes.md` for the design and
+how it could come back as an optimisation pass on top of the lazy
+default.
 
 Closes are pure consumers, no preprocess pass. `consumeListClose`
 walks Joineds to find the innermost loop and join depth; pushes a
@@ -283,14 +277,13 @@ visibly shared between the unjoined close (#4) and the joined close
   joined (Some only if both fire); Option<List<X>> joined (list
   built only when outer fires); List<Option<X>> joined (list of
   just the defined values — push when defined, skip otherwise).
-- **Sinking**: a per-element App that depends only on the outer
-  loop's element but is referenced only by an option-close's
-  per-iter value sinks into the if-body, so it runs only on
-  Some-iters even though its inputs would otherwise place it
-  unconditionally in the loop body. The flip side is also pinned:
-  an App that depends only on outer values but is used inside a
-  loop body *stays* outside the loop (computed once), because the
-  loopDepth cap forbids sinking past a list-iter boundary.
+- **Sinking** (sink-into-conditional and stay-outside-loops): these
+  tests still pass with the current runtime-lazy compile because
+  laziness handles both naturally — the per-elem App's lazy is
+  only forced if the option fires; the outer-only App's lazy is
+  forced once across the loop. The compile-time placement that used
+  to give the same effect at zero runtime cost is preserved at
+  `plans/placement-algorithm-notes.md` for possible future revival.
 
 ## Running
 
