@@ -25,40 +25,47 @@
 //   - Open CaseSplit:  failwith — no single value port (use Branch).
 //
 // `flowFor` dispatches by flowRef:
-//   - NodeFlow(e):  look up e.id in flowMemo; on miss, construct based
-//                   on e.kind:
-//                   - Open ListIter:   ListLoop {scope, elemName,
-//                                       parentBuf, placeholder,
-//                                       preLoopBuf, …}.
-//                   - Open CaseSplit:  CaseDispatch {parentScope,
-//                                       parentBuf, placeholder,
-//                                       splitName, alts, altScopes,
-//                                       preDispatchBuf, …}.
-//                   - Branch:          BranchOf {source = the
-//                                       CaseDispatch, alt, valueName,
-//                                       altScope}. Per-(CaseDispatch,
-//                                       alt) cached so distinct Branch
-//                                       nodes share one v binding.
+//   - NodeFlow(e):  look up e.id in flowMemo; on miss, construct
+//                   based on e.kind:
+//                   - Open ListIter:    ListLoop(iterLoopData).
+//                                        Wrapper at finalise is for-of.
+//                   - Open OptionIter:  OptionLoop(iterLoopData).
+//                                        Emits `const v_elem =
+//                                        disc(input)` at construction;
+//                                        wrapper at finalise is
+//                                        `if (v_elem !== undefined)`.
+//                                        Body runs zero or one times.
+//                   - Open CaseSplit:   CaseDispatch {…}.
+//                   - Branch:           BranchOf {source = the
+//                                        CaseDispatch, alt, valueName,
+//                                        altScope}. Per-(CaseDispatch,
+//                                        alt) cached so distinct Branch
+//                                        nodes share one v binding.
 //                   - Lit / App / Close:  failwith — these nodes have
 //                                          no flow output port (this
 //                                          is the remaining hole the
 //                                          Expr types can't catch
 //                                          without GADTs).
-//   - Joined(inner):   pure structural wrapper; just constructs
-//                      Joined({inner: flowFor(inner)}). No emission.
-//                      Allowed inners: ListLoop, another Joined,
-//                      Filtered (Joined-on-Filtered = filter-under-
-//                      joined-lists; the Joined lifts the output a
-//                      level higher).
+//   - Joined(inner):   pure structural wrapper. Allowed inners: any
+//                      iter flow (ListLoop / OptionLoop), another
+//                      Joined (stacked), or a Filtered. Mixed iter
+//                      chains are fine — what makes joins between
+//                      option and list flows work.
 //   - Filtered(inner): pure structural wrapper. Allowed inner: BranchOf.
 //
 // Consumers (Closes) attach lazily — no preprocess, no group
-// coordination:
+// coordination. consumeListClose and consumeOptionClose share the
+// same shape via the `consumeIterClose` helper; they differ only in
+// the iter-kind check and the output allocation / push form (array +
+// .push vs let + assign):
 //   - consumeListClose — branch.flow = Joined^N(NodeFlow(opener)).
-//     Walks Joineds to count joinDepth; walks `joinDepth` Open.input
-//     levels up to find the outermost loop; pushes `const out = []`
-//     into that loop's preLoopBuf; compiles the per-iteration value;
-//     pushes into the innermost loop's body.
+//     Walks Joineds to count joinDepth; walks `joinDepth` iter levels
+//     up via the inputNode chain to find the outermost iter (which
+//     may itself be a ListLoop or OptionLoop); pushes `const out =
+//     []` into that outermost's preLoopBuf; compiles the per-iter
+//     value; pushes into the innermost loop's body.
+//   - consumeOptionClose — same shape but `let out;` and `out =
+//     value`. The body runs zero or one times.
 //   - consumeCaseClose — branch.flow = NodeFlow(branch). Validates
 //     each branch references the same CaseDispatch and covers each
 //     alt once; flips dispatch.demandsExhaustive on; pushes
@@ -104,29 +111,45 @@ and openFlow = {
   kind: openFlowKind,
 }
 and openFlowKind =
-  | ListLoop(listLoopData)
+  // A list iter — `for (const elem of input) { ... }`. Consumer
+  // pushes via `out.push(value)`; output is `const out = []`.
+  | ListLoop(iterLoopData)
+  // An option iter — `if (elem !== undefined) { ... }` where `elem`
+  // is the discriminator's result, bound just above the if. Consumer
+  // pushes via `out = value`; output is `let out;` (undefined by
+  // default). Body runs zero or one times.
+  | OptionLoop(iterLoopData)
   | CaseDispatch(caseDispatchData)
   | Joined({inner: openFlow})
   | BranchOf(branchOfData)
   | Filtered({inner: openFlow})
-and listLoopData = {
-  // The loop body (per-iteration scope). Push consumers append into
-  // this buffer.
+// Data shared by ListLoop and OptionLoop — both are "iter flows" with
+// the same scope / preLoopBuf / placeholder bookkeeping; they differ
+// only in their finalisation target (for-of vs if) and in the push
+// semantics their consumers use.
+and iterLoopData = {
+  // The iter body scope (loop body or if body). Push consumers append
+  // into this buffer.
   scope: scopeRef,
-  // Identifier bound by the for-of header.
+  // For ListLoop: identifier bound by the for-of header.
+  // For OptionLoop: identifier bound just before the if to the
+  // discriminator's result (the some-value or undefined).
   elemName: string,
-  // The buffer the for-of statement will be spliced into.
+  // The buffer the for-of / if statement will be spliced into.
   parentBuf: array<JsAst.stmt>,
   // Sentinel pushed into parentBuf at construction; replaced at
-  // finalisation by [...preLoopBuf, for-of].
+  // finalisation by [...preLoopBuf, for-of-or-if].
   placeholder: JsAst.stmt,
-  // Bindings that need to live above the for-of (e.g., output
-  // arrays). Spliced in immediately before the for-of at finalise.
+  // Bindings that need to live above the for-of / if (e.g., output
+  // arrays / let-decls). Spliced in immediately before the wrapper
+  // statement at finalise.
   preLoopBuf: array<JsAst.stmt>,
-  // The compiled JS expression for the loop's input list.
+  // For ListLoop: the compiled JS expression for the loop's input
+  // list. For OptionLoop: unused (the elem binding already holds the
+  // disc result).
   inputJsExpr: JsAst.expr,
   // The Expr.expr the Open's `input` field pointed to. Used to walk
-  // further up a list chain by re-flowFor-ing.
+  // further up an iter chain by re-flowFor-ing.
   inputNode: Expr.expr,
 }
 and caseDispatchData = {
@@ -281,6 +304,38 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
         ctx.pendingLoops->Array.push(f)
         f
 
+      | Open({flow: OptionIter({discriminator}), input}) =>
+        // Compile the input, emit `const v_elem = disc(input)` (the
+        // some-value or undefined), push a placeholder for the if
+        // statement.
+        let (inputJsExpr, parentScope) = go(ctx, input)
+        let parentBuf = bufferOf(ctx, parentScope)
+        let elemName = ctx.fresh()
+        parentBuf->Array.push(
+          JsBuild.const(elemName, JsBuild.call(discriminator, [inputJsExpr])),
+        )
+        let scope = {
+          buffer: [],
+          depth: depthOf(parentScope) + 1,
+          parent: parentScope,
+        }
+        let placeholder = JsAst.SBlock([])
+        parentBuf->Array.push(placeholder)
+        let f = {
+          id: e.id,
+          kind: OptionLoop({
+            scope,
+            elemName,
+            parentBuf,
+            placeholder,
+            preLoopBuf: [],
+            inputJsExpr,
+            inputNode: input,
+          }),
+        }
+        ctx.pendingLoops->Array.push(f)
+        f
+
       | Open({flow: CaseSplit({alts, discriminator}), input}) =>
         // Compile the input value (which for the case-split-in-list
         // pattern triggers an inner ListLoop's construction); emit
@@ -383,14 +438,15 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
   | Joined(inner) =>
     let innerFlow = flowFor(ctx, inner)
     switch innerFlow.kind {
-    // Valid wraps: a list iter (basic join), an already-Joined (for
-    // stacked joins), or a Filtered (filter under joined lists — the
-    // Joined lifts the output above one more list level).
-    | ListLoop(_) | Joined(_) | Filtered(_) => ()
+    // Valid wraps: any iter flow (ListLoop, OptionLoop), an already-
+    // Joined (for stacked joins), or a Filtered (filter under joined
+    // lists — the Joined lifts the output above one more list level).
+    | ListLoop(_) | OptionLoop(_) | Joined(_) | Filtered(_) => ()
     | _ =>
       failwith(
-        "Joined wraps a flow that isn't a list iter or filter — Joined " ++
-        "is only meaningful on ListLoop, another Joined, or a Filtered.",
+        "Joined wraps a flow that isn't an iter or filter — Joined " ++
+        "is only meaningful on ListLoop, OptionLoop, another Joined, " ++
+        "or a Filtered.",
       )
     }
     {id: -1, kind: Joined({inner: innerFlow})}
@@ -438,6 +494,20 @@ and go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         failwith(
           "Internal error: flowFor for an Open ListIter (id=" ++
           Int.toString(e.id) ++ ") didn't return a ListLoop.",
+        )
+      }
+
+    | Open({flow: OptionIter(_)}) =>
+      // The per-some elem binding (= disc result) is the value port.
+      // Note: it lives at the parent scope but is only semantically
+      // meaningful inside the if body — we report it as living in
+      // the if's scope so consumers' deeper(...) keeps them inside.
+      switch (flowFor(ctx, NodeFlow(e))).kind {
+      | OptionLoop({scope, elemName}) => (JsBuild.id(elemName), Some(scope))
+      | _ =>
+        failwith(
+          "Internal error: flowFor for an Open OptionIter (id=" ++
+          Int.toString(e.id) ++ ") didn't return an OptionLoop.",
         )
       }
 
@@ -501,6 +571,7 @@ and consumeClose = (ctx: compileCtx, close: Expr.expr): unit =>
     | BranchOf(_) => consumeCaseClose(ctx, close, branches)
     | Filtered(_) => consumeFilterClose(ctx, close, branches)
     | ListLoop(_) => consumeListClose(ctx, close, branches)
+    | OptionLoop(_) => consumeOptionClose(ctx, close, branches)
     | _ =>
       failwith(
         "Close (id=" ++
@@ -511,46 +582,74 @@ and consumeClose = (ctx: compileCtx, close: Expr.expr): unit =>
   | _ => failwith("Internal error: consumeClose called on non-Close.")
   }
 
-// Walk up N ListLoop levels via the `inputNode` chain. Each step
-// expects the next inputNode to be another Open ListIter; raises
-// with a clear message otherwise.
-and walkUpListLoopChain = (
+// Walk up N iter-flow levels via the `inputNode` chain. Each step
+// expects the current flow to be a ListLoop or OptionLoop and the
+// next level (looked up by flowFor on the current's inputNode) to
+// also be one; raises with a clear message otherwise. Mixed
+// List/Option chains are fine — that's what makes joins between
+// option and list flows work.
+and walkUpIterChain = (
   ctx: compileCtx,
   start: openFlow,
   depth: int,
 ): openFlow => {
+  let iterInputNode = (f: openFlow) =>
+    switch f.kind {
+    | ListLoop({inputNode}) | OptionLoop({inputNode}) => Some(inputNode)
+    | _ => None
+    }
   let curr = ref(start)
   for _ in 1 to depth {
-    let inputNode = switch (curr.contents).kind {
-    | ListLoop({inputNode}) => inputNode
-    | _ =>
+    let inputNode = switch iterInputNode(curr.contents) {
+    | Some(n) => n
+    | None =>
       failwith(
-        "Internal error: walkUpListLoopChain step from non-ListLoop.",
+        "Internal error: walkUpIterChain step from a non-iter flow.",
       )
     }
     curr := flowFor(ctx, NodeFlow(inputNode))
-    switch (curr.contents).kind {
-    | ListLoop(_) => ()
-    | _ =>
+    if iterInputNode(curr.contents) == None {
       failwith(
-        "Walking up the list-iter chain expected an Open ListIter at " ++
-        "each level, but the chain ran out before the requested depth.",
+        "Walking up the iter chain expected a ListLoop or OptionLoop " ++
+        "at each level, but the chain ran out before the requested depth.",
       )
     }
   }
   curr.contents
 }
 
-and consumeListClose = (
+// Extract the preLoopBuf from any iter flow (ListLoop or OptionLoop).
+and iterPreLoopBuf = (f: openFlow): array<JsAst.stmt> =>
+  switch f.kind {
+  | ListLoop({preLoopBuf}) | OptionLoop({preLoopBuf}) => preLoopBuf
+  | _ => failwith("Internal: iterPreLoopBuf called on non-iter flow.")
+  }
+
+// Helper for both list and option closes: validate single branch,
+// walk Joineds, find innermost iter flow + joinDepth + innermost
+// scope, find outermost flow in the chain, allocate the output
+// binding in the outermost's preLoopBuf, register the close in
+// ctx.memo, compile the value, and push via `emitPush`.
+//
+// `expectInnermost` is "list" or "option" — controls the kind check
+// and the close-style label used in error messages.
+// `allocOut` allocates the output stmt (e.g. `const v = []` or
+// `let v;`) and returns the name.
+// `emitPush` produces the push stmt given the out name and the
+// compiled value expression.
+and consumeIterClose = (
   ctx: compileCtx,
   close: Expr.expr,
   branches: array<Expr.closeBranch>,
+  closeStyle: string,
+  expectInnermost: openFlow => option<scopeRef>,
+  allocOut: string => JsAst.stmt,
+  emitPush: (string, JsAst.expr) => JsAst.stmt,
 ): unit => {
   if Array.length(branches) != 1 {
     failwith(
-      "A list close must have exactly one branch, but Close (id=" ++
-      Int.toString(close.id) ++
-      ") has " ++
+      "A " ++ closeStyle ++ " close must have exactly one branch, " ++
+      "but Close (id=" ++ Int.toString(close.id) ++ ") has " ++
       Int.toString(Array.length(branches)) ++ ".",
     )
   }
@@ -559,57 +658,91 @@ and consumeListClose = (
   | None => ()
   | Some(name) =>
     failwith(
-      "A list close's branch must have altName=None, but Close (id=" ++
-      Int.toString(close.id) ++
+      "A " ++ closeStyle ++ " close's branch must have altName=None, " ++
+      "but Close (id=" ++ Int.toString(close.id) ++
       ")'s branch has altName=Some(\"" ++ name ++ "\").",
     )
   }
 
-  // Walk Joineds to find the innermost ListLoop and the joinDepth.
+  // Walk Joineds to find the innermost iter flow and the joinDepth.
   let flow = flowFor(ctx, branch.flow)
-  let rec unwrapList = (f: openFlow, depth: int) =>
+  let rec unwrapIter = (f: openFlow, depth: int) =>
     switch f.kind {
-    | ListLoop(_) => (f, depth)
-    | Joined({inner}) => unwrapList(inner, depth + 1)
-    | _ =>
-      failwith(
-        "Internal error: list-close flow is not a ListLoop / Joined chain.",
-      )
+    | Joined({inner}) => unwrapIter(inner, depth + 1)
+    | _ => (f, depth)
     }
-  let (innermostListFlow, joinDepth) = unwrapList(flow, 0)
-  let innerLoopScope = switch innermostListFlow.kind {
-  | ListLoop({scope}) => scope
-  | _ => failwith("Internal: unwrapList didn't return a ListLoop.")
+  let (innermost, joinDepth) = unwrapIter(flow, 0)
+  let innerScope = switch expectInnermost(innermost) {
+  | Some(s) => s
+  | None =>
+    failwith(
+      "Internal error: " ++ closeStyle ++ "-close innermost flow has " ++
+      "the wrong kind.",
+    )
   }
 
-  // Walk `joinDepth` levels up to find the outermost loop in the
-  // chain; its preLoopBuf is where the output array goes.
-  let outermost = walkUpListLoopChain(ctx, innermostListFlow, joinDepth)
-  let outermostPreLoopBuf = switch outermost.kind {
-  | ListLoop({preLoopBuf}) => preLoopBuf
-  | _ => failwith("Internal: walkUpListLoopChain didn't return a ListLoop.")
-  }
+  // Walk `joinDepth` levels up to find the outermost iter in the
+  // chain; its preLoopBuf is where the output binding goes.
+  let outermost = walkUpIterChain(ctx, innermost, joinDepth)
+  let outermostPreLoopBuf = iterPreLoopBuf(outermost)
 
-  // Allocate the output array in the outermost loop's preLoopBuf
-  // (so it's spliced in immediately before the for-of at finalise).
+  // Allocate the output binding in the outermost iter's preLoopBuf.
   let outName = ctx.fresh()
-  outermostPreLoopBuf->Array.push(JsBuild.const(outName, JsBuild.array_([])))
-  let outScope = walkUp(Some(innerLoopScope), joinDepth + 1)
+  outermostPreLoopBuf->Array.push(allocOut(outName))
+  let outScope = walkUp(Some(innerScope), joinDepth + 1)
   ctx.memo->Map.set(close.id, (JsBuild.id(outName), outScope))
 
   // Compile the per-iteration value, push at the deeper of innermost
-  // loop scope and value scope.
+  // iter scope and value scope.
   let (valueExpr, valueScope) = go(ctx, branch.value)
-  let pushBuf = bufferOf(ctx, deeper(Some(innerLoopScope), valueScope))
-  pushBuf->Array.push(
-    JsBuild.exprStmt(
-      JsBuild.call(
-        JsBuild.member(JsBuild.id(outName), "push"),
-        [valueExpr],
-      ),
-    ),
-  )
+  let pushBuf = bufferOf(ctx, deeper(Some(innerScope), valueScope))
+  pushBuf->Array.push(emitPush(outName, valueExpr))
 }
+
+and consumeListClose = (
+  ctx: compileCtx,
+  close: Expr.expr,
+  branches: array<Expr.closeBranch>,
+): unit =>
+  consumeIterClose(
+    ctx,
+    close,
+    branches,
+    "list",
+    f =>
+      switch f.kind {
+      | ListLoop({scope}) => Some(scope)
+      | _ => None
+      },
+    name => JsBuild.const(name, JsBuild.array_([])),
+    (name, value) =>
+      JsBuild.exprStmt(
+        JsBuild.call(
+          JsBuild.member(JsBuild.id(name), "push"),
+          [value],
+        ),
+      ),
+  )
+
+and consumeOptionClose = (
+  ctx: compileCtx,
+  close: Expr.expr,
+  branches: array<Expr.closeBranch>,
+): unit =>
+  consumeIterClose(
+    ctx,
+    close,
+    branches,
+    "option",
+    f =>
+      switch f.kind {
+      | OptionLoop({scope}) => Some(scope)
+      | _ => None
+      },
+    name => JsBuild.letDecl(name),
+    (name, value) =>
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(name), value)),
+  )
 
 and consumeCaseClose = (
   ctx: compileCtx,
@@ -753,11 +886,8 @@ and consumeFilterClose = (
       "but it isn't.",
     )
   }
-  let outermost = walkUpListLoopChain(ctx, innermostListFlow, joinDepth)
-  let outermostPreLoopBuf = switch outermost.kind {
-  | ListLoop({preLoopBuf}) => preLoopBuf
-  | _ => failwith("Internal: walkUpListLoopChain didn't return a ListLoop.")
-  }
+  let outermost = walkUpIterChain(ctx, innermostListFlow, joinDepth)
+  let outermostPreLoopBuf = iterPreLoopBuf(outermost)
 
   let outName = ctx.fresh()
   outermostPreLoopBuf->Array.push(JsBuild.const(outName, JsBuild.array_([])))
@@ -779,24 +909,44 @@ and consumeFilterClose = (
 // --- Finalisation: replace placeholders with for-of / if-chain ---
 
 let finalizeLoops = (ctx: compileCtx): unit =>
-  ctx.pendingLoops->Array.forEach(loopFlow =>
-    switch loopFlow.kind {
-    | ListLoop({parentBuf, placeholder, preLoopBuf, scope, elemName, inputJsExpr}) =>
-      let idx = switch parentBuf->Array.indexOfOpt(placeholder) {
-      | Some(i) => i
-      | None =>
+  ctx.pendingLoops->Array.forEach(loopFlow => {
+    // Common bookkeeping: locate the placeholder, build the wrapper
+    // statement, splice in [...preLoopBuf, wrapper].
+    let (parentBuf, placeholder, preLoopBuf, wrapperStmt, label) =
+      switch loopFlow.kind {
+      | ListLoop({parentBuf, placeholder, preLoopBuf, scope, elemName, inputJsExpr}) => (
+          parentBuf,
+          placeholder,
+          preLoopBuf,
+          JsBuild.forOf(elemName, inputJsExpr, scope.buffer),
+          "ListLoop",
+        )
+      | OptionLoop({parentBuf, placeholder, preLoopBuf, scope, elemName}) =>
+        // if (v_elem !== undefined) { ... }
+        let test = JsBuild.neq(JsBuild.id(elemName), JsBuild.undefined)
+        (
+          parentBuf,
+          placeholder,
+          preLoopBuf,
+          JsBuild.if_(test, scope.buffer),
+          "OptionLoop",
+        )
+      | _ =>
         failwith(
-          "Internal error: ListLoop placeholder not found in its parent " ++
-          "buffer at finalisation time.",
+          "Internal: pendingLoops entry is not a ListLoop or OptionLoop.",
         )
       }
-      let forOfStmt = JsBuild.forOf(elemName, inputJsExpr, scope.buffer)
-      let replacement = Array.concat(preLoopBuf, [forOfStmt])
-      parentBuf->Array.splice(~start=idx, ~remove=1, ~insert=replacement)
-    | _ =>
-      failwith("Internal: pendingLoops entry is not a ListLoop.")
+    let idx = switch parentBuf->Array.indexOfOpt(placeholder) {
+    | Some(i) => i
+    | None =>
+      failwith(
+        "Internal error: " ++ label ++ " placeholder not found in its " ++
+        "parent buffer at finalisation time.",
+      )
     }
-  )
+    let replacement = Array.concat(preLoopBuf, [wrapperStmt])
+    parentBuf->Array.splice(~start=idx, ~remove=1, ~insert=replacement)
+  })
 
 let finalizeDispatches = (ctx: compileCtx): unit =>
   ctx.pendingDispatches->Array.forEach(dispatchFlow =>

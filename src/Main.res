@@ -1282,6 +1282,118 @@ runTest(
   )
 }
 
+// =============================================================
+// Option-flow tests.
+// =============================================================
+//
+// Discriminator: identity. The Open OptionIter input is `value-or-
+// undefined`; if undefined, the body doesn't run; otherwise, the
+// body runs once with `value` bound to elem.
+
+// (1) Basic option iter: Some(5) → doubled = 10; default via `?? "none"`.
+{
+  let optClose = (input: JsAst.expr) => {
+    let inE = lit(input)
+    let opened = open_(OptionIter({discriminator: identity}), inE)
+    close_(NodeFlow(opened), app(double, [opened]))
+  }
+  // Wrap to default undefined → "none" so jsonStringify gives a string.
+  let withDefault = (closeExpr) =>
+    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [closeExpr])
+  runTest(
+    ~name="option iter: Some(5) doubled",
+    ~expr=withDefault(optClose(int_(5))),
+    ~expected=int_(10),
+  )
+  runTest(
+    ~name="option iter: None (undefined) → 'none'",
+    ~expr=withDefault(optClose(undefined)),
+    ~expected=str("none"),
+  )
+}
+
+// (2) Multi-close on one option: doubled and tripled in parallel.
+{
+  let inE = lit(int_(7))
+  let opened = open_(OptionIter({discriminator: identity}), inE)
+  let doubled = close_(NodeFlow(opened), app(double, [opened]))
+  let tripled = close_(NodeFlow(opened), app(triple, [opened]))
+  runTest(
+    ~name="option iter: multi-close (doubled + tripled from Some(7))",
+    ~expr=app(bundle2("d", "t"), [doubled, tripled]),
+    ~expected=obj([("d", int_(14)), ("t", int_(21))]),
+  )
+}
+
+// (3) Option<Option<X>> joined. Inner option's close, joined, lifts
+//     output to outer option's parent. Result is Some only if both
+//     outer and inner options fire.
+{
+  let optOptDoubled = (input: JsAst.expr) => {
+    let inE = lit(input)
+    let outer = open_(OptionIter({discriminator: identity}), inE)
+    let inner = open_(OptionIter({discriminator: identity}), outer)
+    let result = close_(join_(NodeFlow(inner)), app(double, [inner]))
+    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [result])
+  }
+  runTest(
+    ~name="option<option>: Some(Some(5)) joined-inner doubled → 10",
+    ~expr=optOptDoubled(int_(5)),
+    ~expected=int_(10),
+  )
+  runTest(
+    ~name="option<option>: Some(undefined) joined-inner → 'none'",
+    ~expr=optOptDoubled(undefined),
+    ~expected=str("none"),
+  )
+}
+
+// (4) Option<List<X>> joined: inner list close, joined, lifts output
+//     list above the if. Result is List<X> (empty if outer option
+//     didn't fire).
+{
+  let optListDoubled = (input: JsAst.expr) => {
+    let inE = lit(input)
+    let outer = open_(OptionIter({discriminator: identity}), inE)
+    let inner = open_(ListIter, outer)
+    close_(join_(NodeFlow(inner)), app(double, [inner]))
+  }
+  runTest(
+    ~name="option<list>: Some([1,2,3]) joined-inner doubled → [2,4,6]",
+    ~expr=optListDoubled(array_([int_(1), int_(2), int_(3)])),
+    ~expected=array_([int_(2), int_(4), int_(6)]),
+  )
+  runTest(
+    ~name="option<list>: None joined-inner → []",
+    ~expr=optListDoubled(undefined),
+    ~expected=array_([]),
+  )
+}
+
+// (5) List<Option<X>> joined: inner option close, joined, lifts the
+//     `let v_out;` above the for-of. Each iteration's option may
+//     fire and reassign v_out; the final value is the last firing
+//     (or undefined if none fired).
+{
+  let listOptLast = (input: JsAst.expr) => {
+    let inE = lit(input)
+    let outer = open_(ListIter, inE)
+    let inner = open_(OptionIter({discriminator: identity}), outer)
+    let result = close_(join_(NodeFlow(inner)), app(double, [inner]))
+    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [result])
+  }
+  runTest(
+    ~name="list<option>: [u,3,u,7,u] joined-inner doubled → last firing 14",
+    ~expr=listOptLast(array_([undefined, int_(3), undefined, int_(7), undefined])),
+    ~expected=int_(14),
+  )
+  runTest(
+    ~name="list<option>: [u,u,u] joined-inner → 'none' (no firings)",
+    ~expr=listOptLast(array_([undefined, undefined, undefined])),
+    ~expected=str("none"),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++

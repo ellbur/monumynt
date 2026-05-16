@@ -62,13 +62,17 @@ Two mutually recursive types: `expr` (value-typed) and `flowRef`
 - **`App({fn, args})`** — a function application. `fn` is itself a
   `JsAst.expr` (typically an identifier or member access); `args` are
   sub-expressions in this language.
-- **`Open({flow, input})`** — opens a flow. Two flow kinds so far:
+- **`Open({flow, input})`** — opens a flow. Three flow kinds so far:
     - `ListIter` — open a list for element-by-element iteration. One
       value output (the current element) and one flow output.
     - `CaseSplit({alts, discriminator})` — open an alternative-typed
       value for case-by-case dispatch. `discriminator` is a JS function
       `(input) => {tag, value}`. *N* value outputs (reached via
       `Branch`) and one flow output (the dispatch).
+    - `OptionIter({discriminator})` — open an option-typed value for
+      zero-or-one iteration. `discriminator` is a JS function
+      `(input) => value-or-undefined`; the body runs once iff the
+      result is not undefined. Compiles to an `if (...)` statement.
 - **`Close({branches})`** — closes one or more flows. `branches` is an
   array of `{altName, flow: flowRef, value: expr}`. The kind of close
   is determined by the shape of `branches[0].flow` (after peeling
@@ -76,7 +80,12 @@ Two mutually recursive types: `expr` (value-typed) and `flowRef`
     - List close (underlying is `NodeFlow(open_ListIter)`): one
       branch with `altName: None`, `value` the per-iteration push
       expression. Joineds on top lift the output array up that many
-      list levels.
+      iter levels.
+    - Option close (underlying is `NodeFlow(open_OptionIter)`): one
+      branch with `altName: None`, `value` the some-case value. The
+      output is `let v_out;` (undefined by default), assigned inside
+      the if body. Joineds on top lift the let above that many
+      enclosing iter levels.
     - Case close (underlying is `NodeFlow(branch_)`): one branch per
       alt with `altName: Some(name)`, `flow` a `NodeFlow` selecting
       that alt's flow port, and the per-alt `value` expression.
@@ -96,9 +105,10 @@ Three `flowRef` constructors:
   time if the node turns out to have no flow output port (Lit, App,
   Close); this is the one well-formedness check the types can't catch
   without GADTs.
-- **`Joined(flowRef)`** — wraps a list-iter flow (or another Joined,
-  or a Filtered) and tells the consuming Close to lift the output
-  array one more list level.
+- **`Joined(flowRef)`** — wraps an iter flow (ListLoop, OptionLoop,
+  another Joined, or a Filtered) and tells the consuming Close to
+  lift the output one more iter level. Mixed iter chains are fine
+  (List under Option, Option under List, etc.).
 - **`Filtered(flowRef)`** — wraps a Branch flow (on a CaseSplit nested
   in a list) and tells the consuming Close to push *inside that alt's
   if-body*. The compile target is a `for…of` containing an `if` that
@@ -215,7 +225,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**69 tests** cover:
+**78 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -253,6 +263,11 @@ visibly shared between the unjoined close (#4) and the joined close
   case-split (one shared discriminator + if-chain producing both a
   per-iteration scalar via list-close on the outer iter and a
   filtered subset via filter-close).
+- **Option flow**: Some(v) doubled, None defaulted; multi-close on
+  one option (doubled + tripled in parallel); Option<Option<X>>
+  joined (Some only if both fire); Option<List<X>> joined (list
+  built only when outer fires); List<Option<X>> joined (last
+  firing wins; empty input → none).
 
 ## Running
 
