@@ -1146,6 +1146,101 @@ runTest(
   )
 }
 
+// (5) Multi-filter — partition: one filter per alt. Two output lists,
+//     one for each branch. Single for-of with an if/else-if chain
+//     pushing to the right output per alt.
+{
+  let input = lit(array_([
+    obj([("tag", str("Just")), ("value", int_(1))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(5))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(3))]),
+  ]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(split, "Just")
+  let nothingB = branch_(split, "Nothing")
+  let justs = close_(filter_(justB), app(double, [justB]))
+  let nothings = close_(filter_(nothingB), lit(int_(99)))
+  runTest(
+    ~name="multi-filter: partition Maybes into doubled-Justs and 99-per-Nothing",
+    ~expr=app(bundle2("justs", "nothings"), [justs, nothings]),
+    ~expected=obj([
+      ("justs", array_([int_(2), int_(10), int_(6)])),
+      ("nothings", array_([int_(99), int_(99)])),
+    ]),
+  )
+}
+
+// (5b) Filter under joined nested lists. The case-split's input is a
+//      Join-wrapped inner list iter, so the filter close compiles to
+//      two nested for-ofs followed by an if. The output is a single
+//      flat list, filtered to only the Justs and doubled.
+{
+  let input = lit(array_([
+    array_([
+      obj([("tag", str("Just")), ("value", int_(1))]),
+      obj([("tag", str("Nothing"))]),
+    ]),
+    array_([
+      obj([("tag", str("Just")), ("value", int_(5))]),
+      obj([("tag", str("Nothing"))]),
+      obj([("tag", str("Just")), ("value", int_(3))]),
+    ]),
+    array_([]),
+  ]))
+  let outer = open_(ListIter, input)
+  let inner = open_(ListIter, outer)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    join_(inner),
+  )
+  let justB = branch_(split, "Just")
+  runTest(
+    ~name="filter under joined nested lists: flatten + filter Justs, doubled",
+    ~expr=close_(filter_(justB), app(double, [justB])),
+    ~expected=array_([int_(2), int_(10), int_(6)]),
+  )
+}
+
+// (6) Multi-filter targeting the same alt — two filter closes both
+//     filtering "Pos", producing two parallel output lists. Each push
+//     happens inside the same Pos if-body.
+{
+  let signDisc = arrowExpr(
+    [p("x")],
+    cond(
+      gte(id("x"), int_(0)),
+      obj([("tag", str("Pos")), ("value", id("x"))]),
+      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
+    ),
+  )
+  let input = lit(array_([int_(2), int_(-3), int_(4), int_(-1)]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
+    opened,
+  )
+  let posB = branch_(split, "Pos")
+  let posDoubled = close_(filter_(posB), app(double, [posB]))
+  let posSquared = close_(
+    filter_(posB),
+    app(arrowExpr([p("x")], mul(id("x"), id("x"))), [posB]),
+  )
+  runTest(
+    ~name="multi-filter: same alt, two parallel outputs (doubled + squared)",
+    ~expr=app(bundle2("doubled", "squared"), [posDoubled, posSquared]),
+    ~expected=obj([
+      ("doubled", array_([int_(4), int_(8)])),
+      ("squared", array_([int_(4), int_(16)])),
+    ]),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++

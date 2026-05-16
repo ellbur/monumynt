@@ -110,8 +110,8 @@ What's supported on the flow side:
   guarded `if` that pushes only when the filtered alt fires.
 
 Not yet represented: configuration scopes, effect handles, iteration
-rails, custom flows, commutes, multi-filter on one case-split, filter
-under joined lists.
+rails, custom flows, commutes, mixing filter and exhaustive case-close
+on the same case-split.
 
 ### Compile pipeline
 
@@ -182,7 +182,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**65 tests** cover:
+**68 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -212,7 +212,10 @@ visibly shared between the unjoined close (#4) and the joined close
   nested Maybe<Either<…>>.
 - **Filter**: keep only the Justs (doubled), identity filter
   extracting Just values, no-match input giving `[]`,
-  positives-only-squared with a sign discriminator.
+  positives-only-squared with a sign discriminator, multi-filter
+  partition (Justs + Nothings into two output arrays), multi-filter
+  same alt (two parallel outputs from one branch), filter under
+  joined nested lists (flatten + filter in one chain).
 
 ## Running
 
@@ -248,12 +251,12 @@ These are the natural directions. None is committed to.
   detect: `mutable closed: bool` on `scopeRef`, raise if `bufferOf` is
   asked for a closed scope.
 
-- **Multi-filter and filter mixing.** Today a case-split nested in a
-  list flow can be either filtered (one alt's value flows out to the
-  list) or case-closed exhaustively, but not both. Multiple filters on
-  different alts of the same case-split — partitioning a list — would
-  fall out of generalising the same machinery. Filter under nested /
-  joined lists likewise.
+- **Filter mixing.** Today a case-split nested in a list flow can be
+  either filtered (one or more alts' values flow out to the list) or
+  case-closed exhaustively, but not both at once on the same
+  case-split. Allowing the two close styles to coexist on one
+  case-split would let you both filter into a list *and* surface a
+  per-alt value at the surrounding scope in the same diagram.
 
 - **Partial conditionals (one-sided case-split).** The spec's
   `PARTIAL_BRANCH` — open just one alt of an alternative type, with

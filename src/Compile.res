@@ -187,7 +187,11 @@ let underlyingOpenerForClose = (close: Expr.expr): Expr.expr =>
       switch inner.kind {
       | Branch({source}) =>
         switch source.kind {
-        | Open({flow: CaseSplit(_), input}) => input
+        | Open({flow: CaseSplit(_), input}) =>
+          // The CaseSplit's input may itself be a Join-wrapped list
+          // chain — peel any Joins to find the underlying ListIter.
+          let (u, _) = unwrapJoinedOpener(input)
+          u
         | _ =>
           failwith(
             "Filter's Branch must reference a CaseSplit Open, but it " ++
@@ -342,8 +346,9 @@ let rec go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         // Distinguish list-style closes (push directly per loop iter)
         // from filter-style closes (push only when the case-split's
         // filtered alt fires). A filter close has Filter at the top of
-        // its flow chain; the rest of the group must agree.
-        let isFilter = group->Array.some(c =>
+        // its flow chain. Mixed groups (some filter, some list) on the
+        // same list opener aren't supported yet — raise a clear error.
+        let isFilter = (c: Expr.expr) =>
           switch c.kind {
           | Close({branches}) =>
             switch (branches->Array.getUnsafe(0)).flow.kind {
@@ -352,8 +357,19 @@ let rec go = (ctx: compileCtx, e: Expr.expr): compileResult =>
             }
           | _ => false
           }
-        )
-        if isFilter {
+        let anyFilter = group->Array.some(isFilter)
+        let allFilter = group->Array.every(isFilter)
+        if anyFilter && !allFilter {
+          failwith(
+            "Mixing filter and non-filter Closes on the same list " ++
+            "opener is not yet supported. The list opener (id=" ++
+            Int.toString(underlying.id) ++
+            ") has " ++
+            Int.toString(Array.length(group)) ++
+            " closes, some of which are filter closes (Filter at top " ++
+            "of branches[0].flow) and some of which are not.",
+          )
+        } else if anyFilter {
           compileFilterGroup(ctx, underlying, group)
         } else {
           compileListGroup(ctx, underlying, group)
@@ -774,177 +790,240 @@ and compileCaseGroup = (
 // Filter compile.
 //
 //   const v_input = ... ;
-//   const v_out = [];
+//   const v_out_a = [];
+//   const v_out_b = [];
 //   for (const v_elem of v_input) {
 //     const v_split = disc(v_elem);
-//     if (v_split.tag === alt0) {
-//       const v_b0 = v_split.value;
-//       v_out.push(<value>);
-//     } else if (v_split.tag === alt1) { ... }
+//     if (v_split.tag === altA) {
+//       const v_b = v_split.value;
+//       v_out_a.push(<value_a>);
+//     } else if (v_split.tag === altB) {
+//       v_out_b.push(<value_b>);
+//     }
 //     // (no else throw — non-filtered alts simply don't push)
 //   }
 //
-// The simplest version handles a single filter close on a CaseSplit
-// nested directly inside a ListIter — i.e. the close's flow is
-// `Filter(Branch(Open CaseSplit, alt))` whose CaseSplit's input is
-// the underlying ListIter Open. Mixing filter closes with other
-// closes on the same list opener, joined-list underneath, or
-// multi-filter on the same case-split is not yet supported.
+// Handles multi-filter (multiple filter closes on the same case-split,
+// either filtering different alts or duplicating an alt). For each
+// alt that has any filter close, builds one if-branch with a push per
+// close that targets that alt. Inactive alts get no branch, no push.
+//
+// Currently still requires that the underlying list opener is a plain
+// Open ListIter — no Joins under the filter, and no mixing with
+// list-style or case-style closes on the same opener.
 and compileFilterGroup = (
   ctx: compileCtx,
   listOpener: Expr.expr,
   group: array<Expr.expr>,
 ): unit => {
-  if Array.length(group) != 1 {
-    failwith(
-      "Multi-close filter groups are not yet supported — found " ++
-      Int.toString(Array.length(group)) ++
-      " closes on the same list opener, at least one a filter close.",
-    )
-  }
-  let close = group->Array.getUnsafe(0)
-  let (branchExpr, alt, branches) = switch close.kind {
-  | Close({branches}) =>
-    if Array.length(branches) != 1 {
-      failwith(
-        "A filter close must have exactly one branch, but Close (id=" ++
-        Int.toString(close.id) ++
-        ") has " ++
-        Int.toString(Array.length(branches)) ++ ".",
-      )
-    }
-    let b = branches->Array.getUnsafe(0)
-    let (branchExpr, alt) = switch b.flow.kind {
-    | Filter({inner}) =>
-      switch inner.kind {
-      | Branch({alt}) => (inner, alt)
-      | _ =>
+  // Per-close info: (Close, branchExpr, filteredAlt, value).
+  let closesData = group->Array.map(c =>
+    switch c.kind {
+    | Close({branches}) =>
+      if Array.length(branches) != 1 {
         failwith(
-          "Filter must wrap a Branch node (in Close id=" ++
-          Int.toString(close.id) ++ ").",
+          "A filter close must have exactly one branch, but Close (id=" ++
+          Int.toString(c.id) ++
+          ") has " ++
+          Int.toString(Array.length(branches)) ++ ".",
         )
       }
-    | _ =>
-      failwith(
-        "Internal error: compileFilterGroup got a Close whose flow " ++
-        "isn't a Filter.",
-      )
+      let b = branches->Array.getUnsafe(0)
+      switch b.flow.kind {
+      | Filter({inner}) =>
+        switch inner.kind {
+        | Branch({source: _, alt}) => (c, inner, alt, b.value)
+        | _ =>
+          failwith(
+            "Filter must wrap a Branch node (in Close id=" ++
+            Int.toString(c.id) ++ ").",
+          )
+        }
+      | _ =>
+        failwith(
+          "Internal error: compileFilterGroup got a Close whose flow " ++
+          "isn't a Filter.",
+        )
+      }
+    | _ => failwith("Internal error: compileFilterGroup got a non-Close.")
     }
-    (branchExpr, alt, branches)
-  | _ =>
-    failwith("Internal error: compileFilterGroup got a non-Close.")
-  }
-  let closeValue = (branches->Array.getUnsafe(0)).value
+  )
 
-  // The Branch's source is the CaseSplit Open.
-  let caseSplitOpen = switch branchExpr.kind {
+  // All closes' Branches must reference the same CaseSplit Open. Take
+  // the first close's source as the canonical case-split.
+  let firstBranchExpr = {
+    let (_, b, _, _) = closesData->Array.getUnsafe(0)
+    b
+  }
+  let caseSplitOpen = switch firstBranchExpr.kind {
   | Branch({source}) => source
   | _ => failwith("Internal error: not a Branch")
   }
-  let (alts, discriminator) = switch caseSplitOpen.kind {
-  | Open({flow: CaseSplit({alts, discriminator})}) => (alts, discriminator)
+  closesData->Array.forEach(((c, branchExpr, _, _)) =>
+    switch branchExpr.kind {
+    | Branch({source}) =>
+      if source.id != caseSplitOpen.id {
+        failwith(
+          "Filter closes in the same group must all reference the same " ++
+          "CaseSplit Open. Close (id=" ++
+          Int.toString(c.id) ++ ") references a different one.",
+        )
+      }
+    | _ => ()
+    }
+  )
+
+  let (alts, discriminator, caseSplitInput) = switch caseSplitOpen.kind {
+  | Open({flow: CaseSplit({alts, discriminator}), input}) =>
+    (alts, discriminator, input)
   | _ =>
     failwith(
       "Filter's Branch must reference an Open CaseSplit, but found " ++
-      "something else (Close id=" ++ Int.toString(close.id) ++ ").",
+      "something else.",
     )
   }
-  // Validate that the filtered alt is one of the case-split's alts.
-  if !(alts->Array.includes(alt)) {
-    failwith(
-      "Filter references alt \"" ++
-      alt ++
-      "\" which is not in the CaseSplit's declared alts.",
-    )
-  }
+  // Validate every filtered alt is in the CaseSplit's alts.
+  closesData->Array.forEach(((_, _, alt, _)) =>
+    if !(alts->Array.includes(alt)) {
+      failwith(
+        "Filter references alt \"" ++
+        alt ++
+        "\" which is not in the CaseSplit's declared alts.",
+      )
+    }
+  )
 
-  // Validate that the listOpener is an Open ListIter (no Joins under
-  // a filter for now).
-  switch listOpener.kind {
-  | Open({flow: ListIter}) => ()
-  | _ =>
+  // Walk the CaseSplit's input as a list-iter chain, possibly with
+  // Joins for flatten semantics across nested lists. innermostList
+  // (= listOpener) is at chain[0]; the outermost is at chain[end].
+  let (innermostList, joinCount) = unwrapJoinedOpener(caseSplitInput)
+  if innermostList.id != listOpener.id {
     failwith(
-      "A filter close currently requires an Open ListIter directly " ++
-      "feeding the Open CaseSplit; found something else (Close id=" ++
-      Int.toString(close.id) ++ ").",
+      "Internal error: filter's underlying list opener doesn't match " ++
+      "the CaseSplit's (peeled) input.",
     )
   }
-  let listInput = switch listOpener.kind {
+  let chain = gatherOpenerChain(innermostList, joinCount)
+
+  // Compile the outermost list's input.
+  let outermostInputExpr = switch (chain->Array.getUnsafe(joinCount)).kind {
   | Open({input}) => input
-  | _ => failwith("Internal error")
+  | _ => failwith("Internal error: outermost chain entry is not an Open.")
   }
-
-  // Compile the list's input.
-  let (listInputExpr, parentInnermost) = go(ctx, listInput)
+  let (outerInputExpr, parentInnermost) = go(ctx, outermostInputExpr)
   let parentBuffer = bufferOf(ctx, parentInnermost)
 
-  // Allocate the output array at the parent scope.
-  let outName = ctx.fresh()
-  parentBuffer->Array.push(JsBuild.const(outName, JsBuild.array_([])))
-  ctx.memo->Map.set(close.id, (JsBuild.id(outName), parentInnermost))
+  // Allocate one output array per close at the truly-outer parent.
+  let outNames = closesData->Array.map(((c, _, _, _)) => {
+    let name = ctx.fresh()
+    parentBuffer->Array.push(JsBuild.const(name, JsBuild.array_([])))
+    ctx.memo->Map.set(c.id, (JsBuild.id(name), parentInnermost))
+    name
+  })
 
-  // Set up the list loop scope.
-  let elemName = ctx.fresh()
-  let loopBody: array<JsAst.stmt> = []
-  let loopScope = {
-    buffer: loopBody,
-    depth: depthOf(parentInnermost) + 1,
-    parent: parentInnermost,
-  }
-  ctx.memo->Map.set(listOpener.id, (JsBuild.id(elemName), Some(loopScope)))
+  // Set up nested loop scopes for every list in the chain.
+  let setup = establishScopes(ctx, chain, parentInnermost)
+  let innermostLoopScope = setup.innermost
+  let innermostElemName = mustGet(
+    setup.elemFor,
+    innermostList.id,
+    "Internal error: missing innermost elem name.",
+  )
 
-  // Inside the loop, apply the discriminator.
+  // Apply the discriminator inside the innermost loop.
   let splitName = ctx.fresh()
-  loopBody->Array.push(
+  innermostLoopScope.buffer->Array.push(
     JsBuild.const(
       splitName,
-      JsBuild.call(discriminator, [JsBuild.id(elemName)]),
+      JsBuild.call(discriminator, [JsBuild.id(innermostElemName)]),
     ),
   )
   let splitExpr = JsBuild.id(splitName)
 
-  // Set up the filtered branch's scope.
-  let branchBody: array<JsAst.stmt> = []
-  let branchScope = {
-    buffer: branchBody,
-    depth: loopScope.depth + 1,
-    parent: Some(loopScope),
+  // Active alts = alts that any filter close targets, preserving the
+  // order from the CaseSplit's `alts` declaration.
+  let activeAlts = alts->Array.filter(altName =>
+    closesData->Array.some(((_, _, alt, _)) => alt == altName)
+  )
+
+  // Pre-pass branches: all Branch nodes referencing this CaseSplit,
+  // grouped by alt. Used to memoise ALL Branches for an active alt
+  // (not just the one wrapped by Filter — the close's value subtree
+  // may reference others).
+  let branchesByAlt =
+    ctx.branchesBySource->Map.get(caseSplitOpen.id)->Option.getOr(Map.make())
+
+  // Build the if-body for each active alt.
+  let altBodies = activeAlts->Array.map(altName => {
+    let branchBody: array<JsAst.stmt> = []
+    let branchScope = {
+      buffer: branchBody,
+      depth: innermostLoopScope.depth + 1,
+      parent: Some(innermostLoopScope),
+    }
+
+    // Memoise every Branch for (this CaseSplit, this alt) to a fresh
+    // const-bound `v = split.value`.
+    let branchesForAlt = branchesByAlt->Map.get(altName)->Option.getOr([])
+    branchesForAlt->Array.forEach(branchExpr => {
+      let bname = ctx.fresh()
+      branchBody->Array.push(
+        JsBuild.const(bname, JsBuild.member(splitExpr, "value")),
+      )
+      ctx.memo->Map.set(branchExpr.id, (JsBuild.id(bname), Some(branchScope)))
+    })
+
+    // For every close that targets this alt, compile its value and
+    // emit a push to its output array.
+    closesData->Array.forEachWithIndex(((_, _, alt, value), i) =>
+      if alt == altName {
+        let (valueExpr, _) = go(ctx, value)
+        let outName = outNames->Array.getUnsafe(i)
+        branchBody->Array.push(
+          JsBuild.exprStmt(
+            JsBuild.call(
+              JsBuild.member(JsBuild.id(outName), "push"),
+              [valueExpr],
+            ),
+          ),
+        )
+      }
+    )
+
+    // Cleanup Branch memos for this alt.
+    branchesForAlt->Array.forEach(branchExpr => {
+      let _ = ctx.memo->Map.delete(branchExpr.id)
+    })
+
+    (altName, branchBody)
+  })
+
+  // Build the if/else-if chain (no else throw — non-active alts skip)
+  // and append it to the innermost loop's body.
+  let chainStmt = ref(None)
+  for i in Array.length(altBodies) - 1 downto 0 {
+    let (altName, body) = altBodies->Array.getUnsafe(i)
+    chainStmt :=
+      Some(
+        JsAst.SIf({
+          test: JsBuild.eq(
+            JsBuild.member(splitExpr, "tag"),
+            JsBuild.str(altName),
+          ),
+          cons: JsAst.SBlock(body),
+          alt: chainStmt.contents,
+        }),
+      )
+  }
+  switch chainStmt.contents {
+  | Some(stmt) => innermostLoopScope.buffer->Array.push(stmt)
+  | None => () // no active alts; loop body has just the disc call
   }
 
-  // Memoise the Branch node (for the filtered alt) to a fresh
-  // const-bound v = split.value.
-  let branchValueName = ctx.fresh()
-  branchBody->Array.push(
-    JsBuild.const(branchValueName, JsBuild.member(splitExpr, "value")),
-  )
-  ctx.memo->Map.set(branchExpr.id, (JsBuild.id(branchValueName), Some(branchScope)))
-
-  // Compile the close's value. Push to the output array (always inside
-  // the branch body — the push only fires for the filtered alt).
-  let (valueExpr, _) = go(ctx, closeValue)
-  branchBody->Array.push(
-    JsBuild.exprStmt(
-      JsBuild.call(
-        JsBuild.member(JsBuild.id(outName), "push"),
-        [valueExpr],
-      ),
-    ),
-  )
-
-  // Cleanup memos.
-  let _ = ctx.memo->Map.delete(branchExpr.id)
-  let _ = ctx.memo->Map.delete(listOpener.id)
-
-  // Build the if statement (no else — non-matching alts just skip).
-  let ifStmt = JsAst.SIf({
-    test: JsBuild.eq(JsBuild.member(splitExpr, "tag"), JsBuild.str(alt)),
-    cons: JsAst.SBlock(branchBody),
-    alt: None,
-  })
-  loopBody->Array.push(ifStmt)
-
-  // Emit the for-of into the parent buffer.
-  parentBuffer->Array.push(JsBuild.forOf(elemName, listInputExpr, loopBody))
+  // Cleanup memos for openers we created here, then emit the
+  // for-of(s) at the appropriate scope (nested if joinCount > 0).
+  cleanupOpeners(ctx, chain, setup.createdHere)
+  emitForOfs(ctx, chain, setup, outerInputExpr)
 }
 
 let compileToBody = (root: Expr.expr): (array<JsAst.stmt>, JsAst.expr) => {

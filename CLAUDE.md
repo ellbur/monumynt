@@ -50,7 +50,7 @@ When `go` first hits any Close in a group, it dispatches based on the underlying
 
 - **`compileCaseGroup`** — for `Open CaseSplit`. Compiles the input, calls the user-supplied discriminator on it for a `{tag, value}` split, allocates one `let v_close` per Close at the parent scope. For each alt: builds a fresh branch scope, memoises every Branch node referencing (this Open, this alt) to a fresh `const v = split.value` binding, compiles each Close's per-alt value subtree and emits `v_close = value` at the end of the branch body, cleans up Branch memos. Finally builds an `if (split.tag === alt0) {…} else if (…) {…} else { throw }` chain in the parent buffer.
 
-- **`compileFilterGroup`** — for an `Open ListIter` whose group contains a filter close (close with `Filter` at the top of its flow chain). Currently single-close, single-filter only. Sets up the list for-of, applies the discriminator inside the loop, builds an `if (split.tag === alt) { … push … }` (no `else`) so non-matching iterations skip silently. The Branch under the Filter is memoised to a fresh `const v = split.value` inside the branch body, so the close's value subtree resolves it like any other Branch.
+- **`compileFilterGroup`** — for an `Open ListIter` whose group contains a filter close (close with `Filter` at the top of its flow chain). Supports multiple filter closes in one group, on the same alt or different alts (partition). Walks the case-split's input as a list-iter chain, possibly Join-wrapped (so filter under joined nested lists works) — sets up the for-of nest via `gatherOpenerChain` + `establishScopes`, applies the discriminator inside the innermost loop, then builds an `if (split.tag === alt0) { … pushes … } else if (…) { … }` chain over only the alts that have filter closes targeting them (no `else` — non-active alts skip silently). Each filter close's Branch is memoised to a fresh `const v = split.value` inside its alt's branch body. Mixing filter and non-filter (list) closes on the same opener is currently rejected with a clear error message at dispatch time.
 
 `Open`, `Join`, `Branch`, and `Filter` nodes are never compiled directly — `go` raises with a clear message if reached. Their values are bound by the surrounding `compileGroup` via the memo.
 
@@ -101,7 +101,7 @@ The user designs incrementally and likes to think out loud about a step before a
 - They prefer "baby steps" — one small, well-understood addition at a time. Don't bring in extra design dimensions ("multi-close at the same time as nested at the same time as join") in one round.
 - They have strong design taste — when they say something like "we don't need to walk the stack" or "join is a pure flow operation," it's worth taking literally and working out the implications, not paraphrasing or smoothing over.
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
-- Before declaring something done, run the test suite. The runner currently passes 52 tests; if a change drops that count, something regressed.
+- Before declaring something done, run the test suite. The runner currently passes 68 tests; if a change drops that count, something regressed.
 
 ## Honoured semantic limitations (currently unenforced)
 
