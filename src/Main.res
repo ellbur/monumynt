@@ -6,10 +6,12 @@
 // JSON.stringify on both sides, which is sufficient for the kinds of
 // values (numbers, strings, booleans, arrays, plain objects) we exercise.
 //
-// The test header shows the number of `const` bindings the compiler
-// emitted for the test, which makes the effect of sharing visible — the
-// same logical computation produces fewer bindings when sub-expressions
-// are bound and reused than when they are duplicated.
+// The test header shows the number of outer-level statements the compiler
+// emitted for the test (const bindings + for-of statements). Differences
+// across versions of the same logical computation make sharing, hoisting,
+// and joining visible at a glance — a "shared" version typically emits
+// fewer outer stmts than its "unshared" counterpart, and a joined nested
+// loop emits fewer than its non-joined sibling.
 
 open JsBuild
 open Expr
@@ -53,6 +55,19 @@ let runTest = (~name: string, ~expr: Expr.expr, ~expected: JsAst.expr) => {
 let litI = (n: int): Expr.expr => lit(int_(n))
 let litS = (s: string): Expr.expr => lit(str(s))
 let litB = (b: bool): Expr.expr => lit(bool_(b))
+
+// --- Bundling helpers used by tests to package multiple results into
+//     one named-field object via a JS arrow function. `bundle2("a", "b")`
+//     is `(a, b) => ({a: a, b: b})` (renamed if labels differ). ---
+
+let bundle2 = (l1: string, l2: string): JsAst.expr =>
+  arrowExpr([p("a"), p("b")], obj([(l1, id("a")), (l2, id("b"))]))
+
+let bundle3 = (l1: string, l2: string, l3: string): JsAst.expr =>
+  arrowExpr(
+    [p("a"), p("b"), p("c")],
+    obj([(l1, id("a")), (l2, id("b")), (l3, id("c"))]),
+  )
 
 // --- JS functions referenced by examples ---
 
@@ -269,13 +284,9 @@ runTest(
   let area = app(jsMul, [pi, rsq])
   let twoPi = app(jsMul, [two, pi])
   let circumference = app(jsMul, [twoPi, r])
-  let bundle = arrowExpr(
-    [p("a"), p("c")],
-    obj([("area", id("a")), ("circ", id("c"))]),
-  )
   runTest(
     ~name="circle metrics: area and circumference share pi and r",
-    ~expr=app(bundle, [area, circumference]),
+    ~expr=app(bundle2("area", "circ"), [area, circumference]),
     ~expected=obj([
       ("area", bin(Mul, member(id("Math"), "PI"), int_(9))),
       (
@@ -388,17 +399,13 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 //     the resulting list). It is bound once at the outer level and both
 //     uses reference that binding — no recomputation.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("base", id("a")), ("mapped", id("b"))]),
-  )
   let k = lit(int_(100))
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
   let mapped = close_(ListCollect, opened, app(jsAdd, [k, opened]))
   runTest(
     ~name="list iter: shared k=100 used both inside and outside loop",
-    ~expr=app(pairFn, [k, mapped]),
+    ~expr=app(bundle2("base", "mapped"), [k, mapped]),
     ~expected=obj([
       ("base", int_(100)),
       ("mapped", array_([int_(101), int_(102), int_(103)])),
@@ -433,17 +440,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     for-of loop with two pushes (one per Close) and two output arrays
 //     declared at the outer level.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("doubled", id("a")), ("tripled", id("b"))]),
-  )
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
   let doubled = close_(ListCollect, opened, app(double, [opened]))
   let tripled = close_(ListCollect, opened, app(triple, [opened]))
   runTest(
     ~name="multi-close: doubled and tripled, one loop two pushes",
-    ~expr=app(pairFn, [doubled, tripled]),
+    ~expr=app(bundle2("doubled", "tripled"), [doubled, tripled]),
     ~expected=obj([
       ("doubled", array_([int_(2), int_(4), int_(6)])),
       ("tripled", array_([int_(3), int_(6), int_(9)])),
@@ -453,10 +456,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 
 // (2) Three Closes from one Open. One loop, three pushes.
 {
-  let tripleFn = arrowExpr(
-    [p("a"), p("b"), p("c")],
-    obj([("a", id("a")), ("b", id("b")), ("c", id("c"))]),
-  )
   let plusOne = arrowExpr([p("x")], add(id("x"), int_(1)))
   let input = lit(array_([int_(10), int_(20), int_(30)]))
   let opened = open_(ListIter, input)
@@ -465,7 +464,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let inc = close_(ListCollect, opened, app(plusOne, [opened]))
   runTest(
     ~name="multi-close: identity + double + +1, one loop three pushes",
-    ~expr=app(tripleFn, [asIs, dbl, inc]),
+    ~expr=app(bundle3("a", "b", "c"), [asIs, dbl, inc]),
     ~expected=obj([
       ("a", array_([int_(10), int_(20), int_(30)])),
       ("b", array_([int_(20), int_(40), int_(60)])),
@@ -479,10 +478,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     per iteration (a single binding in the loop body, used by both
 //     pushes).
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("plusOne", id("a")), ("timesTwo", id("b"))]),
-  )
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
   let square = app(jsMul, [opened, opened])
@@ -492,7 +487,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let close2 = close_(ListCollect, opened, app(jsMul, [square, two]))
   runTest(
     ~name="multi-close: shared intermediate (square computed once per iter)",
-    ~expr=app(pairFn, [close1, close2]),
+    ~expr=app(bundle2("plusOne", "timesTwo"), [close1, close2]),
     ~expected=obj([
       ("plusOne", array_([int_(2), int_(5), int_(10)])),
       ("timesTwo", array_([int_(2), int_(8), int_(18)])),
@@ -504,10 +499,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     Both should be hoisted to the outer level (declared once each,
 //     used inside the loop body for each Close's body).
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("p10", id("a")), ("p100", id("b"))]),
-  )
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
   let ten = lit(int_(10))
@@ -516,7 +507,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let plus100 = close_(ListCollect, opened, app(jsAdd, [hundred, opened]))
   runTest(
     ~name="multi-close: each Close has its own loop-invariant constant",
-    ~expr=app(pairFn, [plus10, plus100]),
+    ~expr=app(bundle2("p10", "p100"), [plus10, plus100]),
     ~expected=obj([
       ("p10", array_([int_(11), int_(12), int_(13)])),
       ("p100", array_([int_(101), int_(102), int_(103)])),
@@ -528,10 +519,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     compile to two for-of loops, each with their own loop variable
 //     and output array — no interference.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("first", id("a")), ("second", id("b"))]),
-  )
   let inputA = lit(array_([int_(1), int_(2), int_(3)]))
   let openedA = open_(ListIter, inputA)
   let resultA = close_(ListCollect, openedA, app(double, [openedA]))
@@ -540,7 +527,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let resultB = close_(ListCollect, openedB, app(triple, [openedB]))
   runTest(
     ~name="two independent loops in sequence",
-    ~expr=app(pairFn, [resultA, resultB]),
+    ~expr=app(bundle2("first", "second"), [resultA, resultB]),
     ~expected=obj([
       ("first", array_([int_(2), int_(4), int_(6)])),
       ("second", array_([int_(30), int_(60)])),
@@ -553,17 +540,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     with multi-close: two Closes sharing an Open, and one of them
 //     used twice downstream.
 {
-  let combineFn = arrowExpr(
-    [p("a"), p("b"), p("c")],
-    obj([("d1", id("a")), ("d2", id("b")), ("t", id("c"))]),
-  )
   let input = lit(array_([int_(1), int_(2), int_(3)]))
   let opened = open_(ListIter, input)
   let doubled = close_(ListCollect, opened, app(double, [opened]))
   let tripled = close_(ListCollect, opened, app(triple, [opened]))
   runTest(
     ~name="multi-close: one Close used twice downstream + sibling Close",
-    ~expr=app(combineFn, [doubled, doubled, tripled]),
+    ~expr=app(bundle3("d1", "d2", "t"), [doubled, doubled, tripled]),
     ~expected=obj([
       ("d1", array_([int_(2), int_(4), int_(6)])),
       ("d2", array_([int_(2), int_(4), int_(6)])),
@@ -652,11 +635,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     innerOpened,
     app(triple, [innerOpened]),
   )
-  let bundle = arrowExpr(
-    [p("a"), p("b")],
-    obj([("d", id("a")), ("t", id("b"))]),
-  )
-  let perOuter = app(bundle, [innerDoubled, innerTripled])
+  let perOuter = app(bundle2("d", "t"), [innerDoubled, innerTripled])
   let outerClosed = close_(ListCollect, outerOpened, perOuter)
   runTest(
     ~name="nested + multi-close on inner: each outer elem -> {d, t}",
@@ -771,10 +750,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 
 // (6) Compare side by side: same input, joined vs unjoined, paired.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("nested", id("a")), ("flat", id("b"))]),
-  )
   let input = lit(array_([
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
@@ -795,7 +770,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   )
   runTest(
     ~name="join vs nested side-by-side on the same input",
-    ~expr=app(pairFn, [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
     ~expected=obj([
       (
         "nested",
@@ -822,10 +797,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     - outer-close out at top level (collecting the per-iter lists).
 //     - Both pushes inside the inner body.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("nested", id("a")), ("flat", id("b"))]),
-  )
   let input = lit(array_([
     array_([int_(1), int_(2)]),
     array_([int_(3), int_(4)]),
@@ -837,7 +808,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let nested = close_(ListCollect, outer, unjoined)
   runTest(
     ~name="mixed: unjoined + joined on one opener; nested wraps unjoined",
-    ~expr=app(pairFn, [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
     ~expected=obj([
       ("nested", array_([
         array_([int_(2), int_(4)]),
@@ -853,10 +824,6 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     ones). The compiled JS should compute `double(elem)` exactly once
 //     per inner iteration and push the same binding into both arrays.
 {
-  let pairFn = arrowExpr(
-    [p("a"), p("b")],
-    obj([("nested", id("a")), ("flat", id("b"))]),
-  )
   let input = lit(array_([
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
@@ -869,7 +836,7 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
   let nested = close_(ListCollect, outer, unjoined)
   runTest(
     ~name="mixed (shared body): one double per iter, two pushes",
-    ~expr=app(pairFn, [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
     ~expected=obj([
       ("nested", array_([
         array_([int_(2), int_(4)]),

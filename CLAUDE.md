@@ -38,17 +38,16 @@ This is an experimental sandbox for a visual flow-based programming language. De
 
 Per-binding dispatch goes through `bufferOf(ctx, innermost)` — a one-line lookup, no walking.
 
-A pre-pass (`preprocessCloseGroups`) walks the root once and groups every `Close` by the id of its **underlying** Open (after stripping `Join` wrappers). When `go` first hits any Close in a group, `compileGroup` compiles the whole group atomically:
+A pre-pass (`preprocessCloseGroups`) walks the root once and groups every `Close` by the id of its **underlying** Open (after stripping `Join` wrappers). When `go` first hits any Close in a group, `compileGroup` compiles the whole group atomically. The function reads top-to-bottom in named stages, with the heavy lifting delegated to four helpers also defined in `Compile.res`:
 
-1. Walk the join chain to gather `maxJoinCount + 1` Opens (the underlying plus N outers).
-2. Compile the outermost's input.
-3. Set up scopes innermost-to-outermost. **Scope reuse**: if an Open is already in the memo (because an enclosing `compileGroup` is mid-compile and put it there), reuse the existing scope instead of creating a duplicate. `createdHere` tracks per-Open which we created vs reused.
-4. Allocate one output array per close, at `walkUp(innermost, joinCount + 1)`.
-5. Compile each close's value, push at `deeper(innermost, valueScope)`.
-6. Clean up only the openers we created in step 3.
-7. Emit `for…of`s only for the openers we created in step 3 (reused ones get their `for…of` from the outer compileGroup).
+- `gatherOpenerChain(start, joinDepth)` — walk `Open.input` outward `joinDepth` times, returning `joinDepth + 1` Opens (innermost-first).
+- `establishScopes(ctx, chain, outermostParent)` — set up loop scopes for every Open in the chain. **Scope reuse**: if an Open is already in the memo (because an enclosing `compileGroup` is mid-compile and put it there), reuse the existing scope instead of creating a duplicate. Returns a `scopeBundle` with `scopeFor`, `elemFor`, `createdHere`, and the `innermost` scope.
+- `cleanupOpeners(ctx, chain, createdHere)` — delete memo entries only for openers this group created (reused openers belong to an enclosing group that's still using them).
+- `emitForOfs(ctx, chain, setup, outermostInputExpr)` — emit a `for…of` for each created scope, innermost-first, into its parent's buffer.
 
-Mixed joinCounts within one group are fine. The only currently-active restriction within a group is that all closes must be `Close ListCollect` and the underlying must be `Open ListIter` — anything else `failwith`s.
+`compileGroup` itself: validate, analyse closes (extract per-close join count), compute `maxJoinCount`, gather chain, compile outermost input, establish scopes, allocate one output array per close at `walkUp(innermost, joinCount + 1)`, compile each value and push at `deeper(innermost, valueScope)`, cleanup, emit for-ofs.
+
+Mixed joinCounts within one group are supported — joined and unjoined closes can coexist on the same opener, each with its own output array at its own joined-out scope. The only validations: the underlying is `Open ListIter`, every close is `Close ListCollect`, and the input chain has enough Opens to cover the deepest join.
 
 **`go` raises on `Open` and `Join`**:
 
