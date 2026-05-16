@@ -110,8 +110,7 @@ What's supported on the flow side:
   guarded `if` that pushes only when the filtered alt fires.
 
 Not yet represented: configuration scopes, effect handles, iteration
-rails, custom flows, commutes, mixing filter and exhaustive case-close
-on the same case-split.
+rails, custom flows, commutes.
 
 ### Compile pipeline
 
@@ -122,34 +121,55 @@ on the same case-split.
 - `compileToIIFE(e)` wraps the body in `(() => { …; return v_N; })()`
   so the result is a single self-contained JS expression.
 
-Two design ideas drive the compile:
+Three design ideas drive the compile:
 
-1. **`go(ctx, e)` returns `(JsAst.expr, option<scopeRef>)`** — the JS
-   expression *and* the innermost loop scope the value lives in. The
-   parent of any binding is determined inline from this returned value,
-   not by walking a global stack. Lit returns `None`; App returns
-   `deeper(args' innermosts)`; an Open's element returns the loop
-   scope it was memoised with; a Close returns its output array's
-   scope (one or more levels above the loop, depending on join count).
+1. **Flows are first-class entities.** Every flow-producing node
+   (`Open`, `Join`, `Filter`, `Branch`) has an `openFlow` constructed
+   lazily by `flowFor(ctx, e)` and memoised by node id. Constructing
+   an Open ListIter sets up a loop scope and pushes a *placeholder*
+   stmt into its parent buffer; constructing an Open CaseSplit emits
+   `const split = disc(input)` and pushes a placeholder for the
+   if-chain. Joined/Filtered are pure structural wrappers; BranchOf
+   exposes a per-alt scope and a `v = split.value` binding (cached
+   per `(CaseDispatch, alt)` so distinct Branch nodes share it).
 
-2. **One node = one binding, memoised by id**. A node visited more than
+2. **`go(ctx, e)` is the value-port entry point** and returns
+   `(JsAst.expr, option<scopeRef>)` — the JS expression *and* the
+   innermost loop scope the value lives in. `Open ListIter` returns
+   the per-iteration element binding (built or cached via `flowFor`);
+   `Branch` returns the per-alt v binding; `Close` calls a consumer
+   that attaches lazily to existing flows. `Open CaseSplit`, `Join`,
+   and `Filter` have no value port and `failwith` if reached.
+
+3. **One node = one binding, memoised by id**. A node visited more than
    once compiles to a single binding; subsequent encounters return the
-   cached value. Sharing a node = `let`-binding it in ReScript. This
-   carries through joined/mixed flows: a per-iteration body shared
-   between two Closes computes once and pushes into both output
-   arrays.
+   cached value. Sharing a node = `let`-binding it in ReScript.
 
-For list-flow handling, a single pre-pass groups every `Close` by the
-id of its underlying `Open` (after stripping any `Join` wrappers).
-When `go` first encounters any Close in a group, `compileGroup`
-compiles the whole group atomically: walks the join chain to find all
-the Opens that need loops, sets up scopes innermost-to-outermost,
-allocates each Close's output array at its own `joinCount`-up scope,
-compiles each Close's value, and emits the `for…of`s from innermost
-to outermost. If the chain walk hits an Open that's already active
-(because an enclosing `compileGroup` is mid-compile), the existing
-scope is **reused** rather than re-created — this makes mixed-join
-groups inside an outer Close work correctly.
+Closes are pure consumers, no preprocess pass. `consumeListClose`
+walks Joineds to find the innermost loop and join depth; pushes a
+`const v_out = []` into the *outermost* loop's `preLoopBuf` (so it
+ends up immediately before the for-of at finalisation); compiles the
+value; pushes. `consumeCaseClose` flips `demandsExhaustive` on the
+shared dispatch, pushes a `let v_close;` into `preDispatchBuf`, and
+appends `v_close = value` into each alt's scope. `consumeFilterClose`
+walks `inputJoinDepth` ListLoop levels up via the dispatch's recorded
+`inputNode`, pushes the output array into that outermost loop's
+`preLoopBuf`, and pushes inside the matching alt body. Mixing
+filter-close + case-close on the same case-split works naturally —
+both attach to the same CaseDispatch; the case-close turns on
+exhaustive throw and the filter-close just adds its push to the
+matching alt body.
+
+After `go(root)` returns, `finalizeLoops` and `finalizeDispatches`
+walk pending entries and use `Array.splice` to replace each
+placeholder with `[...preLoopBuf, for-of]` or
+`[...preDispatchBuf, if-chain]`. Placeholders are looked up by
+reference (`Array.indexOfOpt`), so finalisation order is irrelevant.
+
+Top-level Lit bindings emit into a separate `hoistedLits` buffer
+that's prepended to `outerStmts` at the very end. Otherwise a Lit
+emitted while a loop is being filled would land in `outerStmts`
+after the loop's placeholder, ending up after the for-of (TDZ).
 
 ### Tests
 
@@ -182,7 +202,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**68 tests** cover:
+**69 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -216,6 +236,10 @@ visibly shared between the unjoined close (#4) and the joined close
   partition (Justs + Nothings into two output arrays), multi-filter
   same alt (two parallel outputs from one branch), filter under
   joined nested lists (flatten + filter in one chain).
+- **Mixing**: filter-close and exhaustive case-close on the same
+  case-split (one shared discriminator + if-chain producing both a
+  per-iteration scalar via list-close on the outer iter and a
+  filtered subset via filter-close).
 
 ## Running
 
@@ -250,13 +274,6 @@ These are the natural directions. None is committed to.
   produce JS that references an out-of-scope variable). Cheap way to
   detect: `mutable closed: bool` on `scopeRef`, raise if `bufferOf` is
   asked for a closed scope.
-
-- **Filter mixing.** Today a case-split nested in a list flow can be
-  either filtered (one or more alts' values flow out to the list) or
-  case-closed exhaustively, but not both at once on the same
-  case-split. Allowing the two close styles to coexist on one
-  case-split would let you both filter into a list *and* surface a
-  per-alt value at the surrounding scope in the same diagram.
 
 - **Partial conditionals (one-sided case-split).** The spec's
   `PARTIAL_BRANCH` — open just one alt of an alternative type, with

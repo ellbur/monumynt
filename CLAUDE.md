@@ -29,35 +29,40 @@ This is an experimental sandbox for a visual flow-based programming language. De
 
 ## Compile architecture (current shape)
 
-`go(ctx, e)` returns `(JsAst.expr, option<scopeRef>)` — the JS expression naming the value, *and* the innermost loop scope it lives in. There is **no global loop stack** and **no per-scope dependency map**: each recursive call hands its caller exactly the placement signal needed for the caller's own binding. This was a deliberate redesign at the user's request — earlier versions had a stack and a dependency pre-pass; both are gone.
+Every flow-producing node — `Open`, `Join`, `Filter`, `Branch` — has a *flow output port*. Flows are first-class entities, constructed lazily and memoised by node id. `flowFor(ctx, e)` returns the `openFlow` for `e`, building it on first reference. `go(ctx, e)` is the value-port entry point.
+
+There is **no preprocess pass**, **no global loop stack**, and **no `closeGroups` / `branchesBySource` maps**. Closes are pure consumers that attach to existing flows lazily.
 
 `scopeRef = {buffer: array<JsAst.stmt>, depth: int, parent: option<scopeRef>}`:
 
-- `buffer` is the loop body's stmt list (mutated in place during compile).
-- `depth` lets `deeper(a, b)` (used in App) be a single int compare instead of a chain walk.
-- `parent` is used at close time only — `walkUp(scope, n)` for joined closes.
+- `buffer` is the loop body's (or alt body's) stmt list, mutated in place; the for-of/if-chain wrappers hold these by reference, so consumers that attach later still appear in the printed output.
+- `depth` lets `deeper(a, b)` (used in App) be a single int compare.
+- `parent` is used by `walkUp(scope, n)` for joined closes' output placement.
 
-Per-binding dispatch goes through `bufferOf(ctx, innermost)` — a one-line lookup, no walking.
+`openFlow = {id: int, kind: openFlowKind}`:
 
-A pre-pass (`preprocess`) walks the root once and builds two maps:
+- **`ListLoop`** — built by Open ListIter. Allocates a loop scope; `go(input)` emits the input expression into the loop's parent buffer; pushes a *placeholder* sentinel into the parent buffer (a unique `SBlock([])` whose reference we later find via `Array.indexOfOpt`) where the for-of will be spliced in at finalisation; memoises the per-iteration element binding into `ctx.memo`. Carries a `preLoopBuf` array — bindings consumers want at the loop's parent scope (e.g. output arrays) get pushed here so they end up immediately before the for-of.
+- **`CaseDispatch`** — built by Open CaseSplit. Peels any Joins off the input (filter-under-joined-lists), `go(input)` emits the input + `const split = disc(input)`; pushes a placeholder for the if-chain. Carries `altScopes` (one per alt), `preDispatchBuf` (for `let v_close;` decls from case-close consumers), `inputJoinDepth` (so filter consumers know how high to lift), `mutable demandsExhaustive` (set true by case-close), and an `altBranchCache` so distinct Branch nodes for the same (CaseDispatch, alt) share one `v = split.value` binding.
+- **`Joined({inner})`** — pure structural wrapper; no emission. List consumers walk through Joineds counting depth.
+- **`BranchOf({source, alt, valueName, branchScope})`** — built by Branch. Looks up (or allocates) the per-alt scope on its source CaseDispatch; emits `const v = split.value` at the top of that scope (once per (CaseDispatch, alt), shared across distinct Branch nodes via the cache).
+- **`Filtered({inner})`** — pure structural wrapper around a BranchOf. Signals filter semantics to the consuming Close.
 
-- `closeGroups: Map<int, array<Expr.expr>>` — every `Close` grouped by its **underlying** opener id (`underlyingOpenerForClose` checks the shape of `branches[0].flow`: a Branch node means a case close, otherwise it's a list close and we peel any Joins to find the ListIter Open).
-- `branchesBySource: Map<int, Map<string, array<Expr.expr>>>` — every `Branch` node grouped by its source's id, then by alt name. Used by `compileCaseGroup` to know which Branch ids to memoise per alt.
+**`go(ctx, e)`** dispatches by node kind:
 
-When `go` first hits any Close in a group, it dispatches based on the underlying's flow kind:
+- `Lit` — emits to `ctx.hoistedLits` (a separate buffer prepended to `outerStmts` at the very end). This guarantees top-level Lits are declared before any for-of / if-chain that might use them — under DFS-driven lazy construction, a Lit emitted while a loop is being filled would otherwise land in `outerStmts` after the loop's placeholder, ending up after the for-of (TDZ).
+- `App` — same as before; `deeper` over arg scopes; emits a `const v_N = …` into `bufferOf(innermost)`.
+- `Open ListIter` — triggers `flowFor`, returns the per-iteration element binding via the memo.
+- `Open CaseSplit` — `failwith` (no single value port; reach an alt via Branch).
+- `Branch` (value port) — triggers `flowFor`, returns the per-alt `v` binding.
+- `Join` / `Filter` — `failwith` (no value port).
+- `Close` — calls `consumeClose`, which dispatches by inspecting `flowFor(branches[0].flow).kind`:
+    - `BranchOf` → `consumeCaseClose`: validates all branches reference the same dispatch and cover all alts; flips `demandsExhaustive`; pushes `let v_close;` into `preDispatchBuf`; for each branch, compiles the per-alt value into the alt's scope and appends `v_close = value`.
+    - `Filtered` → `consumeFilterClose`: walks `inputJoinDepth` ListLoop levels up to find the outermost loop, pushes `const v_out = []` into its `preLoopBuf`, compiles the value into the alt's scope, pushes.
+    - `ListLoop` / `Joined` → `consumeListClose`: walks Joineds to count joinDepth, walks `joinDepth` Open.input levels up to find the outermost loop, pushes `const v_out = []` into its `preLoopBuf`, compiles the value, pushes at the deeper of innermost loop scope and value scope.
 
-- **`compileListGroup`** — for `Open ListIter`. Reads the per-close join count, gathers the join-chain via `gatherOpenerChain`, sets up nested loop scopes via `establishScopes` (with reuse for already-active opens), allocates output arrays at `walkUp(innermost, joinCount + 1)`, compiles each close's value and pushes at `deeper(innermost, valueScope)`, then `cleanupOpeners` + `emitForOfs`. Supports mixed joined/unjoined closes within one group.
+**Mixing is uniform**: case-close + filter-close on the same case-split share one CaseDispatch, one if-chain, one `const split = …`. The case-close turns on `demandsExhaustive` (so the if-chain ends with `else throw`); the filter-close just adds its push to the matching alt body. Tested.
 
-- **`compileCaseGroup`** — for `Open CaseSplit`. Compiles the input, calls the user-supplied discriminator on it for a `{tag, value}` split, allocates one `let v_close` per Close at the parent scope. For each alt: builds a fresh branch scope, memoises every Branch node referencing (this Open, this alt) to a fresh `const v = split.value` binding, compiles each Close's per-alt value subtree and emits `v_close = value` at the end of the branch body, cleans up Branch memos. Finally builds an `if (split.tag === alt0) {…} else if (…) {…} else { throw }` chain in the parent buffer.
-
-- **`compileFilterGroup`** — for an `Open ListIter` whose group contains a filter close (close with `Filter` at the top of its flow chain). Supports multiple filter closes in one group, on the same alt or different alts (partition). Walks the case-split's input as a list-iter chain, possibly Join-wrapped (so filter under joined nested lists works) — sets up the for-of nest via `gatherOpenerChain` + `establishScopes`, applies the discriminator inside the innermost loop, then builds an `if (split.tag === alt0) { … pushes … } else if (…) { … }` chain over only the alts that have filter closes targeting them (no `else` — non-active alts skip silently). Each filter close's Branch is memoised to a fresh `const v = split.value` inside its alt's branch body. Mixing filter and non-filter (list) closes on the same opener is currently rejected with a clear error message at dispatch time.
-
-`Open`, `Join`, `Branch`, and `Filter` nodes are never compiled directly — `go` raises with a clear message if reached. Their values are bound by the surrounding `compileGroup` via the memo.
-
-**`go` raises on `Open` and `Join`**:
-
-- An `Open`'s element is bound by the surrounding `compileGroup` via the memo, so `go` only reaches an `Open` if the user used it outside any of its Closes (malformed program).
-- A `Join` is a *pure flow operation* with **no value output port**. Calling `go` on a `Join` is meaningless and the compiler raises with a message that surfaces the conceptual distinction.
+**Finalisation.** After `go(root)` returns, `finalizeLoops` and `finalizeDispatches` walk `pendingLoops` / `pendingDispatches`, look each placeholder up by reference (`Array.indexOfOpt`), and `Array.splice` it out for `[...preLoopBuf, for-of]` (loops) or `[...preDispatchBuf, if-chain]` (dispatches). Order of finalisation doesn't matter — splices elsewhere only move the placeholder's *index*, not its identity. For dispatches: alts whose body is empty are omitted unless `demandsExhaustive`, and the chain ends with `else throw …` only if `demandsExhaustive`.
 
 ## Conventions
 
@@ -101,7 +106,7 @@ The user designs incrementally and likes to think out loud about a step before a
 - They prefer "baby steps" — one small, well-understood addition at a time. Don't bring in extra design dimensions ("multi-close at the same time as nested at the same time as join") in one round.
 - They have strong design taste — when they say something like "we don't need to walk the stack" or "join is a pure flow operation," it's worth taking literally and working out the implications, not paraphrasing or smoothing over.
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
-- Before declaring something done, run the test suite. The runner currently passes 68 tests; if a change drops that count, something regressed.
+- Before declaring something done, run the test suite. The runner currently passes 69 tests; if a change drops that count, something regressed.
 
 ## Honoured semantic limitations (currently unenforced)
 

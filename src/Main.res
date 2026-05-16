@@ -1241,6 +1241,44 @@ runTest(
   )
 }
 
+// (7) Mixing — filter and exhaustive case-close on the SAME
+//     case-split. The case-close produces a per-iteration value
+//     (doubled if Just, 0 if Nothing); a list close on the outer
+//     iter pushes that per-iter value into a "doubled" array. The
+//     filter close on the same case-split's Just alt also pushes
+//     the just-values into a separate "justs" array. One discriminator
+//     call, one if/else-if chain shared by both, one for-of loop.
+{
+  let input = lit(array_([
+    obj([("tag", str("Just")), ("value", int_(1))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(5))]),
+    obj([("tag", str("Nothing"))]),
+    obj([("tag", str("Just")), ("value", int_(3))]),
+  ]))
+  let opened = open_(ListIter, input)
+  let split = open_(
+    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
+    opened,
+  )
+  let justB = branch_(split, "Just")
+  let nothingB = branch_(split, "Nothing")
+  let perIter = caseClose([
+    {altName: Some("Just"), flow: justB, value: app(double, [justB])},
+    {altName: Some("Nothing"), flow: nothingB, value: lit(int_(0))},
+  ])
+  let doubledList = close_(opened, perIter)
+  let justsList = close_(filter_(justB), justB)
+  runTest(
+    ~name="mix: case-close + filter on same case-split (doubled vs justs)",
+    ~expr=app(bundle2("doubled", "justs"), [doubledList, justsList]),
+    ~expected=obj([
+      ("doubled", array_([int_(2), int_(0), int_(10), int_(0), int_(6)])),
+      ("justs", array_([int_(1), int_(5), int_(3)])),
+    ]),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++
