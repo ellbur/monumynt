@@ -54,18 +54,20 @@
 //   - Filtered(inner): pure structural wrapper. Allowed inner: BranchOf.
 //
 // Consumers (Closes) attach lazily — no preprocess, no group
-// coordination. consumeListClose and consumeOptionClose share the
-// same shape via the `consumeIterClose` helper; they differ only in
-// the iter-kind check and the output allocation / push form (array +
-// .push vs let + assign):
-//   - consumeListClose — branch.flow = Joined^N(NodeFlow(opener)).
-//     Walks Joineds to count joinDepth; walks `joinDepth` iter levels
-//     up via the inputNode chain to find the outermost iter (which
-//     may itself be a ListLoop or OptionLoop); pushes `const out =
-//     []` into that outermost's preLoopBuf; compiles the per-iter
-//     value; pushes into the innermost loop's body.
-//   - consumeOptionClose — same shape but `let out;` and `out =
-//     value`. The body runs zero or one times.
+// coordination. consumeIterClose handles list and option closes
+// uniformly. It walks Joineds to find the innermost iter and
+// joinDepth, walks `joinDepth` iter levels up via the inputNode
+// chain, and scans the chain to decide the output form:
+//   - If any iter in the chain is a ListLoop: push semantics
+//     (`const out = []` / `out.push(value)`). One element per
+//     chain-firing.
+//   - If the chain is all OptionLoops: assign semantics
+//     (`let out;` / `out = value`). A single value set iff every
+//     option fires.
+// This makes List<Option<X>> joined produce `List<X>` of the
+// defined values (push when defined, skip otherwise), Option<List
+// <X>> produce a `List<X>` (empty if outer is None), and
+// Option<Option<X>> produce a single value set iff both fire.
 //   - consumeCaseClose — branch.flow = NodeFlow(branch). Validates
 //     each branch references the same CaseDispatch and covers each
 //     alt once; flips dispatch.demandsExhaustive on; pushes
@@ -570,8 +572,7 @@ and consumeClose = (ctx: compileCtx, close: Expr.expr): unit =>
     switch under.kind {
     | BranchOf(_) => consumeCaseClose(ctx, close, branches)
     | Filtered(_) => consumeFilterClose(ctx, close, branches)
-    | ListLoop(_) => consumeListClose(ctx, close, branches)
-    | OptionLoop(_) => consumeOptionClose(ctx, close, branches)
+    | ListLoop(_) | OptionLoop(_) => consumeIterClose(ctx, close, branches)
     | _ =>
       failwith(
         "Close (id=" ++
@@ -625,31 +626,32 @@ and iterPreLoopBuf = (f: openFlow): array<JsAst.stmt> =>
   | _ => failwith("Internal: iterPreLoopBuf called on non-iter flow.")
   }
 
-// Helper for both list and option closes: validate single branch,
-// walk Joineds, find innermost iter flow + joinDepth + innermost
-// scope, find outermost flow in the chain, allocate the output
-// binding in the outermost's preLoopBuf, register the close in
-// ctx.memo, compile the value, and push via `emitPush`.
+// Iter-close consumer (list, option, or any joined mix of the two).
+// Walks Joineds to find the innermost iter and joinDepth; walks up
+// `joinDepth` iter levels; scans the chain to decide output form:
+//   - If *any* iter in the chain is a ListLoop → push semantics
+//     (`const out = []; ... out.push(value)`). The output is a list
+//     of one element per (chain-firing) — i.e. each combination
+//     where every iter in the chain fires (lists iterate, options
+//     either fire or skip).
+//   - If the chain is *all* OptionLoops → assign semantics
+//     (`let out; ... out = value`). The output is a single value
+//     bound iff every option fires; undefined otherwise.
 //
-// `expectInnermost` is "list" or "option" — controls the kind check
-// and the close-style label used in error messages.
-// `allocOut` allocates the output stmt (e.g. `const v = []` or
-// `let v;`) and returns the name.
-// `emitPush` produces the push stmt given the out name and the
-// compiled value expression.
+// This makes the natural readings work for mixed chains:
+//   List<Option<X>>  →  List<X> of just the defined values.
+//   Option<List<X>>  →  List<X>, empty if outer is None.
+//   List<List<X>>    →  List<X> of every inner element.
+//   Option<Option<X>> → Option<X> set iff both fire.
 and consumeIterClose = (
   ctx: compileCtx,
   close: Expr.expr,
   branches: array<Expr.closeBranch>,
-  closeStyle: string,
-  expectInnermost: openFlow => option<scopeRef>,
-  allocOut: string => JsAst.stmt,
-  emitPush: (string, JsAst.expr) => JsAst.stmt,
 ): unit => {
   if Array.length(branches) != 1 {
     failwith(
-      "A " ++ closeStyle ++ " close must have exactly one branch, " ++
-      "but Close (id=" ++ Int.toString(close.id) ++ ") has " ++
+      "An iter close must have exactly one branch, but Close (id=" ++
+      Int.toString(close.id) ++ ") has " ++
       Int.toString(Array.length(branches)) ++ ".",
     )
   }
@@ -658,13 +660,13 @@ and consumeIterClose = (
   | None => ()
   | Some(name) =>
     failwith(
-      "A " ++ closeStyle ++ " close's branch must have altName=None, " ++
-      "but Close (id=" ++ Int.toString(close.id) ++
+      "An iter close's branch must have altName=None, but Close (id=" ++
+      Int.toString(close.id) ++
       ")'s branch has altName=Some(\"" ++ name ++ "\").",
     )
   }
 
-  // Walk Joineds to find the innermost iter flow and the joinDepth.
+  // Walk Joineds to find the innermost iter and the joinDepth.
   let flow = flowFor(ctx, branch.flow)
   let rec unwrapIter = (f: openFlow, depth: int) =>
     switch f.kind {
@@ -672,77 +674,70 @@ and consumeIterClose = (
     | _ => (f, depth)
     }
   let (innermost, joinDepth) = unwrapIter(flow, 0)
-  let innerScope = switch expectInnermost(innermost) {
-  | Some(s) => s
-  | None =>
+  let innerScope = switch innermost.kind {
+  | ListLoop({scope}) | OptionLoop({scope}) => scope
+  | _ =>
     failwith(
-      "Internal error: " ++ closeStyle ++ "-close innermost flow has " ++
-      "the wrong kind.",
+      "Internal: iter close innermost (after Joineds) is not a ListLoop " ++
+      "or OptionLoop.",
     )
   }
+  let isListy = (f: openFlow) =>
+    switch f.kind {
+    | ListLoop(_) => true
+    | _ => false
+    }
 
-  // Walk `joinDepth` levels up to find the outermost iter in the
-  // chain; its preLoopBuf is where the output binding goes.
-  let outermost = walkUpIterChain(ctx, innermost, joinDepth)
-  let outermostPreLoopBuf = iterPreLoopBuf(outermost)
+  // Walk up `joinDepth` levels, tracking whether any iter in the
+  // chain is a ListLoop.
+  let curr = ref(innermost)
+  let anyList = ref(isListy(innermost))
+  for _ in 1 to joinDepth {
+    let inputNode = switch (curr.contents).kind {
+    | ListLoop({inputNode}) | OptionLoop({inputNode}) => inputNode
+    | _ => failwith("Internal: walking up from a non-iter flow.")
+    }
+    curr := flowFor(ctx, NodeFlow(inputNode))
+    switch (curr.contents).kind {
+    | ListLoop(_) | OptionLoop(_) => ()
+    | _ =>
+      failwith(
+        "Walking up the iter chain expected a ListLoop or OptionLoop " ++
+        "at each level, but the chain ran out before the requested depth.",
+      )
+    }
+    anyList := anyList.contents || isListy(curr.contents)
+  }
+  let outermostPreLoopBuf = iterPreLoopBuf(curr.contents)
 
-  // Allocate the output binding in the outermost iter's preLoopBuf.
+  // Choose output form and push form based on chain composition.
   let outName = ctx.fresh()
-  outermostPreLoopBuf->Array.push(allocOut(outName))
+  let allocStmt = if anyList.contents {
+    JsBuild.const(outName, JsBuild.array_([]))
+  } else {
+    JsBuild.letDecl(outName)
+  }
+  let pushStmt = (valueExpr: JsAst.expr) =>
+    if anyList.contents {
+      JsBuild.exprStmt(
+        JsBuild.call(
+          JsBuild.member(JsBuild.id(outName), "push"),
+          [valueExpr],
+        ),
+      )
+    } else {
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), valueExpr))
+    }
+  outermostPreLoopBuf->Array.push(allocStmt)
   let outScope = walkUp(Some(innerScope), joinDepth + 1)
   ctx.memo->Map.set(close.id, (JsBuild.id(outName), outScope))
 
-  // Compile the per-iteration value, push at the deeper of innermost
-  // iter scope and value scope.
+  // Compile the per-iter value and emit the push at the deeper of
+  // innermost iter scope and value scope.
   let (valueExpr, valueScope) = go(ctx, branch.value)
   let pushBuf = bufferOf(ctx, deeper(Some(innerScope), valueScope))
-  pushBuf->Array.push(emitPush(outName, valueExpr))
+  pushBuf->Array.push(pushStmt(valueExpr))
 }
-
-and consumeListClose = (
-  ctx: compileCtx,
-  close: Expr.expr,
-  branches: array<Expr.closeBranch>,
-): unit =>
-  consumeIterClose(
-    ctx,
-    close,
-    branches,
-    "list",
-    f =>
-      switch f.kind {
-      | ListLoop({scope}) => Some(scope)
-      | _ => None
-      },
-    name => JsBuild.const(name, JsBuild.array_([])),
-    (name, value) =>
-      JsBuild.exprStmt(
-        JsBuild.call(
-          JsBuild.member(JsBuild.id(name), "push"),
-          [value],
-        ),
-      ),
-  )
-
-and consumeOptionClose = (
-  ctx: compileCtx,
-  close: Expr.expr,
-  branches: array<Expr.closeBranch>,
-): unit =>
-  consumeIterClose(
-    ctx,
-    close,
-    branches,
-    "option",
-    f =>
-      switch f.kind {
-      | OptionLoop({scope}) => Some(scope)
-      | _ => None
-      },
-    name => JsBuild.letDecl(name),
-    (name, value) =>
-      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(name), value)),
-  )
 
 and consumeCaseClose = (
   ctx: compileCtx,

@@ -81,11 +81,17 @@ Two mutually recursive types: `expr` (value-typed) and `flowRef`
       branch with `altName: None`, `value` the per-iteration push
       expression. Joineds on top lift the output array up that many
       iter levels.
-    - Option close (underlying is `NodeFlow(open_OptionIter)`): one
-      branch with `altName: None`, `value` the some-case value. The
-      output is `let v_out;` (undefined by default), assigned inside
-      the if body. Joineds on top lift the let above that many
-      enclosing iter levels.
+    - Option/iter close (underlying is `NodeFlow(open_OptionIter)`
+      or any Joined-mix thereof with `open_ListIter`): one branch
+      with `altName: None`, `value` the some-case (or per-iter)
+      value. The output form is decided by the walked-up chain: if
+      any iter in it is a list, output is `const out = []` with
+      `out.push(value)` (a list of one element per chain-firing);
+      if the whole chain is options, output is `let out;` with
+      `out = value` (a single value, set iff every option fires).
+      So List<Option<X>> joined produces a list of just the defined
+      values; Option<Option<X>> joined produces a single value set
+      iff both fire.
     - Case close (underlying is `NodeFlow(branch_)`): one branch per
       alt with `altName: Some(name)`, `flow` a `NodeFlow` selecting
       that alt's flow port, and the per-alt `value` expression.
@@ -266,8 +272,8 @@ visibly shared between the unjoined close (#4) and the joined close
 - **Option flow**: Some(v) doubled, None defaulted; multi-close on
   one option (doubled + tripled in parallel); Option<Option<X>>
   joined (Some only if both fire); Option<List<X>> joined (list
-  built only when outer fires); List<Option<X>> joined (last
-  firing wins; empty input → none).
+  built only when outer fires); List<Option<X>> joined (list of
+  just the defined values — push when defined, skip otherwise).
 
 ## Running
 

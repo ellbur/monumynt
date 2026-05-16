@@ -1370,27 +1370,26 @@ runTest(
   )
 }
 
-// (5) List<Option<X>> joined: inner option close, joined, lifts the
-//     `let v_out;` above the for-of. Each iteration's option may
-//     fire and reassign v_out; the final value is the last firing
-//     (or undefined if none fired).
+// (5) List<Option<X>> joined: inner option close, joined past the
+//     outer list. Because the chain contains a list, the output is
+//     a list — one element per outer iter where the inner option
+//     fires, skipped when it doesn't. (Reads like filter-on-option.)
 {
-  let listOptLast = (input: JsAst.expr) => {
+  let listOptList = (input: JsAst.expr) => {
     let inE = lit(input)
     let outer = open_(ListIter, inE)
     let inner = open_(OptionIter({discriminator: identity}), outer)
-    let result = close_(join_(NodeFlow(inner)), app(double, [inner]))
-    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [result])
+    close_(join_(NodeFlow(inner)), app(double, [inner]))
   }
   runTest(
-    ~name="list<option>: [u,3,u,7,u] joined-inner doubled → last firing 14",
-    ~expr=listOptLast(array_([undefined, int_(3), undefined, int_(7), undefined])),
-    ~expected=int_(14),
+    ~name="list<option>: [u,3,u,7,u] joined-inner doubled → [6,14]",
+    ~expr=listOptList(array_([undefined, int_(3), undefined, int_(7), undefined])),
+    ~expected=array_([int_(6), int_(14)]),
   )
   runTest(
-    ~name="list<option>: [u,u,u] joined-inner → 'none' (no firings)",
-    ~expr=listOptLast(array_([undefined, undefined, undefined])),
-    ~expected=str("none"),
+    ~name="list<option>: [u,u,u] joined-inner → []",
+    ~expr=listOptList(array_([undefined, undefined, undefined])),
+    ~expected=array_([]),
   )
 }
 
