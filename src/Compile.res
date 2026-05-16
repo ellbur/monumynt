@@ -240,23 +240,10 @@ let unwrapJoinedRef = (fr: Expr.flowRef): (Expr.flowRef, int) => {
   aux(fr, 0)
 }
 
-// Peel any Joined wrappers off a flowRef and require the result to be
-// a NodeFlow on an Open ListIter; return that Open and the join depth.
-// Used when constructing a CaseDispatch whose input is a Joined
-// list-iter (the filter-under-joined-lists case).
-let unwrapJoinedListIterNode = (fr: Expr.flowRef): option<(Expr.expr, int)> => {
-  let (inner, depth) = unwrapJoinedRef(fr)
-  switch inner {
-  | NodeFlow(e) =>
-    switch e.kind {
-    | Open({flow: ListIter}) => Some((e, depth))
-    | _ => None
-    }
-  | _ => None
-  }
-}
-
 // --- Lazy flow construction & value-port compile (mutually recursive) ---
+//
+// Forward declaration order: walkUpListLoopChain references flowFor;
+// they're together inside the mutual recursion block below.
 
 let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
   switch fr {
@@ -291,28 +278,14 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
             inputNode: input,
           }),
         }
-        // Memoise the value port: per-iteration element binding lives
-        // in the loop scope.
-        ctx.memo->Map.set(e.id, (JsBuild.id(elemName), Some(scope)))
         ctx.pendingLoops->Array.push(f)
         f
 
       | Open({flow: CaseSplit({alts, discriminator}), input}) =>
-        // The case-split's input is a value-port `expr`. For the
-        // filter-under-joined-lists case, the diagram models the
-        // join depth *on the input flow* — but we can't represent
-        // that as a flowRef on the value-position input. Instead we
-        // detect the pattern here: if input is the per-iter element
-        // of a nested list iter, we record the join depth by looking
-        // at how many Open ListIter levels are stacked under it.
-        //
-        // Concretely, today we trust the Expr author to supply the
-        // *innermost* list's element as `input`; we compile the input
-        // value normally (which triggers the inner ListLoop) and
-        // record inputJoinDepth = 0 by default. The
-        // filter-under-joined-lists pattern instead uses an explicit
-        // Joined flowRef inside the close branch; consumeFilterClose
-        // walks Joineds and lifts the output appropriately.
+        // Compile the input value (which for the case-split-in-list
+        // pattern triggers an inner ListLoop's construction); emit
+        // `const split = disc(input)` into that scope; allocate per-
+        // alt scopes; push a placeholder for the if-chain.
         let (inputJsExpr, parentScope) = go(ctx, input)
         let parentBuf = bufferOf(ctx, parentScope)
         let splitName = ctx.fresh()
@@ -457,15 +430,14 @@ and go = (ctx: compileCtx, e: Expr.expr): compileResult =>
       (JsBuild.id(name), innermost)
 
     | Open({flow: ListIter}) =>
-      // Trigger flow construction; flowFor sets memo to the per-iter
-      // element binding.
-      let _ = flowFor(ctx, NodeFlow(e))
-      switch ctx.memo->Map.get(e.id) {
-      | Some(v) => v
-      | None =>
+      // The per-iter element binding *is* the value port; flowFor
+      // constructs the loop and exposes both.
+      switch (flowFor(ctx, NodeFlow(e))).kind {
+      | ListLoop({scope, elemName}) => (JsBuild.id(elemName), Some(scope))
+      | _ =>
         failwith(
-          "Internal error: ListIter flowFor did not set memo for id=" ++
-          Int.toString(e.id) ++ ".",
+          "Internal error: flowFor for an Open ListIter (id=" ++
+          Int.toString(e.id) ++ ") didn't return a ListLoop.",
         )
       }
 
@@ -478,17 +450,15 @@ and go = (ctx: compileCtx, e: Expr.expr): compileResult =>
       )
 
     | Branch(_) =>
-      // Trigger flow construction; the BranchOf carries the per-alt
-      // v binding.
-      let bof = flowFor(ctx, NodeFlow(e))
-      switch bof.kind {
+      // The per-alt v = split.value binding *is* the value port;
+      // flowFor constructs (or finds) the BranchOf and exposes it.
+      switch (flowFor(ctx, NodeFlow(e))).kind {
       | BranchOf({valueName, branchScope}) =>
         (JsBuild.id(valueName), Some(branchScope))
       | _ =>
         failwith(
-          "Internal error: Branch (id=" ++
-          Int.toString(e.id) ++
-          ") flow is not a BranchOf.",
+          "Internal error: flowFor for a Branch (id=" ++
+          Int.toString(e.id) ++ ") didn't return a BranchOf.",
         )
       }
 
@@ -541,6 +511,36 @@ and consumeClose = (ctx: compileCtx, close: Expr.expr): unit =>
   | _ => failwith("Internal error: consumeClose called on non-Close.")
   }
 
+// Walk up N ListLoop levels via the `inputNode` chain. Each step
+// expects the next inputNode to be another Open ListIter; raises
+// with a clear message otherwise.
+and walkUpListLoopChain = (
+  ctx: compileCtx,
+  start: openFlow,
+  depth: int,
+): openFlow => {
+  let curr = ref(start)
+  for _ in 1 to depth {
+    let inputNode = switch (curr.contents).kind {
+    | ListLoop({inputNode}) => inputNode
+    | _ =>
+      failwith(
+        "Internal error: walkUpListLoopChain step from non-ListLoop.",
+      )
+    }
+    curr := flowFor(ctx, NodeFlow(inputNode))
+    switch (curr.contents).kind {
+    | ListLoop(_) => ()
+    | _ =>
+      failwith(
+        "Walking up the list-iter chain expected an Open ListIter at " ++
+        "each level, but the chain ran out before the requested depth.",
+      )
+    }
+  }
+  curr.contents
+}
+
 and consumeListClose = (
   ctx: compileCtx,
   close: Expr.expr,
@@ -565,8 +565,8 @@ and consumeListClose = (
     )
   }
 
+  // Walk Joineds to find the innermost ListLoop and the joinDepth.
   let flow = flowFor(ctx, branch.flow)
-  // Walk through Joineds to find innermost ListLoop and joinDepth.
   let rec unwrapList = (f: openFlow, depth: int) =>
     switch f.kind {
     | ListLoop(_) => (f, depth)
@@ -577,37 +577,21 @@ and consumeListClose = (
       )
     }
   let (innermostListFlow, joinDepth) = unwrapList(flow, 0)
-
-  let (innerLoopScope, _) = switch innermostListFlow.kind {
-  | ListLoop({scope, elemName}) => (scope, elemName)
-  | _ => failwith("Internal")
+  let innerLoopScope = switch innermostListFlow.kind {
+  | ListLoop({scope}) => scope
+  | _ => failwith("Internal: unwrapList didn't return a ListLoop.")
   }
 
-  // Walk up `joinDepth` Open.input levels to find the outermost loop
-  // in the chain. Its preLoopBuf is where the output array goes.
-  let curr = ref(innermostListFlow)
-  for _ in 1 to joinDepth {
-    let inputNode = switch (curr.contents).kind {
-    | ListLoop({inputNode}) => inputNode
-    | _ => failwith("Internal")
-    }
-    curr := flowFor(ctx, NodeFlow(inputNode))
-    switch (curr.contents).kind {
-    | ListLoop(_) => ()
-    | _ =>
-      failwith(
-        "Join requires the inner Open's input to also be an Open ListIter, " ++
-        "but the input chain ran out of list iters before the requested " ++
-        "join depth.",
-      )
-    }
-  }
-  let outermostPreLoopBuf = switch (curr.contents).kind {
+  // Walk `joinDepth` levels up to find the outermost loop in the
+  // chain; its preLoopBuf is where the output array goes.
+  let outermost = walkUpListLoopChain(ctx, innermostListFlow, joinDepth)
+  let outermostPreLoopBuf = switch outermost.kind {
   | ListLoop({preLoopBuf}) => preLoopBuf
-  | _ => failwith("Internal")
+  | _ => failwith("Internal: walkUpListLoopChain didn't return a ListLoop.")
   }
 
-  // Allocate output array in outermost loop's preLoopBuf.
+  // Allocate the output array in the outermost loop's preLoopBuf
+  // (so it's spliced in immediately before the for-of at finalise).
   let outName = ctx.fresh()
   outermostPreLoopBuf->Array.push(JsBuild.const(outName, JsBuild.array_([])))
   let outScope = walkUp(Some(innerLoopScope), joinDepth + 1)
@@ -632,78 +616,63 @@ and consumeCaseClose = (
   close: Expr.expr,
   branches: array<Expr.closeBranch>,
 ): unit => {
-  // All branches' flows must be Branches on the same CaseDispatch.
-  let dispatchFlow = {
-    let firstBof = flowFor(ctx, (branches->Array.getUnsafe(0)).flow)
-    switch firstBof.kind {
-    | BranchOf({source}) => source
-    | _ => failwith("Internal: case close branch[0] is not a BranchOf.")
-    }
-  }
-  branches->Array.forEach(b => {
-    let bof = flowFor(ctx, b.flow)
-    switch bof.kind {
-    | BranchOf({source}) =>
-      if source.id != dispatchFlow.id {
-        failwith(
-          "Case close (id=" ++
-          Int.toString(close.id) ++
-          ") has a branch whose flow source is a different CaseSplit Open " ++
-          "than the rest.",
-        )
-      }
-    | _ =>
-      failwith(
-        "Case close (id=" ++
-        Int.toString(close.id) ++
-        ") has a branch whose flow is not a Branch node.",
-      )
-    }
-  })
-
-  let dispatchData = switch dispatchFlow.kind {
-  | CaseDispatch(d) => d
-  | _ => failwith("Internal")
-  }
-
-  // Validate altNames: each must be Some(name), name must be in alts,
-  // each alt covered exactly once.
-  branches->Array.forEach(b =>
-    switch b.altName {
-    | Some(_) => ()
+  // Resolve each branch's flow to a BranchOf, simultaneously checking
+  // that all branches reference the same CaseDispatch and recording
+  // (altName, BranchOf) per branch.
+  let dispatchFlow = ref(None)
+  let perBranch = branches->Array.map(b => {
+    let altName = switch b.altName {
+    | Some(n) => n
     | None =>
       failwith(
         "A case close's branches must each have altName=Some(name), " ++
-        "but Close (id=" ++
-        Int.toString(close.id) ++
+        "but Close (id=" ++ Int.toString(close.id) ++
         ") has a branch with altName=None.",
       )
     }
-  )
-  dispatchData.alts->Array.forEach(altName => {
-    let count = branches->Array.reduce(0, (acc, b) =>
-      switch b.altName {
-      | Some(name) if name == altName => acc + 1
-      | _ => acc
+    let source = switch (flowFor(ctx, b.flow)).kind {
+    | BranchOf({source}) => source
+    | _ =>
+      failwith(
+        "Case close (id=" ++ Int.toString(close.id) ++
+        ") has a branch (alt=\"" ++ altName ++
+        "\") whose flow is not a Branch node.",
+      )
+    }
+    switch dispatchFlow.contents {
+    | None => dispatchFlow := Some(source)
+    | Some(d) =>
+      if source.id != d.id {
+        failwith(
+          "Case close (id=" ++ Int.toString(close.id) ++
+          ") has branches whose flows reference different CaseSplit Opens.",
+        )
       }
+    }
+    (altName, b.value)
+  })
+  let dispatchFlow = Option.getOrThrow(dispatchFlow.contents)
+  let dispatchData = switch dispatchFlow.kind {
+  | CaseDispatch(d) => d
+  | _ => failwith("Internal: case close's source isn't a CaseDispatch.")
+  }
+
+  // Exhaustiveness: every alt must be covered exactly once.
+  dispatchData.alts->Array.forEach(altName => {
+    let count = perBranch->Array.reduce(0, (acc, (name, _)) =>
+      if name == altName { acc + 1 } else { acc }
     )
     if count != 1 {
       failwith(
-        "Case close (id=" ++
-        Int.toString(close.id) ++
-        ") must have exactly one branch for alt \"" ++
-        altName ++
-        "\" (found " ++
-        Int.toString(count) ++ ").",
+        "Case close (id=" ++ Int.toString(close.id) ++
+        ") must have exactly one branch for alt \"" ++ altName ++
+        "\" (found " ++ Int.toString(count) ++ ").",
       )
     }
   })
 
-  // Mark the dispatch as needing exhaustive throw.
-  switch dispatchFlow.kind {
-  | CaseDispatch(d) => d.demandsExhaustive = true
-  | _ => ()
-  }
+  // Tell the dispatch its if-chain ends with an else-throw.
+  dispatchData.demandsExhaustive = true
 
   // Allocate `let v_close;` in the dispatch's preDispatchBuf.
   let resultName = ctx.fresh()
@@ -713,20 +682,14 @@ and consumeCaseClose = (
     (JsBuild.id(resultName), dispatchData.dispParentScope),
   )
 
-  // For each branch: compile its value into the alt's scope, append
-  // the assignment.
-  branches->Array.forEach(b => {
-    let altName = switch b.altName {
-    | Some(n) => n
-    | None => failwith("Internal: validated above")
-    }
+  // For each branch: compile its value into the alt's scope and
+  // append the `v_close = value` assignment.
+  perBranch->Array.forEach(((altName, value)) => {
     let altIdx = dispatchData.alts->Array.findIndex(a => a == altName)
     let altScope = dispatchData.altScopes->Array.getUnsafe(altIdx)
-    let (valueExpr, _) = go(ctx, b.value)
+    let (valueExpr, _) = go(ctx, value)
     altScope.buffer->Array.push(
-      JsBuild.exprStmt(
-        JsBuild.assign(JsBuild.id(resultName), valueExpr),
-      ),
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(resultName), valueExpr)),
     )
   })
 }
@@ -736,100 +699,73 @@ and consumeFilterClose = (
   close: Expr.expr,
   branches: array<Expr.closeBranch>,
 ): unit => {
-  // Per-close info: (alt, value, altScope, dispatchFlow, joinDepth).
-  // Each branch's flow is Joined^N(Filtered(NodeFlow(branch))) where
-  // N is the number of nested lists to lift the output above.
-  let perCloseInfo = branches->Array.map(b => {
-    switch b.altName {
-    | None => ()
-    | Some(name) =>
-      failwith(
-        "A filter close's branch must have altName=None, but Close (id=" ++
-        Int.toString(close.id) ++
-        ")'s branch has altName=Some(\"" ++ name ++ "\").",
-      )
-    }
-    let (filterRef, joinDepth) = unwrapJoinedRef(b.flow)
-    let filterFlow = flowFor(ctx, filterRef)
-    let bof = switch filterFlow.kind {
-    | Filtered({inner}) => inner
-    | _ =>
-      failwith(
-        "Filter close branch.flow (after peeling Joineds) is not a " ++
-        "Filtered.",
-      )
-    }
-    switch bof.kind {
-    | BranchOf({alt, branchScope, source}) =>
-      (alt, b.value, branchScope, source, joinDepth)
-    | _ => failwith("Internal: Filtered inner is not a BranchOf")
-    }
-  })
-
-  if Array.length(perCloseInfo) != 1 {
+  // Today a filter close has exactly one branch. The shape is
+  // `Joined^N(Filtered(NodeFlow(branch)))` where N is how many list
+  // scopes up to lift the output array. (Multi-filter on different
+  // alts of one case-split is expressed by separate filter Closes
+  // sharing the case-split; they attach independently.)
+  if Array.length(branches) != 1 {
     failwith(
       "A filter close currently must have exactly one branch, but " ++
       "Close (id=" ++ Int.toString(close.id) ++ ") has " ++
       Int.toString(Array.length(branches)) ++ ".",
     )
   }
-  let (_, value, altScope, dispatchFlow, joinDepth) =
-    perCloseInfo->Array.getUnsafe(0)
-  let dispatchData = switch dispatchFlow.kind {
-  | CaseDispatch(d) => d
-  | _ => failwith("Internal")
+  let branch = branches->Array.getUnsafe(0)
+  switch branch.altName {
+  | None => ()
+  | Some(name) =>
+    failwith(
+      "A filter close's branch must have altName=None, but Close (id=" ++
+      Int.toString(close.id) ++
+      ")'s branch has altName=Some(\"" ++ name ++ "\").",
+    )
   }
 
-  // Find the innermost surrounding list loop: it's the ListLoop whose
-  // per-iter value port IS the case-split's input. We construct (or
-  // find) it via flowFor(NodeFlow(dispInputNode)).
+  // Peel Joineds for joinDepth; underneath must be Filtered(BranchOf).
+  let (filterRef, joinDepth) = unwrapJoinedRef(branch.flow)
+  let (altScope, dispatchFlow) = switch (flowFor(ctx, filterRef)).kind {
+  | Filtered({inner}) =>
+    switch inner.kind {
+    | BranchOf({branchScope, source}) => (branchScope, source)
+    | _ => failwith("Internal: Filtered inner is not a BranchOf.")
+    }
+  | _ =>
+    failwith(
+      "Filter close branch.flow (after peeling Joineds) is not a Filtered.",
+    )
+  }
+  let dispatchData = switch dispatchFlow.kind {
+  | CaseDispatch(d) => d
+  | _ => failwith("Internal: filter's source is not a CaseDispatch.")
+  }
+
+  // The innermost surrounding list loop is the ListLoop whose
+  // per-iter value port IS the case-split's input; flowFor finds it
+  // (constructing if needed). Walk `joinDepth` up to find the
+  // outermost loop whose parent is where the output array lives.
   let innermostListFlow = flowFor(ctx, NodeFlow(dispatchData.dispInputNode))
-  switch innermostListFlow.kind {
-  | ListLoop(_) => ()
+  let innermostLoopScope = switch innermostListFlow.kind {
+  | ListLoop({scope}) => scope
   | _ =>
     failwith(
       "Filter requires the case-split's input to be an Open ListIter, " ++
       "but it isn't.",
     )
   }
-  let innermostLoopScope = switch innermostListFlow.kind {
-  | ListLoop({scope}) => scope
-  | _ => failwith("Internal")
-  }
-
-  // Walk up `joinDepth` ListLoop levels (via inputNode chain) to find
-  // the outermost list whose parent scope is where the output array
-  // should live.
-  let curr = ref(innermostListFlow)
-  for _ in 1 to joinDepth {
-    let inputNode = switch (curr.contents).kind {
-    | ListLoop({inputNode}) => inputNode
-    | _ => failwith("Internal")
-    }
-    curr := flowFor(ctx, NodeFlow(inputNode))
-    switch (curr.contents).kind {
-    | ListLoop(_) => ()
-    | _ =>
-      failwith(
-        "Filter under joined lists requires each level to be an Open " ++
-        "ListIter, but the chain ran out before the requested join depth.",
-      )
-    }
-  }
-  let outermostPreLoopBuf = switch (curr.contents).kind {
+  let outermost = walkUpListLoopChain(ctx, innermostListFlow, joinDepth)
+  let outermostPreLoopBuf = switch outermost.kind {
   | ListLoop({preLoopBuf}) => preLoopBuf
-  | _ => failwith("Internal")
+  | _ => failwith("Internal: walkUpListLoopChain didn't return a ListLoop.")
   }
 
-  // Allocate output array in outermost loop's preLoopBuf.
   let outName = ctx.fresh()
   outermostPreLoopBuf->Array.push(JsBuild.const(outName, JsBuild.array_([])))
   let outScope = walkUp(Some(innermostLoopScope), joinDepth + 1)
   ctx.memo->Map.set(close.id, (JsBuild.id(outName), outScope))
 
-  // Compile value (likely references the BranchOf's v binding via
-  // Branch.value), push to the alt's scope.
-  let (valueExpr, _) = go(ctx, value)
+  // Compile value, push into the alt's body.
+  let (valueExpr, _) = go(ctx, branch.value)
   altScope.buffer->Array.push(
     JsBuild.exprStmt(
       JsBuild.call(
