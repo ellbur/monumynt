@@ -174,6 +174,15 @@ Three design ideas drive the compile:
    once compiles to a single binding; subsequent encounters return the
    cached value. Sharing a node = `let`-binding it in ReScript.
 
+Apps emit eagerly during DFS at `deeper(args' scopes)`, then a sink
+pass moves each App as deep as its consumers allow — bounded by a
+`loopDepth` cap so we never sink past a list-iter boundary
+(which would turn a once-per-outer-iter computation into a per-inner-
+iter one). The practical effect: a value used only inside an option's
+some-body or a case-split alt lands inside that body, computed only
+on the iterations where the body fires. No runtime laziness; just
+compile-time placement that follows where values actually flow.
+
 Closes are pure consumers, no preprocess pass. `consumeListClose`
 walks Joineds to find the innermost loop and join depth; pushes a
 `const v_out = []` into the *outermost* loop's `preLoopBuf` (so it
@@ -231,7 +240,7 @@ is the "mixed shared body" test, with `#3` (the doubled element)
 visibly shared between the unjoined close (#4) and the joined close
 (#7), and the original opens (#1, #2) reused throughout.
 
-**78 tests** cover:
+**79 tests** cover:
 
 - **Value-only fragment**: literals (number, string, bool, array,
   object, member-reference), nested arithmetic, standard-library calls
@@ -274,6 +283,11 @@ visibly shared between the unjoined close (#4) and the joined close
   joined (Some only if both fire); Option<List<X>> joined (list
   built only when outer fires); List<Option<X>> joined (list of
   just the defined values — push when defined, skip otherwise).
+- **Sinking**: a per-element App that depends only on the outer
+  loop's element but is referenced only by an option-close's
+  per-iter value sinks into the if-body, so it runs only on
+  Some-iters even though its inputs would otherwise place it
+  unconditionally in the loop body.
 
 ## Running
 

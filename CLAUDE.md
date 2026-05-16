@@ -31,6 +31,8 @@ This is an experimental sandbox for a visual flow-based programming language. De
 
 The compile mirrors the Expr-side value/flow split: `go(ctx, e: Expr.expr)` is the value-port entry point; `flowFor(ctx, fr: Expr.flowRef)` is the flow-port entry point. Flows are first-class entities, constructed lazily and memoised by the underlying node id (for NodeFlow refs). `Joined` / `Filtered` are pure structural wrappers; no memoisation.
 
+Apps emit eagerly during DFS at `deeper(args' scopes)`, then a sink pass after DFS may **move** them deeper. Each App can sink as far down as its consumers allow (deepest common ancestor of consumer scopes), subject to a `loopDepth` cap so we never sink past a ListLoop boundary (which would recompute the value per-iter instead of once). Consumer info is collected during DFS: App-args register their App as a value consumer; Open inputs register the Open's parent scope as a structural consumer; each consumeXxxClose registers the push/assign scope as a structural consumer of `branch.value`. The net effect: a value used only inside an option's some-body or a case-split alt automatically lands inside that body, even when its inputs would otherwise pin it higher.
+
 There is **no preprocess pass**, **no global loop stack**, and **no `closeGroups` / `branchesBySource` maps**. Closes are pure consumers that attach to existing flows lazily.
 
 `scopeRef = {buffer: array<JsAst.stmt>, depth: int, parent: option<scopeRef>}`:
@@ -106,7 +108,7 @@ The user designs incrementally and likes to think out loud about a step before a
 - They prefer "baby steps" — one small, well-understood addition at a time. Don't bring in extra design dimensions ("multi-close at the same time as nested at the same time as join") in one round.
 - They have strong design taste — when they say something like "we don't need to walk the stack" or "join is a pure flow operation," it's worth taking literally and working out the implications, not paraphrasing or smoothing over.
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
-- Before declaring something done, run the test suite. The runner currently passes 78 tests; if a change drops that count, something regressed.
+- Before declaring something done, run the test suite. The runner currently passes 79 tests; if a change drops that count, something regressed.
 
 ## Honoured semantic limitations (currently unenforced)
 

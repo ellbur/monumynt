@@ -103,11 +103,48 @@
 // Because we look the placeholder up by reference at finalize time,
 // the order of loop/dispatch finalisations doesn't matter — splices
 // elsewhere don't move the placeholder, only its index.
+//
+// Consumer-driven placement (sinking). After DFS, sinkApps walks
+// pendingApps in reverse topological order and computes, for each
+// App, the deepest scope it can live in that:
+//   - is an ancestor of (or equal to) all its value-port consumers'
+//     scopes (so all consumers can still see it);
+//   - has the same loopDepth as its eager scope (so we don't
+//     accidentally push it into a deeper loop and recompute it on
+//     every iteration).
+//
+// Then moveSunkApps splices each App that sank to a deeper scope
+// out of its eagerly-emitted buffer and appends it to the target
+// scope's appBuf; appBufs are prepended to their scope's buffer at
+// the very end. Apps that don't sink stay exactly where DFS put
+// them, so DFS-order topological correctness is preserved.
+//
+// Consumer-tracking happens as a side effect of DFS:
+//   - go(App): records the App as an AppCons consumer of each arg.
+//   - flowFor(NodeFlow(Open …)): records the Open as a StructCons
+//     consumer of its input at parentScope (the input is read in the
+//     for-of header / discriminator call / if-test).
+//   - consumeXxxClose: records the close as a StructCons consumer
+//     of branch.value at the scope where the push/assign lives
+//     (alt scope for case/filter, innermost iter scope for list/
+//     option). This is what lets an alt-only computation sink into
+//     its alt body.
 
 type rec scopeRef = {
   buffer: array<JsAst.stmt>,
   depth: int,
   parent: option<scopeRef>,
+  // How many ListLoop scopes lie at-or-above this one (inclusive of
+  // this scope if it's a ListLoop body). Sinking is only safe through
+  // scopes that don't increase loopDepth — otherwise we'd recompute
+  // the value on each iter of a loop we sank into.
+  loopDepth: int,
+  // App bindings that were originally emitted in some shallower
+  // (eager) buffer and then moved here by consumer-driven placement.
+  // Prepended to `buffer` at the very end of compileToBody, so App
+  // computations come before all the structural statements that
+  // consume them.
+  appBuf: array<JsAst.stmt>,
 }
 and openFlow = {
   id: int,
@@ -192,6 +229,37 @@ and branchOfData = {
 
 type compileResult = (JsAst.expr, option<scopeRef>)
 
+// One value-port consumer of an Expr. Used to compute consumer-
+// driven (a.k.a. sunk) placement for App bindings.
+//
+//   - AppCons(id):  the consumer is an App with the given id. Its
+//                    target scope is determined during the sink pass;
+//                    we look it up via ctx.appTarget at that time.
+//   - StructCons(s): the consumer is a structural node (an Open's
+//                    discriminator/iter expression / if-test) that
+//                    references the value at the fixed scope `s`.
+//                    This is a hard lower bound — the value can't
+//                    sink past it.
+//
+// Close consumers (via branch.value) are NOT recorded: a list-style
+// or option-style Close adapts its push location to wherever the
+// value happens to live, so it imposes no upper bound on the value's
+// placement.
+type consumerInfo =
+  | AppCons(int)
+  | StructCons(option<scopeRef>)
+
+// An App emitted eagerly at its `deeper(args' scopes)` scope during
+// DFS, but potentially relocatable to a deeper (more conditional)
+// scope by the sink pass. Holds the stmt reference so the move pass
+// can splice it out of the eager buffer and append it to the target
+// scope's appBuf.
+type pendingApp = {
+  id: int,
+  stmt: JsAst.stmt,
+  eagerScope: option<scopeRef>,
+}
+
 type compileCtx = {
   outerStmts: array<JsAst.stmt>,
   // Top-level Lit bindings are accumulated here and prepended to
@@ -210,6 +278,17 @@ type compileCtx = {
   // at the end of compileToBody.
   pendingLoops: array<openFlow>,
   pendingDispatches: array<openFlow>,
+  // Apps recorded during DFS for deferred emission. In DFS order =
+  // topological order (inputs before consumers).
+  pendingApps: array<pendingApp>,
+  // Value-port consumers of each Expr, keyed by Expr.id. Built as a
+  // side effect during DFS.
+  consumers: Map.t<int, array<consumerInfo>>,
+  // App-id → target scope, populated by the sink pass.
+  appTarget: Map.t<int, option<scopeRef>>,
+  // All non-None scopes ever created, so we can iterate them at the
+  // end to prepend their appBufs to their buffers.
+  allScopes: array<scopeRef>,
 }
 
 // --- Scope helpers ---
@@ -255,6 +334,112 @@ let rec walkUp = (s: option<scopeRef>, n: int): option<scopeRef> =>
     }
   }
 
+// Loop depth of an option<scopeRef>: 0 for None (outerStmts), the
+// scope's own loopDepth otherwise.
+let loopDepthOf = (s: option<scopeRef>): int =>
+  switch s {
+  | Some(scope) => scope.loopDepth
+  | None => 0
+  }
+
+// Construct a scope and register it in ctx.allScopes so its appBuf
+// can be drained at finalisation time. `isLoop` says whether this
+// scope is a ListLoop body — that's the only kind that adds to
+// loopDepth and forbids sinking past it.
+let mkScope = (
+  ctx: compileCtx,
+  parent: option<scopeRef>,
+  depth: int,
+  isLoop: bool,
+): scopeRef => {
+  let parentLoopDepth = loopDepthOf(parent)
+  let s = {
+    buffer: [],
+    depth,
+    parent,
+    loopDepth: if isLoop { parentLoopDepth + 1 } else { parentLoopDepth },
+    appBuf: [],
+  }
+  ctx.allScopes->Array.push(s)
+  s
+}
+
+// Walk a scope up to a given (shallower) depth. Returns None if the
+// chain runs out before reaching that depth.
+let rec walkToDepth = (s: scopeRef, d: int): option<scopeRef> =>
+  if s.depth == d {
+    Some(s)
+  } else if s.depth < d {
+    None
+  } else {
+    switch s.parent {
+    | Some(p) => walkToDepth(p, d)
+    | None => None
+    }
+  }
+
+// Shallowest common ancestor of two non-None scopes.
+let rec scaScopes = (a: scopeRef, b: scopeRef): option<scopeRef> => {
+  if a === b {
+    Some(a)
+  } else if a.depth > b.depth {
+    switch a.parent {
+    | Some(p) => scaScopes(p, b)
+    | None => None
+    }
+  } else if b.depth > a.depth {
+    switch b.parent {
+    | Some(p) => scaScopes(a, p)
+    | None => None
+    }
+  } else {
+    // Same depth, not equal — walk both up one step.
+    switch (a.parent, b.parent) {
+    | (Some(pa), Some(pb)) => scaScopes(pa, pb)
+    | _ => None
+    }
+  }
+}
+
+// Shallowest common ancestor of two option<scopeRef>. None
+// represents "outerStmts level"; SCA with None on either side is
+// None (you can't get more outer than that).
+let scaOpt = (
+  a: option<scopeRef>,
+  b: option<scopeRef>,
+): option<scopeRef> =>
+  switch (a, b) {
+  | (None, _) | (_, None) => None
+  | (Some(sa), Some(sb)) => scaScopes(sa, sb)
+  }
+
+// Fold scaOpt over a list of scopes.
+let scaAll = (scopes: array<option<scopeRef>>): option<scopeRef> => {
+  switch scopes->Array.length {
+  | 0 => None
+  | _ =>
+    let first = scopes->Array.getUnsafe(0)
+    let rest = scopes->Array.sliceToEnd(~start=1)
+    rest->Array.reduce(first, scaOpt)
+  }
+}
+
+// Record one consumer for a value (keyed by the value's Expr.id).
+let recordConsumer = (
+  ctx: compileCtx,
+  valueId: int,
+  c: consumerInfo,
+): unit => {
+  let arr = switch ctx.consumers->Map.get(valueId) {
+  | Some(a) => a
+  | None =>
+    let a = []
+    ctx.consumers->Map.set(valueId, a)
+    a
+  }
+  arr->Array.push(c)
+}
+
 // Peel any Joined wrappers off a flowRef; return the inner flowRef and
 // the number of Joineds peeled.
 let unwrapJoinedRef = (fr: Expr.flowRef): (Expr.flowRef, int) => {
@@ -280,13 +465,14 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
       let f = switch e.kind {
       | Open({flow: ListIter, input}) =>
         let (inputJsExpr, parentScope) = go(ctx, input)
+        // Record this Open as a structural consumer of `input` — the
+        // for-of header reads input at parentScope, so the input is
+        // pinned at that scope (can't sink past it).
+        recordConsumer(ctx, input.id, StructCons(parentScope))
         let parentBuf = bufferOf(ctx, parentScope)
         let elemName = ctx.fresh()
-        let scope = {
-          buffer: [],
-          depth: depthOf(parentScope) + 1,
-          parent: parentScope,
-        }
+        let scope =
+          mkScope(ctx, parentScope, depthOf(parentScope) + 1, true)
         // Sentinel placeholder; replaced at finalisation. Each
         // SBlock([]) is a unique JS object by reference, so
         // Array.indexOfOpt finds it later.
@@ -314,6 +500,9 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
         // the if-test and for any consumer references inside the if
         // body — no fresh binding needed.
         let (inputJsExpr, parentScope) = go(ctx, input)
+        // The if-test reads `input !== undefined` at parentScope, so
+        // input is pinned at parentScope.
+        recordConsumer(ctx, input.id, StructCons(parentScope))
         let elemName = switch inputJsExpr {
         | JsAst.EId(name) => name
         | _ =>
@@ -323,11 +512,8 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
           )
         }
         let parentBuf = bufferOf(ctx, parentScope)
-        let scope = {
-          buffer: [],
-          depth: depthOf(parentScope) + 1,
-          parent: parentScope,
-        }
+        let scope =
+          mkScope(ctx, parentScope, depthOf(parentScope) + 1, false)
         let placeholder = JsAst.SBlock([])
         parentBuf->Array.push(placeholder)
         let f = {
@@ -351,6 +537,9 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
         // `const split = disc(input)` into that scope; allocate per-
         // alt scopes; push a placeholder for the if-chain.
         let (inputJsExpr, parentScope) = go(ctx, input)
+        // The discriminator call reads input at parentScope, so input
+        // is pinned at parentScope.
+        recordConsumer(ctx, input.id, StructCons(parentScope))
         let parentBuf = bufferOf(ctx, parentScope)
         let splitName = ctx.fresh()
         parentBuf->Array.push(
@@ -359,11 +548,9 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
         let placeholder = JsAst.SBlock([])
         parentBuf->Array.push(placeholder)
         let parentDepth = depthOf(parentScope)
-        let altScopes = alts->Array.map(_ => {
-          buffer: [],
-          depth: parentDepth + 1,
-          parent: parentScope,
-        })
+        let altScopes =
+          alts->Array.map(_ =>
+            mkScope(ctx, parentScope, parentDepth + 1, false))
         let f = {
           id: e.id,
           kind: CaseDispatch({
@@ -489,9 +676,21 @@ and go = (ctx: compileCtx, e: Expr.expr): compileResult =>
       let innermost =
         argResults->Array.reduce(None, (acc, (_, s)) => deeper(acc, s))
       let name = ctx.fresh()
-      bufferOf(ctx, innermost)->Array.push(
-        JsBuild.const(name, JsBuild.call(fn, argExprs)),
-      )
+      // Eager emit at deeper-of-args. The sink pass may later move
+      // this stmt to a deeper, more conditional scope; until then,
+      // DFS-order topo-correctness is preserved by emitting now.
+      let stmt = JsBuild.const(name, JsBuild.call(fn, argExprs))
+      bufferOf(ctx, innermost)->Array.push(stmt)
+      // Record this App as a value-port consumer of each arg, so the
+      // sink pass can include its target scope in each arg's
+      // consumer SCA.
+      args->Array.forEach(arg => recordConsumer(ctx, arg.id, AppCons(e.id)))
+      // Stash the stmt for the sink pass to potentially relocate.
+      ctx.pendingApps->Array.push({
+        id: e.id,
+        stmt,
+        eagerScope: innermost,
+      })
       (JsBuild.id(name), innermost)
 
     | Open({flow: ListIter}) =>
@@ -506,7 +705,7 @@ and go = (ctx: compileCtx, e: Expr.expr): compileResult =>
         )
       }
 
-    | Open({flow: OptionIter(_)}) =>
+    | Open({flow: OptionIter}) =>
       // The per-some elem binding (= disc result) is the value port.
       // Note: it lives at the parent scope but is only semantically
       // meaningful inside the if body — we report it as living in
@@ -739,6 +938,12 @@ and consumeIterClose = (
   let outScope = walkUp(Some(innerScope), joinDepth + 1)
   ctx.memo->Map.set(close.id, (JsBuild.id(outName), outScope))
 
+  // The value is referenced by the push (or assign) statement inside
+  // the innermost iter scope. Recording that scope as a structural
+  // consumer enables the value to sink down to it — for option iters,
+  // this lets per-iter values that only matter on Some-iterations
+  // compute only on those iterations.
+  recordConsumer(ctx, branch.value.id, StructCons(Some(innerScope)))
   // Compile the per-iter value and emit the push at the deeper of
   // innermost iter scope and value scope.
   let (valueExpr, valueScope) = go(ctx, branch.value)
@@ -822,6 +1027,12 @@ and consumeCaseClose = (
   perBranch->Array.forEach(((altName, value)) => {
     let altIdx = dispatchData.alts->Array.findIndex(a => a == altName)
     let altScope = dispatchData.altScopes->Array.getUnsafe(altIdx)
+    // The value is referenced inside the alt body (by the
+    // `v_close = value` assignment). Recording the alt scope as a
+    // structural consumer lets the sink pass move the value's
+    // computation into the alt body — computed only when this alt
+    // fires.
+    recordConsumer(ctx, value.id, StructCons(Some(altScope)))
     let (valueExpr, _) = go(ctx, value)
     altScope.buffer->Array.push(
       JsBuild.exprStmt(JsBuild.assign(JsBuild.id(resultName), valueExpr)),
@@ -896,6 +1107,10 @@ and consumeFilterClose = (
   let outScope = walkUp(Some(innermostLoopScope), joinDepth + 1)
   ctx.memo->Map.set(close.id, (JsBuild.id(outName), outScope))
 
+  // The value's push happens inside the alt's body, so the value can
+  // sink into the alt body — computed only on iterations whose
+  // option fires.
+  recordConsumer(ctx, branch.value.id, StructCons(Some(altScope)))
   // Compile value, push into the alt's body.
   let (valueExpr, _) = go(ctx, branch.value)
   altScope.buffer->Array.push(
@@ -1022,6 +1237,100 @@ let finalizeDispatches = (ctx: compileCtx): unit =>
     }
   )
 
+// --- Consumer-driven placement (sink pass) ---
+
+// Same-scope test for option<scopeRef> via physical equality of the
+// underlying records.
+let sameScopeOpt = (a: option<scopeRef>, b: option<scopeRef>): bool =>
+  switch (a, b) {
+  | (None, None) => true
+  | (Some(sa), Some(sb)) => sa === sb
+  | _ => false
+  }
+
+// Given an eager scope and the LCA of consumer scopes (both bounds
+// included by the caller), walk consumerLCA up until its loopDepth
+// equals eager's loopDepth. That guarantees we don't sink past any
+// ListLoop boundary — which would recompute the App on every
+// iteration of that loop, defeating the point.
+//
+// The result is the deepest scope satisfying:
+//   - is an ancestor of (or equal to) consumerLCA, so all consumers
+//     can reach it;
+//   - is a descendant of (or equal to) eager, so all inputs are
+//     visible;
+//   - has the same loopDepth as eager, so it doesn't fire more
+//     often than eager would.
+let rec descendToEagerLoopDepth = (
+  curr: option<scopeRef>,
+  eagerLoopDepth: int,
+): option<scopeRef> =>
+  if loopDepthOf(curr) <= eagerLoopDepth {
+    curr
+  } else {
+    switch curr {
+    | None => None
+    | Some(s) => descendToEagerLoopDepth(s.parent, eagerLoopDepth)
+    }
+  }
+
+// Compute the sunk target scope for each pending App. Processed in
+// reverse DFS order so each App's downstream consumers are already
+// resolved when we look them up via appTarget.
+let sinkApps = (ctx: compileCtx): unit => {
+  for i in Array.length(ctx.pendingApps) - 1 downto 0 {
+    let app = ctx.pendingApps->Array.getUnsafe(i)
+    let consumers = ctx.consumers->Map.get(app.id)->Option.getOr([])
+    let target = if Array.length(consumers) == 0 {
+      app.eagerScope
+    } else {
+      let consumerScopes = consumers->Array.map(c =>
+        switch c {
+        | AppCons(consumerId) =>
+          // Reverse-topo guarantees the consumer's target is set.
+          ctx.appTarget->Map.get(consumerId)->Option.getOr(app.eagerScope)
+        | StructCons(scope) => scope
+        }
+      )
+      let lca = scaAll(consumerScopes)
+      descendToEagerLoopDepth(lca, loopDepthOf(app.eagerScope))
+    }
+    ctx.appTarget->Map.set(app.id, target)
+  }
+}
+
+// Move pass. For each App whose target differs from its eager scope,
+// splice its stmt out of the eager buffer and append it to the
+// target scope's appBuf. Apps that don't sink stay where they were
+// eagerly emitted (preserving DFS-order topo within their original
+// scope). Processed in DFS order so each scope's appBuf accumulates
+// its Apps in topological order — inputs before consumers.
+let moveSunkApps = (ctx: compileCtx): unit =>
+  ctx.pendingApps->Array.forEach(app => {
+    let target =
+      ctx.appTarget->Map.get(app.id)->Option.getOr(app.eagerScope)
+    if !sameScopeOpt(target, app.eagerScope) {
+      let eagerBuf = bufferOf(ctx, app.eagerScope)
+      switch eagerBuf->Array.indexOfOpt(app.stmt) {
+      | Some(i) =>
+        eagerBuf->Array.splice(~start=i, ~remove=1, ~insert=[])
+      | None =>
+        failwith(
+          "Internal error: pendingApp stmt not found in its eager " ++
+          "buffer at move time.",
+        )
+      }
+      switch target {
+      | None =>
+        failwith(
+          "Internal error: an App can't sink to None — only deeper " ++
+          "than its eager scope.",
+        )
+      | Some(scope) => scope.appBuf->Array.push(app.stmt)
+      }
+    }
+  })
+
 // --- Entry points ---
 
 let compileToBody = (root: Expr.expr): (array<JsAst.stmt>, JsAst.expr) => {
@@ -1039,11 +1348,24 @@ let compileToBody = (root: Expr.expr): (array<JsAst.stmt>, JsAst.expr) => {
     flowMemo: Map.make(),
     pendingLoops: [],
     pendingDispatches: [],
+    pendingApps: [],
+    consumers: Map.make(),
+    appTarget: Map.make(),
+    allScopes: [],
   }
   let (final, _) = go(ctx, root)
+  sinkApps(ctx)
+  moveSunkApps(ctx)
   finalizeLoops(ctx)
   finalizeDispatches(ctx)
-  (Array.concat(ctx.hoistedLits, ctx.outerStmts), final)
+  // Prepend each scope's appBuf to its buffer, so Apps that sank
+  // into this scope come before the structural statements (pushes,
+  // assigns, nested-flow wrappers) that may consume them.
+  ctx.allScopes->Array.forEach(scope =>
+    scope.buffer->Array.splice(~start=0, ~remove=0, ~insert=scope.appBuf)
+  )
+  let body = Array.concat(ctx.hoistedLits, ctx.outerStmts)
+  (body, final)
 }
 
 let compileToIIFE = (e: Expr.expr): JsAst.expr => {

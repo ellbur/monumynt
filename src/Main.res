@@ -1392,6 +1392,49 @@ runTest(
   )
 }
 
+// =============================================================
+// Consumer-driven placement (sinking) tests.
+// =============================================================
+//
+// These tests check that a value used only inside a conditional
+// (option-some body, case-split alt) is sunk into that body, even
+// when its inputs would otherwise place it at a shallower scope.
+
+// (1) Per-element expensive computation that's only used inside an
+//     option-some body. The "expensive" call takes the outer list's
+//     element (loop scope), but its only use is by the option
+//     close's per-iter value — so it should sink into the if-body
+//     and run only on iterations where the option fires.
+{
+  // disc: keep only even numbers. Returns x when even, undefined when odd.
+  let evenDisc = arrowExpr(
+    [p("x")],
+    cond(eq(mod_(id("x"), int_(2)), int_(0)), id("x"), undefined),
+  )
+  let times10 = arrowExpr([p("x")], mul(id("x"), int_(10)))
+
+  let inE = lit(array_([int_(1), int_(2), int_(3), int_(4), int_(5)]))
+  let outer = open_(ListIter, inE)
+  let optOnEven = app(evenDisc, [outer])
+  let inner = open_(OptionIter, optOnEven)
+  // The per-iter value uses `outer` (the list elem) directly, NOT
+  // `inner` (the option's some-value). Its eager scope is therefore
+  // the loop body — the test of sinking is whether the compiler
+  // moves the times10 call into the option's if-body, where it's
+  // computed only on Some-iters.
+  let expensive = app(times10, [outer])
+  let innerClose = close_(NodeFlow(inner), expensive)
+  // Wrap each per-iter result (some-value or undefined) into a list.
+  let outerClose = close_(NodeFlow(outer), innerClose)
+  runTest(
+    ~name="sink: per-elem App used only inside option-some sinks into if",
+    ~expr=outerClose,
+    // Odd elements: option fires None → undefined slot → null in JSON.
+    // Even elements: times10 → 20, 40.
+    ~expected=array_([null, int_(20), null, int_(40), null]),
+  )
+}
+
 Console.log("==== Summary ====")
 Console.log(
   Int.toString(passCount.contents) ++
