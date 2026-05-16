@@ -54,7 +54,8 @@ let x = lit(int_(7))
 let y = app(addFn, [x, x])     // both args are the same node
 ```
 
-Seven node kinds:
+Two mutually recursive types: `expr` (value-typed) and `flowRef`
+(references to flows). Five node kinds in `expr`:
 
 - **`Lit(JsAst.expr)`** — a literal constant. The payload is any constant
   JS expression (number, string, `Math.PI`, an array or object literal).
@@ -66,33 +67,42 @@ Seven node kinds:
       value output (the current element) and one flow output.
     - `CaseSplit({alts, discriminator})` — open an alternative-typed
       value for case-by-case dispatch. `discriminator` is a JS function
-      `(input) => {tag, value}`. *N* value outputs and *N* flow outputs
-      (one per alt). Specific ports are referenced via `Branch`.
+      `(input) => {tag, value}`. *N* value outputs (reached via
+      `Branch`) and one flow output (the dispatch).
 - **`Close({branches})`** — closes one or more flows. `branches` is an
-  array of `{altName, flow, value}`. The kind of close is determined
-  by the underlying Open it consumes:
-    - List close (underlying is `Open ListIter`): exactly one branch
-      with `altName: None`, `flow` the opener (possibly Join-wrapped),
-      `value` the per-iteration expression to push.
-    - Case close (underlying is `Open CaseSplit`): one branch per alt
-      with `altName: Some(name)`, `flow` a `Branch` selecting that
-      alt's flow port, and the per-alt `value` expression.
-- **`Join({inner})`** — a *pure* flow operation: wraps a list-iteration
-  opener and tells the consuming Close to flatten one level on output.
-  Stacking gives more levels. Join has only a flow output port; calling
-  `go` on one raises.
-- **`Branch({source, alt})`** — picks an output port from a CaseSplit
-  Open. The same Branch node serves both roles — value port (used as a
-  value in App args, etc.) or flow port (used as a case Close's
-  branch.flow). Context determines. A Branch reached by `go` outside
-  its alt's case-close scope raises.
+  array of `{altName, flow: flowRef, value: expr}`. The kind of close
+  is determined by the shape of `branches[0].flow` (after peeling
+  Joineds):
+    - List close (underlying is `NodeFlow(open_ListIter)`): one
+      branch with `altName: None`, `value` the per-iteration push
+      expression. Joineds on top lift the output array up that many
+      list levels.
+    - Case close (underlying is `NodeFlow(branch_)`): one branch per
+      alt with `altName: Some(name)`, `flow` a `NodeFlow` selecting
+      that alt's flow port, and the per-alt `value` expression.
+    - Filter close (underlying is `Filtered(...)`): one branch with
+      `altName: None`, pushes only when the matching alt fires.
+      Joineds on top lift the output above N enclosing list levels.
+- **`Branch({source: flowRef, alt: string})`** — picks an alt off a
+  CaseSplit's flow. Has both a value output port (the per-alt v
+  binding, used as a value in App args) and a flow output port (used
+  via `NodeFlow(branchExpr)` as a case Close's branch.flow). A Branch
+  reached by `go` outside its alt's case-close scope raises.
 
-- **`Filter({inner})`** — pure flow operation analogous to Join, but
-  for a CaseSplit nested inside a list flow. Wraps a Branch and tells
-  the consuming Close to push *inside that alt's if-body*, putting the
-  output array at the surrounding list's parent scope. The compile
-  target is a `for…of` containing an `if` that pushes only when the
-  filtered alt fires (no `else`). Filter has only a flow output port.
+Three `flowRef` constructors:
+
+- **`NodeFlow(expr)`** — the flow output port of a node. Valid when the
+  node has one (Open, Branch). The compiler raises at flow-construction
+  time if the node turns out to have no flow output port (Lit, App,
+  Close); this is the one well-formedness check the types can't catch
+  without GADTs.
+- **`Joined(flowRef)`** — wraps a list-iter flow (or another Joined,
+  or a Filtered) and tells the consuming Close to lift the output
+  array one more list level.
+- **`Filtered(flowRef)`** — wraps a Branch flow (on a CaseSplit nested
+  in a list) and tells the consuming Close to push *inside that alt's
+  if-body*. The compile target is a `for…of` containing an `if` that
+  pushes only when the filtered alt fires.
 
 What's supported on the flow side:
 
@@ -123,23 +133,26 @@ rails, custom flows, commutes.
 
 Three design ideas drive the compile:
 
-1. **Flows are first-class entities.** Every flow-producing node
-   (`Open`, `Join`, `Filter`, `Branch`) has an `openFlow` constructed
-   lazily by `flowFor(ctx, e)` and memoised by node id. Constructing
-   an Open ListIter sets up a loop scope and pushes a *placeholder*
-   stmt into its parent buffer; constructing an Open CaseSplit emits
-   `const split = disc(input)` and pushes a placeholder for the
-   if-chain. Joined/Filtered are pure structural wrappers; BranchOf
-   exposes a per-alt scope and a `v = split.value` binding (cached
-   per `(CaseDispatch, alt)` so distinct Branch nodes share it).
+1. **Flows are first-class entities.** A `flowRef` (from Expr.res)
+   names a flow — `NodeFlow(e)` refers to a node's flow output port,
+   `Joined(inner)` and `Filtered(inner)` are pure structural wrappers.
+   `flowFor(ctx, fr: flowRef)` returns the `openFlow` for that ref,
+   constructing it lazily on first reference (and memoising by the
+   underlying node id for NodeFlow refs). Constructing an Open ListIter
+   sets up a loop scope and pushes a placeholder stmt into its parent
+   buffer; constructing an Open CaseSplit emits `const split = disc
+   (input)` and pushes a placeholder for the if-chain; constructing a
+   Branch picks an alt off its source's CaseDispatch and emits a
+   `const v = split.value` at the top of that alt's scope (cached per
+   `(CaseDispatch, alt)` so distinct Branch nodes share it).
 
-2. **`go(ctx, e)` is the value-port entry point** and returns
+2. **`go(ctx, e: expr)` is the value-port entry point** and returns
    `(JsAst.expr, option<scopeRef>)` — the JS expression *and* the
    innermost loop scope the value lives in. `Open ListIter` returns
    the per-iteration element binding (built or cached via `flowFor`);
    `Branch` returns the per-alt v binding; `Close` calls a consumer
-   that attaches lazily to existing flows. `Open CaseSplit`, `Join`,
-   and `Filter` have no value port and `failwith` if reached.
+   that attaches lazily to existing flows. `Open CaseSplit` has no
+   single value port and `failwith`s (use Branch for per-alt values).
 
 3. **One node = one binding, memoised by id**. A node visited more than
    once compiles to a single binding; subsequent encounters return the

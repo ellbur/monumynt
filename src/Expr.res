@@ -1,86 +1,72 @@
 // Expression representation for the visual flow language.
 //
-// Every node carries an `id`. The id is what distinguishes nodes: two
-// values whose `id` matches *are* the same node, regardless of structural
-// equality on the rest of the payload. The compiler uses this to detect
-// sharing — a node referenced from multiple parents is compiled exactly
-// once.
+// The language has two cooperating types:
 //
-// Smart constructors mint fresh ids from a module-local counter. To share
-// a node between multiple consumers, bind it once and reuse the binding:
+//   `expr`     — value-typed expressions. Every `expr` produces a value
+//                that downstream consumers can use as an input.
+//   `flowRef`  — references to flows. Flows are stateful "scopes" (a
+//                list iteration, a case-split dispatch). A `flowRef`
+//                names one; consumers like Close take a `flowRef` to
+//                attach to.
+//
+// The two types are mutually recursive: a `flowRef` can wrap an `expr`
+// (referring to that node's flow output port — Open ListIter's loop,
+// Open CaseSplit's dispatch, or a Branch's selected alt), and an
+// `expr`'s payload can mention a `flowRef` (Branch picks an alt off
+// one; Close's branches name the flow they consume).
+//
+// Some nodes have *both* a value output port and a flow output port:
+//   - `Open ListIter` has a flow output (the loop) and a value output
+//     (the per-iteration element).
+//   - `Open CaseSplit` has a flow output (the dispatch) and a value
+//     output *per alt* — accessed via Branch.
+//   - `Branch` has a flow output (the selected alt's flow, used as a
+//     case-close's branch.flow) and a value output (the per-alt v
+//     binding).
+//
+// For these, you say `NodeFlow(theNode)` to refer to the flow port,
+// and just use the expr directly for the value port.
+//
+// The flow-only operations live on `flowRef` directly:
+//   - `Joined(inner)`   — wraps a list-iter flow; the consuming Close
+//                          flattens one level on output. Stacking gives
+//                          more levels.
+//   - `Filtered(inner)` — wraps a Branch flow on a CaseSplit nested in
+//                          a list flow; the consuming Close pushes only
+//                          when that alt fires.
+//
+// Open kinds:
+//   - `ListIter`                       — open a list for element-by-
+//                                         element iteration.
+//   - `CaseSplit({alts, discriminator})` — open a value for case-by-
+//                                         case dispatch. The
+//                                         discriminator is a JS
+//                                         function `(input) => {tag,
+//                                         value}`.
+//
+// Close kinds. Determined by the shape of `branches[0].flow`:
+//   - A `NodeFlow(branchExpr)` (where branchExpr is a Branch node) —
+//     case close; each branch is `{altName=Some, flow=NodeFlow(branch),
+//     value}`; exhaustive over the case-split's alts.
+//   - A `Filtered(...)` — filter close; one branch with `altName=None`,
+//     `flow=Filtered(NodeFlow(branch))`, `value` pushed only in that
+//     alt's body. Multiple filter closes can share one case-split.
+//   - Anything else (NodeFlow(opener) or Joined(...) wrappers thereof)
+//     — list close; one branch with `altName=None`, `flow` is the
+//     opener flowRef (possibly Joined-wrapped), `value` is the per-
+//     iteration push expression.
+//
+// Every `expr` carries an `id`. Identity is what makes a node *the
+// same node* across references — two value-position uses of the same
+// `expr` (e.g. two App args, or App-arg + Close.value) compile to one
+// binding referenced twice. To share, bind once and reuse:
 //
 //     let x = lit(int_(5))
-//     let y = app(addFn, [x, x])     // the two args are the same node
+//     let y = app(addFn, [x, x])     // both args are the same node
 //
-// Records are also constructable directly when you need a specific id
-// (e.g. when ids come from a diagram serialisation):
-//
-//     let n: Expr.expr = {id: 42, kind: Lit(int_(5))}
-//
-// Node kinds:
-//
-//   - Lit:    a literal constant. Holds a JsAst.expr describing the JS value.
-//
-//   - App:    a function application. `fn` is a JsAst.expr; `args` are
-//             sub-expressions in this language.
-//
-//   - Open:   opens a flow. `flow` describes what kind:
-//               - `ListIter` — open a list for element-by-element iteration.
-//               - `CaseSplit({alts, discriminator})` — open a value for
-//                 case-by-case dispatch. The discriminator is a JS
-//                 function `(input) => {tag, value}` that tells the
-//                 compiler which alt this input belongs to and what
-//                 per-alt payload to expose.
-//
-//             A ListIter Open has one value output (the per-iteration
-//             element) and one flow output (the iteration). A CaseSplit
-//             Open has *N* value outputs and *N* flow outputs (one per
-//             alt). The way to refer to a specific port is via Branch.
-//
-//   - Close:  closes one or more flows. Carries a `branches` array, each
-//             entry a {altName, flow, value} triple:
-//               - For a list close: exactly one branch with altName =
-//                 None, flow = the opener (an Open ListIter, possibly
-//                 wrapped in Joins), value = the per-iteration
-//                 expression to push.
-//               - For a case close: one branch per alt with altName =
-//                 Some(name), flow = a Branch node referencing the
-//                 alt's flow port, value = the per-alt expression.
-//
-//             The kind of close is determined by the underlying Open it
-//             consumes (Open ListIter ⇒ list close, Open CaseSplit ⇒
-//             case close); the compiler dispatches on that.
-//
-//   - Join:   pure flow operation; takes a list-iteration opener and
-//             returns an opener tagged "joined" — the consuming Close
-//             flattens one level on output. Stacking gives more levels.
-//             A Join has only a flow output port; calling `go` on one
-//             raises.
-//
-//   - Branch: picks a specific output port from a CaseSplit Open. The
-//             same Branch node serves both roles — value port (used in
-//             App args, etc.) or flow port (used as a case Close's
-//             branch.flow). Context determines. A Branch reached by
-//             `go` outside its alt's case-close scope raises.
-//
-//   - Filter: pure flow operation analogous to Join, but for a
-//             case-split nested inside a list flow. Wraps a Branch and
-//             tells the consuming Close to push *inside that alt's
-//             if-body* and put the output array at the surrounding
-//             list's parent scope. Lets you express filters: only
-//             elements matching the filtered alt contribute to the
-//             output. Filter has only a flow output port.
-//
-// Currently supported flow combinations:
-//   - (Open ListIter, list Close) — possibly with Joins on the opener.
-//   - (Open CaseSplit, case Close) — exhaustive over the alts.
-//   - (Filter(Branch(Open CaseSplit)), list-style Close) — for a
-//     CaseSplit nested directly inside a ListIter; "filters" the list
-//     to only the rows whose case matches the filtered alt.
-//
-// Other flow kinds (configuration scopes, effects, …) and richer
-// combinations (commutes, joining a case-split flow, multi-filter on
-// one case-split, filter under joined lists, …) will be added later.
+// FlowRefs are *not* identity-tagged. Two distinct `Joined(x)` values
+// are equal-by-shape and compile the same way; they're cheap
+// structural wrappers around the underlying flow they name.
 
 type rec expr = {id: int, kind: kind}
 and kind =
@@ -88,9 +74,7 @@ and kind =
   | App({fn: JsAst.expr, args: array<expr>})
   | Open({flow: openFlow, input: expr})
   | Close({branches: array<closeBranch>})
-  | Join({inner: expr})
-  | Branch({source: expr, alt: string})
-  | Filter({inner: expr})
+  | Branch({source: flowRef, alt: string})
 
 and openFlow =
   | ListIter
@@ -98,9 +82,22 @@ and openFlow =
 
 and closeBranch = {
   altName: option<string>,
-  flow: expr,
+  flow: flowRef,
   value: expr,
 }
+
+and flowRef =
+  // Refers to the flow output port of an expr. Valid when the expr is
+  // a node that has a flow output port (Open, Branch). If the expr is
+  // a value-only node (Lit, App, Close), the compile will raise.
+  | NodeFlow(expr)
+  // Wraps a list-iter flow; the consuming list-style Close flattens one
+  // level on output. Stacking gives more levels of flatten.
+  | Joined(flowRef)
+  // Wraps a Branch flow (on a CaseSplit nested in a list); the
+  // consuming list-style Close pushes inside the matching alt's body
+  // and puts the output array at the surrounding list's parent scope.
+  | Filtered(flowRef)
 
 // --- Identity minting ---
 
@@ -126,29 +123,28 @@ let open_ = (flow: openFlow, input: expr): expr => {
   kind: Open({flow, input}),
 }
 
-// Single-branch Close (a list close). `opener` is an Open ListIter,
-// possibly wrapped in any number of Joins.
-let close_ = (opener: expr, value: expr): expr => {
+// Single-branch Close (a list close or filter close). `opener` is the
+// flowRef of the flow being closed — for a list close, NodeFlow(open_)
+// or Joined wrappers thereof; for a filter close, Filtered(NodeFlow(
+// branch_)).
+let close_ = (opener: flowRef, value: expr): expr => {
   id: freshId(),
   kind: Close({branches: [{altName: None, flow: opener, value: value}]}),
 }
 
 // Multi-branch Close (a case close). Each branch supplies altName, flow
-// (a Branch node referencing the alt's flow port), and the per-alt
+// (a flowRef — typically NodeFlow of a Branch node), and the per-alt
 // value expression.
 let caseClose = (branches: array<closeBranch>): expr => {
   id: freshId(),
   kind: Close({branches: branches}),
 }
 
-let join_ = (inner: expr): expr => {id: freshId(), kind: Join({inner: inner})}
+let join_ = (inner: flowRef): flowRef => Joined(inner)
 
-let branch_ = (source: expr, alt: string): expr => {
+let branch_ = (source: flowRef, alt: string): expr => {
   id: freshId(),
   kind: Branch({source, alt}),
 }
 
-let filter_ = (inner: expr): expr => {
-  id: freshId(),
-  kind: Filter({inner: inner}),
-}
+let filter_ = (inner: flowRef): flowRef => Filtered(inner)

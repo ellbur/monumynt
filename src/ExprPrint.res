@@ -4,22 +4,34 @@
 // per line. Single-input ops chain together with `->`; multi-input ops
 // list their inputs at the start of a line and produce one new value.
 //
-// Both kinds of Close render as `close`. The source list distinguishes
-// them:
-//   - List close: `<flow>, <value>` — the single (flow, value) pair.
-//   - Case close: `Just: <flow>/<value>, Nothing: <flow>/<value>, …` —
-//     one labelled (alt: flow/value) per branch.
+// FlowRefs (Joined, Filtered) are written as postfix `-> join` and
+// `-> filter` on the underlying flow's source; they don't have ids,
+// so no `#N` labels.
 //
-// Open kinds are rendered as their name plus a small descriptor:
+// Close renders as `close`. The source list distinguishes the
+// styles:
+//   - List close:   `<flow>, <value>` — the (flow, value) pair.
+//   - Case close:   `Just: <flow>/<value>, Nothing: <flow>/<value>, …`
+//                   — one labelled (alt: flow/value) per branch.
+//
+// Open kinds:
 //   - ListIter → `open`
 //   - CaseSplit({alts, discriminator}) → `caseSplit({alts}, <disc>)`
 //
-// Branches are rendered as `.<altName>` (a postfix-like single-input op
-// that picks a port off its source).
+// Branches are rendered as `.<altName>` (a single-input op that picks
+// an alt off its source flow).
 //
 // Sharing: nodes referenced from a different chain than their own get
 // labels `#1`, `#2`, … (renumbered per-render in encounter order).
 // Trivially-used literals are inlined into their consumer's source list.
+
+// Collect every expr reachable from a flowRef.
+let rec flowRefExprs = (fr: Expr.flowRef): array<Expr.expr> =>
+  switch fr {
+  | NodeFlow(e) => [e]
+  | Joined(inner) => flowRefExprs(inner)
+  | Filtered(inner) => flowRefExprs(inner)
+  }
 
 let topoSort = (root: Expr.expr): array<Expr.expr> => {
   let result: array<Expr.expr> = []
@@ -33,12 +45,10 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
       | Open({input}) => visit(input)
       | Close({branches}) =>
         branches->Array.forEach(b => {
-          visit(b.flow)
+          flowRefExprs(b.flow)->Array.forEach(visit)
           visit(b.value)
         })
-      | Join({inner}) => visit(inner)
-      | Branch({source}) => visit(source)
-      | Filter({inner}) => visit(inner)
+      | Branch({source}) => flowRefExprs(source)->Array.forEach(visit)
       }
       result->Array.push(e)
     }
@@ -46,21 +56,20 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
   result
 }
 
-// The (immediate) inputs of a node, in source order. For Close, this
-// is a flat sequence: branch[0].flow, branch[0].value, branch[1].flow,
-// branch[1].value, … — used for chain detection and labelling. The
-// renderChain function renders Close differently to expose the
-// branch structure.
+// The (immediate) Expr inputs of a node, in source order. For Close,
+// this is a flat sequence: branch[0].flow's exprs, branch[0].value,
+// branch[1].flow's exprs, branch[1].value, … For Branch it's the
+// source flowRef's exprs.
 let inputsOf = (e: Expr.expr): array<Expr.expr> =>
   switch e.kind {
   | Lit(_) => []
   | App({args}) => args
   | Open({input}) => [input]
   | Close({branches}) =>
-    branches->Array.flatMap(b => [b.flow, b.value])
-  | Join({inner}) => [inner]
-  | Branch({source}) => [source]
-  | Filter({inner}) => [inner]
+    branches->Array.flatMap(b =>
+      Array.concat(flowRefExprs(b.flow), [b.value])
+    )
+  | Branch({source}) => flowRefExprs(source)
   }
 
 // Greedy chain detection.
@@ -169,8 +178,6 @@ let render = (root: Expr.expr): string => {
       "}, " ++
       JsPrint.printExpr(discriminator) ++ ")"
     | Close(_) => "close"
-    | Join(_) => "join"
-    | Filter(_) => "filter"
     | Branch({alt}) => "." ++ alt
     }
 
@@ -190,34 +197,55 @@ let render = (root: Expr.expr): string => {
       getLabel(e.id)
     }
 
+  // Render a flowRef as a string, with Joined / Filtered wrappers
+  // appended as postfix `-> join` / `-> filter` decorations.
+  let rec renderFlowRef = (fr: Expr.flowRef): string =>
+    switch fr {
+    | NodeFlow(e) => referenceTo(e)
+    | Joined(inner) => renderFlowRef(inner) ++ " -> join"
+    | Filtered(inner) => renderFlowRef(inner) ++ " -> filter"
+    }
+
   let shouldEmit = (chain: array<Expr.expr>): bool =>
     !(Array.length(chain) == 1 && inlineable->Map.has((chain->Array.getUnsafe(0)).id))
 
   // Render the source-list that prefixes a chain. Case closes (whose
-  // first branch's flow is a Branch node) get a structured form like
-  // `Just: flow/value, Nothing: flow/value`; everything else is a plain
-  // comma-separated list.
-  let renderSource = (head: Expr.expr): string =>
-    switch head.kind {
-    | Close({branches})
-      if (
-        switch (branches->Array.getUnsafe(0)).flow.kind {
+  // first branch's flow ref is a NodeFlow on a Branch node) get a
+  // structured form like `Just: flow/value, Nothing: flow/value`;
+  // everything else is a plain comma-separated list. For Close, the
+  // flow part uses renderFlowRef so Joined/Filtered wrappers show.
+  let renderSource = (head: Expr.expr): string => {
+    let isCaseClose = switch head.kind {
+    | Close({branches}) =>
+      switch (branches->Array.getUnsafe(0)).flow {
+      | NodeFlow(e) =>
+        switch e.kind {
         | Branch(_) => true
         | _ => false
         }
-      ) =>
+      | _ => false
+      }
+    | _ => false
+    }
+    switch head.kind {
+    | Close({branches}) if isCaseClose =>
       branches
       ->Array.map(b => {
         let altLabel = switch b.altName {
         | Some(name) => name
         | None => "?"
         }
-        altLabel ++ ": " ++ referenceTo(b.flow) ++ "/" ++ referenceTo(b.value)
+        altLabel ++ ": " ++ renderFlowRef(b.flow) ++ "/" ++ referenceTo(b.value)
       })
       ->Array.join(", ")
-    | _ =>
-      inputsOf(head)->Array.map(referenceTo)->Array.join(", ")
+    | Close({branches}) =>
+      branches
+      ->Array.map(b => renderFlowRef(b.flow) ++ ", " ++ referenceTo(b.value))
+      ->Array.join(", ")
+    | Branch({source}) => renderFlowRef(source)
+    | _ => inputsOf(head)->Array.map(referenceTo)->Array.join(", ")
     }
+  }
 
   let renderChain = (chain: array<Expr.expr>): string => {
     let head = chain->Array.getUnsafe(0)
