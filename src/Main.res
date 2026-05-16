@@ -27,12 +27,16 @@ let failCount = ref(0)
 let runTest = (~name: string, ~expr: Expr.expr, ~expected: JsAst.expr) => {
   let (stmts, _) = Compile.compileToBody(expr)
   let stmtCount = Array.length(stmts)
+  let exprRendering = ExprPrint.render(expr)
   let iife = Compile.compileToIIFE(expr)
   let jsCode = JsPrint.printExpr(iife)
   let expectedCode = JsPrint.printExpr(expected)
   Console.log(
     "--- " ++ name ++ "  (" ++ Int.toString(stmtCount) ++ " outer stmts) ---",
   )
+  Console.log("EXPR:")
+  Console.log(exprRendering)
+  Console.log("JS:")
   Console.log(jsCode)
   let actualVal = evalExpression(jsCode)
   let expectedVal = evalExpression(expectedCode)

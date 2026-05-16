@@ -130,11 +130,33 @@ groups inside an outer Close work correctly.
 ### Tests
 
 `src/Main.res` is a small test runner. Each test builds an Expr,
-compiles it to an IIFE, evaluates it via `eval`, and compares the
+prints a human-readable rendering of it, compiles it to an IIFE,
+prints the generated JS, evaluates that via `eval`, and compares the
 result against an expected `JsAst.expr` (also evaluated) using
 `JSON.stringify` for comparison. Each test header reports the number
 of outer-level statements emitted, which makes the effect of
 sharing/joining visible at a glance.
+
+The Expr rendering (in `src/ExprPrint.res`) is time-forward and flat:
+each value the program computes ends up somewhere in the output as a
+chain of operations. Single-input ops are joined with `->`; multi-
+input ops list their inputs at the start of a line and produce one
+new value. Trivially-used literals are inlined; shared sub-
+expressions get `#N` labels so the reader can see at a glance what's
+being reused. For example:
+
+```
+[[1, 2], [3]] -> open (#1) -> open (#2) -> x => x * 2 (#3)
+#2, #3 -> close (#4)
+#1, #4 -> close (#5)
+#2 -> join (#6)
+#6, #3 -> close (#7)
+#5, #7 -> (a, b) => ({nested: a, flat: b})
+```
+
+is the "mixed shared body" test, with `#3` (the doubled element)
+visibly shared between the unjoined close (#4) and the joined close
+(#7), and the original opens (#1, #2) reused throughout.
 
 **52 tests** cover:
 
@@ -230,6 +252,7 @@ src/
   JsPrint.res                        precedence-aware printer
   JsBuild.res                        smart constructors
   Expr.res                           visual-language expressions
+  ExprPrint.res                      human-readable Expr rendering
   Compile.res                        Expr → JS
   Main.res                           test runner + examples
 rescript.json                        ESM output, lib/es6/, .res.mjs suffix

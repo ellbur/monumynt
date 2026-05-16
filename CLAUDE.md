@@ -24,7 +24,8 @@ This is an experimental sandbox for a visual flow-based programming language. De
 - `src/JsBuild.res` — smart constructors mirroring `JsAst` variants for ergonomic construction. `JsBuild` shadows several short names (`add`, `mul`, etc.) — be aware when `open`ing it.
 - `src/Expr.res` — visual-language expressions. Five node kinds: `Lit`, `App`, `Open`, `Close`, `Join`. Every node is wrapped as `{id: int, kind: kind}`; smart constructors (`lit`, `app`, `open_`, `close_`, `join_`) mint fresh ids from a module-local counter. Currently only the `(Open ListIter, Close ListCollect)` flow combination is implemented.
 - `src/Compile.res` — compiles `Expr.expr` to JS. See "Compile architecture" below.
-- `src/Main.res` — test runner. Builds Exprs, compiles to IIFE, evals, compares against an expected `JsAst.expr` via `JSON.stringify`. Prints outer-stmt count per test so the effect of sharing/joining is visible.
+- `src/ExprPrint.res` — human-readable rendering of `Expr.expr` for test logs and debugging. Time-forward and flat: each line is a chain of single-input ops separated by `->`, optionally prefixed by a comma-separated source list when the head op has 1+ inputs. Sharing is shown via `#N` labels (renumbered per-render). Trivially-used literals are inlined into their consumer's source list; literals with multiple consumers get a label and their own line.
+- `src/Main.res` — test runner. Builds Exprs, prints the Expr rendering, compiles to IIFE, prints the generated JS, evals, compares against an expected `JsAst.expr` via `JSON.stringify`. Prints outer-stmt count per test so the effect of sharing/joining is visible.
 
 ## Compile architecture (current shape)
 
