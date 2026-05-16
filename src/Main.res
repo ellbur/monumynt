@@ -24,12 +24,12 @@ let failCount = ref(0)
 
 let runTest = (~name: string, ~expr: Expr.expr, ~expected: JsAst.expr) => {
   let (stmts, _) = Compile.compileToBody(expr)
-  let bindingCount = Array.length(stmts)
+  let stmtCount = Array.length(stmts)
   let iife = Compile.compileToIIFE(expr)
   let jsCode = JsPrint.printExpr(iife)
   let expectedCode = JsPrint.printExpr(expected)
   Console.log(
-    "--- " ++ name ++ "  (" ++ Int.toString(bindingCount) ++ " bindings) ---",
+    "--- " ++ name ++ "  (" ++ Int.toString(stmtCount) ++ " outer stmts) ---",
   )
   Console.log(jsCode)
   let actualVal = evalExpression(jsCode)
@@ -307,6 +307,576 @@ runTest(
       app(timesTwo, [leaf]),
     ]),
     ~expected=int_(6 + (6 + 1) + 6 * 2), // 25
+  )
+}
+
+// =====================================================================
+// Flow tests. Single-open / single-close list iteration only — Open is
+// always ListIter, Close is always ListCollect. The compiled output is
+// a `for…of` loop that builds an array and pushes per-iteration values
+// into it. Loop-invariant computations are hoisted to the outer level.
+// =====================================================================
+
+// (1) Identity map — a sanity check that opening + closing alone does the
+//     right thing.
+{
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  runTest(
+    ~name="list iter: identity map of [1,2,3]",
+    ~expr=close_(ListCollect, opened, opened),
+    ~expected=array_([int_(1), int_(2), int_(3)]),
+  )
+}
+
+// (2) Map double — a single transformation applied per element.
+let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
+{
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  runTest(
+    ~name="list iter: map double over [1,2,3]",
+    ~expr=close_(ListCollect, opened, app(double, [opened])),
+    ~expected=array_([int_(2), int_(4), int_(6)]),
+  )
+}
+
+// (3) Empty input — the loop body simply doesn't run.
+{
+  let input = lit(array_([]))
+  let opened = open_(ListIter, input)
+  runTest(
+    ~name="list iter: map double over []",
+    ~expr=close_(ListCollect, opened, app(double, [opened])),
+    ~expected=array_([]),
+  )
+}
+
+// (4) Element shared inside the loop body — the per-iteration element is
+//     used twice in `square = elem * elem`. The `square` binding lives
+//     inside the loop, but the element is referenced (not recomputed) for
+//     each use.
+{
+  let input = lit(array_([int_(2), int_(3), int_(4)]))
+  let opened = open_(ListIter, input)
+  let square = app(jsMul, [opened, opened])
+  runTest(
+    ~name="list iter: square — element shared inside body",
+    ~expr=close_(ListCollect, opened, square),
+    ~expected=array_([int_(4), int_(9), int_(16)]),
+  )
+}
+
+// (5) Loop-invariant Lit — a literal used only inside the body but which
+//     does not depend on the iteration element should be hoisted to the
+//     outer level so it is computed once. The compiled JS shows the
+//     `const v_ten = 10;` outside the for-of, with the body referencing
+//     `v_ten`.
+{
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let ten = lit(int_(10))
+  runTest(
+    ~name="list iter: loop-invariant constant hoisted out",
+    ~expr=close_(ListCollect, opened, app(jsAdd, [ten, opened])),
+    ~expected=array_([int_(11), int_(12), int_(13)]),
+  )
+}
+
+// (6) Value shared between inside and outside the loop. `k` is used both
+//     in the loop body (added to each element) and outside (paired with
+//     the resulting list). It is bound once at the outer level and both
+//     uses reference that binding — no recomputation.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("base", id("a")), ("mapped", id("b"))]),
+  )
+  let k = lit(int_(100))
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let mapped = close_(ListCollect, opened, app(jsAdd, [k, opened]))
+  runTest(
+    ~name="list iter: shared k=100 used both inside and outside loop",
+    ~expr=app(pairFn, [k, mapped]),
+    ~expected=obj([
+      ("base", int_(100)),
+      ("mapped", array_([int_(101), int_(102), int_(103)])),
+    ]),
+  )
+}
+
+// (7) The Close's output is a normal value downstream — feed it to a
+//     plain function call after the loop has run.
+{
+  let lengthOf = arrowExpr([p("a")], member(id("a"), "length"))
+  let input = lit(array_([int_(5), int_(10), int_(15), int_(20)]))
+  let opened = open_(ListIter, input)
+  let mapped = close_(ListCollect, opened, app(double, [opened]))
+  runTest(
+    ~name="list iter: post-process — length of mapped result",
+    ~expr=app(lengthOf, [mapped]),
+    ~expected=int_(4),
+  )
+}
+
+// =====================================================================
+// Multi-close tests. One Open can be closed by several Closes; all of
+// them share a single for-of loop and each pushes into its own output
+// array. This is meaningful for lists because each iteration can
+// contribute to several outputs at once.
+// =====================================================================
+
+let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
+
+// (1) Two Closes from one Open. The compiled JS should contain a single
+//     for-of loop with two pushes (one per Close) and two output arrays
+//     declared at the outer level.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("doubled", id("a")), ("tripled", id("b"))]),
+  )
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let doubled = close_(ListCollect, opened, app(double, [opened]))
+  let tripled = close_(ListCollect, opened, app(triple, [opened]))
+  runTest(
+    ~name="multi-close: doubled and tripled, one loop two pushes",
+    ~expr=app(pairFn, [doubled, tripled]),
+    ~expected=obj([
+      ("doubled", array_([int_(2), int_(4), int_(6)])),
+      ("tripled", array_([int_(3), int_(6), int_(9)])),
+    ]),
+  )
+}
+
+// (2) Three Closes from one Open. One loop, three pushes.
+{
+  let tripleFn = arrowExpr(
+    [p("a"), p("b"), p("c")],
+    obj([("a", id("a")), ("b", id("b")), ("c", id("c"))]),
+  )
+  let plusOne = arrowExpr([p("x")], add(id("x"), int_(1)))
+  let input = lit(array_([int_(10), int_(20), int_(30)]))
+  let opened = open_(ListIter, input)
+  let asIs = close_(ListCollect, opened, opened)
+  let dbl = close_(ListCollect, opened, app(double, [opened]))
+  let inc = close_(ListCollect, opened, app(plusOne, [opened]))
+  runTest(
+    ~name="multi-close: identity + double + +1, one loop three pushes",
+    ~expr=app(tripleFn, [asIs, dbl, inc]),
+    ~expected=obj([
+      ("a", array_([int_(10), int_(20), int_(30)])),
+      ("b", array_([int_(20), int_(40), int_(60)])),
+      ("c", array_([int_(11), int_(21), int_(31)])),
+    ]),
+  )
+}
+
+// (3) Two Closes that share an intermediate computation. `square = x*x`
+//     is referenced by both bodies; it should be computed exactly once
+//     per iteration (a single binding in the loop body, used by both
+//     pushes).
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("plusOne", id("a")), ("timesTwo", id("b"))]),
+  )
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let square = app(jsMul, [opened, opened])
+  let one = lit(int_(1))
+  let two = lit(int_(2))
+  let close1 = close_(ListCollect, opened, app(jsAdd, [square, one]))
+  let close2 = close_(ListCollect, opened, app(jsMul, [square, two]))
+  runTest(
+    ~name="multi-close: shared intermediate (square computed once per iter)",
+    ~expr=app(pairFn, [close1, close2]),
+    ~expected=obj([
+      ("plusOne", array_([int_(2), int_(5), int_(10)])),
+      ("timesTwo", array_([int_(2), int_(8), int_(18)])),
+    ]),
+  )
+}
+
+// (4) Each Close has its own loop-invariant Lit (different constants).
+//     Both should be hoisted to the outer level (declared once each,
+//     used inside the loop body for each Close's body).
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("p10", id("a")), ("p100", id("b"))]),
+  )
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let ten = lit(int_(10))
+  let hundred = lit(int_(100))
+  let plus10 = close_(ListCollect, opened, app(jsAdd, [ten, opened]))
+  let plus100 = close_(ListCollect, opened, app(jsAdd, [hundred, opened]))
+  runTest(
+    ~name="multi-close: each Close has its own loop-invariant constant",
+    ~expr=app(pairFn, [plus10, plus100]),
+    ~expected=obj([
+      ("p10", array_([int_(11), int_(12), int_(13)])),
+      ("p100", array_([int_(101), int_(102), int_(103)])),
+    ]),
+  )
+}
+
+// (5) Two independent loops in sequence (different Opens). They should
+//     compile to two for-of loops, each with their own loop variable
+//     and output array — no interference.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("first", id("a")), ("second", id("b"))]),
+  )
+  let inputA = lit(array_([int_(1), int_(2), int_(3)]))
+  let openedA = open_(ListIter, inputA)
+  let resultA = close_(ListCollect, openedA, app(double, [openedA]))
+  let inputB = lit(array_([int_(10), int_(20)]))
+  let openedB = open_(ListIter, inputB)
+  let resultB = close_(ListCollect, openedB, app(triple, [openedB]))
+  runTest(
+    ~name="two independent loops in sequence",
+    ~expr=app(pairFn, [resultA, resultB]),
+    ~expected=obj([
+      ("first", array_([int_(2), int_(4), int_(6)])),
+      ("second", array_([int_(30), int_(60)])),
+    ]),
+  )
+}
+
+// (6) The same Close referenced in two places downstream — should
+//     compile only once (memo hit on the second reference). Combined
+//     with multi-close: two Closes sharing an Open, and one of them
+//     used twice downstream.
+{
+  let combineFn = arrowExpr(
+    [p("a"), p("b"), p("c")],
+    obj([("d1", id("a")), ("d2", id("b")), ("t", id("c"))]),
+  )
+  let input = lit(array_([int_(1), int_(2), int_(3)]))
+  let opened = open_(ListIter, input)
+  let doubled = close_(ListCollect, opened, app(double, [opened]))
+  let tripled = close_(ListCollect, opened, app(triple, [opened]))
+  runTest(
+    ~name="multi-close: one Close used twice downstream + sibling Close",
+    ~expr=app(combineFn, [doubled, doubled, tripled]),
+    ~expected=obj([
+      ("d1", array_([int_(2), int_(4), int_(6)])),
+      ("d2", array_([int_(2), int_(4), int_(6)])),
+      ("t", array_([int_(3), int_(6), int_(9)])),
+    ]),
+  )
+}
+
+// =====================================================================
+// Nested list flows. Iterate over a list of lists: open the outer list,
+// open each inner list, transform each inner element, close the inner
+// flow back to a list, close the outer flow to a list of lists.
+// =====================================================================
+
+// (1) Plain nested map — double each element of [[1,2],[3,4]].
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3), int_(4)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  let innerClosed = close_(
+    ListCollect,
+    innerOpened,
+    app(double, [innerOpened]),
+  )
+  let outerClosed = close_(ListCollect, outerOpened, innerClosed)
+  runTest(
+    ~name="nested list flows: double each elem of [[1,2],[3,4]]",
+    ~expr=outerClosed,
+    ~expected=array_([
+      array_([int_(2), int_(4)]),
+      array_([int_(6), int_(8)]),
+    ]),
+  )
+}
+
+// (2) An empty inner list among non-empty ones — the inner loop simply
+//     doesn't execute for that outer iteration, producing an empty
+//     inner result.
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([]),
+    array_([int_(3)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  let innerClosed = close_(
+    ListCollect,
+    innerOpened,
+    app(double, [innerOpened]),
+  )
+  let outerClosed = close_(ListCollect, outerOpened, innerClosed)
+  runTest(
+    ~name="nested list flows: with an empty inner list",
+    ~expr=outerClosed,
+    ~expected=array_([
+      array_([int_(2), int_(4)]),
+      array_([]),
+      array_([int_(6)]),
+    ]),
+  )
+}
+
+// (3) Nesting combined with multi-close on the inner loop. For each
+//     outer element, run the inner loop once but produce two inner
+//     output lists (doubled and tripled) bundled into an object. The
+//     inner for-of contains two pushes; everything is inside the outer
+//     for-of body.
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  let innerDoubled = close_(
+    ListCollect,
+    innerOpened,
+    app(double, [innerOpened]),
+  )
+  let innerTripled = close_(
+    ListCollect,
+    innerOpened,
+    app(triple, [innerOpened]),
+  )
+  let bundle = arrowExpr(
+    [p("a"), p("b")],
+    obj([("d", id("a")), ("t", id("b"))]),
+  )
+  let perOuter = app(bundle, [innerDoubled, innerTripled])
+  let outerClosed = close_(ListCollect, outerOpened, perOuter)
+  runTest(
+    ~name="nested + multi-close on inner: each outer elem -> {d, t}",
+    ~expr=outerClosed,
+    ~expected=array_([
+      obj([
+        ("d", array_([int_(2), int_(4)])),
+        ("t", array_([int_(3), int_(6)])),
+      ]),
+      obj([("d", array_([int_(6)])), ("t", array_([int_(9)]))]),
+    ]),
+  )
+}
+
+// =====================================================================
+// Join (list flow). `Join` wraps an opener; closing on a joined opener
+// flattens one level on output. The loops are still nested (one for
+// each Open in the chain), the computation still happens in the
+// innermost body, but the output array is allocated above the
+// outermost loop instead of in its parent's body.
+// =====================================================================
+
+// (1) Basic join: nested map flattened — [[1,2],[3,4]] → [2,4,6,8].
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3), int_(4)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  runTest(
+    ~name="join: nested map flattened — [[1,2],[3,4]] -> [2,4,6,8]",
+    ~expr=close_(
+      ListCollect,
+      join_(innerOpened),
+      app(double, [innerOpened]),
+    ),
+    ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
+  )
+}
+
+// (2) Identity join: just flatten the input — [[1,2],[],[3]] → [1,2,3].
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([]),
+    array_([int_(3)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  runTest(
+    ~name="join: flatten of [[1,2],[],[3]] -> [1,2,3]",
+    ~expr=close_(ListCollect, join_(innerOpened), innerOpened),
+    ~expected=array_([int_(1), int_(2), int_(3)]),
+  )
+}
+
+// (3) Empty outer — no inner iterations happen at all, result is [].
+{
+  let input = lit(array_([]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  runTest(
+    ~name="join: empty outer -> []",
+    ~expr=close_(ListCollect, join_(innerOpened), innerOpened),
+    ~expected=array_([]),
+  )
+}
+
+// (4) Loop-invariant Lit hoisted; join still gets a flat list. The
+//     `ten` constant should appear once at the very top, before either
+//     loop, even though it's only referenced from inside the inner body.
+{
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3)]),
+  ]))
+  let outerOpened = open_(ListIter, input)
+  let innerOpened = open_(ListIter, outerOpened)
+  let ten = lit(int_(10))
+  runTest(
+    ~name="join: with hoisted constant — flat list of x+10",
+    ~expr=close_(
+      ListCollect,
+      join_(innerOpened),
+      app(jsAdd, [ten, innerOpened]),
+    ),
+    ~expected=array_([int_(11), int_(12), int_(13)]),
+  )
+}
+
+// (5) Triply nested with two joins — flatten two levels.
+//     [[[1,2],[3]],[[4]]] → [2,4,6,8].
+{
+  let input = lit(array_([
+    array_([array_([int_(1), int_(2)]), array_([int_(3)])]),
+    array_([array_([int_(4)])]),
+  ]))
+  let l1 = open_(ListIter, input)
+  let l2 = open_(ListIter, l1)
+  let l3 = open_(ListIter, l2)
+  runTest(
+    ~name="join x2: flatten of [[[1,2],[3]],[[4]]] mapped *2 -> [2,4,6,8]",
+    ~expr=close_(
+      ListCollect,
+      join_(join_(l3)),
+      app(double, [l3]),
+    ),
+    ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
+  )
+}
+
+// (6) Compare side by side: same input, joined vs unjoined, paired.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("nested", id("a")), ("flat", id("b"))]),
+  )
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3)]),
+  ]))
+  let openOuter1 = open_(ListIter, input)
+  let openInner1 = open_(ListIter, openOuter1)
+  let nested = close_(
+    ListCollect,
+    openOuter1,
+    close_(ListCollect, openInner1, app(double, [openInner1])),
+  )
+  let openOuter2 = open_(ListIter, input)
+  let openInner2 = open_(ListIter, openOuter2)
+  let flat = close_(
+    ListCollect,
+    join_(openInner2),
+    app(double, [openInner2]),
+  )
+  runTest(
+    ~name="join vs nested side-by-side on the same input",
+    ~expr=app(pairFn, [nested, flat]),
+    ~expected=obj([
+      (
+        "nested",
+        array_([
+          array_([int_(2), int_(4)]),
+          array_([int_(6)]),
+        ]),
+      ),
+      ("flat", array_([int_(2), int_(4), int_(6)])),
+    ]),
+  )
+}
+
+// =====================================================================
+// Mixed joinCounts on a single opener. Both joined and unjoined closes
+// share the same inner Open and the same loops; each produces its own
+// output array at its own joined-out scope.
+// =====================================================================
+
+// (1) Mixed unjoined + joined inner closes, with an outer close that
+//     consumes the unjoined per-iter list. Expected JS structure:
+//     - unjoined out (per outer iter) inside outer body.
+//     - joined out at top level.
+//     - outer-close out at top level (collecting the per-iter lists).
+//     - Both pushes inside the inner body.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("nested", id("a")), ("flat", id("b"))]),
+  )
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3), int_(4)]),
+  ]))
+  let outer = open_(ListIter, input)
+  let inner = open_(ListIter, outer)
+  let unjoined = close_(ListCollect, inner, app(double, [inner]))
+  let flat = close_(ListCollect, join_(inner), app(double, [inner]))
+  let nested = close_(ListCollect, outer, unjoined)
+  runTest(
+    ~name="mixed: unjoined + joined on one opener; nested wraps unjoined",
+    ~expr=app(pairFn, [nested, flat]),
+    ~expected=obj([
+      ("nested", array_([
+        array_([int_(2), int_(4)]),
+        array_([int_(6), int_(8)]),
+      ])),
+      ("flat", array_([int_(2), int_(4), int_(6), int_(8)])),
+    ]),
+  )
+}
+
+// (2) Same as above but the per-element computation is *shared* between
+//     the unjoined and joined closes (same node, not two equivalent
+//     ones). The compiled JS should compute `double(elem)` exactly once
+//     per inner iteration and push the same binding into both arrays.
+{
+  let pairFn = arrowExpr(
+    [p("a"), p("b")],
+    obj([("nested", id("a")), ("flat", id("b"))]),
+  )
+  let input = lit(array_([
+    array_([int_(1), int_(2)]),
+    array_([int_(3)]),
+  ]))
+  let outer = open_(ListIter, input)
+  let inner = open_(ListIter, outer)
+  let body = app(double, [inner])  // shared between both closes
+  let unjoined = close_(ListCollect, inner, body)
+  let flat = close_(ListCollect, join_(inner), body)
+  let nested = close_(ListCollect, outer, unjoined)
+  runTest(
+    ~name="mixed (shared body): one double per iter, two pushes",
+    ~expr=app(pairFn, [nested, flat]),
+    ~expected=obj([
+      ("nested", array_([
+        array_([int_(2), int_(4)]),
+        array_([int_(6)]),
+      ])),
+      ("flat", array_([int_(2), int_(4), int_(6)])),
+    ]),
   )
 }
 
