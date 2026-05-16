@@ -43,13 +43,13 @@
 //                                         discriminator is a JS
 //                                         function `(input) => {tag,
 //                                         value}`.
-//   - `OptionIter({discriminator})`     — open an option-typed input
+//   - `OptionIter`                      — open an option-typed input
 //                                         for zero-or-one iteration.
-//                                         The discriminator is a JS
-//                                         function `(input) =>
-//                                         value-or-undefined`. The
-//                                         body runs once iff the
-//                                         result is not undefined.
+//                                         The input itself is the
+//                                         option: `undefined` means
+//                                         None, anything else is the
+//                                         Some-value. (Convert other
+//                                         encodings upstream via App.)
 //
 // Close kinds. Determined by the shape of `branches[0].flow`:
 //   - A `NodeFlow(branchExpr)` (where branchExpr is a Branch node) —
@@ -86,10 +86,12 @@ and kind =
 and openFlow =
   | ListIter
   | CaseSplit({alts: array<string>, discriminator: JsAst.expr})
-  // Open an option-valued input. `discriminator` is a JS function
-  // `(input) => value-or-undefined` — undefined means None, anything
-  // else means Some(value). The body runs zero or one times.
-  | OptionIter({discriminator: JsAst.expr})
+  // Open an option-valued input. The input itself is the option:
+  // `undefined` means None, anything else is the Some-value. The
+  // body runs zero or one times. (If you have a different encoding —
+  // `null`, `{tag: "Some", value}`, etc. — convert it to value-or-
+  // undefined upstream via App.)
+  | OptionIter
 
 and closeBranch = {
   altName: option<string>,

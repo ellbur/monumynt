@@ -30,10 +30,11 @@
 //                   - Open ListIter:    ListLoop(iterLoopData).
 //                                        Wrapper at finalise is for-of.
 //                   - Open OptionIter:  OptionLoop(iterLoopData).
-//                                        Emits `const v_elem =
-//                                        disc(input)` at construction;
-//                                        wrapper at finalise is
-//                                        `if (v_elem !== undefined)`.
+//                                        No emission at construction
+//                                        — the input's compiled JS
+//                                        identifier serves as the
+//                                        elem. Wrapper at finalise
+//                                        is `if (elem !== undefined)`.
 //                                        Body runs zero or one times.
 //                   - Open CaseSplit:   CaseDispatch {…}.
 //                   - Branch:           BranchOf {source = the
@@ -134,8 +135,8 @@ and iterLoopData = {
   // into this buffer.
   scope: scopeRef,
   // For ListLoop: identifier bound by the for-of header.
-  // For OptionLoop: identifier bound just before the if to the
-  // discriminator's result (the some-value or undefined).
+  // For OptionLoop: the identifier the option input compiled to
+  // (also used in the if test as `elemName !== undefined`).
   elemName: string,
   // The buffer the for-of / if statement will be spliced into.
   parentBuf: array<JsAst.stmt>,
@@ -147,8 +148,8 @@ and iterLoopData = {
   // statement at finalise.
   preLoopBuf: array<JsAst.stmt>,
   // For ListLoop: the compiled JS expression for the loop's input
-  // list. For OptionLoop: unused (the elem binding already holds the
-  // disc result).
+  // list. For OptionLoop: unused (the elem identifier *is* the
+  // option's compiled JS expression).
   inputJsExpr: JsAst.expr,
   // The Expr.expr the Open's `input` field pointed to. Used to walk
   // further up an iter chain by re-flowFor-ing.
@@ -306,16 +307,22 @@ let rec flowFor = (ctx: compileCtx, fr: Expr.flowRef): openFlow =>
         ctx.pendingLoops->Array.push(f)
         f
 
-      | Open({flow: OptionIter({discriminator}), input}) =>
-        // Compile the input, emit `const v_elem = disc(input)` (the
-        // some-value or undefined), push a placeholder for the if
-        // statement.
+      | Open({flow: OptionIter, input}) =>
+        // The input itself IS the option (value-or-undefined). Its
+        // compiled JS is always an identifier (every go-case returns
+        // an EId), so we can use that name directly as elemName for
+        // the if-test and for any consumer references inside the if
+        // body — no fresh binding needed.
         let (inputJsExpr, parentScope) = go(ctx, input)
+        let elemName = switch inputJsExpr {
+        | JsAst.EId(name) => name
+        | _ =>
+          failwith(
+            "Internal error: OptionIter's input compiled to a non-EId " ++
+            "expression.",
+          )
+        }
         let parentBuf = bufferOf(ctx, parentScope)
-        let elemName = ctx.fresh()
-        parentBuf->Array.push(
-          JsBuild.const(elemName, JsBuild.call(discriminator, [inputJsExpr])),
-        )
         let scope = {
           buffer: [],
           depth: depthOf(parentScope) + 1,

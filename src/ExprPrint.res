@@ -172,8 +172,7 @@ let render = (root: Expr.expr): string => {
     | Lit(js) => JsPrint.printExpr(js)
     | App({fn}) => JsPrint.printExpr(fn)
     | Open({flow: ListIter}) => "open"
-    | Open({flow: OptionIter({discriminator})}) =>
-      "openOption(" ++ JsPrint.printExpr(discriminator) ++ ")"
+    | Open({flow: OptionIter}) => "openOption"
     | Open({flow: CaseSplit({alts, discriminator})}) =>
       "caseSplit({" ++
       alts->Array.join(", ") ++

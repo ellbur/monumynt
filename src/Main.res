@@ -1286,15 +1286,14 @@ runTest(
 // Option-flow tests.
 // =============================================================
 //
-// Discriminator: identity. The Open OptionIter input is `value-or-
-// undefined`; if undefined, the body doesn't run; otherwise, the
-// body runs once with `value` bound to elem.
+// Open OptionIter takes no extra payload; the input itself is the
+// option (undefined for None, anything else for the Some-value).
 
 // (1) Basic option iter: Some(5) → doubled = 10; default via `?? "none"`.
 {
   let optClose = (input: JsAst.expr) => {
     let inE = lit(input)
-    let opened = open_(OptionIter({discriminator: identity}), inE)
+    let opened = open_(OptionIter, inE)
     close_(NodeFlow(opened), app(double, [opened]))
   }
   // Wrap to default undefined → "none" so jsonStringify gives a string.
@@ -1315,7 +1314,7 @@ runTest(
 // (2) Multi-close on one option: doubled and tripled in parallel.
 {
   let inE = lit(int_(7))
-  let opened = open_(OptionIter({discriminator: identity}), inE)
+  let opened = open_(OptionIter, inE)
   let doubled = close_(NodeFlow(opened), app(double, [opened]))
   let tripled = close_(NodeFlow(opened), app(triple, [opened]))
   runTest(
@@ -1331,8 +1330,8 @@ runTest(
 {
   let optOptDoubled = (input: JsAst.expr) => {
     let inE = lit(input)
-    let outer = open_(OptionIter({discriminator: identity}), inE)
-    let inner = open_(OptionIter({discriminator: identity}), outer)
+    let outer = open_(OptionIter, inE)
+    let inner = open_(OptionIter, outer)
     let result = close_(join_(NodeFlow(inner)), app(double, [inner]))
     app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [result])
   }
@@ -1354,7 +1353,7 @@ runTest(
 {
   let optListDoubled = (input: JsAst.expr) => {
     let inE = lit(input)
-    let outer = open_(OptionIter({discriminator: identity}), inE)
+    let outer = open_(OptionIter, inE)
     let inner = open_(ListIter, outer)
     close_(join_(NodeFlow(inner)), app(double, [inner]))
   }
@@ -1378,7 +1377,7 @@ runTest(
   let listOptList = (input: JsAst.expr) => {
     let inE = lit(input)
     let outer = open_(ListIter, inE)
-    let inner = open_(OptionIter({discriminator: identity}), outer)
+    let inner = open_(OptionIter, outer)
     close_(join_(NodeFlow(inner)), app(double, [inner]))
   }
   runTest(
