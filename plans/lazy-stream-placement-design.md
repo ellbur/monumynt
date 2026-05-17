@@ -75,25 +75,28 @@ None of the three is the answer alone.
 ## The principle
 
 For each computation, identify its *consumer set* — the set of
-outputs that depend on it. Place the computation in the structure
-shared by exactly that set: not larger (GC reachability), not smaller
-(dedup).
+its containing flow's outputs that depend on it. Place the
+computation in the chain shared by exactly that set: not larger
+(GC reachability), not smaller (dedup).
 
-Distinct consumer-sets give distinct chains. The chain count scales
-with the number of *distinct* consumer-sets across all computations
-— not 2ⁿ, not graph-node-count. In practice it's small.
+Distinct consumer-sets give distinct chains. The chain count at a
+flow level scales with the number of *distinct* consumer-sets at
+that level — not 2|outputs|, not graph-node-count. In practice
+it's small.
 
-This is the same principle the eager placement algorithm used:
-"place each computation at the deepest scope that includes every
-consumer." The medium has changed — scopes were JS blocks, now they're
-Delayed-cell chains — but the rule is identical. The work we did to
-make that algorithm correct (consumer DAG, SCA of consumer scopes,
-the loop-depth concerns) all generalises.
+This generalises the eager placement principle: "place each
+computation in the smallest region that includes all its
+consumers." For eager flows the regions were JS scopes (nested
+in a tree); for stream flows they're Delayed chains (which form
+a lattice — chain `{O₁, O₂}` and chain `{O₁, O₃}` both derive
+from chain `{O₁, O₂, O₃}` but neither contains the other).
 
-What's new in the stream case is that the "scopes" we're placing into
-are derivation chains rather than nested JS blocks. The structure is
-not strictly hierarchical — chain {O₁, O₂} and chain {O₁, O₃} both
-derive from chain {O₁, O₂, O₃} but neither contains the other.
+A wrinkle the eager case doesn't have: with nested stream flows,
+each flow level is its own independent placement problem with
+its own outputs as lattice axes. Outer-level consumer-sets don't
+substitute for inner-level analysis (they'd only ever collapse
+inner partitions, losing pull-granularity). See "Nested flows"
+below.
 
 ## Single-flow case
 
@@ -131,115 +134,150 @@ specialisations.
 
 ## Nested flows
 
-This is the case that needed careful thought. The lattice idea
-above is per-flow, but with nested flows there's a real question
-of *whose* outputs the lattice is over — the inner flow's, or the
-outer flow's. It turns out the right answer is **always the
-outermost stream flow's outputs**, and once you see why, the rest
-follows.
+This is the case that needed careful thought. With nested flows
+there's a real question of *whose* outputs the lattice is over —
+the inner flow's, or the outer flow's. The right answer turns out
+to be **each flow level uses its own outputs as the axes of its
+own lattice**, and the partitioning is done independently at each
+level.
 
-### A first nested example, where each inner output feeds one outer output
+I initially wrote up an outermost-only rule (every computation's
+consumer-set is among the outermost flow's outputs). That's
+wrong: outermost consumer-sets can only *collapse* inner-flow
+partitions, never refine them — and the collapsing loses
+pull-granularity at runtime.
+
+### Why outermost-only fails
+
+The clearest case. Outer has one output `O1`; inner has two outputs
+`D` and `T`, both consumed by `O1`'s value subtree (say, by a
+per-outer-element conditional: sometimes the body pulls `D`,
+sometimes `T`, sometimes both).
+
+By outermost-only every inner computation has consumer-set `{O1}`,
+so `decode m`, `m*2`, and `m*3` all collapse into one chain.
+Forcing that chain at any inner-element forces all three
+computations. If for a given outer element the conditional only
+pulls `T`, the `m*2` that only fed `D` runs anyway — wasted.
+
+By per-level (inside-out): inner's lattice is over `{D, T}`.
+`m*2` ∈ `{D}`, `m*3` ∈ `{T}`, `decode m` ∈ `{D, T}`. Forcing `T`
+forces inner's `{T}` chain (`m*3`) and its parent `{D, T}` chain
+(`decode m`). `m*2` (in inner's `{D}` chain) is not forced.
+
+The general claim: outer consumer-sets can collapse inner
+partitions but never refine them. Collapsing loses pull-
+granularity, so the correct algorithm uses each level's local
+outputs as that level's lattice axes.
+
+### First nested example
 
 Source is a stream of pairs `(a: list, b: list)`.
 
 - Outer flow opens the source.
 - Per outer element, an *inner* stream flow opens `a` and emits per
   inner element two values: `doubled = m*2` and `tripled = m*3`.
-  Inner has two outputs.
+  Inner has two outputs (`D`, `T`).
 - Outer has two outputs:
-  - `outer.O1`: per outer element, fold inner's doubled stream into
-    a list. (Output type: `stream<list<int>>`.)
-  - `outer.O2`: per outer element, fold inner's tripled stream into
-    a list.
+  - `outer.O1`: per outer element, fold `inner.D` into a list.
+  - `outer.O2`: per outer element, fold `inner.T` into a list.
 
-Each computation in the program has a *consumer set among the
-outermost stream flow's outputs*, computed by tracing consumers
-backwards through *every* flow boundary:
+**Inner level** (per outer-element instance, with its own
+inner-source `a`). Lattice axes: `{D, T}`.
 
-- Inner-level `decode m` is consumed by both `inner.doubled` and
-  `inner.tripled`. `inner.doubled` is consumed by `outer.O1`;
-  `inner.tripled` by `outer.O2`. So `decode m`'s consumer-set is
-  `{outer.O1, outer.O2}`.
+- `decode m`: consumed by both `D` and `T` → `{D, T}`.
+- `m*2`: consumed by `D` only → `{D}`.
+- `m*3`: → `{T}`.
 
-- Inner-level `m*2`: consumed by `inner.doubled` only → `{outer.O1}`.
+Three inner chains. When `outer.O1` pulls `inner.D` for some outer
+element, that pull forces inner's `{D}` chain (m*2) and its
+parent `{D, T}` chain (decode m). `m*3` (in `{T}`) is not forced.
+GC: when `outer.O1` is dropped, all the inner `{D}` chains across
+outer elements become unreachable.
 
-- Inner-level `m*3`: → `{outer.O2}`.
+**Outer level**. Lattice axes: `{O1, O2}`.
 
-- Outer-level `decode (a, b)`: → `{outer.O1, outer.O2}`.
+- `decode (a, b)`: consumed by everything downstream that needs
+  either `a` or `b` → `{O1, O2}`.
+- "Construct the inner flow object on `a`": needed if either O1
+  (which uses inner.D) or O2 (which uses inner.T) needs anything
+  from inner → `{O1, O2}`.
+- The inner.D output stream (as a value at outer level): `{O1}`.
+- The inner.T output stream: `{O2}`.
+- Each outer output's "fold into list" computation: `{Oᵢ}` for
+  its own output.
 
-- Outer-level "construct the inner flow object": → `{outer.O1,
-  outer.O2}` (both outer outputs reach into the inner flow).
+So outer has three chains: `{O1, O2}` (shared decode + inner
+construction), `{O1}` (project inner.D, fold), `{O2}` (project
+inner.T, fold).
 
-Computations live at different *levels* — inner-per-element vs
-outer-per-element — and within each level they group by their
-(outermost) consumer-set:
+Notice each level's lattice is structurally independent. Inner's
+chains are over inner's outputs; outer's chains are over outer's.
+Cross-level structure manifests in that *inner outputs are values
+at outer level* — their outer-level consumer-set determines their
+outer-level chain placement, separately from any inner-level
+partitioning.
 
-**Outer level chains** (one per outer source element):
+### Shared inner output
 
-- `{O1, O2}`: decode `(a, b)`, construct inner flow.
+Variation: `inner.D` is consumed by *both* `outer.O1` and
+`outer.O2`; `inner.T` is only consumed by `outer.O2`.
 
-**Inner level chains** (one set of chains *per outer source
-element*, constructed when the inner flow is constructed):
+**Inner level** is unchanged by what outer does. Inner has two
+outputs; computations are partitioned by inner-cs over them:
 
-- `{O1, O2}`: decode `m`.
-- `{O1}`: `m*2`.
-- `{O2}`: `m*3`.
+- `decode m`: `{D, T}`.
+- `m*2`: `{D}`.
+- `m*3`: `{T}`.
 
-The inner-level chains live inside the outer-level per-element
-scope. When `outer.O1` is dropped, the inner `{O1}` chains (one
-per outer element, for all the m*2 values ever computed) become
-unreachable; `m*2` evaluations stop being held.
+Still three inner chains. When `outer.O1` pulls `inner.D`, it
+forces inner's `{D}` and `{D, T}` chains. `m*3` doesn't run for
+that pull. When `outer.O2` pulls both `inner.D` and `inner.T`,
+all three chains force.
 
-### The case I was hand-wavy about: shared inner output
+**Outer level** changes. The inner outputs have different outer-cs
+than before:
 
-Now make it harder. Suppose `inner.doubled` is consumed by *both*
-`outer.O1` and `outer.O2`, and `inner.tripled` is only consumed by
-`outer.O2`. The propagation still works:
+- inner.D as an outer-level value: `{O1, O2}` (consumed by both).
+- inner.T as an outer-level value: `{O2}`.
+- decode (a, b): `{O1, O2}`.
+- inner-flow construction: `{O1, O2}`.
 
-- `inner.doubled` is consumed by `outer.O1` and `outer.O2` →
-  consumer-set `{O1, O2}`.
-- `inner.tripled` → `{O2}`.
-- `decode m`: consumed by both inner outputs → union of their
-  consumer-sets → `{O1, O2}`.
-- `m*2` (consumed by `inner.doubled`) → `{O1, O2}`.
-- `m*3` (consumed by `inner.tripled`) → `{O2}`.
+Outer chains:
+- `{O1, O2}`: decode (a, b), inner-flow construction, and
+  inner.D's stream (an outer value with outer-cs `{O1, O2}`).
+- `{O2}`: inner.T's stream and outer.O2's per-element fold logic.
+- `{O1}`: outer.O1's per-element fold logic, which pulls
+  inner.D from the `{O1, O2}` chain.
 
-Inner level chains:
+GC works correctly: drop `O1`, inner.D's stream still reachable
+via outer's `{O1, O2}` chain held by `O2`; `m*2` keeps running
+(it's needed for O2's use of D). Drop `O2`, inner.T's stream
+unreachable, outer's `{O2}` chain unreachable, inner's `{T}` chain
+unreachable, `m*3` stops; inner.D still reachable via O1, so
+`m*2` keeps running.
 
-- `{O1, O2}`: decode m and m*2 (both have this consumer-set).
-- `{O2}`: m*3.
+### Algorithm
 
-Two chains, not three — outside-in propagation correctly merges
-`decode m` and `m*2` because they happen to have the same outer
-consumer-set even though their *inner* consumer-sets differ.
+Per flow level, treat that level like a standalone single-flow
+problem using *its own* outputs as the consumer-set axes:
 
-GC and dedup work as you'd want: dropping `outer.O1` doesn't free
-m*2 (still needed by O2 via inner.doubled), but does free nothing
-else uniquely held by O1 (which is fine — there isn't anything).
-Dropping `outer.O2` frees the entire `{O2}` chain (m*3 stops
-running) and `inner.tripled`'s structure becomes unreachable.
+1. For each computation at level L, determine its consumer-set —
+   the subset of L's *own* outputs that depend on it. Trace
+   transitively through L's own value subtree (without crossing
+   into deeper flows — those are their own problem; without
+   propagating up into outer flows either).
+2. Group level-L computations by consumer-set; each group is a
+   chain at level L.
 
-The key observation: **the inner flow's *own* output partition
-(doubled vs tripled) doesn't determine the inner chain structure;
-the *outer* consumer-set does.** Inner partitions can collapse
-when outer outputs consume across them; they don't refine when
-outer outputs don't distinguish.
+Cross-level relationship: an inner flow's outputs are themselves
+values at the next-outer level. They participate in the outer
+level's lattice analysis with their outer-cs determined by what
+the outer level does with them — but inner's own chain structure
+is determined entirely by inner's own outputs.
 
-So the algorithm is:
-
-1. Identify the outermost stream flow's outputs — these are the
-   "axes" of the consumer-set lattice.
-2. In one DAG-wide pass, propagate consumer-sets from each
-   outermost output backwards through every flow boundary,
-   labelling every computation.
-3. For each flow level in the program, group its computations by
-   consumer-set; each group becomes a chain at that level.
-
-Inside-out doesn't quite work (inner partitions can collapse or
-refine based on outer consumption, which is invisible from
-inside). Outside-in (in the sense of "what's the lattice over?")
-plus DAG-wide propagation (in the sense of "how do we compute each
-computation's consumer-set?") is the shape that's correct.
+The placement at every level is local. The lattice at every level
+is over local outputs.
 
 ## Outputs and flows as consumers
 
@@ -304,53 +342,55 @@ force as needed.
 
 ## Algorithm sketch
 
-In one pass over the Expr graph:
+The placement is per flow level, with each level locally
+independent of the others. In one pass over the Expr graph:
 
 1. **Build the consumer DAG.** For each Expr node, record its
-   value-port consumers — the same pre-pass the eager algorithm
+   value-port consumers — same pre-pass the eager algorithm
    already does.
 
-2. **Identify the outermost stream flow's outputs.** These are the
-   axes of the consumer-set lattice. If the program has several
-   *sibling* top-level stream flows (neither contains the other),
-   each is its own independent placement problem with its own
-   lattice — they don't share axes.
+2. **Identify flow levels.** Each stream flow defines a level.
+   A computation's level is the deepest flow whose per-iteration
+   value it varies with.
 
-3. **Propagate consumer-sets backwards.** Each outermost output
-   seeds a singleton consumer-set. For every other computation
-   reachable from outputs, its consumer-set is the union of its
-   direct consumers' consumer-sets. Continues across flow
-   boundaries.
+3. **For each flow level, compute level-local consumer-sets.**
+   The axes for level L's lattice are L's own outputs (its Closes).
+   For each level-L computation, trace consumers within L's own
+   value subtree, terminating at L's outputs. The consumer-set is
+   the subset of L's outputs that reach the computation.
+   *Don't* trace across flow boundaries — that level's lattice is
+   local.
 
-4. **Identify the flow level of each computation.** A computation's
-   level is determined by which flow's iteration it varies with.
-   Outermost-flow computations are per source element; inner-flow
-   computations are per (outer-element × inner-element); etc.
+4. **Group level-L computations by consumer-set.** Each group is
+   a chain at level L. Chain count = number of distinct
+   consumer-sets at L, not 2|outputs|.
 
-5. **Group computations per flow level by consumer-set.** Each
-   group becomes a chain at that level. The chain count at a level
-   is the number of *distinct* consumer-sets among that level's
-   computations, not 2ⁿ.
+5. **Emit the chains.** Each chain compiles to a `zipStream` over
+   L's source. The atCons builds a record (object with named slots
+   for each value computed at this chain) for the source cell.
+   Sub-chains (chains whose consumer-set is a proper subset of
+   another's) derive from their parent via `Delayed.flatMap`: the
+   sub-chain's atCons pulls the parent record from the parent
+   chain at the same source cell, takes the parent values it
+   needs, and computes its own additional slot values. Forcing
+   a sub-chain forces its parent (memoised, so cost once per
+   source cell).
 
-6. **Emit the chains.** Each chain compiles to a `zipStream` over
-   its level's source. The atCons builds a record (object with
-   named slots, one per value computed at this chain) for that
-   source cell. Sub-chains (chains whose consumer-set is a proper
-   subset of another's) derive from their parent chain via
-   `Delayed.flatMap`: the sub-chain's atCons pulls the parent
-   record from the parent chain's same source cell and uses
-   whatever parent-record values it needs, then computes its own
-   slot values on top. Forcing the sub-chain forces the parent
-   chain (memoised, so cost once per source cell).
+6. **Outputs project from their chains.** Output `Oᵢ` at level L
+   emits its stream by reading from the chain whose consumer-set
+   is the smallest containing `Oᵢ` — that chain has the slots
+   `Oᵢ` needs (transitively, via sub-chain derivation from
+   parents). The output is a `Delayed.map` projection from the
+   chain's records to `Oᵢ`'s actual emitted value type, or a
+   small `zipStream` if `Oᵢ` has its own additional per-element
+   computation.
 
-7. **Outputs project from their chains.** Output `Oᵢ`'s output
-   stream is built from the chain whose consumer-set is the
-   smallest set containing `Oᵢ` (the most specialised). That
-   chain's record has the slots `Oᵢ` needs (transitively, via
-   sub-chain derivation from parents). The output is a
-   `Delayed.map` projection from the chain's records to `Oᵢ`'s
-   actual emitted value type, or a `zipStream` if `Oᵢ` has its
-   own per-element computation beyond what the chain provides.
+7. **Cross-level integration.** Inner-flow outputs are values at
+   the next-outer level. They participate in the outer level's
+   lattice analysis (step 3) like any other value, with their
+   outer consumer-set determined by what outer outputs use them.
+   The inner flow's own chain structure was already decided at
+   step 3 for the inner level.
 
 For a diagram mixing eager and lazy: eager flows compile as today
 (scopes), stream flows use the above. Cross-flow values bridge
@@ -358,18 +398,28 @@ explicitly via `listToStream` / `forceToList`.
 
 ## Relation to the eager placement algorithm
 
-Two pieces carry over identically: the consumer pre-pass, and the
-backwards propagation of consumer info. The eager version's
-"don't sink past a loop" cap doesn't apply to streams — sinking
-into a sub-chain doesn't multiply work, it just changes
-reachability — and is replaced by the GC argument the stream case
-needs.
+The consumer pre-pass carries over identically. The backwards
+propagation of consumer info also carries over, but with one
+structural difference: in the eager version, the lattice of
+consumer scopes was a tree (scope nesting), and propagation was
+SCA-shaped — one global pass with a "deepest common ancestor"
+join. In the stream version, the per-level lattice is a powerset
+lattice (set-of-outputs), and each level's propagation is local.
+Across-level structure is handled by treating inner outputs as
+values at the outer level (where they re-enter the outer level's
+lattice analysis as ordinary values).
 
-If we ever want one compile mode covering both, the placement step
-generalises to: for each computation, find the most specific
-"region" that contains all its consumers, where a region is a JS
-scope (eager) or a Delayed chain (stream) depending on the
-containing flow's kind. The bookkeeping is the same.
+The eager version's "don't sink past a loop" cap doesn't apply to
+streams — sinking into a sub-chain doesn't multiply work, it just
+changes reachability — and is replaced by the GC argument the
+stream case needs.
+
+If we ever want one compile mode covering both, the principle
+generalises to: for each computation, find the most-specific
+region that contains all its level-local consumers, where a
+region is a JS scope (eager) or a Delayed chain (stream)
+depending on the containing flow's kind. The bookkeeping
+differs in shape but not in spirit.
 
 ## Open questions
 
