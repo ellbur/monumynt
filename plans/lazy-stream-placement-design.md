@@ -475,6 +475,18 @@ differs in shape but not in spirit.
    — get stream placement working, then decide whether unification
    pays for itself.
 
+6. **Single-consumer streams via native generators.** Stream flows
+   whose chains are known at compile time to have exactly one
+   consumer (no fanout, no multi-close on a parent chain) don't
+   need the dedup machinery — they could compile to `function* …`
+   generators instead of Delayed-cell linked lists. Native syntax,
+   JIT-friendly, smaller per-cell overhead. Worth keeping in mind
+   as an optional optimisation once the general placement-based
+   compile is working: detect single-consumer chains at the lattice
+   stage, emit a generator for those, Delayed cells for shared
+   ones. Probably not worth the implementation effort until
+   benchmarks tell us per-cell overhead matters.
+
 ## Implementation order
 
 Staged so we can validate at each step before proceeding:
