@@ -312,33 +312,48 @@ So in the stream world, partitions split into two kinds:
 The algorithm only needs to worry about the first. The second is the
 runtime's job.
 
-## Mixing eager and lazy flows
+## Chain structure: a lattice, not a hierarchy of sub-partitions
 
-A diagram can contain both eager list flows and lazy stream flows.
-The top-level flow doesn't have to dictate the mode for everything
-inside it — each flow can compile in its own mode, with bridges at
-the boundaries.
+It's tempting to imagine partitioning as recursive — that a chain
+might split into sub-chains, which split into sub-sub-chains, etc.
+That's not what happens. Each chain is a flat sequence of cells
+(its own `zipStream` over the source), and chains relate to each
+other by *derivation*, not nesting. Chain X derives from chain Y
+when X's atCons reads Y's records as input; both X and Y are
+their own iterations.
 
-- An eager flow's output (a list) feeding a stream flow: bridge by
-  `listToStream(forcedList)`. The list is computed eagerly; the stream
-  is a lazy traversal of it.
+So chains form a lattice (by consumer-set inclusion) where each
+node is a separate iteration, and "parenthood" in the lattice
+means "X derives from Y" — not "X is contained in Y."
 
-- A stream flow's output (a stream) feeding an eager flow: force the
-  stream to a list (eagerly walk it), then iterate.
+## When chains need to zip: multiple non-comparable parents
 
-The placement principle is the same on both sides — place each
-computation in the smallest region that includes all its consumers —
-but the *regions* are different: scopes for eager, chains for lazy.
-The bridges are explicit conversions; computations on either side of
-a bridge can't be placed across it.
+A subtlety: a sub-chain may have *more than one* incomparable
+parent chain it needs to read from.
 
-This means the algorithm sees a mix of "scope-typed" and "chain-typed"
-placement regions, and each computation gets placed in whichever
-medium its containing flow uses. Cross-flow consumer-sets still make
-sense: an eager-flow value with one consumer in a stream flow lives
-in the eager scope of the consumer's containing close, exactly as it
-does today; the stream flow's compile sees an already-bound name to
-force as needed.
+Sub-chain `{O₁}` is a subset of any chain whose consumer-set
+includes O₁ — e.g. both `{O₁, O₂}` and `{O₁, O₃}`. Neither of
+those is a subset of the other, so neither is a "more specific
+parent" of the other. If `{O₁}`'s atCons happens to use values
+from both, it has to read both at each source cell.
+
+Reading two unrelated chains at the same source cell is exactly
+a *zip* operation — the streams are independent iterations now
+(they've been split off into separate chains), so even though
+they were originally driven by the same source iteration, the
+sub-chain has to thread them back together cell-by-cell.
+
+Mechanically: each iteration of the sub-chain's atCons does
+`Delayed.flatMap` on chain A, then inside that, `Delayed.flatMap`
+on chain B at the same position, then combines. The shared source
+plus the Delayed memo means the source cells aren't recomputed,
+but the *chain layer* allocations for A and B happen — once each
+per source cell, since both chains are memoised too.
+
+So the runtime needs a `zip` primitive on streams (or its
+equivalent, expressed via `flatMap` and `zipStream`). It's not
+hard, but it's a piece of the runtime the partition algorithm
+requires, and worth calling out before implementation.
 
 ## Algorithm sketch
 
@@ -392,9 +407,11 @@ independent of the others. In one pass over the Expr graph:
    The inner flow's own chain structure was already decided at
    step 3 for the inner level.
 
-For a diagram mixing eager and lazy: eager flows compile as today
-(scopes), stream flows use the above. Cross-flow values bridge
-explicitly via `listToStream` / `forceToList`.
+8. **Sub-chains with multiple parents are zipped.** When a sub-
+   chain X derives from incomparable parents A and B (each a
+   superset of X's consumer-set but neither a subset of the
+   other), X's atCons reads both A and B at the same source cell
+   — a zip-style combination.
 
 ## Relation to the eager placement algorithm
 
@@ -490,21 +507,29 @@ Staged so we can validate at each step before proceeding:
    this doc. If the worked examples reveal the algorithm needs
    revision, revise here before proceeding.
 
-7. **Mixed eager + stream flows.** Confirm cross-flow bridging
-   works. May require revising the eager compile to expose a
-   value-as-lazy interface to stream callers.
-
 If at any step the design needs revision, revise this document
 before continuing. The point of the staged plan is to surface
 problems early — finding out at step 6 that the algorithm needs
-rework is much cheaper than finding out at step 7.
+rework is much cheaper than finding out it after.
 
 ## What this doesn't address
+
+- **Eager-stream interaction.** Whether and how lists and streams
+  bridge (list-to-stream, stream-to-list as language operations)
+  is a separate design question and doesn't affect this
+  algorithm. The placement analysis runs entirely inside a stream
+  flow; eager-flow values appearing as inputs to a stream flow are
+  just already-bound names to read.
+
+- **Joining stream flows.** What "join" means for streams isn't
+  obvious — for lists it was just "lift the output up a level";
+  for streams it'd have to be redefined. We haven't tackled it,
+  and the placement algorithm doesn't depend on it. If we add it
+  later it may affect the algorithm.
 
 - **Optimisation of the eager compile.** The placement algorithm
   for eager flows is preserved at `plans/placement-algorithm-notes.md`
   and can come back if/when we want tighter JS for the eager fragment.
-  This document is scoped to stream flows.
 
 - **The interaction with iteration rails / loop-carried state.**
   When we add those, they need their own placement story.
