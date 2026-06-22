@@ -312,6 +312,68 @@ and is invisible inside the flow body.
 
 ---
 
+## The link as a graph transformation, not a program element
+
+The earlier concern that "stateful-collect can only be done once per
+variable" was a confusion between two levels.
+
+At the *variable* level: one variable has one write slot. Two step
+values for the same variable conflict. This is still true.
+
+At the *program* level: the link is a *transformation* applied to an
+existing program to produce a new program. You take a program, identify
+a position, and get back a new program where that position is now an
+iteration variable. This transformation can be applied as many times as
+you like — each time to a different position, each time producing a
+different new program, each time creating one independent iteration
+variable. There is no conflict because each application creates a
+*new* variable at a *different* position.
+
+The concrete-first example makes this clear. Starting from:
+
+    e = (1 + 2) + first_element
+
+You could apply the transformation to:
+- where `1` was — producing one new iterative program
+- where `(1 + 2)` was — producing a different new iterative program
+- both positions simultaneously — producing a program with two
+  independent iteration variables
+
+These are not competing writes to the same slot. They are independent
+cuts in the graph, each creating its own variable.
+
+### What the transformation does at the graph level
+
+The link *cuts* the computation graph at the identified position.
+Whatever was computing the value there — a literal, a sub-expression,
+anything — is replaced by the iteration variable (initial value on the
+first step, fed-back value on subsequent steps). Everything downstream
+of the cut just sees a value at that position; it doesn't know a cut
+occurred.
+
+### When two cut positions are in a dependency relationship
+
+In the example above, `(1 + 2)` depends on `1`. If you cut at both:
+
+- The cut at `1` makes `1` an iteration variable.
+- The cut at `(1 + 2)` makes `(1 + 2)` a *separate* iteration variable,
+  initialized to the original value `3`.
+
+The downstream cut severs the dependency on `1` for everything below
+that position. The downstream computation no longer sees the updated
+`1` propagating through `+ 2` — it sees the independent iteration
+variable instead. Each cut is local: it replaces exactly that position
+and leaves everything else as it was.
+
+This is a strong argument for the transformation framing over the
+declaration framing. A "declare an iteration variable" approach would
+have to decide upfront what `(1 + 2)` means when `1` is also an
+iteration variable. The transformation approach sidesteps this
+entirely: cuts are local, applied one at a time, with no global
+coordination required.
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
