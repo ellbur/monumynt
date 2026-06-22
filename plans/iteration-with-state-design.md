@@ -159,52 +159,194 @@ likely needs its own construct or a generalization of close.
 
 ---
 
+## The grid structure
+
+Thinking through what the iteration construct must express, it has a
+grid shape with two axes:
+
+- **Variable identities** (rows): `sum`, `max`, `count`, etc. —
+  independently nameable, no tuple.
+- **Roles** (columns): assign-initial, assign-iterated, access-previous,
+  access-current.
+
+The grid is not fully combinatorial. Three of the four columns are
+coupled: a variable either participates in all three of
+{assign-initial, assign-iterated, access-previous}, or in none of them.
+
+- `assign-initial(x)` and `assign-iterated(x)` must coexist: you can't
+  carry state without both a starting point and a step.
+- `access-previous(x)` requires both: on iteration 0 it reads from
+  `assign-initial`; on subsequent iterations it reads from
+  `assign-iterated` of the previous step.
+- `assign-initial + assign-iterated` without `access-previous` is
+  vacuous: you'd be updating a value that nobody ever reads as a
+  previous value. It wouldn't be stateful at all.
+
+The fourth column, `access-current`, is independent. A per-iteration
+value can be read in the current iteration without participating in the
+three-way coupling. Being stateful is exactly being in the three-way
+coupling.
+
+### The quotient approach is acceptable here
+
+The constraint that all three columns must match per-variable doesn't
+need to be enforced combinatorially (by construction). The language
+already uses quotient constraints elsewhere:
+
+- A CaseSplit uncollect and collect must have matching alts.
+- A collect must be compatible with the uncollect that opened its flow.
+- Types must match (even though type-checking isn't yet implemented).
+- The no-crossing rule.
+
+So it's acceptable that a variable's three slots (initial, step,
+access-previous) must refer to the same identity, enforced as a
+matching constraint rather than being built as a single inseparable
+unit.
+
+---
+
+## The stateful-collect is a terminal node
+
+An important distinction from regular collect/close: the operation that
+feeds a step value back into a variable has **no output**.
+
+Regular collect produces a value that flows downstream — its result is
+its entire point. Stateful-collect consumes the step value and feeds it
+into a slot for the next iteration. Nothing comes out. It terminates a
+branch of the computation. This is a new kind of node in the language:
+previously, every node was a producer. Stateful-collect is a pure
+consumer.
+
+This makes the "two stateful-collects for the same variable would
+conflict" property structural, not a design rule: there is one write
+slot per variable, and two writes conflict because there's no meaningful
+way to combine them into one slot.
+
+It also clarifies that stateful-collect and regular close are
+independent operations that both happen to consume per-iteration values:
+
+- **Stateful-collect**: carries a value forward to the next iteration.
+  Terminal, no output.
+- **Regular close**: exposes a value as output outside the flow.
+  Produces a value.
+
+To both carry state forward and expose the running sum as an output,
+you need both: a stateful-collect to maintain the state, and a regular
+close to produce the output. They are separate things.
+
+---
+
+## The "link" as the primitive: concrete-first
+
+The rejected primitives (`stateful(...)` and `prev(x)`) both required
+the user to design a general iterative computation from the start.
+There's a different approach that matches how programmers naturally
+think.
+
+Start with a concrete single-step computation:
+
+- You have `0`.
+- You have `element` (the first element of a list).
+- You compute `0 + element`.
+
+Then observe: the result of `0 + element` plays the same role that `0`
+played. Link the result back to where `0` was. The link says: "this
+output and this input are the same thing across iterations."
+
+Before the link there is no iteration — just a concrete one-step
+calculation. After the link there is an iteration. The link IS the
+primitive.
+
+Adding a second accumulator is adding a second link, independently.
+No tuple packing. Nothing else disturbed.
+
+**The link splits the initial value.** Before the link, `0` is just
+`0` — one thing. After the link, there are two structurally distinct
+things: `0` outside the iteration (the initial value, unchanged), and
+a "previous result" inside the iteration body in the same position
+where `0` was. They were one thing; the link makes them two.
+
+**The concrete-first philosophy.** Write the special case (one concrete
+step), then generalise by identifying the feedback. You don't need to
+design a general fold upfront. The generality emerges from the link.
+This matches the language's general direction: making programs valid by
+starting with a concrete instance and then abstracting.
+
+---
+
+## The link resolves the empty-case partiality
+
+There is a subtle but important consequence of the link: it resolves a
+previously unhandled partial case.
+
+Before the link, accessing the first element of a list is a partial
+operation. In the language's flow model, either there is a first element
+or there isn't. The "list is empty" case is unhandled — the concrete
+computation `0 + element` only makes sense if an element exists.
+
+After the link, the empty case is handled: if the list is empty, the
+iteration runs zero times and the result is just `0` (the initial value,
+never updated). The initial value serves double duty:
+
+- Starting point for non-empty lists (the first "previous" value before
+  any step runs).
+- Complete answer for empty lists (the result of zero iterations).
+
+The link closes the previously-open empty-list partiality by
+designating the initial value as the base case. This is inseparable
+from the act of creating the iteration: you cannot link without
+providing an initial value (the empty case would be unhandled), and
+providing an initial value without linking is just a constant.
+
+In the language's flow terms: the link is simultaneously a close for
+the "list is empty" case and an open for the iteration. These are the
+same act.
+
+**A consequence: access-previous is never option-typed.** The earlier
+`prev(x)` candidate returned `option<X>` to handle "first iteration has
+no previous value." Under the link design, that case doesn't arise:
+the initial value IS the first previous value. On every iteration,
+including the first, there is a well-defined previous value available.
+The first/subsequent distinction is handled entirely by the mechanism
+and is invisible inside the flow body.
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
 critique before the primitive can be considered settled:
 
-**The primitive form.** We've identified what the primitive must
-accomplish — introduce a carried value, attach an initial value from
-outside the flow, express the first/subsequent split at the flow level,
-allow independent per-variable handling. We haven't settled on a
-concrete syntactic or structural form. The candidates so far have all
-been rejected. The right form is still open.
+**The concrete form of the link.** We understand what the link
+accomplishes: it identifies an output and an input position as "the same
+thing across iterations," splitting the initial value into two roles and
+creating the iteration. We don't yet have a concrete syntactic or
+structural form for expressing the link in the language. This is the
+central open question.
 
-**The sub-close mechanic.** Closing the initial and step cases ends
-the first/subsequent split without closing the outer flow. The language
-currently has no construct that does this. Whether this is a new close
-variant, a generalization of the existing close, or something else
-entirely is unresolved. This is probably the hardest piece.
-
-**Non-homogeneous iteration as a separate problem.** The critique of
-`prev(x)` surfaced a related but distinct issue: what if different
-iterations genuinely behave differently (not just first vs. subsequent,
-but conditionally different at each step)? This is the "non-homogeneous
-iteration" problem. It's been explicitly set aside as a separate
-question and isn't part of the stateful iteration primitive — but it's
-worth naming so it doesn't get conflated.
-
-**Whether the first/subsequent split is always user-visible.** Under
-the current direction, the first-vs-subsequent distinction is expressed
-as a structural case split in the flow. But it's possible that for many
-accumulators, the user never needs to inspect that split at all — the
-iteration mechanism could handle it invisibly, with the carried value
-just being "available" on all iterations (the initial on the first, the
-carried on subsequent). Whether to expose the split explicitly or
-provide it transparently as a language mechanism is unresolved and
-probably depends on what the sub-close mechanic looks like.
+**How the link attaches to the containing flow.** When you link a
+computation back to its input, which flow is the iteration happening
+inside? If there's already a list flow open, the link presumably lives
+within it. But what if there isn't? Does the link itself open an
+iteration? If so, what kind — list, stream, infinite? The relationship
+between the link and the containing flow is unclear.
 
 **Multiple carried variables.** The design must support two independent
-carried variables in one flow without a tuple bottleneck. This should
-fall out naturally if the primitive form is right — but it hasn't been
-demonstrated with a concrete worked example yet. Testing the candidate
-primitive (once one exists) against "running sum and running max in one
-loop" is a good critique target.
+links in one flow without a tuple bottleneck. This should fall out
+naturally — each link is independent — but it hasn't been demonstrated
+with a concrete worked example. Testing against "running sum and running
+max in one loop" is the right critique target.
 
-**Self-reference and cycles.** A carried variable that depends on its
-own previous value is a backward edge in the expression graph. The rest
-of the language has no cycles. The carried-variable primitive introduces
-them in a controlled way — but the exact scope of what's allowed, and
-how it interacts with the compiler's memoisation/laziness model, hasn't
-been thought through.
+**Self-reference and cycles.** The link introduces a backward edge in
+the expression graph — from the step output back to the initial-value
+position. The rest of the language has no cycles. The link introduces
+one in a controlled way (bounded by the iteration structure), but what
+exactly is allowed, and how it interacts with the compiler's laziness
+model, hasn't been thought through.
+
+**Non-homogeneous iteration as a separate problem.** What if different
+iterations behave differently — not just first vs. subsequent, but
+conditionally different at each step? This is explicitly set aside as a
+separate question and isn't part of the stateful iteration primitive.
+Worth naming so it doesn't get conflated with what's being designed
+here.
