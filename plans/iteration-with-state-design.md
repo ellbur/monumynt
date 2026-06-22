@@ -1,5 +1,50 @@
 # Iteration With State
 
+## Guiding language philosophy: example first, then generalise
+
+A central design principle of this language is that programs should be
+written starting from a concrete example and then generalised, rather
+than starting from a generalisation and instantiating it.
+
+Conventional language design goes in the opposite direction. A function
+declaration in most languages says: "here is a general operation
+parameterised by these inputs." The user writes the general form
+upfront, even if they arrived at it by thinking about a specific
+example. The language forces you to declare the generalisation before
+you can express the specific case.
+
+This language inverts that. You write the specific case — concrete
+values, concrete computation — and then apply transformations that
+generalise it. The generalisation is an *after-the-fact* addition, not
+an upfront declaration. This shows up repeatedly:
+
+- **Iteration** (this document): you write one concrete step
+  (`0 + element`), then apply a "link" transformation to make it
+  iterate. The iteration emerges from identifying the feedback; you
+  don't declare a fold function first.
+- **Sharing**: you write a computation and then wire its output to
+  multiple consumers. You don't declare a function with a name and
+  call it twice; sharing is structural.
+- **Flow structure generally**: you write expressions and then say
+  which flow context they live in. The flow is not a pre-declared
+  container that expressions are placed into.
+
+This philosophy has consequences for how language primitives are
+designed. A primitive that requires declaring the generalisation
+upfront (like `stateful(initial, update)`, which forces you to declare
+the iteration structure before writing the body) is suspect. A
+primitive that starts with something concrete and then identifies a
+relationship (like the link) is preferred.
+
+It also explains why the "functional bottleneck" is a problem: packing
+state into a tuple to thread through a fold is forcing a generalisation
+(the fold's type) upfront, before you know what all the components are.
+Multi-output iteration without a tuple is a consequence of the same
+principle: add each accumulator when you need it, not when you open the
+loop.
+
+---
+
 ## Design philosophy: the functional bottleneck
 
 Standard imperative loops handle multi-accumulator iteration naturally:

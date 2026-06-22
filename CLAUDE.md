@@ -113,6 +113,30 @@ It wraps the input to `eval` in `(…)` so that expressions starting with `{` (o
 
 Tests are inline in `Main.res`. Each test prints the generated JS, the result, and a header with the outer-stmt count. The count is informative — e.g. a "shared" version of an expression should produce fewer outer stmts than an "unshared" version.
 
+## Language design philosophy
+
+Two principles run through the language design and should be kept in
+mind when evaluating new primitives or constructs:
+
+**Example first, then generalise.** Programs should be writable starting
+from a concrete example, with generalisation applied after the fact —
+not declared upfront. Conventional languages force you to write the
+general form first (function parameters, fold signatures, type
+annotations). This language inverts that: you write the specific case,
+then identify the relationship that makes it general. A proposed
+primitive that requires declaring structure upfront before writing the
+concrete computation is suspect.
+
+**Inside-out / cases as values.** The language avoids constructs that
+make the *interior scope* of an expression different from its exterior.
+Cases (branches, alts) should be values you inspect and flow through,
+not scopes that influence the meaning of expressions written inside
+them. This is why `stateful(initial, update)` was rejected: `prev` was
+only in scope inside the second argument, making that expression's
+meaning depend on where it appeared.
+
+See `plans/iteration-with-state-design.md` for extended discussion.
+
 ## Working with the user
 
 The user designs incrementally and likes to think out loud about a step before any code is written. Rough pattern from past sessions:
