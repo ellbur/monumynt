@@ -45,6 +45,61 @@ loop.
 
 ---
 
+## Guiding language philosophy: foundations before features
+
+The design prioritises getting the right building blocks over
+accumulating features quickly. A wrong foundation compounds: every
+feature built on top of it inherits the flaw, and correcting it later
+requires dismantling what was built. It is cheaper to spend time
+rejecting candidate primitives — even after substantial design work —
+than to implement the wrong thing and discover the flaw downstream.
+
+This is why the design conversation spends so much time in critique
+rather than implementation. `stateful(initial, update)` and `prev(x)`
+were both rejected not because they couldn't be made to work but
+because they would have been wrong foundations. The link primitive is
+still being critiqued rather than implemented for the same reason.
+
+The corollary: once the foundations are right, building on them should
+be fast and unsurprising. The investment is front-loaded.
+
+---
+
+## Guiding language philosophy: building blocks at the programmer's abstraction level
+
+The language does not subscribe to the Lisp philosophy of minimal
+primitives. Lisp's bet is that a handful of extremely simple operations
+(lambda, cons, car, cdr) can express everything. The bet is technically
+correct but creates a practical problem: when building blocks are much
+simpler than the programmer's conceptual vocabulary, there is no one
+obvious way to write a given program. Any reader encountering a
+hand-rolled accumulator loop has to decode which of many possible
+implementations the writer chose. The code is not self-documenting;
+it requires mental reconstruction of the intent.
+
+Building blocks are a *vocabulary* for expressing programs. Vocabularies
+work when they match the user's conceptual level. A `sum()` operation
+is a building block at the right level — it says what it means. A fold
+with a packed tuple is technically equivalent but communicates nothing
+directly. The programmer's intent is visible in the former and hidden
+in the latter.
+
+The goal is that given a problem, there is one obvious way to express
+it. "One obvious way" is what makes programs readable across authors
+and time. This is why the language provides structured flow operations
+(list-open, case-split, option-iter) rather than asking the user to
+build iteration from recursion and higher-order functions. It is also
+why the multi-output design matters: `sum` and `max` as two named
+outputs of one loop is the obvious way to write two accumulators; a
+2-tuple threaded through a fold is not.
+
+The criterion for a building block is therefore not "is this the
+simplest possible primitive?" but "does this meet the programmer at
+the level of their own abstractions?" Simpler is not always better;
+appropriate is.
+
+---
+
 ## Design philosophy: the functional bottleneck
 
 Standard imperative loops handle multi-accumulator iteration naturally:

@@ -115,7 +115,7 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Two principles run through the language design and should be kept in
+Four principles run through the language design and should be kept in
 mind when evaluating new primitives or constructs:
 
 **Example first, then generalise.** Programs should be writable starting
@@ -134,6 +134,23 @@ not scopes that influence the meaning of expressions written inside
 them. This is why `stateful(initial, update)` was rejected: `prev` was
 only in scope inside the second argument, making that expression's
 meaning depend on where it appeared.
+
+**Foundations before features.** Getting the right building blocks takes
+priority over accumulating features quickly. A wrong primitive compounds
+— everything built on it inherits the flaw. It is cheaper to spend time
+critiquing and rejecting candidates than to implement the wrong thing
+and correct it later. Once foundations are right, building on them
+should be fast and unsurprising.
+
+**Building blocks at the programmer's abstraction level.** The language
+does not subscribe to the Lisp philosophy of minimal primitives. When
+building blocks are much simpler than the programmer's vocabulary, there
+is no one obvious way to write a given program — readers must decode
+intent rather than read it directly. The criterion for a building block
+is not "is this the simplest possible primitive?" but "does this meet
+the programmer at the level of their own abstractions?" The goal is one
+obvious way to express a given program, which is what makes programs
+readable across authors and time.
 
 See `plans/iteration-with-state-design.md` for extended discussion.
 
