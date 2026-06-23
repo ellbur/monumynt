@@ -584,17 +584,135 @@ machinery.
 
 ---
 
+## A candidate for the concrete form: Delay
+
+The central open question is what the link looks like as a concrete
+construct in the language. One candidate is a `Delay` node.
+
+### What Delay is
+
+`Delay(init, prev => step)` — a single node with:
+
+- `init`: the initial value, an expression evaluated *outside* the
+  iteration. On the first step, this is what the node outputs.
+- `prev => step`: a lambda where `prev` is a fresh node representing
+  this Delay's own previous output. On each subsequent step, the node
+  outputs whatever `step` evaluated to last step.
+- **Output**: the previous step's result (or `init` on the first step).
+
+The three-way coupling from the grid falls into place naturally:
+
+- `assign-initial` → `init` argument
+- `access-previous` → the Delay's output (= `prev` inside the lambda)
+- `assign-iterated` → the lambda body (`step`)
+
+All three are in one construct. No matched open/close pair; no terminal
+node with no output. Delay has a normal output, usable anywhere.
+
+### Applied to the worked example
+
+Starting from the concrete program:
+
+    sum_init  = 0
+    sum_step  = sum_init + element
+
+Applying the link transformation produces:
+
+    runningSum = Delay(0, prev => prev + element)
+
+The `0` moves to the `init` argument. The `sum_init` position becomes
+`prev` (the lambda parameter). The step formula becomes the lambda
+body. The substitution is direct and mechanical.
+
+Two independent accumulators remain independent:
+
+    runningSum = Delay(0,       prev => prev + element)
+    runningMax = Delay(-∞,     prev => max(prev, element))
+
+No tuple. Neither references the other.
+
+### Cross-delay references: Fibonacci
+
+When one Delay's step depends on another Delay's previous value,
+the other Delay's output is just referenced directly:
+
+    fib_a = Delay(1, _    => fib_b)
+    fib_b = Delay(1, prev => fib_a + prev)
+
+`fib_a`'s step is just `fib_b` (the previous output of `fib_b`).
+`fib_b`'s step is `fib_a + prev` (previous fib_a plus previous fib_b).
+The lambda ignores its `prev` parameter when the self-reference isn't
+needed. The host language's `let rec` handles the mutual reference.
+
+### Applying the design principles
+
+**Foundations before features.** Delay is one node with one clear
+semantics. It doesn't require designing a new open/close pair,
+a new terminal-node concept, or a new matching constraint. That's
+fewer moving parts to get wrong.
+
+**Example first, then generalise.** The transformation from concrete
+to iterative is a direct substitution: initial value → `init`
+argument, loop-variable position → `prev` parameter, step formula →
+lambda body. The transformation is identifiable and mechanical.
+
+**Building blocks at the programmer's abstraction level.** "Delay
+this value by one step, starting from X" is a meaningful abstraction
+that meets the programmer's vocabulary. It's not too low (raw
+read/write ports) and not too high (hiding the recurrence structure).
+
+**Inside-out / cases as values.** This is the most important
+critique of Delay. The lambda `prev => step` introduces `prev` into
+the body's scope. Inside the lambda, `prev` is available; outside
+it isn't. This is a scope difference — the interior is not the
+same as the exterior.
+
+The lambda is better than `stateful(init, update)`: the binding
+is visible and explicit (it's a lambda parameter, a standard
+mechanism), and `prev` is a normal name rather than a magic keyword
+that appears in scope without a visible binding. But the inside-out
+concern applies in a weaker form. Whether a lambda boundary is
+acceptable under the philosophy is worth critiquing.
+
+### What Delay leaves open
+
+**The lambda for cross-delay non-self-references is awkward.** In
+Fibonacci, `fib_a = Delay(1, _ => fib_b)` writes a lambda that
+ignores its parameter. The lambda is only needed when the step
+references the Delay's *own* previous value; cross-references don't
+need it. But the form requires a lambda regardless. This suggests
+the lambda might not be the right mechanism — or that self-reference
+and cross-reference should be handled differently.
+
+**`let rec` for mutual reference.** The Fibonacci example requires
+the host language's `let rec` to express mutual reference between
+two Delays. In strict ReScript, `let rec x = f(x)` at the value
+level (not function level) only works if the evaluation is deferred.
+The lambda in `Delay(1, _ => fib_b)` is a function, so `let rec`
+can capture it — but this depends on implementation details that
+haven't been verified.
+
+**Does the lambda form pass the inside-out test?** Left as an open
+critique. One way to surface the question concretely: is there a
+formulation of Delay that *doesn't* require a lambda (and therefore
+doesn't introduce an interior scope), but still handles self-reference
+without a circular construction-time dependency?
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
 critique before the primitive can be considered settled:
 
-**The concrete form of the link.** We understand what the link
-accomplishes: it identifies an output and an input position as "the same
-thing across iterations," splitting the initial value into two roles and
-creating the iteration. We don't yet have a concrete syntactic or
-structural form for expressing the link in the language. This is the
-central open question.
+**The concrete form of the link.** A candidate exists: the `Delay`
+node (`Delay(init, prev => step)`). It passes most of the design
+criteria but faces an open critique on the inside-out principle —
+the lambda introduces a scope difference — and an awkwardness when
+the step doesn't reference its own previous value (the lambda
+parameter goes unused). Whether a formulation without a lambda is
+possible while still handling self-reference without a
+construction-time cycle is the remaining question.
 
 **How the link relates to its flow.** Resolved: the link is always
 explicitly tied to a specific flow — either one that pre-exists (inside
