@@ -419,6 +419,100 @@ coordination required.
 
 ---
 
+## Worked example: two independent accumulators
+
+The core claim — "adding a second accumulator is adding a second link,
+independently, no tuple bottleneck" — is tested here concretely.
+
+### The starting program (non-iterative)
+
+    sum_init  = 0
+    max_init  = -infinity
+    element   = list[0]          // partial: list might be empty
+    sum_step  = sum_init + element
+    max_step  = max(max_init, element)
+
+No iteration yet. Two concrete constants (`0`, `-∞`), one partial
+access (`list[0]`), two computations. `sum_step` and `max_step` are
+the results we care about.
+
+### Apply two independent links
+
+**Link 1**: feed `sum_step` back to the position of `sum_init`.
+
+- `sum_init` becomes an iteration variable, initialized to `0`.
+- On each subsequent iteration, `sum_init` = previous `sum_step`.
+- The formula `sum_step = sum_init + element` is unchanged.
+- The empty-list case is resolved: the result is `0`.
+
+**Link 2**: feed `max_step` back to the position of `max_init`.
+
+- `max_init` becomes an iteration variable, initialized to `-infinity`.
+- On each subsequent iteration, `max_init` = previous `max_step`.
+- The formula `max_step = max(max_init, element)` is unchanged.
+- The empty-list case is resolved: the result is `-infinity`.
+
+### What the grid looks like after both links
+
+|  | assign-initial | assign-iterated | access-previous | access-current |
+|---|---|---|---|---|
+| `sum_init` | `0` (outside) | `sum_step` | `sum_init` (per-iter) | — |
+| `max_init` | `-∞` (outside) | `max_step` | `max_init` (per-iter) | — |
+| `element` | — | — | — | provided by list-open |
+
+`element` is access-current only — provided by the list flow,
+not stateful. Neither link touches it or each other.
+
+### No coordination creep
+
+The two links share `element` via the containing list flow. That is the
+only interaction. `sum_init` and `max_init` are independent:
+
+- Different initial values.
+- Different step computations.
+- Neither knows the other exists.
+- Adding a third accumulator (`running_count`, with `count_init = 0`
+  and `count_step = count_init + 1`) is a third independent link.
+  Nothing about sum or max changes.
+
+This validates the no-tuple-bottleneck claim. The functional
+bottleneck — `fold(list, (0, -∞), (acc, x) => (acc[0]+x, max(acc[1],x)))` —
+has vanished. Each accumulator is its own thing.
+
+### What the example clarifies about containing flows
+
+Neither link declares which flow it lives in. The link specifies only
+where the cut is and what gets fed back. The step computation
+`sum_init + element` depends on `element`, which comes from the
+list-open. The link therefore lives at the same level as that list flow
+— determined by dataflow, not stated explicitly.
+
+This suggests a general rule: *the link lives at the level of its step
+computation's deepest free variable.* If the step only depends on
+outside-flow values (plus the accumulator itself), the link is
+outermost. If the step depends on a list-element, the link is inside
+that list flow. The link doesn't need to declare this; it follows from
+what the step uses.
+
+### What the example clarifies about cycles
+
+Within one iteration there is no cycle. `sum_init` on iteration *n* is
+`sum_step` from iteration *n-1*, which is already resolved. The
+apparent backward edge is sequenced across iterations, not within one.
+
+Expressed as a stream, the recursion is:
+
+    sum_init_stream = cons(0, sum_step_stream)
+    sum_step_stream = map2(sum_init_stream, element_stream, (+))
+
+This is productive corecursion: each cell of `sum_init_stream` is
+available one step before it's needed by `sum_step_stream`. Under
+`Delayed`-cell semantics, this resolves without deadlock. It's the
+standard stream recursion pattern, not something requiring new
+machinery.
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
@@ -431,25 +525,25 @@ creating the iteration. We don't yet have a concrete syntactic or
 structural form for expressing the link in the language. This is the
 central open question.
 
-**How the link attaches to the containing flow.** When you link a
-computation back to its input, which flow is the iteration happening
-inside? If there's already a list flow open, the link presumably lives
-within it. But what if there isn't? Does the link itself open an
-iteration? If so, what kind — list, stream, infinite? The relationship
-between the link and the containing flow is unclear.
+**How the link attaches to the containing flow.** The worked example
+suggests the link's level is determined by the deepest free variable in
+its step computation — if the step depends on a list-element, the link
+lives inside that list flow. This falls out of dataflow naturally and
+doesn't need to be declared. What's still unclear: what happens when
+there is *no* containing flow? A link whose step depends only on outside
+values (plus the accumulator itself) would iterate indefinitely with no
+external source driving it forward. That's either an error or a way to
+express self-referential streams (Fibonacci with no external input). The
+language hasn't decided which.
 
-**Multiple carried variables.** The design must support two independent
-links in one flow without a tuple bottleneck. This should fall out
-naturally — each link is independent — but it hasn't been demonstrated
-with a concrete worked example. Testing against "running sum and running
-max in one loop" is the right critique target.
-
-**Self-reference and cycles.** The link introduces a backward edge in
-the expression graph — from the step output back to the initial-value
-position. The rest of the language has no cycles. The link introduces
-one in a controlled way (bounded by the iteration structure), but what
-exactly is allowed, and how it interacts with the compiler's laziness
-model, hasn't been thought through.
+**Self-reference and cycles.** The worked example shows that within one
+iteration there is no cycle — the accumulator value is resolved from the
+previous iteration before the current step runs. Expressed as streams,
+the recursion is productive corecursion (`cons(initial, step_stream)`)
+which Delayed-cell semantics handles without deadlock. What still needs
+thought: are there link configurations that produce *non-productive*
+recursion (a cycle with no base case), and can the language rule them
+out structurally or does it rely on the user not creating them?
 
 **Non-homogeneous iteration as a separate problem.** What if different
 iterations behave differently — not just first vs. subsequent, but
