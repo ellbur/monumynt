@@ -481,18 +481,34 @@ has vanished. Each accumulator is its own thing.
 
 ### What the example clarifies about containing flows
 
-Neither link declares which flow it lives in. The link specifies only
-where the cut is and what gets fed back. The step computation
-`sum_init + element` depends on `element`, which comes from the
-list-open. The link therefore lives at the same level as that list flow
-— determined by dataflow, not stated explicitly.
+There are two cases, and they resolve differently.
 
-This suggests a general rule: *the link lives at the level of its step
-computation's deepest free variable.* If the step only depends on
-outside-flow values (plus the accumulator itself), the link is
-outermost. If the step depends on a list-element, the link is inside
-that list flow. The link doesn't need to declare this; it follows from
-what the step uses.
+**Inside an existing flow.** If a list flow is already open, a link
+created within it explicitly references that flow. Iteration state is a
+feature of a specific flow — not a free-floating thing. The link is
+tied to the flow at the point of creation.
+
+**Example-first generalize.** When you start from the concrete program
+above, `element = list[0]` is a partial access — no list flow exists
+yet. Applying the link to create `sum_init` is simultaneously applying
+a generalise step to `list[0]`: "the first element" becomes "each
+element," and the list-open comes into existence as part of the same
+act. The link and the flow are created together. You don't first open
+the flow and then attach the link; the flow is born in the same step
+that creates the iteration variable.
+
+In both cases the link is explicitly tied to a specific flow. The
+difference is only whether the flow pre-exists or is created by the
+generalise step.
+
+**The "no external source" edge case.** A link whose step depends only
+on outside-flow values (plus its own accumulator) has no external
+iteration source to generalise from. Applying the link creates a flow
+that is purely the feedback loop — a self-driven stream. Fibonacci is
+this: two links, no external list, just the recurrence. The flow exists;
+it just has no inlet from outside. This is not an error; it falls out of
+the same generalise step applied to a computation with no partial
+accesses in it.
 
 ### What the example clarifies about cycles
 
@@ -525,16 +541,16 @@ creating the iteration. We don't yet have a concrete syntactic or
 structural form for expressing the link in the language. This is the
 central open question.
 
-**How the link attaches to the containing flow.** The worked example
-suggests the link's level is determined by the deepest free variable in
-its step computation — if the step depends on a list-element, the link
-lives inside that list flow. This falls out of dataflow naturally and
-doesn't need to be declared. What's still unclear: what happens when
-there is *no* containing flow? A link whose step depends only on outside
-values (plus the accumulator itself) would iterate indefinitely with no
-external source driving it forward. That's either an error or a way to
-express self-referential streams (Fibonacci with no external input). The
-language hasn't decided which.
+**How the link relates to its flow.** Resolved: the link is always
+explicitly tied to a specific flow — either one that pre-exists (inside
+an existing flow, the link names it) or one created simultaneously by
+the generalise step (example-first, the flow comes into existence as
+part of creating the link). A link with no external iteration source
+creates a self-driven stream (purely the feedback loop); this is not an
+error. What remains open is the concrete syntactic or structural form
+for expressing either case — the mechanics of "naming a flow" when
+attaching to an existing one, and the mechanics of "the generalise step
+creates both."
 
 **Self-reference and cycles.** The worked example shows that within one
 iteration there is no cycle — the accumulator value is resolved from the
