@@ -700,19 +700,171 @@ without a circular construction-time dependency?
 
 ---
 
+## Resolving the lambda: Delay as ports, not a function
+
+The open critique of `Delay(init, prev => step)` is the lambda. It
+introduces `prev` into an interior scope — the one place the body
+differs from its surroundings — which is the inside-out anti-pattern
+the language is built to avoid. The question left open above was
+whether there is a formulation that drops the lambda but still handles
+self-reference without a construction-time cycle.
+
+There is, and the language already contains it. The lambda is not
+essential to Delay; it is an artifact of writing the step *as a
+function of* `prev`. But `prev` does not have to be a bound parameter.
+It can be an **output port** of the Delay node — read by wiring a
+value off it, exactly the way the current element is read off a
+list-open node.
+
+### The shape
+
+A Delay node has three connections, none of them a lambda:
+
+- **`init`** — an input from outside the flow. The initial value. On
+  the first step, this is what the node outputs.
+- **a `prev` output port** — the node's previous-step result (or
+  `init` on the first step). Downstream computation reads it by wiring
+  to it, like any other value.
+- **a `step` input port** — the value to carry into the next step.
+  Whatever computes the new value wires *into* this port.
+
+The three-way coupling from the grid maps onto the three connections
+directly, with no scope difference anywhere:
+
+- `assign-initial` → the `init` input
+- `access-previous` → the `prev` output port
+- `assign-iterated` → the `step` input port
+
+### Why this passes the inside-out test
+
+In the lambda form, `prev` exists only inside `prev => step`. The
+interior of the lambda is a different scope from the exterior, and the
+expression's meaning depends on whether it sits inside that lambda.
+That is the violation.
+
+In the port form, there is no interior. Every expression in the flow
+body lives in one scope. `prev` is not a name that comes into being
+inside a body; it is a wire coming off the Delay node, available
+wherever any wire is available. This is *exactly* how the list element
+is provided: the list-open node has an output port for "the current
+element," and the body reads it by wiring, not by a magic-scoped name.
+Delay's `prev` port is the same mechanism applied to "the previous
+step's value." The port form is therefore no more inside-out than list
+iteration is — which is to say, not at all.
+
+This also fulfils the earlier critique's own prescription (see "The
+carried value is introduced by a per-flow-iteration construct, not a
+per-node operator"): the carried value should be *provided* as an
+output port and read because it has been wired in, not conjured by a
+specially-scoped function. The port form is that prescription made
+concrete.
+
+### It is the iteration rail
+
+The visual design notes (`iteration-rails-design-notes.md`) arrived at
+this same node from the other direction. The rail is a horizontal line
+crossing the iteration column with a **tap-down read** on the left and
+a **writeback-up** on the right, and an **initial value** attached by a
+dotted line. Those are precisely Delay's three connections:
+
+- tap-down read  = the `prev` output port
+- writeback-up   = the `step` input port
+- dotted initial = the `init` input
+
+The non-visual reasoning in this document worked toward a lambda; the
+visual reasoning worked toward read/write ports. They are the same
+primitive. The port form is the reconciliation, and the fact that two
+independent lines of argument converge on it is evidence it is the
+right shape.
+
+### Self-reference and cross-reference become the same thing
+
+The lambda form had an awkwardness: Fibonacci's
+`fib_a = Delay(1, _ => fib_b)` writes a lambda whose parameter is
+ignored, because that step references another Delay's previous value,
+not its own. The lambda is mandatory even when nothing reads `prev`.
+
+In the port form this disappears. There is no parameter to leave
+unused. A Delay's `step` input is wired to whatever computes the next
+value; a Delay's `prev` output is read by whoever needs the previous
+value. Self-reference (`runningSum`'s step reads `runningSum`'s own
+`prev`) and cross-reference (`fib_a`'s step reads `fib_b`'s `prev`)
+are both just wires. The distinction the lambda forced into the surface
+syntax was never real, and the port form does not encode it:
+
+    runningSum:  init 0   step = (prev of runningSum) + element
+    fib_a:       init 1   step = (prev of fib_b)
+    fib_b:       init 1   step = (prev of fib_a) + (prev of fib_b)
+
+Each line is a node with an `init` and a `step` wired from some
+combination of `prev` ports. No lambdas, no unused parameters, no
+self-vs-cross special case.
+
+### No construction-time cycle
+
+The lambda form needed the host language's `let rec` because `step`
+referred to `prev`, which referred to the node being constructed — a
+value-level recursive definition that only works if evaluation is
+deferred. The port form needs no value-level recursion at all. It uses
+the same node-identity-plus-wiring pattern the codebase already relies
+on for Open/Close: a node is minted with an id and its output ports
+exist immediately; its input ports are wired as a separate step.
+
+So construction is two-phase, not circular:
+
+1. Mint the Delay node. Its `prev` output port exists now and can be
+   referenced downstream immediately.
+2. Wire its `step` input (and `init`) — a later, separate act, exactly
+   like wiring a Close back to the Open it consumes.
+
+No `let rec`, no deferred evaluation, no circular value dependency at
+construction time. The back-edge lives in the wiring, where the rest
+of the flow structure already lives.
+
+### What it costs: the graph is no longer a DAG
+
+The price of the port form is honest and small. The `step` input is a
+back-edge: it wires a downstream value back up into the Delay node, so
+the computation graph contains a cycle. The current compiler assumes a
+DAG (it places each binding at `deeper(args)` and relies on laziness
+for ordering), so a back-edge is the one thing it cannot yet handle.
+
+But the back-edge is not an accident to be tolerated — it *is* the
+link. The "link as a graph transformation" framing said the link cuts
+the graph at a position and feeds the downstream value back to it. The
+`step → prev` back-edge is that cut made concrete. The cycle is the
+primitive, not a side effect of it.
+
+And the compile target is already known: a single mutable `let`
+register inside the loop, per the iteration-rails design. `init` sets
+the register before the loop; `prev` reads it at the top of the
+iteration; `step` assigns it at the bottom. The back-edge in the graph
+becomes a write-after-read on one register in the emitted JS — no
+laziness, no cycle in the generated code, because the cycle was only
+ever across iterations, never within one.
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
 critique before the primitive can be considered settled:
 
-**The concrete form of the link.** A candidate exists: the `Delay`
-node (`Delay(init, prev => step)`). It passes most of the design
-criteria but faces an open critique on the inside-out principle —
-the lambda introduces a scope difference — and an awkwardness when
-the step doesn't reference its own previous value (the lambda
-parameter goes unused). Whether a formulation without a lambda is
-possible while still handling self-reference without a
-construction-time cycle is the remaining question.
+**The concrete form of the link.** Substantially resolved. The
+concrete form is the Delay node expressed *as ports* — an `init`
+input, a `prev` output port, and a `step` input port — rather than as
+the lambda `Delay(init, prev => step)`. The port form drops the
+lambda, so it passes the inside-out test cleanly (`prev` is a wired
+output port like the list element, not a name bound in an interior
+scope); it removes the unused-parameter awkwardness (self-reference
+and cross-reference are both just wires); and it needs no
+construction-time cycle (the `step` input is wired as a separate act,
+the way Close is wired to Open). It is the same node the visual
+iteration-rail design arrived at independently. What this leaves for
+later is implementation, not design: the `step` back-edge makes the
+computation graph non-acyclic, which the current DAG-assuming compiler
+cannot yet handle, and the eventual compile target is a single mutable
+`let` register inside the loop (per the iteration-rails notes).
 
 **How the link relates to its flow.** Resolved: the link is always
 explicitly tied to a specific flow — either one that pre-exists (inside
