@@ -307,6 +307,17 @@ unit.
 
 ## The stateful-collect is a terminal node
 
+> **Superseded.** This section records an earlier framing in which the
+> feedback operation produces nothing. That "produces nothing, hangs in
+> the air" quality was a source of discomfort in a language otherwise
+> modelled on functional behaviour. It is resolved later in this
+> document (see "The latent-flow representation of generalize"): the
+> feedback operation *does* produce something — the flow as modified by
+> the inclusion of the iteration variable — and the final collect
+> consumes that modified flow rather than the original. The "terminal,
+> no output" reading below is retained because the conflict it names is
+> what the modified-flow reframing answers.
+
 An important distinction from regular collect/close: the operation that
 feeds a step value back into a variable has **no output**.
 
@@ -586,6 +597,16 @@ machinery.
 
 ## A candidate for the concrete form: Delay
 
+> **Superseded by the latent-flow representation below.** Delay was a
+> useful candidate but its critique — the lambda introduces an interior
+> scope, and the lambda parameter goes unused for cross-references
+> (`_ => fib_b`) — pointed past it. The unused-parameter awkwardness was
+> not a wart but a signal: it meant the previous-value access had been
+> put in the wrong place (private to each node, via a lambda) when it
+> should be a feature of the shared flow. The latent-flow representation
+> below puts it there and drops the lambda entirely. Delay is retained
+> here because the critique is what motivates the replacement.
+
 The central open question is what the link looks like as a concrete
 construct in the language. One candidate is a `Delay` node.
 
@@ -700,30 +721,184 @@ without a circular construction-time dependency?
 
 ---
 
+## The latent-flow representation of generalize
+
+The link is a *transformation* (see `transformation-levels-design.md`
+for the two-level transformation/result framing this rests on). The
+question here is its **result-level** form: what wires and nodes does
+generalizing actually lay down? The answer needs no lambda, no `prev`
+parameter, and no new value-producing node.
+
+### Generalize is a cut on a wire
+
+Every value wire has an implicit place to cut it. To generalize, you cut
+a wire and interpose a new flow-uncollect `U`:
+
+- The **pre-cut producer** becomes an **input** to `U` — the *seed* (the
+  initial value, evaluated once outside the iteration).
+- The **post-cut consumer** reads an **output** of `U` — the
+  per-iteration *state* (the seed on iteration 0, the fed-back step
+  after).
+
+The previous-value is therefore not a new node and not a lambda
+parameter; it is `U`'s state output, read by whatever used to consume the
+cut wire. This is "the link splits the initial value" (above) made
+concrete: one wire, cut, becomes a seed-in and a state-out.
+
+> **Aside, to avoid a wrong connection.** The latent place-to-cut on
+> every wire is *not* related to `flowRef`'s `NodeFlow` being a partial
+> operation. That partiality is just the ordinary fact that you can name
+> an output port a node does not have (like asking a multiplication node
+> for a "remainder" port); it is unremarkable. The latent flow here is a
+> separate idea about generalization, not a totalisation of `NodeFlow`.
+
+### The source flow is a *separate* input to the uncollect
+
+The flow being iterated over (e.g. a list) is **not identified with** the
+generalize flow. It is *another input* to the same uncollect. `U` is a
+flow-combiner that zips an external iteration source with the internal
+feedback variable:
+
+```
+U  : uncollect
+      inputs : seed = 0         (value, from the cut wire's producer)
+               src  = listFlow  (flow)
+      outputs: state            (per-iter: the accumulator so far)
+               element          (per-iter: from src)
+```
+
+The body reads both ports from `U`:
+
+```
+element := U.element
+sum     := U.state + U.element
+```
+
+This is recognizably `Open ListIter` with one extra (seed-in, state-out)
+pair bolted on — a generalization of an existing node, not a new species.
+Its output is a single **"list-with-state" flow** carrying two
+per-iteration ports.
+
+### The feedback the cut does not pin down
+
+The cut supplies seed-in and state-out. It does **not** by itself say
+what advances the state — that next iteration's `U.state` is *this*
+iteration's `sum`. That is the link's other end ("the result plays the
+role of `0`"). Two readings:
+
+- **Cursor-as-feedback.** Generalize uses the current output point
+  (`sum`) as the step. This works *because of when you generalize*: you
+  build one concrete step, then generalize while its result is the
+  cursor. It keeps generalize a single-wire tap and fits example-first
+  exactly (build step → generalize → build next step → generalize). This
+  is the leaning.
+- **Explicit feedback wire.** Generalize names both the cut wire and the
+  step wire. Needed only to generalize out of order or much later.
+
+### What this produces
+
+Putting the halves together, generalize produces the **modified flow**
+(this is the resolution of the "terminal node with no output"
+discomfort, above): the uncollect plus the feedback collect yield a flow
+with the iteration variable woven in. Exposing the accumulator as a
+downstream value is then a *separate*, ordinary collect on that modified
+flow.
+
+### Worked example: two independent accumulators, concretely
+
+Starting program (cursor at `sum`):
+
+```
+n0:   0
+nLst: list
+nEl:  first(nLst)        -- partial access
+nSum: n0 + nEl           -- cursor
+```
+
+**Generalize 1 (sum).** Cut `w0 : n0 → nSum.left`. Interpose `U`:
+
+```
+U : inputs  seed = 0, src = listFlow
+    outputs state, element
+nEl  := U.element
+nSum := U.state + U.element     -- feedback: cursor nSum advances U.state
+```
+
+`first(nLst)` generalizes in the same act: "the first element" becomes
+"each element," and `listFlow` comes into existence as the `src` input.
+(This is the example-first case from "containing flows", above: the flow
+is born with the link.)
+
+**Generalize 2 (max).** Cut `w(-∞)`. Interpose `U2` — whose `src` is
+**not** the raw list but `U`'s already-combined flow, so the two stay in
+lockstep:
+
+```
+U2 : inputs  seed = -inf, src = U.flow
+     outputs state2, (passes through element, state)
+nMax := max(U2.state2, U2.element)
+```
+
+So generalizes **stack**: each consumes the current combined flow and
+adds one more (seed-in, state-out) pair. Independent seeds, independent
+steps, no tuple. "The source flow is another input to the uncollect"
+generalizes to "the *current* flow is another input to the next
+uncollect" — and the no-bottleneck claim falls out structurally.
+
+**Expose.** A regular collect on the final combined flow reads each
+accumulator's carried value out as a downstream value.
+
+### Fibonacci falls out by dropping `src`
+
+A generalize with no external iteration source is the same uncollect with
+no `src` flow input — just seed + feedback, self-driven. Two such links,
+cross-referencing each other's state outputs, give Fibonacci. Because
+state outputs are read by node reference like any wire, self-reference
+and cross-reference are uniform — there is no privileged "own previous"
+slot and so no unused-parameter awkwardness (the defect that sank Delay).
+
+### Where the design principles land
+
+- **Inside-out.** No lambda, so no binding form introduces an interior
+  scope. The interior/exterior value difference for the cut node (it is
+  the seed outside, the carried value inside) still exists — that *is*
+  iteration state — but it is created by an explicit, on-screen cut, not
+  a magic name. The principle is best read as forbidding *invisible*
+  interior/exterior differences, not all of them.
+- **Example-first.** The cut is a direct, mechanical transformation of a
+  concrete program, applied after the fact.
+- **Right abstraction level.** Generalize is one operation; its result
+  is a recognizable extension of `Open ListIter`.
+- **Foundations before features.** Reuses the existing flow/uncollect
+  vocabulary rather than introducing a new node species with a lambda.
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
 critique before the primitive can be considered settled:
 
-**The concrete form of the link.** A candidate exists: the `Delay`
-node (`Delay(init, prev => step)`). It passes most of the design
-criteria but faces an open critique on the inside-out principle —
-the lambda introduces a scope difference — and an awkwardness when
-the step doesn't reference its own previous value (the lambda
-parameter goes unused). Whether a formulation without a lambda is
-possible while still handling self-reference without a
-construction-time cycle is the remaining question.
+**The concrete form of the link.** The current candidate is the
+latent-flow representation (see "The latent-flow representation of
+generalize"): generalize cuts a wire, interposing an uncollect whose
+seed input is the cut wire's producer and whose state output feeds the
+cut wire's consumer, with the source flow as a separate input. This
+drops the lambda (and so the inside-out critique that sank `Delay`) and
+makes self- and cross-reference uniform. What remains open: (a) whether
+feedback is the cursor or an explicitly named wire; (b) the exact form
+of the feedback collect that closes the state variable without closing
+the outer flow; (c) confirming the stacking rule (each generalize takes
+the current combined flow as `src`) is the right composition for
+arbitrary numbers of accumulators.
 
-**How the link relates to its flow.** Resolved: the link is always
-explicitly tied to a specific flow — either one that pre-exists (inside
-an existing flow, the link names it) or one created simultaneously by
-the generalise step (example-first, the flow comes into existence as
-part of creating the link). A link with no external iteration source
-creates a self-driven stream (purely the feedback loop); this is not an
-error. What remains open is the concrete syntactic or structural form
-for expressing either case — the mechanics of "naming a flow" when
-attaching to an existing one, and the mechanics of "the generalise step
-creates both."
+**How the link relates to its flow.** Resolved at the structural level:
+the source flow is a separate `src` input to the generalize uncollect,
+not identified with it. The first generalize *creates* the source flow
+from a partial access (example-first; the flow is born with the link);
+later generalizes take the current combined flow as their `src` so
+accumulators stay in lockstep. A link with no `src` input is a
+self-driven stream (Fibonacci). What remains open is the concrete
+surface for choosing the `src` (raw partial access vs an existing
+combined flow).
 
 **Self-reference and cycles.** The worked example shows that within one
 iteration there is no cycle — the accumulator value is resolved from the
