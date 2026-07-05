@@ -209,14 +209,137 @@ These differences don't change the placement story — both are
 per-close output transformations that ignore the chain
 partitioning.
 
+## Composing Commuted with Joined
+
+(This resolves open question 1 below.)
+
+Setup for all of this section: an outer stream flow `S`, an inner
+stream flow `T` opened per S-element, and an option iter opened per
+T-element. The close under consideration is on the option iter; per
+innermost element it yields one option-typed value. With no wrappers,
+each enclosing stream layer wraps the result, so the output is
+`stream<stream<option<X>>>` — per S-element, a stream over T of
+per-element options.
+
+### The shape discipline
+
+Each wrapper is an output-construction stage, applied inside-out
+(nearest to the `NodeFlow` first). A stage consumes enclosing stream
+layers and/or transforms the per-element value shape:
+
+- **Joined** merges the two nearest unconsumed stream layers into
+  one flat layer. It requires at least two layers remaining; the
+  per-element value shape is untouched.
+- **Commuted** consumes the nearest unconsumed stream layer. It
+  requires the per-element value to be option-shaped: `option<W>`
+  per element of that layer becomes one `option<stream<W>>` at the
+  layer's parent.
+
+Layers still unconsumed when the stack is exhausted wrap the result
+as ordinary streams. A stack is well-formed iff every stage's
+requirement is met when it is reached; an ill-formed stack is
+rejected at compile time, not given a fallback meaning.
+
+Running the discipline over the S/T/option nesting (layers nearest
+first: `[T, S]`, per-element value `option<X>`):
+
+- `NodeFlow(opt)` — `stream<stream<option<X>>>`. No stages.
+- `Commuted(NodeFlow(opt))` — commute consumes `T`: per S-element
+  one `option<stream<X>>`; `S` wraps. Result
+  `stream<option<stream<X>>>` — a per-inner-stream commute, decided
+  independently per outer element, with `S` still incrementally
+  lazy.
+- `Joined(NodeFlow(opt))` — join merges `T` and `S`: result
+  `stream<option<X>>`, flat across all (outer, inner) pairs.
+- `Commuted(Joined(NodeFlow(opt)))` — join merges `T`,`S`; commute
+  consumes the flat layer. Result `option<stream<X>>` — one global
+  answer over everything, grouping lost.
+- `Commuted(Commuted(NodeFlow(opt)))` — first commute consumes `T`
+  (per S-element `option<stream<X>>`); the per-element value is now
+  option-shaped again, so a second commute consumes `S`. Result
+  `option<stream<stream<X>>>` — one global answer, grouping kept.
+- `Joined(Commuted(NodeFlow(opt)))` — after the commute only one
+  layer (`S`) remains, and its per-element value is an option, not
+  a stream. Join's requirement fails. **Ill-typed; rejected.**
+
+So the answer to "do they compose meaningfully?" is: `Commuted ∘
+Joined` yes, `Joined ∘ Commuted` no — and the gap the latter looked
+like it might fill is actually filled by `Commuted ∘ Commuted`,
+which the vocabulary already expresses. Every sequence-like target
+shape over this nesting is reachable by a well-formed stack; none
+needs a new primitive.
+
+### Worked example
+
+Source `S` conceptually `[[2, 4], [7], [8]]` (an outer stream of
+three inner streams), `maybeEven` per innermost element:
+
+- `Commuted(NodeFlow)`: `[Some([2,4]), None, Some([8])]` — each
+  outer element decided independently; pulling the outer stream one
+  cell at a time forces only that element's inner walk.
+- `Joined(NodeFlow)`: `[Some(2), Some(4), None, Some(8)]` flat.
+- `Commuted(Joined(…))`: `None` — short-circuits at `7`; the `8`
+  cell and `S`'s third cell are never forced.
+- `Commuted(Commuted(…))`: `None` — same forcing trace (see below).
+
+For the all-even source `[[2, 4], [6], [8]]`, the last two give
+`Some([2, 4, 6, 8])` and `Some([[2, 4], [6], [8]])` respectively.
+
+A useful identity falls out: `Commuted(Joined(…))` and
+`Commuted(Commuted(…))` fail on exactly the same inputs and force
+exactly the same cells in the same order. `Commuted(Joined)` walks
+the flat elements lexicographically and stops at the first `None`;
+`Commuted(Commuted)` forces the per-S options in order, each of
+which walks its own `T` and short-circuits within it — the same
+lexicographic walk, stopped at the same cell. They differ only in
+how the success payload is grouped. Empty inner streams behave
+consistently in both: an empty `T` contributes nothing (join) or
+`Some(empty)` (commute), so all-empty input yields `Some` of an
+empty structure, matching the empty-input answer carried over from
+`commute-design-notes.md`.
+
+### Laziness is given up per consumed layer
+
+The "commute is where laziness has to give" point from the runtime
+section refines to: commute gives up incremental laziness **only for
+the layers it consumes**. `Commuted(NodeFlow)` consumes just `T`, so
+`S` stays a normal lazy stream — a consumer can pull one outer
+option at a time and abandon the rest. `Commuted(Joined)` and
+`Commuted(Commuted)` consume everything up to the top, so forcing
+the result walks the whole nesting (or short-circuits). The user
+picks how much laziness to spend by picking which layers the stack
+consumes.
+
+### Runtime and placement
+
+Nothing new is needed. Each stage is a function on the close's
+output construction, exactly as join and commute already are
+individually; a stack composes them. `Commuted(Joined)` composes the
+`zipStream`-with-rest flatten from `lazy-stream-join-design.md` with
+the end-to-end walk from "Effect on placement" above — the walk
+pulls the flat stream, which pulls the flatten, which pulls the
+sources; short-circuit abandons the flatten mid-way, which abandons
+both sources. Chain placement is untouched: stacks are per-close
+output construction and never participate in the per-level lattice
+analysis, for the same reason join and commute individually don't.
+
+On the rejected `Joined(Commuted(…))`: the thing a user might have
+wanted from it — "flatten the Some payloads, skipping the Nones" —
+is the filter-style reading, which is already the *non-commuted*
+close on the same option iter (see "Multi-output independence"). It
+is a sibling close, not a wrapper stack; the ill-typed stack should
+not be given that meaning.
+
 ## Open questions
 
-1. **Commute through more layers.** `Commuted(Joined(NodeFlow(…)))`
+1. **Commute through more layers.** ~~`Commuted(Joined(NodeFlow(…)))`
    or `Joined(Commuted(NodeFlow(…)))` — do these compose
-   meaningfully? The first might mean "join (flatten) the resulting
-   stream, then commute the whole thing"; the second might mean the
-   reverse. Worth thinking through with an example before claiming
-   they work.
+   meaningfully?~~ **Resolved** — see "Composing Commuted with
+   Joined" above: wrappers are output-construction stages applied
+   inside-out under a small shape discipline; `Commuted(Joined)`
+   and `Commuted(Commuted)` are the two meaningful compositions
+   (flat vs grouping-preserving), and `Joined(Commuted)` is
+   ill-typed and rejected.
 
 2. **Generalising to result-commute.** `stream<result<X, E>>` →
    `result<stream<X>, E>` is the natural next case after option.
