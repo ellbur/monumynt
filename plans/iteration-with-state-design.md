@@ -1308,6 +1308,141 @@ decide between them.
   either form — but they were developed against the latent form and are
   stated in its vocabulary.
 
+### The three options and their tradeoffs
+
+Keeping both candidates side-by-side opens a question that is itself a
+design decision: does the language eventually adopt *one* of them, or
+*both*? That gives three options, each with a real case for and against.
+
+**Option 1: Delay nodes only.**
+
+For:
+
+- **Smallest, most precisely specified construct.** One node species
+  with three connections; the schema is already pinned
+  (`visual-language-spec.md`). Nothing about the flow vocabulary
+  changes.
+- **A settled well-formedness story.** The productivity check ("every
+  cycle passes through a Delay") is decidable, simple, and carries the
+  synchronous-dataflow and hardware precedent — decades of field
+  validation, not just theory.
+- **Full inside-out pass.** `prev` is read like any port; there is no
+  interior/exterior difference anywhere, not even an explicit one.
+- **Crisp compile target** (one mutable register), and the node is
+  exactly what the visual rail depicts.
+
+Against:
+
+- **The graph stops being a DAG.** The compiler, ExprPrint, every
+  traversal, and any future tooling must drop the acyclicity
+  assumption, and a whole-graph check enters the language for the sake
+  of one node.
+- **The tie to the flow is by reference, not by structure.** A Delay
+  stands *beside* the flow it names. Multiple accumulators stay in
+  lockstep only because they happen to reference the same opener;
+  nothing structural enforces it.
+- **State is invisible from the flow.** A reader inspecting the opener
+  sees no state ports; discovering that a flow carries state means
+  finding the Delays that point at it.
+- **It is the result, not the verb.** Delay says nothing about the
+  example-first authoring story; the generalize transformation needs a
+  separate account of what the cut lays down, which the latent-flow
+  thread supplies and this one does not.
+
+**Option 2: Augmented flows only.**
+
+For:
+
+- **State is woven into the flow.** The opener carries the (seed-in,
+  state-out) pair; a reader of the flow sees its state directly, and
+  the combined list-with-state flow is a single referenceable thing.
+- **Lockstep by construction.** The stacking rule — each generalize
+  takes the current combined flow as its `src` — makes multi-accumulator
+  coordination structural rather than incidental, and the
+  no-tuple-bottleneck claim falls out of the shape itself.
+- **The graph can stay acyclic.** Under cursor-as-feedback the result
+  graph needs no back-edge, no productivity check, no non-DAG
+  machinery.
+- **Extends existing vocabulary.** The augmented uncollect is "Open
+  ListIter plus one port pair," and the feedback end is a collect —
+  a generalization of nodes the language already has, which is what
+  foundations-before-features asks for.
+- **Native fit with the transformation-levels machinery** (derived
+  views, reduce-close referencing the derived combined flow).
+
+Against:
+
+- **The feedback mechanic is undesigned.** "Close the state variable
+  without closing the outer flow" has no pinned concrete form, and
+  cursor-as-feedback ties the result structure to authoring order —
+  out-of-order generalizes need the explicit-wire variant, which may
+  reintroduce the cycles this option avoids (and then it has no
+  productivity story at all).
+- **Weaker inside-out pass.** The cut node genuinely differs inside
+  vs. outside the flow; the principle must be read as forbidding only
+  *invisible* differences.
+- **Openers grow.** Each accumulator adds ports to the opener, and
+  stacked generalizes produce a chain of combined flows — the "same"
+  logical iteration exists in several versions, all needing rendering
+  and reference conventions.
+- **Self-driven streams are a degenerate case.** Fibonacci is an
+  iteration opener with no `src`, which is a slightly awkward reading
+  of "opening" anything.
+
+**Option 3: Both, with the user choosing per scenario and the ability
+to mix and convert.**
+
+For:
+
+- **Each form fits a different authoring moment.** "Delay this one
+  value, starting from X" reads naturally when state is a single value
+  beside a computation; the augmented flow reads naturally when the
+  *flow* is what's stateful (scans, parsers, simulations). Offering
+  both meets programmers at their abstraction level per-scenario
+  rather than forcing one shape onto all of them.
+- **Conversion has a natural home.** The transformation-levels doc
+  already treats directional conversions as level-1 operations.
+  Delay→augment is a lowering; augment→Delay is a recognition. If the
+  candidates are semantically equivalent, "both" is one semantics with
+  two presentations, and the choice becomes as cheap as the
+  transformation-level/result-level distinction.
+- **Defers the decision without blocking implementation.** Evidence
+  about which form people actually reach for accrues from use — the
+  same empirical stance as the rail notes' "sample real loops" plan.
+
+Against:
+
+- **It strains "one obvious way."** The abstraction-level principle's
+  stated goal is that a given program has one obvious expression;
+  two first-class forms for iteration state means every reader must
+  know both and every writer faces a choice at every use site. This is
+  the most direct philosophical cost of the three options.
+- **Most machinery.** Two compile paths, two well-formedness stories
+  (the productivity check *and* the feedback-collect rules), plus a
+  conversion whose round-trip semantics must be specified and kept
+  correct.
+- **Mixing creates unexamined interactions.** A Delay referencing an
+  augmented flow's state port, or an augment whose `src` is a flow
+  that Delays also reference, are configurations neither thread has
+  worked through.
+- **The coexistence must be defined, or it will be accidental.** If
+  the two forms are exactly equivalent, having both as *primitives*
+  duplicates a construct; if they subtly differ, mixing acquires edge
+  semantics nobody chose. Option 3 is principled only if the
+  conversion is total and semantics-preserving in both directions —
+  which is precisely the unproven equivalence question.
+
+A reading of the balance: option 3's cost collapses if the equivalence
+holds — then "both" is really one primitive with two views, the
+productivity check transfers through the conversion, and the
+one-obvious-way concern softens to a presentation preference (the
+many-paths/few-readings corollary: authoring paths may differ so long
+as the result-level reading is one thing). If the equivalence fails,
+option 3 is the most expensive and least principled of the three, and
+the failure itself would say which single form is right. So the
+equivalence question, already flagged below, is load-bearing for all
+three options, not just a tie-breaker.
+
 ### What would decide
 
 - **The feedback mechanic.** If the latent form's feedback collect
@@ -1361,9 +1496,14 @@ kept side-by-side (see "Two live candidates, kept side-by-side"):
   rule (each generalize takes the current combined flow as `src`) is
   the right composition for arbitrary numbers of accumulators.
 
-Choosing between them — or working out that one is a presentation of
-the other (see "What would decide") — is now the top question for this
-primitive.
+Three ways forward exist — adopt the Delay node, adopt augmented
+flows, or keep both with the user choosing per scenario and converting
+between them; their tradeoffs are laid out in "The three options and
+their tradeoffs". The equivalence question (is the Delay node exactly
+the latent-flow transformation's result-level expansion?) is
+load-bearing for all three: it decides whether option 3 is one
+primitive with two views or an expensive duplication, and its failure
+mode would itself indicate which single form is right.
 
 **How the link relates to its flow.** Resolved at the structural level,
 in both candidates: the link is always explicitly tied to a specific
