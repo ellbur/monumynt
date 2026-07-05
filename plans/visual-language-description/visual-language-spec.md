@@ -456,7 +456,7 @@ For a binary tree in the "node" case, this outputs the `element`. The case is de
 
 ### Delay
 
-The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is the current design for iteration state; it supersedes the IterationRail / TapIn / TapOut trio preserved below. The reasoning that led here is in `plans/iteration-with-state-design.md` (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail). The two lines of design converged on the same node.
+The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is **one of two live candidate designs** for iteration state; both supersede the IterationRail / TapIn / TapOut trio preserved below. The other candidate is the **latent-flow representation**: generalize cuts a value wire and interposes an *augmented uncollect* — the flow's opener with a seed input and a per-iteration state output added — with a feedback collect producing the modified flow. Its node schema is not yet pinned down (the feedback-collect mechanic is open), so only Delay is specified here; see `plans/iteration-with-state-design.md`, "Two live candidates, kept side-by-side", for the comparison and what would decide. The reasoning behind Delay is in that document (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail, which both candidates realize).
 
 ```
 Delay:
@@ -489,7 +489,7 @@ Delay:
 
 ### IterationRail (superseded)
 
-> **Superseded by Delay** (above), together with TapIn and TapOut. Preserved for the record. What was discarded, and why:
+> **Superseded** (together with TapIn and TapOut) by the current iteration-state candidates — the Delay node above and the latent-flow alternative its note describes. Preserved for the record. What was discarded, and why:
 >
 > - **Multi-slot lookback** (`slotIndex`, previous-previous, tree-child slots): only single-step `prev` survives; deeper lookback is chained Delays. The general slot shapes were what made the rail visually degenerate under generalization (see `iteration-rails-design-notes.md`).
 > - **Per-case TapIns keyed by IterationCaseSplit**: the initial value is not a case of the flow — it is evaluated before the flow produces any iterations and belongs outside it (see "Where the critique points" in `plans/iteration-with-state-design.md`). Delay's `init` is an ordinary outside-the-flow input; no first/subsequent split is required for carried state, and the first/subsequent distinction is handled by the mechanism, invisible inside the flow body.
@@ -851,7 +851,7 @@ However, the diagram also maintains an explicit `nodes` set and `rails` index be
 
 ### Avoiding Cycles with Rail References (superseded)
 
-> **Superseded.** This note belongs to the IterationRail design. The current Delay design takes the opposite position: the cycle is not avoided, it is embraced. The `step → prev` back-edge is an ordinary structural connection — the representation is a graph with cycles, not a DAG — and well-formedness is guaranteed by the productivity check (every cycle must pass through a Delay) rather than by keeping the representation acyclic. Construction is two-phase (mint the Delay, wire `step` later), so no symbolic reference is ever needed. See the Delay section and `plans/iteration-with-state-design.md` ("No construction-time cycle").
+> **Superseded.** This note belongs to the IterationRail design. Neither current candidate needs symbolic references. The port-form Delay takes the opposite position: the cycle is not avoided, it is embraced. The `step → prev` back-edge is an ordinary structural connection — the representation is a graph with cycles, not a DAG — and well-formedness is guaranteed by the productivity check (every cycle must pass through a Delay) rather than by keeping the representation acyclic. Construction is two-phase (mint the Delay, wire `step` later), so no symbolic reference is ever needed. The latent-flow candidate avoids the issue differently: feedback is an uncollect/collect pairing on the flow, and under its cursor-as-feedback reading the result graph stays acyclic by construction. See the Delay section and `plans/iteration-with-state-design.md` ("No construction-time cycle"; "Two live candidates, kept side-by-side").
 
 Iteration patterns like counters are inherently self-referential: the value at each position depends on the value at a previous position. To avoid structural cycles in the representation, TapOut uses `RailReference` which can be either:
 - `Direct`: A structural pointer, used when no cycle would result

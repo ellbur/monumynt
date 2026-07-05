@@ -104,7 +104,7 @@ The non-visual design thread (`plans/iteration-with-state-design.md`) arrived at
 - writeback-up = the `step` input port
 - dotted initial value = the `init` input
 
-The rail is the Delay node's visual depiction; `visual-language-spec.md` now records Delay as the current node schema (superseding the old IterationRail / TapIn / TapOut trio). The Delay document also settles two things this one left implicit: cross-rail references (one rail's writeback computed from another rail's tap) are ordinary, well-formed wiring, and the "every cycle must pass through a Delay" productivity check is the structural rule that keeps arbitrary rail wiring sound.
+The rail is the Delay node's visual depiction; `visual-language-spec.md` records Delay as a candidate node schema (superseding the old IterationRail / TapIn / TapOut trio). Delay is one of two live candidates for the semantic form — the other, the latent-flow representation (an augmented uncollect: seed input and state output added to the flow's opener, feedback collect producing the modified flow), realizes the same rail picture with the read tapped off the opener's state port. See "Two live candidates, kept side-by-side" in the iteration-with-state document. That document also settles two things this one left implicit: cross-rail references (one rail's writeback computed from another rail's tap) are ordinary, well-formed wiring, and — at least in the port form — the "every cycle must pass through a Delay" productivity check is the structural rule that keeps arbitrary rail wiring sound.
 
 ## What This Leaves Uncovered
 

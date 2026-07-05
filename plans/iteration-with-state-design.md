@@ -307,6 +307,21 @@ unit.
 
 ## The stateful-collect is a terminal node
 
+> **Superseded.** This section records an earlier framing in which the
+> feedback operation produces nothing. That "produces nothing, hangs in
+> the air" quality was a source of discomfort in a language otherwise
+> modelled on functional behaviour. Both of the live candidates later in
+> this document dissolve it, each in its own way. Under the latent-flow
+> representation ("The latent-flow representation of generalize"), the
+> feedback operation *does* produce something — the flow as modified by
+> the inclusion of the iteration variable — and the final collect
+> consumes that modified flow rather than the original. Under the port
+> form ("Resolving the lambda: Delay as ports"), there is no separate
+> feedback node at all — the step is an *input port* of the Delay node,
+> so nothing output-less exists. The "terminal, no output" reading below
+> is retained because the conflict it names is what both reframings
+> answer.
+
 An important distinction from regular collect/close: the operation that
 feeds a step value back into a variable has **no output**.
 
@@ -586,6 +601,28 @@ machinery.
 
 ## A candidate for the concrete form: Delay
 
+> **Superseded — twice, independently.** This section describes the
+> *lambda form* of Delay, which is dead: its critique — the lambda
+> introduces an interior scope, and the lambda parameter goes unused for
+> cross-references (`_ => fib_b`) — pointed past it. Two parallel design
+> threads then resolved that critique in different directions, without
+> seeing each other's arguments, and both resolutions are kept
+> side-by-side as live candidates (see "Two live candidates, kept
+> side-by-side"):
+>
+> - **The port form** ("Resolving the lambda: Delay as ports") keeps
+>   Delay as one node and turns `prev` into an output port and `step`
+>   into an input port — no lambda, wiring only.
+> - **The latent-flow representation** ("The latent-flow representation
+>   of generalize") reads the unused-parameter awkwardness as a signal
+>   that previous-value access was put in the wrong place (private to
+>   each node, via a lambda) when it should be a feature of the shared
+>   flow — and dissolves the node into an augmented uncollect on the
+>   flow itself.
+>
+> The lambda form is retained here because its critique is what
+> motivates both replacements.
+
 The central open question is what the link looks like as a concrete
 construct in the language. One candidate is a `Delay` node.
 
@@ -701,6 +738,12 @@ without a circular construction-time dependency?
 ---
 
 ## Resolving the lambda: Delay as ports, not a function
+
+> **One of two live candidates.** This section and "The latent-flow
+> representation of generalize" (below) are independent resolutions of
+> the same lambda critique, developed on parallel threads that did not
+> see each other. Both are deliberately kept side-by-side; see "Two
+> live candidates, kept side-by-side" for the comparison.
 
 The open critique of `Delay(init, prev => step)` is the lambda. It
 introduces `prev` into an interior scope — the one place the body
@@ -942,37 +985,397 @@ check is sufficient in the field, not just in theory.
 
 ---
 
+## The latent-flow representation of generalize
+
+> **The other live candidate.** This section resolves the same lambda
+> critique as the port form above, from a different direction and
+> without knowledge of it. Both are deliberately kept side-by-side; see
+> "Two live candidates, kept side-by-side" for the comparison.
+
+The link is a *transformation* (see `transformation-levels-design.md`
+for the two-level transformation/result framing this rests on). The
+question here is its **result-level** form: what wires and nodes does
+generalizing actually lay down? The answer needs no lambda, no `prev`
+parameter, and no new value-producing node.
+
+### Generalize is a cut on a wire
+
+Every value wire has an implicit place to cut it. To generalize, you cut
+a wire and interpose a new flow-uncollect `U`:
+
+- The **pre-cut producer** becomes an **input** to `U` — the *seed* (the
+  initial value, evaluated once outside the iteration).
+- The **post-cut consumer** reads an **output** of `U` — the
+  per-iteration *state* (the seed on iteration 0, the fed-back step
+  after).
+
+The previous-value is therefore not a new node and not a lambda
+parameter; it is `U`'s state output, read by whatever used to consume the
+cut wire. This is "the link splits the initial value" (above) made
+concrete: one wire, cut, becomes a seed-in and a state-out.
+
+> **Aside, to avoid a wrong connection.** The latent place-to-cut on
+> every wire is *not* related to `flowRef`'s `NodeFlow` being a partial
+> operation. That partiality is just the ordinary fact that you can name
+> an output port a node does not have (like asking a multiplication node
+> for a "remainder" port); it is unremarkable. The latent flow here is a
+> separate idea about generalization, not a totalisation of `NodeFlow`.
+
+### The source flow is a *separate* input to the uncollect
+
+The flow being iterated over (e.g. a list) is **not identified with** the
+generalize flow. It is *another input* to the same uncollect. `U` is a
+flow-combiner that zips an external iteration source with the internal
+feedback variable:
+
+```
+U  : uncollect
+      inputs : seed = 0         (value, from the cut wire's producer)
+               src  = listFlow  (flow)
+      outputs: state            (per-iter: the accumulator so far)
+               element          (per-iter: from src)
+```
+
+The body reads both ports from `U`:
+
+```
+element := U.element
+sum     := U.state + U.element
+```
+
+This is recognizably `Open ListIter` with one extra (seed-in, state-out)
+pair bolted on — a generalization of an existing node, not a new species.
+Its output is a single **"list-with-state" flow** carrying two
+per-iteration ports.
+
+### The feedback the cut does not pin down
+
+The cut supplies seed-in and state-out. It does **not** by itself say
+what advances the state — that next iteration's `U.state` is *this*
+iteration's `sum`. That is the link's other end ("the result plays the
+role of `0`"). Two readings:
+
+- **Cursor-as-feedback.** Generalize uses the current output point
+  (`sum`) as the step. This works *because of when you generalize*: you
+  build one concrete step, then generalize while its result is the
+  cursor. It keeps generalize a single-wire tap and fits example-first
+  exactly (build step → generalize → build next step → generalize). This
+  is the leaning.
+- **Explicit feedback wire.** Generalize names both the cut wire and the
+  step wire. Needed only to generalize out of order or much later.
+
+### What this produces
+
+Putting the halves together, generalize produces the **modified flow**
+(this is the resolution of the "terminal node with no output"
+discomfort, above): the uncollect plus the feedback collect yield a flow
+with the iteration variable woven in. Exposing the accumulator as a
+downstream value is then a *separate*, ordinary collect on that modified
+flow.
+
+### Worked example: two independent accumulators, concretely
+
+Starting program (cursor at `sum`):
+
+```
+n0:   0
+nLst: list
+nEl:  first(nLst)        -- partial access
+nSum: n0 + nEl           -- cursor
+```
+
+**Generalize 1 (sum).** Cut `w0 : n0 → nSum.left`. Interpose `U`:
+
+```
+U : inputs  seed = 0, src = listFlow
+    outputs state, element
+nEl  := U.element
+nSum := U.state + U.element     -- feedback: cursor nSum advances U.state
+```
+
+`first(nLst)` generalizes in the same act: "the first element" becomes
+"each element," and `listFlow` comes into existence as the `src` input.
+(This is the example-first case from "containing flows", above: the flow
+is born with the link.)
+
+**Generalize 2 (max).** Cut `w(-∞)`. Interpose `U2` — whose `src` is
+**not** the raw list but `U`'s already-combined flow, so the two stay in
+lockstep:
+
+```
+U2 : inputs  seed = -inf, src = U.flow
+     outputs state2, (passes through element, state)
+nMax := max(U2.state2, U2.element)
+```
+
+So generalizes **stack**: each consumes the current combined flow and
+adds one more (seed-in, state-out) pair. Independent seeds, independent
+steps, no tuple. "The source flow is another input to the uncollect"
+generalizes to "the *current* flow is another input to the next
+uncollect" — and the no-bottleneck claim falls out structurally.
+
+**Expose.** A regular collect on the final combined flow reads each
+accumulator's carried value out as a downstream value.
+
+### Fibonacci falls out by dropping `src`
+
+A generalize with no external iteration source is the same uncollect with
+no `src` flow input — just seed + feedback, self-driven. Two such links,
+cross-referencing each other's state outputs, give Fibonacci. Because
+state outputs are read by node reference like any wire, self-reference
+and cross-reference are uniform — there is no privileged "own previous"
+slot and so no unused-parameter awkwardness (the defect that sank Delay's
+lambda form; the port form dissolves it the same way, by making both
+kinds of reference plain wires).
+
+### Where the design principles land
+
+- **Inside-out.** No lambda, so no binding form introduces an interior
+  scope. The interior/exterior value difference for the cut node (it is
+  the seed outside, the carried value inside) still exists — that *is*
+  iteration state — but it is created by an explicit, on-screen cut, not
+  a magic name. The principle is best read as forbidding *invisible*
+  interior/exterior differences, not all of them.
+- **Example-first.** The cut is a direct, mechanical transformation of a
+  concrete program, applied after the fact.
+- **Right abstraction level.** Generalize is one operation; its result
+  is a recognizable extension of `Open ListIter`.
+- **Foundations before features.** Reuses the existing flow/uncollect
+  vocabulary rather than introducing a new node species with a lambda.
+
+## Two operations for accumulation: reduce-close vs augment
+
+Summing a list can be approached from more than one direction, and the
+directions are not the same construct. Trying to force them into one
+construct is exactly the intent-decoding the "abstraction level"
+principle warns against. There are **two operations**, one of which has
+two authoring directions.
+
+### The three authoring approaches
+
+1. **Running sum, built loop-first.** You already have a list uncollect.
+   You add an iteration uncollect over the list flow with a `0` seed, add
+   it to the element, and collect it back to the now-augmented flow. You
+   consciously construct the state variable; the running value is
+   available in-loop.
+2. **Just summing the list.** You do not think about a running sum. You
+   think about *putting `+` between the elements*: open a flow whose value
+   wires are, abstractly, any two components to be accumulated; add them;
+   close the flow with that value. The starting value for the empty list
+   is the operator's **implied identity** (`0` for `+`). This only works
+   for operators with an identity; for custom calculations you gravitate
+   to approach 1 or 3 anyway.
+3. **Running sum, built value-first.** Start with `0`, open a list flow,
+   add `0` to the element, then use the latent feed-back flow to feed the
+   sum back into the wire where `0` fed in.
+
+### Two operations, not three
+
+Approaches **1 and 3 are the same construct** — the latent-flow
+augment-loop above (a list-with-state flow) — built from two authoring
+directions (explicit uncollect vs latent-flow tap). They converge to one
+result-level structure. The running value is exposed; the step is
+arbitrary.
+
+Approach **2 is a genuinely different operation: a reduce-close.** It is a
+*close-variant*, a sibling of the ordinary collect-close (which gathers a
+flow into a list). Reduce-close collapses a flow with an associative
+operator, identity implied. It builds **no** state variable in the
+authoring surface — "I don't think about a running sum" is literally true
+at the construct level. It carries information augment does not:
+
+- **The identity comes from the operator, not the user** (`+`→0, `*`→1,
+  `max`→−∞). This is what makes empty→identity and `[a]`→`a` fall out
+  (`identity ⊕ a = a` needs a *genuine* identity — an arbitrary seed will
+  not do).
+- **The two operands are symmetric** — the associativity assertion.
+  Augment's step is an asymmetric `state ⊕ element` and carries no such
+  claim.
+- **Its type shape is a monoid** (`op : T×T→T`, value and result the same
+  `T`), where augment's step is an arbitrary `S×E→S` (accumulator type may
+  differ from element type — count, list-building, …).
+
+So the reader can always tell total-sum from running-sum: they are
+different constructs. The only new machinery reduce-close needs is
+**operator identities**.
+
+### Reduce-close is its own result node, lowered in compile
+
+The decision (result-level representation): reduce-close is **its own
+node carrying the operator's monoid**, and `Compile` *lowers* it to
+`acc = identity; for (el of list) acc = op(acc, value)`. It is **not**
+elaborated into the augment loop on construction.
+
+The decisive reason: elaborating on construction would make reduce-close
+and "augment + expose final" persist as the *same* result structure —
+collapsing the total-vs-running distinction, and making a plain `sum`
+read as a running-sum machine whose intermediate values nobody uses. The
+program of record is the Expr, not the JS; keeping intent in the Expr is
+the point. Lowering in compile costs nothing (same `for-of` JS, no
+backend duplication) and preserves the monoid for possible future
+reassociation or parallel reduction. It also fits the existing close
+family (list / case / filter / option), which is already discriminated by
+shape.
+
+Boundary: reduce-close is available exactly when the operator is a known
+associative monoid. No identity / non-associative → no reduce-close, fall
+back to augment (explicit seed). The degradation is structural: no
+monoid, no node.
+
+### A second accumulator on a sum, via derived-port reference
+
+Adding a second accumulator to a `sum` (e.g. also tracking `max`, in
+lockstep) does **not** require lowering the `sum` or editing anything.
+`sum` (reduce-close) has an always-available derived level-0 form — the
+augment iteration — and that derived form exposes a combined
+list-with-state flow as an output port. You build a *new* augment whose
+`src` **references that derived port** and adds the `max` state. `sum`
+stays a pristine reduce-close; nothing about it is touched.
+
+This is the stacking rule ("each generalize takes the current combined
+flow as `src`") reaching *across the derivation boundary*: the current
+combined flow may itself be derived. The general mechanism — a wire may
+reference the output port of a derived result — is developed in
+`transformation-levels-design.md`. The only open detail here is which
+derived ports are exposed for reference (the principal output ports, such
+as the combined flow — not arbitrary derivation internals).
+
+---
+
+## Two live candidates, kept side-by-side
+
+The lambda critique of `Delay(init, prev => step)` was resolved twice,
+independently, on parallel design threads that did not see each other's
+arguments: the **port form** ("Resolving the lambda: Delay as ports")
+and the **latent-flow representation** ("The latent-flow representation
+of generalize"). Rather than force a premature choice, both are kept
+side-by-side as live candidates (decision 2026-07-05). This section
+records where they agree, where they genuinely differ, and what would
+decide between them.
+
+### Where they agree
+
+- **No lambda, no interior scope introduced by a binding form.** Both
+  read the previous value by wiring, not by a specially-scoped name.
+- **Self-reference and cross-reference are uniform.** Both make
+  Fibonacci two links reading each other's state through ordinary
+  wires; neither has a privileged "own previous" slot.
+- **The initial value lives outside the flow**, one initial value per
+  link, and the link cannot exist without one (the empty case is
+  closed by the same act that creates the iteration).
+- **One variable per link, no tuple bottleneck.** A second accumulator
+  is a second independent link.
+- **Both are result-level forms of the same link transformation** — the
+  transformation-level story ("generalize is a verb applied to a
+  concrete program") is shared; the disagreement is only about what
+  structure the verb lays down.
+- **Both realize the visual rail.** Tap-down read / writeback-up /
+  dotted initial map onto the port form's `prev`/`step`/`init` and
+  equally onto the latent form's state-out / feedback / seed-in.
+
+### Where they differ
+
+- **Node species vs. generalized opener.** The port form keeps the
+  iteration variable in a *new node* (Delay) standing beside the flow it
+  names. The latent form weaves it *into the flow*: the generalize cut
+  interposes an uncollect that is "Open ListIter with one extra
+  (seed-in, state-out) pair," yielding a combined list-with-state flow
+  whose `state` port sits beside `element`.
+- **How the source flow relates.** A Delay *references* its flow. The
+  latent form's uncollect takes the flow as an *input* (`src`) and
+  outputs the combined flow — which gives it a structural stacking rule
+  (each new accumulator's uncollect takes the current combined flow as
+  its `src`, so accumulators stay in lockstep by construction) that the
+  port form expresses only as many Delays referencing one flow.
+- **The feedback and the cycle story.** The port form's `step` is an
+  honest back-edge: the graph stops being a DAG, and well-formedness is
+  the productivity check ("every cycle passes through a Delay"), with
+  the synchronous-dataflow precedent behind it. The latent form packages
+  feedback as an uncollect/collect pairing — under its preferred
+  cursor-as-feedback reading the result graph may stay acyclic by
+  construction — but its feedback-collect mechanic is not yet pinned
+  down, and it has no worked answer to non-productive configurations.
+- **Reading of the inside-out principle.** The port form claims a full
+  pass: `prev` is a port like the list element, no interior/exterior
+  difference at all. The latent form concedes that the cut node *is*
+  different inside vs. outside (seed vs. carried value) — that is what
+  iteration state means — and reads the principle as forbidding
+  *invisible* interior/exterior differences, not all of them.
+- **Companion machinery.** The latent-flow thread additionally brings
+  the transformation-levels framing (`transformation-levels-design.md`),
+  reduce-close, and derived-port references. These are largely
+  independent of the choice — reduce-close's lowering could target
+  either form — but they were developed against the latent form and are
+  stated in its vocabulary.
+
+### What would decide
+
+- **The feedback mechanic.** If the latent form's feedback collect
+  ("close the state variable without closing the outer flow") cannot be
+  given a clean concrete form, the port form's step-input wins by
+  default. Conversely, if it can, the latent form avoids the non-DAG
+  representation entirely.
+- **Compile experience.** The port form requires the compiler to accept
+  a non-acyclic Expr graph plus a productivity check; the latent form
+  requires generalizing Open and adding a feedback-collect consumer.
+  Whichever lands more naturally on the existing Open/Close machinery
+  is evidence.
+- **They may be the same thing.** The port form's Delay may turn out to
+  be exactly the result-level expansion that the latent-flow
+  transformation lays down — a Delay node being a presentation of the
+  (seed-in, state-out, feedback) triple. If so, the choice dissolves
+  into a transformation-level/result-level distinction (per
+  `transformation-levels-design.md`) rather than a design fork, and the
+  productivity check transfers to the latent form directly. Working
+  this equivalence out is the most promising next step.
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
 critique before the primitive can be considered settled:
 
-**The concrete form of the link.** Substantially resolved. The
-concrete form is the Delay node expressed *as ports* — an `init`
-input, a `prev` output port, and a `step` input port — rather than as
-the lambda `Delay(init, prev => step)`. The port form drops the
-lambda, so it passes the inside-out test cleanly (`prev` is a wired
-output port like the list element, not a name bound in an interior
-scope); it removes the unused-parameter awkwardness (self-reference
-and cross-reference are both just wires); and it needs no
-construction-time cycle (the `step` input is wired as a separate act,
-the way Close is wired to Open). It is the same node the visual
-iteration-rail design arrived at independently. What this leaves for
-later is implementation, not design: the `step` back-edge makes the
-computation graph non-acyclic, which the current DAG-assuming compiler
-cannot yet handle, and the eventual compile target is a single mutable
-`let` register inside the loop (per the iteration-rails notes).
+**The concrete form of the link.** Narrowed to two live candidates,
+arrived at independently from the same lambda critique and deliberately
+kept side-by-side (see "Two live candidates, kept side-by-side"):
 
-**How the link relates to its flow.** Resolved: the link is always
-explicitly tied to a specific flow — either one that pre-exists (inside
-an existing flow, the link names it) or one created simultaneously by
-the generalise step (example-first, the flow comes into existence as
-part of creating the link). A link with no external iteration source
-creates a self-driven stream (purely the feedback loop); this is not an
-error. What remains open is the concrete syntactic or structural form
-for expressing either case — the mechanics of "naming a flow" when
-attaching to an existing one, and the mechanics of "the generalise step
-creates both."
+- **The port form**: the Delay node expressed as ports — an `init`
+  input, a `prev` output port, and a `step` input port. Passes the
+  inside-out test cleanly (`prev` is a wired output port like the list
+  element), makes self- and cross-reference both just wires, and needs
+  no construction-time cycle (`step` is wired as a separate act, the
+  way Close is wired to Open). It is the same node the visual
+  iteration-rail design arrived at independently. What it leaves open
+  is implementation-shaped: the `step` back-edge makes the computation
+  graph non-acyclic, which the current DAG-assuming compiler cannot yet
+  handle; the compile target is a single mutable `let` register inside
+  the loop (per the iteration-rails notes).
+- **The latent-flow representation**: generalize cuts a wire,
+  interposing an uncollect whose seed input is the cut wire's producer
+  and whose state output feeds the cut wire's consumer, with the source
+  flow as a separate `src` input; the feedback collect produces the
+  modified flow. Also drops the lambda and makes self- and
+  cross-reference uniform. What it leaves open is design-shaped:
+  (a) whether feedback is the cursor or an explicitly named wire;
+  (b) the exact form of the feedback collect that closes the state
+  variable without closing the outer flow; (c) confirming the stacking
+  rule (each generalize takes the current combined flow as `src`) is
+  the right composition for arbitrary numbers of accumulators.
+
+Choosing between them — or working out that one is a presentation of
+the other (see "What would decide") — is now the top question for this
+primitive.
+
+**How the link relates to its flow.** Resolved at the structural level,
+in both candidates: the link is always explicitly tied to a specific
+flow, either pre-existing or created by the same generalise step
+(example-first; the flow is born with the link), and a link with no
+external iteration source is a self-driven stream (Fibonacci), not an
+error. The candidates differ in mechanism: the port form's Delay
+*references* its flow; the latent form's uncollect takes the source flow
+as a separate `src` input and outputs a combined flow, with later
+generalizes taking the current combined flow as their `src` so
+accumulators stay in lockstep. What remains open is the concrete
+surface for the attachment (naming a flow vs choosing the `src`).
 
 **Self-reference and cycles.** Resolved. The Delay crossing
 (`step → prev`) is the only iteration-boundary edge in the language, so
@@ -983,7 +1386,13 @@ constraint (like alt-matching and no-crossing), enforced by cycle
 detection rather than by construction; it accepts exactly the
 productive programs and is the same causality check synchronous
 dataflow languages (Lustre's `pre`/`->`) and hardware design have used
-for decades. See "Ruling out non-productive cycles structurally."
+for decades. See "Ruling out non-productive cycles structurally." Note
+this is stated in the port form's vocabulary (the `step → prev`
+crossing). The latent-flow candidate has no worked cycle story yet:
+under cursor-as-feedback its result graph may stay acyclic by
+construction, but whether the productivity condition transfers — and
+what a non-productive configuration even looks like in that form — is
+open.
 
 **Non-homogeneous iteration as a separate problem.** What if different
 iterations behave differently — not just first vs. subsequent, but
@@ -991,3 +1400,15 @@ conditionally different at each step? This is explicitly set aside as a
 separate question and isn't part of the stateful iteration primitive.
 Worth naming so it doesn't get conflated with what's being designed
 here.
+
+**Operator identities.** Reduce-close needs each associative operator to
+carry an identity (`+`→0, `*`→1, `max`→−∞) for the empty-list value. How
+identities attach to operators — a registry, a property on the operator
+node, something the user can extend for custom monoids — is not yet
+designed.
+
+**Which derived ports a reduce-close (or augment) exposes.** Building a
+second accumulator references the derived combined flow. The exact set of
+principal output ports a derived result exposes for reference (versus
+internal derivation structure that must stay private) needs pinning. See
+`transformation-levels-design.md`.

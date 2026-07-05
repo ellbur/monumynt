@@ -22,7 +22,7 @@ This is an experimental sandbox for a visual flow-based programming language. De
 - `src/JsAst.res` — typed AST for a useful subset of JavaScript (literals, member/index, calls, arrows, function expressions, binary/unary/update/assignment, ternary, sequence, spread, await; statements covering let/const/var, if, while, do, for/for-of/for-in, return/break/continue/throw, try, function decl, label; ESM import/export). No classes, generators, JSX, decorators, template-literal substitutions, or destructuring patterns beyond simple parameters.
 - `src/JsPrint.res` — precedence-aware pretty-printer. Handles the tricky cases (`**` right-associativity with no-unary-on-the-left, `??` mixing with `&&`/`||`, statement-start ambiguity with `function` and `{`, arrow bodies that begin with `{`). Falls back to bracket notation for property accesses when the name isn't a valid identifier.
 - `src/JsBuild.res` — smart constructors mirroring `JsAst` variants for ergonomic construction. `JsBuild` shadows several short names (`add`, `mul`, etc.) — be aware when `open`ing it.
-- `src/Expr.res` — visual-language expressions. Two mutually recursive types: `expr` (value-typed nodes) and `flowRef` (references to flows). Five node kinds in `expr`: `Lit`, `App`, `Open`, `Close`, `Branch`. Each wrapped as `{id: int, kind: kind}`; smart constructors (`lit`, `app`, `open_`, `close_`, `caseClose`, `branch_`) mint fresh ids. Three `flowRef` constructors: `NodeFlow(expr)` (the flow output port of a node — Open, Branch — useable when that node has one), `Joined(flowRef)`, `Filtered(flowRef)`. The flow-only ops `join_` and `filter_` take and return flowRef. Open's `flow` is `ListIter | CaseSplit({alts, discriminator}) | OptionIter({discriminator})`. Close has `branches: array<{altName: option<string>, flow: flowRef, value: expr}>`; the kind is determined by the shape of `branches[0].flow` after peeling Joineds: a NodeFlow(branch) ⇒ case close; a Filtered ⇒ filter close; a NodeFlow(open ListIter) ⇒ list close; a NodeFlow(open OptionIter) ⇒ option close. Branch picks one output port from a CaseSplit Open. The `flowRef` type catches misuse syntactically (you can't try to App a flow, nor branch off a Lit) — the one remaining hole is that `NodeFlow(e)` of a node with no flow output port (Lit, App, Close) raises at compile time rather than at type-check time.
+- `src/Expr.res` — visual-language expressions. Two mutually recursive types: `expr` (value-typed nodes) and `flowRef` (references to flows). Five node kinds in `expr`: `Lit`, `App`, `Open`, `Close`, `Branch`. Each wrapped as `{id: int, kind: kind}`; smart constructors (`lit`, `app`, `open_`, `close_`, `caseClose`, `branch_`) mint fresh ids. Three `flowRef` constructors: `NodeFlow(expr)` (the flow output port of a node — Open, Branch — useable when that node has one), `Joined(flowRef)`, `Filtered(flowRef)`. The flow-only ops `join_` and `filter_` take and return flowRef. Open's `flow` is `ListIter | CaseSplit({alts, discriminator}) | OptionIter({discriminator})`. Close has `branches: array<{altName: option<string>, flow: flowRef, value: expr}>`; the kind is determined by the shape of `branches[0].flow` after peeling Joineds: a NodeFlow(branch) ⇒ case close; a Filtered ⇒ filter close; a NodeFlow(open ListIter) ⇒ list close; a NodeFlow(open OptionIter) ⇒ option close. Branch picks one output port from a CaseSplit Open. The `flowRef` type catches misuse syntactically (you can't try to App a flow, nor branch off a Lit).
 - `src/Compile.res` — compiles `Expr.expr` to JS. See "Compile architecture" below.
 - `src/ExprPrint.res` — human-readable rendering of `Expr.expr` for test logs and debugging. Time-forward and flat: each line is a chain of single-input ops separated by `->`, optionally prefixed by a comma-separated source list when the head op has 1+ inputs. Sharing is shown via `#N` labels (renumbered per-render). Trivially-used literals are inlined into their consumer's source list; literals with multiple consumers get a label and their own line.
 - `src/Main.res` — test runner. Builds Exprs, prints the Expr rendering, compiles to IIFE, prints the generated JS, evals, compares against an expected `JsAst.expr` via `JSON.stringify`. Prints outer-stmt count per test so the effect of sharing/joining is visible.
@@ -115,7 +115,7 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Four principles run through the language design and should be kept in
+Five principles run through the language design and should be kept in
 mind when evaluating new primitives or constructs:
 
 **Example first, then generalise.** Programs should be writable starting
@@ -150,9 +150,27 @@ intent rather than read it directly. The criterion for a building block
 is not "is this the simplest possible primitive?" but "does this meet
 the programmer at the level of their own abstractions?" The goal is one
 obvious way to express a given program, which is what makes programs
-readable across authors and time.
+readable across authors and time. Note this concerns the *reading*: many
+authoring paths may converge to one result-level reading, so
+discoverability (many ways to write) and readability (few ways to read)
+are not in tension.
 
-See `plans/iteration-with-state-design.md` for extended discussion.
+**Abstraction is the source of truth; concreteness is a derived view.**
+The authored program keeps the highest-level description. Every
+more-concrete form (a `sum`'s running-iteration expansion, any operation's
+lowering) is a read-only *derived view* — always available for inspection
+and reference, never the thing you edit. This makes high-level building
+blocks *durable*: the abstraction is not compiled away in the program you
+hold. You build on a derived view by referencing its ports, not by
+materialising it. Corollary: derivation is free and downward (dropping to
+a concrete form is total and automatic, so a block never traps you);
+abstraction is earned and upward (recovering a high-level form from a
+concrete one is partial recognition). This rests on a homogeneous tower —
+one language where operations carry levels and programs are the data of
+the level above.
+
+See `plans/iteration-with-state-design.md` and
+`plans/transformation-levels-design.md` for extended discussion.
 
 ## Working with the user
 

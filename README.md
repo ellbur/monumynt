@@ -329,16 +329,20 @@ These are the natural directions. None is committed to.
   one-arrow-function-per-shape pattern. Probably wants a small
   registry of struct types.
 
-- **Loop-carried state (the Delay node).** The iteration-state design
-  settled on a Delay node expressed as ports — an `init` input evaluated
-  outside the flow, a `prev` value output port, and a `step` input port
-  that back-edges the next value in (see
-  `plans/iteration-with-state-design.md`; the visual counterpart is the
-  redesigned iteration rail, and `visual-language-spec.md` records the
-  node schema). Compiles to a single mutable `let` register inside the
-  loop. The `step` back-edge makes the Expr graph non-acyclic, which the
-  current DAG-assuming compile can't represent yet; well-formedness is
-  the "every cycle passes through a Delay" productivity check.
+- **Loop-carried state.** The iteration-state design narrowed to two
+  live candidates, deliberately kept side-by-side (see
+  `plans/iteration-with-state-design.md`, "Two live candidates, kept
+  side-by-side"): the **Delay node** expressed as ports — an `init`
+  input evaluated outside the flow, a `prev` value output port, and a
+  `step` input port that back-edges the next value in (schema in
+  `visual-language-spec.md`; the back-edge makes the Expr graph
+  non-acyclic, guarded by the "every cycle passes through a Delay"
+  productivity check) — and the **latent-flow augmented uncollect** —
+  generalize cuts a wire and adds a (seed-in, state-out) pair to the
+  flow's opener, with a feedback collect producing the modified flow
+  (see also `plans/transformation-levels-design.md`). Both compile to a
+  single mutable `let` register inside the loop; the visual counterpart
+  of both is the redesigned iteration rail.
 
 - **Diagrams as the top-level structure.** The `Diagram` type from the
   spec — value/flow inputs and outputs, named nodes, slots. `Expr`
