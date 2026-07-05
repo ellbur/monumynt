@@ -329,9 +329,16 @@ These are the natural directions. None is committed to.
   one-arrow-function-per-shape pattern. Probably wants a small
   registry of struct types.
 
-- **Iteration rails.** `IterationRail` + `TapIn`/`TapOut`, the
-  loop-carried-variable mechanism. Should compile to a single mutable
-  `let` register inside the loop (per the iteration-rails design doc).
+- **Loop-carried state (the Delay node).** The iteration-state design
+  settled on a Delay node expressed as ports — an `init` input evaluated
+  outside the flow, a `prev` value output port, and a `step` input port
+  that back-edges the next value in (see
+  `plans/iteration-with-state-design.md`; the visual counterpart is the
+  redesigned iteration rail, and `visual-language-spec.md` records the
+  node schema). Compiles to a single mutable `let` register inside the
+  loop. The `step` back-edge makes the Expr graph non-acyclic, which the
+  current DAG-assuming compile can't represent yet; well-formedness is
+  the "every cycle passes through a Delay" productivity check.
 
 - **Diagrams as the top-level structure.** The `Diagram` type from the
   spec — value/flow inputs and outputs, named nodes, slots. `Expr`

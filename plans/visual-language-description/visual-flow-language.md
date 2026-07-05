@@ -181,6 +181,8 @@ The alternative is to have a "list flow" that lets you operate on elements direc
 
 ### Spread: Making Lists Flexible
 
+> **Design status:** The accumulation parts of this section were superseded by later design work. `prev` as a value operation was rejected (`plans/iteration-with-state-design.md`, "Considered: `prev(x)` as a primitive"); loop-carried state is now the Delay node — `init` input, `prev` output port, `step` input port — whose visual form is the redesigned iteration rail (`iteration-rails-design-notes.md`), which also retired the diagonal-wire picture below. The initial/subsequent positional partition is no longer needed for accumulators: the initial value lives outside the flow, and the first/subsequent distinction is handled by the mechanism. Positional access beyond carried state (`next`, `window`, non-accumulator uses of the partition) remains open, per the rail notes' "What This Leaves Uncovered".
+
 The solution is **spread** - an operation that adds positional structure to a flow.
 
 **How spread works:**

@@ -96,12 +96,22 @@ The **final value** of the rail (after the last iteration) is available as a nor
 - **No schematic context needed.** No ghost columns, no representational adjacent iterations. The diagram remains a single column.
 - **Honest about its limits.** A user who wants two-step lookback has to draw two rails. The chain of state is visible in the picture, not hidden behind a more powerful operator.
 
+## Convergence with the Delay Node
+
+The non-visual design thread (`plans/iteration-with-state-design.md`) arrived at the same construct from the semantic side: the Delay node expressed as ports — an `init` input, a `prev` output port, and a `step` input port. The correspondence is exact:
+
+- tap-down read = the `prev` output port
+- writeback-up = the `step` input port
+- dotted initial value = the `init` input
+
+The rail is the Delay node's visual depiction; `visual-language-spec.md` now records Delay as the current node schema (superseding the old IterationRail / TapIn / TapOut trio). The Delay document also settles two things this one left implicit: cross-rail references (one rail's writeback computed from another rail's tap) are ordinary, well-formed wiring, and the "every cycle must pass through a Delay" productivity check is the structural rule that keeps arbitrary rail wiring sound.
+
 ## What This Leaves Uncovered
 
 The rail now covers exactly the pattern "one loop-carried variable updated each iteration." This is a small slice of how state is actually used in iterative code. The patterns that fall outside the rail's scope include, roughly:
 
 - **Read-only history.** Looking back at recent values without maintaining a carried variable. (The existing `window` operation partially covers this.)
-- **Multi-variable loop state with cross-references.** Several rails interacting — one feeding another, or two rails referencing each other's values from the previous iteration.
+- **Multi-variable loop state with cross-references.** Several rails interacting — one feeding another, or two rails referencing each other's values from the previous iteration. *(Since resolved: under the Delay port form, cross-references are ordinary wires — Fibonacci is two Delays reading each other's `prev` — and the productivity check rules out the ill-formed configurations. See `plans/iteration-with-state-design.md`.)*
 - **Conditional carry.** A loop variable that updates only on some iterations and passes through unchanged on others.
 - **State that doesn't fit the read-compute-write rhythm.** State machines inside loops, accumulators that reset under certain conditions, state with multiple update sites.
 
