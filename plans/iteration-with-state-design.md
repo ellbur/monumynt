@@ -1438,10 +1438,62 @@ productivity check transfers through the conversion, and the
 one-obvious-way concern softens to a presentation preference (the
 many-paths/few-readings corollary: authoring paths may differ so long
 as the result-level reading is one thing). If the equivalence fails,
-option 3 is the most expensive and least principled of the three, and
-the failure itself would say which single form is right. So the
-equivalence question, already flagged below, is load-bearing for all
-three options, not just a tie-breaker.
+option 3 does not automatically die — coexistence can be organised
+without inter-convertibility (see "Coexistence without equivalence"
+below) — but it gets more expensive, and the specific way the
+equivalence fails would itself be informative about which form is more
+fundamental.
+
+### Commentary on the three options (recorded positions, 2026-07-05)
+
+Four positions were taken on the analysis above; they redirect the
+work that follows.
+
+**Cycles are probably inevitable.** The prediction: the language will
+have to support cycles eventually, whatever happens with iteration
+state. Too many real-world concepts are genuinely cyclic to insist
+that every one of them be represented acyclically. So "the graph stops
+being a DAG" — option 1's headline cost — should be heavily
+discounted: it is a cost the language likely pays sooner or later
+regardless, and paying it for a well-understood construct with a
+decidable check is a good first occasion. (The conversion analysis
+below independently supports this: cross-referencing accumulators
+reintroduce a cycle in the *augmented* form too — see "The
+cross-reference cycle does not go away".)
+
+**The imperative shadow over augmented flows.** The deepest hesitation
+about option 2 is not any listed mechanic but a gestalt: an iteration
+variable woven into a flow starts to look like an imperative program
+dressed up in the language of flows. The state port resembles a state
+variable in Haskell's `ST` monad — addressed, updated, threaded by
+convention. At that point it is just imperative programming, and the
+naturalness that visual programming is supposed to provide is lost.
+The rail notes flagged the same failure mode from the visual side: a
+generic register with read/write ports "collapses into the imperative
+paradigm wearing visual clothing."
+
+**The RTL shadow over Delay.** The symmetric hesitation about
+option 1: a program built from Delay nodes starts to look like
+Verilog. It is register-transfer logic, which is not known for being
+natural to beginners. RTL has a real virtue — you can see the data
+path by following a wire — but its timing structure is invisible in
+the picture: it has to be *deduced by counting registers*. A Delay
+node is a point; everything about "when" happens at that point and
+must be reconstructed in the reader's head.
+
+**Equivalence is a convenience, not a precondition.** The balance
+paragraph above originally claimed the equivalence question was
+load-bearing for coexistence. Position: not convinced. Conversion
+between the forms is nice to have, but coexistence can be organised
+in ways that do not require it (see "Coexistence without
+equivalence").
+
+Finally, a conjecture: there may be a **fourth option** — a construct
+that is natural and *visual*, takes inspiration from both candidates,
+and degrades into either of them for complicated cases. The key
+requirement: the user should be able to **see the state threading
+through the loop**, rather than merely infer it. This is developed in
+"A fourth option: the visible state thread" below.
 
 ### What would decide
 
@@ -1463,6 +1515,260 @@ three options, not just a tie-breaker.
   `transformation-levels-design.md`) rather than a design fork, and the
   productivity check transfers to the latent form directly. Working
   this equivalence out is the most promising next step.
+
+---
+
+## Converting between the two forms
+
+This section works the conversion out in both directions. The result:
+both conversions exist and are total, but they are not symmetric — one
+direction is canonical and the other requires an arbitrary choice —
+and working through the cross-reference case surfaces a cycle in the
+augmented form that its acyclicity story had not accounted for.
+
+### Delay → augmented flow (lowering)
+
+Given a Delay `D` with initial value `i` and step wire `s`, tied to a
+flow `F` with opener `O`:
+
+1. Replace `O` with the augmented opener `U`: `O`'s inputs plus a
+   `seed` input wired from `i`; `O`'s outputs plus a `state` output.
+2. Rewire every reader of `D.prev` to `U.state`.
+3. Wire `s` into `U`'s feedback collect, which emits the modified
+   flow `F′`.
+4. Repoint flow-level consumers of `F` (closes, later generalizes) to
+   `F′`, per the stacking rule.
+
+For **multiple Delays** `D₁ … Dₙ` on one flow, the conversion stacks
+augmentations: choose an order, make `Uₖ`'s `src` the combined flow of
+`Uₖ₋₁`. Every state port is visible in the shared body, so arbitrary
+cross-references between the accumulators still wire up. But the order
+is a *choice*: the Delay form has no ordering among the `Dᵢ`, and no
+semantic content hangs on the stack order (every state read is a
+previous-iteration read; the state ports have no within-iteration
+dependency on each other). The lowering therefore has n! equally valid
+results.
+
+### Augmented flow → Delay (recognition)
+
+Given an augmented opener `U` with seed `i`, source `F₀`, state
+output, and feedback `s`:
+
+1. Restore the plain opener `O` on `F₀`.
+2. Mint a Delay `D` with `init = i`, tied to `O`; rewire readers of
+   `U.state` to `D.prev`; wire `s` into `D.step`.
+3. Stacked augmentations unwind one layer at a time, inside-out; each
+   layer yields one Delay. The stack order is simply forgotten.
+
+This direction is total and **canonical** — no choices anywhere.
+
+### What the asymmetry says
+
+The round trips: Delay → augment → Delay is the identity;
+augment → Delay → augment reproduces the original only up to stack
+order. So the two forms are semantically inter-convertible, but
+structurally the Delay form is the *quotient*: the augmented form
+draws a distinction (the stack order) that carries no meaning, and the
+Delay form doesn't draw it. In the vocabulary of the fifth principle,
+the Delay side is the more abstract description and the augmented flow
+behaves like a *derived view* of it — recognition (augment → Delay) is
+the canonical map, lowering (Delay → augment) is a section of it. That
+is an argument about which form should be the program of record if
+both exist; it is *not* an argument about which form should be the
+authoring surface, and it holds only so long as the stack order stays
+semantically inert (a future feature that sequences state updates
+within an iteration would break the quotient).
+
+### The cross-reference cycle does not go away
+
+Converting Fibonacci exposes a hole in the augmented form's
+acyclicity story. Two Delays with `fib_b.step` reading `fib_a.prev`
+and vice versa convert to two stacked augmentations `U₁`, `U₂`. Now
+ask where `U₂`'s `src` comes from. The latent-flow section says the
+feedback collect "produces the modified flow" — but `U₁`'s feedback
+input reads `U₂.state`, which only exists downstream of `U₂`'s
+uncollect, whose `src` is supposed to be `U₁`'s modified flow. That is
+a cycle. The two ways out:
+
+- **Emit the combined flow from the uncollect** (the feedback collect
+  reverts to a pure consumer with no output) — which reinstates the
+  "terminal node with no output" discomfort that the modified-flow
+  reframing existed to fix; or
+- **Accept the cycle** — in which case the augmented form needs the
+  productivity story after all, and its "graph stays acyclic"
+  advantage holds only for non-cross-referencing accumulators.
+
+Either the discomfort or the cycle comes back. This is independent
+support for the recorded position that cycles will have to be
+supported eventually: even the form designed to stay acyclic runs
+into one as soon as accumulators reference each other, which is not
+an exotic case (Fibonacci is the second example anyone writes). It
+also sharpens open question (b) on the feedback collect: the question
+is not just its form but which side of it the combined flow comes out
+of.
+
+---
+
+## Coexistence without equivalence
+
+Recorded position: conversion is a convenience, not a precondition
+for coexistence. Working that out: there are at least three ways to
+have both forms in the language that do not rest on a proven two-way
+equivalence. What every one of them *does* require is a single answer
+to "what does a mixed program mean" — provided by a stored form, a
+boundary, or a core, rather than by pairwise conversion.
+
+**Stored-form asymmetry (derived views).** One form is the program of
+record; the other is an always-available, read-only derived view (the
+fifth principle's machinery, already needed for reduce-close). Only
+one direction of conversion needs to exist — the derivation — and it
+can even be lossy in the other direction, because nothing is ever
+converted back: authoring gestures made on the view are reinterpreted
+as edits to the stored form. The quotient result above nominates the
+Delay form as the stored one (it draws no meaningless distinctions)
+with the augmented flow as its flow-level view; the reverse
+arrangement is arguable if the flow-level reading turns out to be
+where most building happens.
+
+**Domain split.** Each form owns scenarios outright: say, augmented
+flows for single-flow scans, Delay nodes for cross-referencing
+recurrences and self-driven streams (where, per the conversion
+analysis, the augmented form has a cycle anyway). No conversion at
+all; a designed boundary instead. The costs are that the boundary
+must be learnable, and a program that grows across it (a scan that
+acquires a second, cross-referencing accumulator) needs manual
+rewriting at exactly the moment the user is thinking about something
+else.
+
+**Common core.** Both forms desugar to a shared result-level core —
+ultimately the loop register: init-before, read-at-top,
+write-at-bottom, final-after. Mixing semantics is defined once, at
+the core, not pairwise between surfaces: a Delay and an augmented
+flow in one program mean whatever their registers mean side by side.
+Conversion between the surfaces becomes optional tooling. This is the
+cheapest coexistence to specify, at the cost that the core — not
+either surface — is where the language's actual semantics lives, and
+the core is exactly the imperative register picture both surfaces
+exist to dress.
+
+---
+
+## A fourth option: the visible state thread
+
+The recorded critiques are symmetric in an instructive way. The Delay
+node is a **point**: you can follow the data path, but the timing
+structure has collapsed into the node and must be deduced — RTL,
+counting registers. The augmented flow is a **cell**: state becomes a
+slot of the flow that the body addresses and updates — the `ST` monad,
+imperative programming in flow clothing. One erases time from the
+picture; the other erases the state's identity as a followable thing.
+
+What the user should instead be able to do is *see the state
+threading through the loop*. That names a construct: the state's
+history should be a **path** in the picture — a line you can follow —
+not a point and not a slot.
+
+### The proposal
+
+Promote the redesigned iteration rail from "visual depiction of the
+construct" to **the construct itself**. A *state thread* is a
+first-class path with four anchored connections, and its geometry is
+its semantics:
+
+- It **enters** from the initial value (the dotted attach, outside
+  the iteration).
+- It **crosses** the single generic iteration column, where it has
+  exactly one **tap** (the per-iteration read) and, later along the
+  thread, one **writeback** (the per-iteration write). The stretch
+  between tap and writeback is that iteration's state epoch.
+- It **exits** as the final value — a first-class endpoint, not a
+  separate close bolted on. (The rail notes already had this: the
+  final value "emerges from the right end of the rail.")
+
+Position along the thread *is* time. Following the thread from left
+to right reads the state's whole history: initial value, then each
+iteration's read-compute-write epoch, then the final value. Nothing
+about "when" needs to be deduced; the thread displays it.
+
+### The two candidates are its degradations
+
+The point of the thread is that both existing candidates fall out of
+it by *erasing part of the path*:
+
+- **Contract the thread to a point** — keep only its connection
+  endpoints, discard the drawn path — and you have exactly the Delay
+  node: `init` in, `prev` out (the tap), `step` in (the writeback).
+  This is why Delay feels like Verilog: it is the thread with its
+  timing geometry deleted, so the timing must be reconstructed by
+  counting.
+- **Absorb the thread into the opener** — keep only where the path
+  crosses the column boundary, discard its identity as a line — and
+  you have exactly the augmented flow: the (seed-in, state-out) port
+  pair plus feedback. This is why augment feels imperative: the
+  thread's followable identity has dissolved into "the flow's state,"
+  a cell.
+
+So the fourth option is not a third semantics. It is the claim that
+the thread is the *primary surface*, and Delay and augment are its two
+projections — each legitimate, each used precisely where the path
+picture degrades:
+
+- **Cross-referencing threads** (Fibonacci): two parallel threads with
+  taps between them. Drawable and still followable for two or three
+  threads; for dense mutual reference the picture tangles, and
+  contracting to Delay nodes (the point projection) is the honest
+  fallback — this is also the case where cycles are unavoidable in
+  any form, per the conversion analysis.
+- **Whole-flow operations** (stacking further generalizes on a scan,
+  reduce-close's derived view, referencing the combined flow as a
+  thing): use the flow projection — the augmented flow *is* the
+  thread as seen by the flow level.
+
+"Degrading into either for complicated cases" is then literal: the
+degradations are the projections, and each complicated case selects
+the projection that keeps its structure legible.
+
+### Where it lands on the earlier analysis
+
+- The thread's semantics is exactly the shared core from "Coexistence
+  without equivalence": init-before, read, write, final-after. The
+  fourth option is that coexistence model with a *visible surface* on
+  top — the core stops being a hidden register and becomes the drawn
+  thread, which answers the objection that the core is "the
+  imperative picture both surfaces exist to dress." Dressed in
+  geometry, the register is a history you can see.
+- The conversion asymmetry carries over: thread → Delay and
+  thread → augment are both erasures (canonical, total); neither
+  projection can reconstruct the thread alone, but together with the
+  drawn layout they can. The thread is the common refinement the
+  quotient analysis was circling.
+- The productivity check restates naturally: threads may tap each
+  other, and a cycle is well-formed iff it passes through a thread's
+  tap-to-writeback epoch — i.e., every feedback loop is visibly
+  carried by some thread. The check's subject is now something the
+  user can point at.
+
+### Open questions for the thread
+
+- **Multiple writebacks.** The rail notes' uncovered cases —
+  conditional carry, multi-site update — reappear. The clean rule is
+  one writeback per crossing, with conditional carry expressed as a
+  conditional *value* wired into the single writeback. Whether that
+  survives contact with real loops is exactly what the rail notes'
+  "sample real code" plan should test.
+- **The crossing rule.** Threads are a new wire species. Do
+  thread/value and thread/thread crossings fall under the existing
+  no-crossing rule, or does the thread's horizontal-rail geometry
+  need its own convention (the rail already crosses the column's
+  vertical wires by design)?
+- **Result-level status.** Is the thread a result-level construct of
+  its own, or a transformation-level presentation over one of the two
+  projections as the stored form? The stored-form-asymmetry model
+  suggests: store the point projection (Delay, the quotient), render
+  the thread, offer the flow projection as a derived view. That would
+  make the fourth option an arrangement of the existing pieces rather
+  than a new primitive — which is the cheapest version of it that
+  still delivers the visible threading.
 
 ## What is still unresolved
 
@@ -1496,14 +1802,20 @@ kept side-by-side (see "Two live candidates, kept side-by-side"):
   rule (each generalize takes the current combined flow as `src`) is
   the right composition for arbitrary numbers of accumulators.
 
-Three ways forward exist — adopt the Delay node, adopt augmented
-flows, or keep both with the user choosing per scenario and converting
-between them; their tradeoffs are laid out in "The three options and
-their tradeoffs". The equivalence question (is the Delay node exactly
-the latent-flow transformation's result-level expansion?) is
-load-bearing for all three: it decides whether option 3 is one
-primitive with two views or an expensive duplication, and its failure
-mode would itself indicate which single form is right.
+Four ways forward exist — adopt the Delay node, adopt augmented flows,
+keep both with the user choosing per scenario ("The three options and
+their tradeoffs"; conversion worked out in "Converting between the two
+forms", coexistence models in "Coexistence without equivalence"), or
+the conjectured fourth option: the visible state thread, with Delay
+and augment as its point and flow projections ("A fourth option: the
+visible state thread"). The conversion analysis established that the
+forms are semantically inter-convertible (Delay is the quotient —
+recognition is canonical, lowering requires an inert ordering choice)
+and that cross-referencing accumulators produce a cycle in *both*
+forms, so acyclicity cannot be the deciding criterion. The thread
+proposal is currently the most promising direction because it answers
+both recorded gestalt critiques (RTL-point and ST-cell) while reusing
+the two candidates as its degradations.
 
 **How the link relates to its flow.** Resolved at the structural level,
 in both candidates: the link is always explicitly tied to a specific
@@ -1552,3 +1864,21 @@ second accumulator references the derived combined flow. The exact set of
 principal output ports a derived result exposes for reference (versus
 internal derivation structure that must stay private) needs pinning. See
 `transformation-levels-design.md`.
+
+**Which side of the feedback collect the combined flow comes out of.**
+Sharpened by the conversion analysis ("The cross-reference cycle does
+not go away"): if the modified flow is the feedback collect's output,
+cross-referencing accumulators create a cycle among the augmentations;
+if it is the uncollect's output, the feedback collect is again a
+terminal node with no output. One of the two discomforts must be
+accepted (the recorded cycles-are-inevitable position leans toward
+accepting the cycle), and the choice shapes the augmented form's
+well-formedness story.
+
+**The state thread's open points.** Whether one-writeback-per-crossing
+survives real loops (conditional carry, multi-site update — test
+against the rail notes' "sample real code" plan); how threads interact
+with the no-crossing rule; and whether the thread is its own
+result-level construct or a rendering of a stored projection (the
+cheapest version: store the Delay quotient, render the thread, derive
+the flow view). See "A fourth option: the visible state thread".
