@@ -845,6 +845,103 @@ ever across iterations, never within one.
 
 ---
 
+## Ruling out non-productive cycles structurally
+
+The open question on cycles was: are there link configurations that
+produce *non-productive* recursion — a cycle with no base case — and
+can the language rule them out structurally, or must it rely on the
+user not creating them? With the port form settled, the question has a
+precise formulation and a precise answer: yes, structurally, with one
+decidable graph check.
+
+### The two kinds of edges
+
+In the port form, the computation graph has exactly two kinds of edges:
+
+- **Ordinary value edges** — a node's input wired from another node's
+  output. These are all *within one iteration*: both endpoints refer to
+  values of the same step.
+- **The Delay crossing** — the internal edge from a Delay's `step`
+  input to its `prev` output. This is the only edge in the language
+  that crosses an iteration boundary: the value wired into `step` at
+  step *n* emerges from `prev` at step *n+1*.
+
+Every back-edge is a Delay crossing, because the Delay is the only
+construct that creates one. That gives the productivity condition a
+purely structural statement:
+
+> **A cycle is productive iff it passes through at least one Delay
+> crossing.** Equivalently: delete every Delay's internal `step → prev`
+> edge; the remaining graph must be acyclic.
+
+### Why this is exactly right
+
+*Sufficiency.* If every cycle crosses a Delay, then treating each
+`prev` port as a source and each `step` port as a sink makes the
+per-iteration graph a DAG. Iteration *n* then resolves in topological
+order: its inputs are either within-iteration values (DAG, no cycle) or
+`prev` ports, which hold iteration *n−1*'s `step` values — already
+fully resolved — or `init` on iteration 0. The base case is grounded by
+`init`, which the Delay cannot be constructed without (the link
+requires an initial value precisely because it closes the empty case).
+Induction does the rest.
+
+*Necessity.* A cycle with no Delay crossing lies entirely within one
+iteration: it asserts `x = f(x)` *at the same step*, with no earlier
+value to seed it. That is the definition of non-productive. So the
+check rejects exactly the ill-formed programs and nothing else.
+
+Worked instances:
+
+- `x = x + 1` with no Delay — a cycle with zero crossings. Rejected.
+- Fibonacci — `fib_a`'s step reads `fib_b`'s prev and `fib_b`'s step
+  reads both prevs. Every cycle crosses a Delay; deleting the crossings
+  leaves the prev ports as sources and the graph acyclic. Accepted.
+- A Delay whose `step` is wired straight from its own `prev` — one
+  cycle, one crossing. Accepted; vacuous but well-defined (a constant
+  stream). Being useless is not being ill-formed.
+
+`init` needs no separate productivity treatment. `init` is evaluated
+outside the flow, so wiring it from a per-iteration value is already
+ill-formed under the existing scoping rules (the same family as "no
+time travel"). A cycle through `init` cannot arise in a program that
+passes that check.
+
+### It is a quotient constraint, and that is fine
+
+The check is global: productivity is a property of the assembled graph,
+not of any single link. It cannot be made by-construction without
+reintroducing the declare-the-iteration-upfront framing the link was
+designed to avoid — the transformation view applies cuts one at a time,
+each locally sensible, and only the whole graph determines whether the
+result is productive. So this joins the language's existing quotient
+constraints (matching alts on a CaseSplit, close compatible with its
+open, no-crossing): enforced as a check, not by construction. The check
+itself is trivial — delete the crossings, run a cycle detection — and
+needs no type-system machinery.
+
+### Precedent: the synchronous-dataflow causality check
+
+This is not a novel rule; it is the standard causality condition of
+synchronous dataflow languages, and the correspondence is exact.
+Lustre's `pre e` (unit delay, undefined at the first instant) combined
+with `init -> pre step` (initialization) is precisely the Delay node —
+`init` input, `prev` output, `step` input — and Lustre accepts a
+program iff every dependency cycle crosses a `pre`, checked
+structurally at compile time. Hardware description languages enforce
+the same rule in the same shape: every combinational loop must pass
+through a register, and the Delay's compile target *is* a register.
+
+This makes a third independent line of argument converging on the same
+primitive: the non-visual critique (this document) arrived at ports,
+the visual rail design arrived at tap-down/writeback-up, and the
+synchronous-language tradition arrived at unit-delay-with-init as the
+one legitimate way to close a feedback loop — with fifty years of
+hardware practice confirming that the "every cycle crosses a delay"
+check is sufficient in the field, not just in theory.
+
+---
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
@@ -877,14 +974,16 @@ for expressing either case — the mechanics of "naming a flow" when
 attaching to an existing one, and the mechanics of "the generalise step
 creates both."
 
-**Self-reference and cycles.** The worked example shows that within one
-iteration there is no cycle — the accumulator value is resolved from the
-previous iteration before the current step runs. Expressed as streams,
-the recursion is productive corecursion (`cons(initial, step_stream)`)
-which Delayed-cell semantics handles without deadlock. What still needs
-thought: are there link configurations that produce *non-productive*
-recursion (a cycle with no base case), and can the language rule them
-out structurally or does it rely on the user not creating them?
+**Self-reference and cycles.** Resolved. The Delay crossing
+(`step → prev`) is the only iteration-boundary edge in the language, so
+productivity is the structural condition "every cycle passes through a
+Delay crossing" — equivalently, deleting the crossings must leave the
+graph acyclic. The check is a decidable whole-graph quotient
+constraint (like alt-matching and no-crossing), enforced by cycle
+detection rather than by construction; it accepts exactly the
+productive programs and is the same causality check synchronous
+dataflow languages (Lustre's `pre`/`->`) and hardware design have used
+for decades. See "Ruling out non-productive cycles structurally."
 
 **Non-homogeneous iteration as a separate problem.** What if different
 iterations behave differently — not just first vs. subsequent, but
