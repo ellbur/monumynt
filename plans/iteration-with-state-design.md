@@ -872,6 +872,103 @@ slot and so no unused-parameter awkwardness (the defect that sank Delay).
 - **Foundations before features.** Reuses the existing flow/uncollect
   vocabulary rather than introducing a new node species with a lambda.
 
+## Two operations for accumulation: reduce-close vs augment
+
+Summing a list can be approached from more than one direction, and the
+directions are not the same construct. Trying to force them into one
+construct is exactly the intent-decoding the "abstraction level"
+principle warns against. There are **two operations**, one of which has
+two authoring directions.
+
+### The three authoring approaches
+
+1. **Running sum, built loop-first.** You already have a list uncollect.
+   You add an iteration uncollect over the list flow with a `0` seed, add
+   it to the element, and collect it back to the now-augmented flow. You
+   consciously construct the state variable; the running value is
+   available in-loop.
+2. **Just summing the list.** You do not think about a running sum. You
+   think about *putting `+` between the elements*: open a flow whose value
+   wires are, abstractly, any two components to be accumulated; add them;
+   close the flow with that value. The starting value for the empty list
+   is the operator's **implied identity** (`0` for `+`). This only works
+   for operators with an identity; for custom calculations you gravitate
+   to approach 1 or 3 anyway.
+3. **Running sum, built value-first.** Start with `0`, open a list flow,
+   add `0` to the element, then use the latent feed-back flow to feed the
+   sum back into the wire where `0` fed in.
+
+### Two operations, not three
+
+Approaches **1 and 3 are the same construct** — the latent-flow
+augment-loop above (a list-with-state flow) — built from two authoring
+directions (explicit uncollect vs latent-flow tap). They converge to one
+result-level structure. The running value is exposed; the step is
+arbitrary.
+
+Approach **2 is a genuinely different operation: a reduce-close.** It is a
+*close-variant*, a sibling of the ordinary collect-close (which gathers a
+flow into a list). Reduce-close collapses a flow with an associative
+operator, identity implied. It builds **no** state variable in the
+authoring surface — "I don't think about a running sum" is literally true
+at the construct level. It carries information augment does not:
+
+- **The identity comes from the operator, not the user** (`+`→0, `*`→1,
+  `max`→−∞). This is what makes empty→identity and `[a]`→`a` fall out
+  (`identity ⊕ a = a` needs a *genuine* identity — an arbitrary seed will
+  not do).
+- **The two operands are symmetric** — the associativity assertion.
+  Augment's step is an asymmetric `state ⊕ element` and carries no such
+  claim.
+- **Its type shape is a monoid** (`op : T×T→T`, value and result the same
+  `T`), where augment's step is an arbitrary `S×E→S` (accumulator type may
+  differ from element type — count, list-building, …).
+
+So the reader can always tell total-sum from running-sum: they are
+different constructs. The only new machinery reduce-close needs is
+**operator identities**.
+
+### Reduce-close is its own result node, lowered in compile
+
+The decision (result-level representation): reduce-close is **its own
+node carrying the operator's monoid**, and `Compile` *lowers* it to
+`acc = identity; for (el of list) acc = op(acc, value)`. It is **not**
+elaborated into the augment loop on construction.
+
+The decisive reason: elaborating on construction would make reduce-close
+and "augment + expose final" persist as the *same* result structure —
+collapsing the total-vs-running distinction, and making a plain `sum`
+read as a running-sum machine whose intermediate values nobody uses. The
+program of record is the Expr, not the JS; keeping intent in the Expr is
+the point. Lowering in compile costs nothing (same `for-of` JS, no
+backend duplication) and preserves the monoid for possible future
+reassociation or parallel reduction. It also fits the existing close
+family (list / case / filter / option), which is already discriminated by
+shape.
+
+Boundary: reduce-close is available exactly when the operator is a known
+associative monoid. No identity / non-associative → no reduce-close, fall
+back to augment (explicit seed). The degradation is structural: no
+monoid, no node.
+
+### A second accumulator on a sum, via derived-port reference
+
+Adding a second accumulator to a `sum` (e.g. also tracking `max`, in
+lockstep) does **not** require lowering the `sum` or editing anything.
+`sum` (reduce-close) has an always-available derived level-0 form — the
+augment iteration — and that derived form exposes a combined
+list-with-state flow as an output port. You build a *new* augment whose
+`src` **references that derived port** and adds the `max` state. `sum`
+stays a pristine reduce-close; nothing about it is touched.
+
+This is the stacking rule ("each generalize takes the current combined
+flow as `src`") reaching *across the derivation boundary*: the current
+combined flow may itself be derived. The general mechanism — a wire may
+reference the output port of a derived result — is developed in
+`transformation-levels-design.md`. The only open detail here is which
+derived ports are exposed for reference (the principal output ports, such
+as the combined flow — not arbitrary derivation internals).
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
@@ -915,3 +1012,15 @@ conditionally different at each step? This is explicitly set aside as a
 separate question and isn't part of the stateful iteration primitive.
 Worth naming so it doesn't get conflated with what's being designed
 here.
+
+**Operator identities.** Reduce-close needs each associative operator to
+carry an identity (`+`→0, `*`→1, `max`→−∞) for the empty-list value. How
+identities attach to operators — a registry, a property on the operator
+node, something the user can extend for custom monoids — is not yet
+designed.
+
+**Which derived ports a reduce-close (or augment) exposes.** Building a
+second accumulator references the derived combined flow. The exact set of
+principal output ports a derived result exposes for reference (versus
+internal derivation structure that must stay private) needs pinning. See
+`transformation-levels-design.md`.

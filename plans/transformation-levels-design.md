@@ -175,14 +175,199 @@ frame that explains *why* the latent-flow trick works.
 
 ---
 
+## One language, homogeneous levels
+
+The levels are not separate systems. It is **one language**, in which
+every operation carries a level and may operate on the structure of the
+level below it. A `+` is a level-0 operation over values; a conversion is
+a level-1 operation over level-0 programs; and both are authored the same
+way, with the same construction vocabulary. The "values" a level-(k+1)
+computation manipulates are level-k programs.
+
+This is the reflective-tower stance rather than a two-tier macro system.
+Metaprogramming is not a bolt-on with its own syntax; it is the same
+language, one level up, with programs as its data.
+
+---
+
+## Conversions are level-1 computations
+
+The concrete inhabitant that motivated all of this is the **conversion**
+between two representations of the same computation. In
+`iteration-with-state-design.md`, a `sum` (a reduce-close) and its
+running-iteration form (an augment-loop) are two distinct level-0
+programs that compute the same value. A conversion relates them.
+
+A conversion is **not** a witness that holds both forms in sync. It is a
+**directional level-1 computation**: it takes one level-0 program and,
+run, produces the other. "It works both ways" means there are two such
+computations (or one runnable in either direction), each run on demand —
+not a synchronized pair. This is the transformation/result distinction
+recursed:
+
+- Running a **level-0** computation produces a **value**.
+- Running a **level-1** computation produces a **level-0 program**.
+
+"Run" lowers by exactly one level.
+
+### The first irreducible level-1 resident
+
+`loopify` was pushed down to level 0 (latent flows) because "generalize"
+had a value-level realization. A conversion has **none**: at the value
+level its two sides compute the *same* value, so its value-level shadow
+is the identity — there is nothing there to push down to. Its whole
+content is "these two structurally distinct level-0 programs are
+value-equal," which is a statement *about* level-0 programs, hence
+irreducibly level 1.
+
+So where `loopify` vacated level 1, the conversion inhabits it. This is
+the first thing that makes the tower **load-bearing** rather than purely
+explanatory (answering the corresponding "what is unresolved" item).
+
+### Degeneracy check
+
+The conversion is consistent with the tower: native level 1 (its real
+content), a degenerate lift upward (level 2 and above add nothing), and —
+surfaced by this example — a *downward forgetful projection* to
+identity-on-values at level 0. Two directions off the native level: the
+upward degeneracy the tower already described, and a downward projection
+that forgets the form distinction.
+
+---
+
+## The level-0 result is a derived view, not an action
+
+Running a level-1 computation is **not** a user-invoked operation that
+produces and inserts a new program. The program (with its level-1 steps)
+is the thing of record; the level-0 result is its **denotation** — what
+you get by running the level-≥1 steps — and it is **always there**, a
+pure function of the program, lazily materialized by the IDE only for the
+parts inspected. Inspecting it is a read; it mutates nothing.
+
+The mental model is a spreadsheet: formulas are the program, displayed
+values are the level-0 result — always consistent, recomputed on demand,
+never edited directly.
+
+Consequences:
+
+- **No staleness, no run-history, no invalidation.** There is no stored
+  result to go stale; there is the program and its re-derived meaning.
+- **The program of record is the most abstract form.** You edit the
+  intent-bearing description; the expanded form is downstream and
+  read-only. Intent is therefore *never lost* — the high-level step
+  always remains the source of truth, and the concrete form is a lens.
+- **The compiler is just another consumer** of the derived view: it
+  inspects the fully-lowered level-0 result and emits JS. IDE inspection
+  and compilation see the same denotation.
+- **It recurses.** A level-2 step's result is a level-1 program, itself an
+  always-available view whose own level-0 result is available. One lens
+  per level, each a lazy function of the level above.
+- **Laziness is cross-cutting.** The runtime is already lazy (the whole
+  compile architecture); the meta-level derived views are lazy for the
+  same reason — a level-0 view can be large or infinite, so only the
+  inspected part is materialized.
+
+---
+
+## Building on a derived view: wires may reference derived ports
+
+If the level-0 result is read-only, how do you *build on* it — e.g. add a
+second accumulator to a `sum` while keeping `sum` as intent? Not by
+editing the derived view and not by a "lowering edit." The single
+primitive needed is: **a wire may reference an output port of a derived
+result.**
+
+Then adding a second accumulator is building a *new* program-of-record
+step (another augment) whose `src` references the derived combined flow
+of `sum`. `sum` stays a pristine reduce-close; nothing about it is
+touched or lowered. The derived view gains a second consumer (program
+wires) alongside the human inspecting it and the compiler lowering it —
+all three **read** the same deterministic derivation; none writes it.
+Read-only, but *addressable*.
+
+This dissolves an asymmetry that first looked like a problem. Derivation
+runs **downward** (abstract program → concrete view) and is total and
+automatic. The upward direction (recovering `sum` from a hand-built loop)
+is the partial recognition/collapse. Referencing a derived port lets you
+build in the concrete form *without* going upward at all: you keep the
+abstract source of truth and attach new structure to its derivation.
+
+Two details this raises:
+
+- **Which ports are referenceable.** A derivation exposes a defined set of
+  **principal output ports** (e.g. the combined list-with-state flow) —
+  the same discipline as a normal node exposing outputs and not internal
+  bindings. Reaching arbitrary derivation *internals* would couple the
+  program to a lowering strategy that may change.
+- **Representation.** A wire *target* that names a port *through* a step's
+  derivation — a cross-level reference. It resolves against the
+  derivation's **shape**, which is always available even under lazy value
+  evaluation (what ports exist is structural; only their values force
+  lazily).
+
+---
+
+## What this says about the language's philosophy
+
+The recent work sharpens and extends the four principles in `CLAUDE.md`.
+
+**Abstraction is the source of truth; concreteness is a derived view.**
+This is the load-bearing new principle. The authored program keeps the
+highest-level description; every more-concrete form is a read-only
+derivation, always available for inspection and reference but never the
+thing you edit. This is what makes "building blocks at the programmer's
+abstraction level" *durable*: the abstraction is not compiled away in the
+program you hold — it stays as the record, and the low-level form is a
+lens. `sum` remains `sum` no matter how much you build on its iteration.
+
+**Many authoring paths, few readings.** "One obvious way to express a
+program" is really about the result-level *reading*, not the authoring
+path. Multiple natural gestures may converge to one result (the augment
+loop, built loop-first or value-first), while genuinely different intents
+get genuinely different constructs (reduce-close vs augment). So
+discoverability (many ways to write, meeting the user wherever they
+start) and readability (few ways to read) are not in tension — they live
+at different layers.
+
+**Derivation is free and downward; abstraction is earned and upward.**
+The language makes dropping to a more concrete form total and automatic,
+so a high-level block never traps you — you can always inspect and build
+on its expansion. Recovering abstraction from a concrete form is
+recognition, and partial. This asymmetry is deliberate: it is the
+principled escape hatch that lets the language commit to high-level
+building blocks without giving up low-level control.
+
+**Metaprogramming is the same language, one level up.** Rather than a
+separate macro system, the language is a homogeneous tower — operations
+carry levels, programs are the data of the level above, and the tower is
+kept finite by degeneracy. This keeps the "one language, read it
+directly" property intact even for the operations that build programs.
+
+**Nothing hidden in a scope; the derivation is inspectable structure.**
+The derived level-0 result is not a hidden expansion happening behind a
+macro boundary — it is right there, always, as inspectable structure.
+This is the "inside-out / cases as values" principle applied to
+metaprogramming: the meaning of a higher-level step is a value you look
+at, not an opaque scope you cannot see into.
+
+---
+
 ## What is unresolved
 
-- **Whether the latent-flow collapse covers all the operations we will
-  want.** If every programmer-vocabulary operation can be expressed as a
-  port tap, the tower is never needed in the representation and remains
-  purely explanatory. If some cannot, the tower (with degeneracy)
-  becomes load-bearing.
+- **Is the tower load-bearing?** Partially answered: conversions are an
+  irreducible level-1 resident, so the tower is load-bearing at least for
+  them. What remains is how *many* such residents there are versus how
+  much collapses to level 0 via enrichments like latent flows.
 - **The single-native-level assumption** stated above.
-- **The concrete lift map.** If the tower is ever made load-bearing, the
-  canonical degeneracy map and the per-operation native-level annotation
-  need a concrete form in the representation.
+- **The concrete lift map** and per-operation native-level annotation, if
+  the tower is represented directly.
+- **Which derived ports a derivation exposes.** The principle is
+  "principal output ports, not internals," but the exact set for each
+  kind of derived result (e.g. an augment loop) needs pinning.
+- **The concrete form of a cross-level (derived-port) wire reference** in
+  the representation — how a wire names a port *through* a step's
+  derivation, and how the derivation's shape is computed for resolution.
+- **How a conversion is authored.** Since it is a level-1 computation in
+  the same language, it should be built with the same vocabulary — but
+  what its inputs/outputs (level-0 programs as values) look like
+  concretely is not yet designed.

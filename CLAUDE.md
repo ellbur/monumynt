@@ -115,7 +115,7 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Four principles run through the language design and should be kept in
+Five principles run through the language design and should be kept in
 mind when evaluating new primitives or constructs:
 
 **Example first, then generalise.** Programs should be writable starting
@@ -150,9 +150,27 @@ intent rather than read it directly. The criterion for a building block
 is not "is this the simplest possible primitive?" but "does this meet
 the programmer at the level of their own abstractions?" The goal is one
 obvious way to express a given program, which is what makes programs
-readable across authors and time.
+readable across authors and time. Note this concerns the *reading*: many
+authoring paths may converge to one result-level reading, so
+discoverability (many ways to write) and readability (few ways to read)
+are not in tension.
 
-See `plans/iteration-with-state-design.md` for extended discussion.
+**Abstraction is the source of truth; concreteness is a derived view.**
+The authored program keeps the highest-level description. Every
+more-concrete form (a `sum`'s running-iteration expansion, any operation's
+lowering) is a read-only *derived view* — always available for inspection
+and reference, never the thing you edit. This makes high-level building
+blocks *durable*: the abstraction is not compiled away in the program you
+hold. You build on a derived view by referencing its ports, not by
+materialising it. Corollary: derivation is free and downward (dropping to
+a concrete form is total and automatic, so a block never traps you);
+abstraction is earned and upward (recovering a high-level form from a
+concrete one is partial recognition). This rests on a homogeneous tower —
+one language where operations carry levels and programs are the data of
+the level above.
+
+See `plans/iteration-with-state-design.md` and
+`plans/transformation-levels-design.md` for extended discussion.
 
 ## Working with the user
 
