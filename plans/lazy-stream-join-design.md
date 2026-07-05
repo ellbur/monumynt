@@ -190,6 +190,12 @@ independent: zip stays within a level, join is per-close output
 construction within a level. Neither imposes new constraints on
 the other.
 
+Commute is independent of the multi-parent zip for the same
+reason — it too is per-close output construction. The worked
+example (a commuted close short-circuiting mid-zip, siblings
+unaffected) is in `lazy-stream-commute-design.md`, "Commute and
+the multi-parent zip".
+
 ## Open questions
 
 1. **User-facing form of multi-level join.** For lists we wrote

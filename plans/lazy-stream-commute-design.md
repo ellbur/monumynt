@@ -330,6 +330,107 @@ close on the same option iter (see "Multi-output independence"). It
 is a sibling close, not a wrapper stack; the ill-typed stack should
 not be given that meaning.
 
+## Commute and the multi-parent zip
+
+(This resolves open question 4 below.)
+
+The placement algorithm has one structurally interesting move:
+when a sub-chain's consumer-set has two incomparable parents in
+the lattice (say `{O₁}` under both `{O₁, O₂}` and `{O₁, O₃}`),
+the sub-chain's atCons reads both parents at the same source
+cell — a zip (`lazy-stream-placement-design.md`, "When chains
+need to zip"). The question was whether a commuted close on one
+of those outputs creates any interaction that breaks the
+zip-stays-within-a-level rule.
+
+It doesn't, and the reason can be said in one sentence: commute
+and zip live on opposite sides of the chain interface. The
+lattice analysis computes consumer-sets from the dependency
+structure — which closes transitively read which computations —
+and a close's wrapper stack (Commuted, Joined, any composition)
+is not part of that structure; it changes what the close *builds*
+from its chain's cells, never which cells it depends on. So the
+chain graph, including any zips inside it, is identical whether a
+close is commuted or not. Conversely, a close's output
+construction sees only its chain's pull interface — cells arrive
+in order, memoised — and cannot tell whether a cell was produced
+by a plain atCons or a zipping one. Commute is invisible to
+partitioning; zip is invisible to output construction. The one
+surface they do share is the memoised pull protocol, which is
+built for readers at different paces.
+
+That's the argument; here is the concrete example the open
+question asked for. It has three outputs rather than two — the
+multi-parent zip needs incomparable parents, which two outputs
+can't produce (`{O₁}`'s only possible parent is `{O₁, O₂}`).
+
+### Worked example
+
+Source `stream<int>`. Per element `n`:
+
+- `a = fA(n)` — consumed by O₁ and O₂.
+- `b = fB(n)` — consumed by O₁ and O₃.
+- An option iter on `maybe(a, b)` (Some iff some predicate over
+  both holds). O₁ is the **commuted** close on it: one
+  `option<stream<X>>` over the whole source.
+- O₂: plain close, emits `a * 10` per element.
+- O₃: plain close, emits `b + 1` per element.
+
+Lattice over `{O₁, O₂, O₃}`:
+
+- `{O₁, O₂}`: `a`.
+- `{O₁, O₃}`: `b`.
+- `{O₁}`: the option input `maybe(a, b)` and the some-case
+  value. Two incomparable parents (`{O₁, O₂}` and `{O₁, O₃}`) —
+  this is the zip.
+- `{O₂}`: `a * 10`.
+- `{O₃}`: `b + 1`.
+
+Note that O₁'s commute played no role in building that table —
+replacing O₁ with a plain close gives the same five chains.
+
+Forcing trace for a three-cell source where `maybe` succeeds at
+cell 0 and fails at cell 1:
+
+1. A consumer forces O₁'s `Delayed<option<stream<X>>>`. The
+   commute walk pulls `{O₁}` cell 0. Its atCons zips: it pulls
+   `{O₁, O₂}` cell 0 (which forces source cell 0 and computes
+   `a₀`), then `{O₁, O₃}` cell 0 (source cell cached; computes
+   `b₀`), then computes `maybe(a₀, b₀)` → `Some`. The walk
+   records the value and continues.
+2. `{O₁}` cell 1 the same way: the zip forces source cell 1,
+   computes `a₁` and `b₁`, and `maybe(a₁, b₁)` → `None`.
+   Short-circuit: the walk resolves O₁ to `None` and stops
+   pulling. `{O₁}` cell 2 is never created, neither zip leg is
+   pulled at position 2, and source cell 2 is not forced. Nothing
+   needs unwinding — the zip "frame" for position 2 is just the
+   un-forced Delayed tail of the `{O₁}` chain.
+3. A consumer now drains O₂. `{O₂}`'s chain pulls `{O₁, O₂}`
+   cells 0 and 1 — cached from steps 1–2 — then cell 2 fresh:
+   source cell 2 forces and `a₂` computes. `b₂` does not compute
+   (nothing pulls `{O₁, O₃}` at position 2), and neither does
+   `maybe(a₂, b₂)` (nothing pulls `{O₁}` there).
+
+Everything lands where the consumer-set analysis says it should:
+work shared with the commuted close is cached for the siblings up
+to the short-circuit point (the pre-warming side effect from
+"Multi-output independence", now visible at chain granularity)
+and computed on the siblings' own demand past it; work private to
+the commuted close stops at the short-circuit and is never
+revived by the siblings.
+
+### "Commuting differently" generalises
+
+The open question's phrasing — two closes commuting *differently*
+on the same source — also covers nested settings where one close
+is `Commuted(NodeFlow(…))`, a sibling is `Commuted(Joined(…))`,
+and a third is plain. The same argument applies unchanged:
+wrapper stacks are per-close output construction ("Composing
+Commuted with Joined" above), so all three share whatever chains
+the per-level lattice produces, zips included, and differ only
+past the pull interface. No combination of stacks on sibling
+closes can perturb the chain graph.
+
 ## Open questions
 
 1. **Commute through more layers.** ~~`Commuted(Joined(NodeFlow(…)))`
@@ -353,11 +454,17 @@ not be given that meaning.
    scope here.
 
 4. **Interaction with the placement algorithm's multi-parent
-   zip.** Two closes commuting differently on the same source —
+   zip.** ~~Two closes commuting differently on the same source —
    does this create any structural interaction that breaks the
    zip-stays-within-a-level rule? I think no (commute is per-close
    output, doesn't participate in chain structure), but worth a
-   concrete two-output example.
+   concrete two-output example.~~ **Resolved** — see "Commute and
+   the multi-parent zip" above: the "I think no" holds. Commute is
+   invisible to chain partitioning and zip is invisible to output
+   construction, so neither can perturb the other; the worked
+   example (three outputs — incomparable parents need at least
+   three) traces a commuted close short-circuiting mid-zip with
+   sibling closes unaffected.
 
 ## What this doesn't address
 
