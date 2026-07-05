@@ -247,6 +247,16 @@ partitioning.
 - **Implementing commute.** This document is design; implementation
   comes after the basic stream-flow runtime is in place.
 
+- **The spec's `Commute` node.**
+  `visual-language-description/visual-language-spec.md` specs commute
+  as a swap-and-continue *node*: both flows are re-output with the
+  nesting inverted, and computation may continue under the swapped
+  nesting before values are collected. This document's per-close
+  `Commuted` annotation is the special case where both swapped flows
+  are closed immediately. The general node form has no design yet;
+  the divergence is recorded side-by-side in the spec's Commute
+  section.
+
 - **Whether commute is the right name.** "Commute" describes the
   swap (`stream<option>` ↔ `option<stream>`); "sequence" describes
   the operation (collapse a stream of effects into an effect of a

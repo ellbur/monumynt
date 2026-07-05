@@ -310,6 +310,33 @@ The output values correspond 1-1 with input values (same names). The output flow
 
 ### Commute
 
+> **Open divergence (recorded 2026-07-05, not yet reconciled).** This node
+> predates the worked-out commute design in
+> `plans/lazy-stream-commute-design.md`, and the two conceptions differ.
+> Both are kept side-by-side pending a decision:
+>
+> - **Node form (this section):** commute is a *swap-and-continue* node.
+>   Both flows are re-output with the nesting inverted; computation may
+>   continue under the swapped nesting, and values are eventually collected
+>   by ordinary closes. Generic over flow kinds via `CommuteVariant`.
+> - **Close form (`lazy-stream-commute-design.md`):** commute is a
+>   *per-close output annotation* — a `Commuted` flowRef wrapper parallel to
+>   `Joined`/`Filtered`. Nothing is re-entered: the close's output is
+>   repackaged, e.g. a close on an option iter inside a stream flow yields
+>   `option<stream<X>>` instead of `stream<option<X>>`. Worked out
+>   concretely only for option-out-of-stream.
+>
+> The close form is expressible in the node form: it is a Commute
+> immediately followed by closing both swapped flows, never computing under
+> the swapped nesting. The node form is strictly more general — and that
+> generality is exactly what has no design. On eager list flows,
+> `plans/commute-design-notes.md` shows that commute with real
+> short-circuit semantics raises linearity questions the list flow cannot
+> answer; on stream flows, only the close form has been designed. Whether
+> "continue computing under the swapped nesting" is implementable, and on
+> which flow kinds, is what a reconciliation pass must settle before this
+> node's spec can be considered current.
+
 Swaps the nesting order of two flows.
 
 ```

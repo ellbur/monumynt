@@ -1,5 +1,22 @@
 # Commuting Option Out of List: Design Notes
 
+> **Status (2026-07-05).** The near-term recommendation below — Option 6,
+> non-short-circuiting commute on the existing eager list flow — was never
+> implemented and has been overtaken: the stream-flow conversation this
+> document deferred to happened (see `lazy-stream-placement-design.md`,
+> `lazy-stream-join-design.md`, `lazy-stream-commute-design.md`), and
+> commute landed there as a per-close output annotation on stream flows —
+> exactly the "honest split" this document recommends (the deferred half of
+> Option 3). The `Commuted(flowRef)` constructor shape proposed here
+> survived; its host flow moved from list to stream. What is specifically
+> discarded is Option 6 as a stopgap: with streams designed, there is no
+> longer a reason to add a commute that cannot short-circuit. The options
+> analysis (1–9) and the list-flow linearity critique remain the design
+> record and are still what the stream docs build on. A separate, still-open
+> divergence — the spec's `Commute` node (swap-and-continue) vs the
+> per-close packaging — is recorded in
+> `visual-language-description/visual-language-spec.md` under "Commute".
+
 ## What "commute" means here
 
 We have a list iter with an option iter inside it — a `List<Option<X>>`.
@@ -225,6 +242,11 @@ a list, what the join/filter/case-split analogs look like for streams,
 etc.), and the right time to take it on isn't while bolting an
 ill-fitting commute onto list flow.
 
+> **Superseded (2026-07-05).** From here through "Concretely, what Option 6
+> looks like" describes the stopgap that was never taken up. The stream-flow
+> design happened first, so the stopgap lost its purpose. Kept for the
+> record.
+
 In the meantime, if there's a near-term need for the operation, **the
 right step is Option 6 — non-short-circuiting commute on the existing
 list flow.** It's the only option in the list that adds the feature
@@ -246,7 +268,7 @@ cases on lists of modest size, it's a non-issue. If the cost ever
 matters, that's the signal to start the stream-flow conversation, not
 the signal to retrofit linearity onto list flow.
 
-### Concretely, what Option 6 looks like
+### Concretely, what Option 6 looks like (superseded)
 
 A new flowRef constructor, parallel to `Joined` / `Filtered`:
 
@@ -277,6 +299,12 @@ the loop runs to completion either way.
 
 ## Open questions to settle when implementing
 
+> **Note (2026-07-05).** These were posed for the Option-6 list-flow
+> implementation, which isn't happening. Their stream analogs — layering
+> with Joined, deeper commutes, generalising past option — live in the open
+> questions of `lazy-stream-commute-design.md`. The empty-input answer
+> (`Some([])`, or `Some` of the empty stream) carries over unchanged.
+
 - **Commute over deeper nestings.** `List<List<Option<X>>>` — does
   commute lift over one level or all the way out? Likely "one level
   per Commuted wrapper," parallel to how Joined behaves.
@@ -296,6 +324,15 @@ the loop runs to completion either way.
   thinking through with a concrete example.
 
 ## What this leaves unsolved
+
+> **Resolved since (2026-07-05).** Both open threads below were answered by
+> the stream-flow design rather than within list flow. Wasted intermediates:
+> `Delayed`-cell memoisation makes per-element work lazy and shared across
+> consumers, so a short-circuiting consumer forces only what it needs
+> (`lazy-stream-placement-design.md`). Linearity: streams are multi-consumer
+> via per-consumer cursors over memoised cells, so stoppage never truncates
+> siblings — the linearity restriction turned out unnecessary in the lazy
+> model (`lazy-stream-commute-design.md`, "Multi-output independence").
 
 The "wasted intermediate values" question never gets answered by
 Option 6. Within the loop body, intermediate Apps are still computed
