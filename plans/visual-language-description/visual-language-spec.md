@@ -363,7 +363,7 @@ After commute, what was the inner flow becomes outer, and vice versa. Both flows
 
 The two output flows need not be closed together. Closing the (new) inner flow while leaving the (new) outer flow open is the "defer the error" idiom: a loop that may fail commutes its option/error flow out of the loop, closes the loop, and leaves the error flow open to be handled later. The inner close's output is then an ordinary value wire under the still-open outer flow, referenced by whatever close eventually handles it. A close under a never-closed flow is unreachable (dead by consumer-set analysis), so deferral is "not now," not "never" — the editor should surface a never-closed commute-derived flow rather than let it die silently.
 
-Only option-out-of-stream has a worked-out compile (`lazy-stream-commute-design.md`); other variants (result-out-of-stream, etc.) share the node shape but await their own runtime design.
+Only option-out-of-stream has a worked-out compile (`lazy-stream-commute-design.md`); other variants (result-out-of-stream, marker-out-of-sequenceable, etc.) share the node shape but await their own runtime design. Which flow-kind pairs get a variant at all — and which commute for free or belong to other operations entirely — is mapped in that document's "The commute-variant taxonomy" section.
 
 > **Superseded signature (pre-reconciliation).** The node previously
 > carried per-element value pass-throughs:

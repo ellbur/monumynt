@@ -437,6 +437,83 @@ the per-level lattice produces, zips included, and differ only
 past the pull interface. No combination of stacks on sibling
 closes can perturb the chain graph.
 
+## The commute-variant taxonomy
+
+(This resolves open question 3 below.)
+
+Which flow-kind pairs get a commute variant, which don't, and why.
+The organizing criterion: **a commute operation is needed exactly
+where there is runtime content to repackage or effect timing to
+re-sequence.** Where neither flow has a runtime representation,
+commutativity is free and no node is needed. For any future
+flow-kind pair, this criterion says whether to design a variant or
+note a no-op.
+
+- **Sequenceable × sequenceable, different kinds** (option out of
+  stream; result out of stream per open question 2). The designed
+  case: data repackaging with short-circuit. This document.
+
+- **Marker out of sequenceable** (IO out of stream, list, or
+  option). A real variant, but what it changes is *observable
+  timing*, not data shape: `stream<IO<X>>` runs effects per pull,
+  interleaved with consumer demand; `IO<stream<X>>` runs them all
+  at the point the IO executes. No repackaging walk in the data
+  sense — the marker has no runtime representation — but the
+  "commute is where laziness has to give" principle applies in its
+  effect form: the commuted side batches all effects up front.
+  There is no short-circuit (markers don't fail), so the walk is
+  unconditional. The naturality quotient survives effects: the
+  quotient concerns *value* wires not interacting with the node,
+  and effect ordering is carried by *flow* wires, which the
+  commute node legitimately reorders. That is the value/flow
+  division of labor working as intended.
+
+- **Marker × marker** (IO with State, etc.). No commute operation:
+  neither side has runtime representation, so they already commute
+  — closing them out of order is valid as-is. This is the "free"
+  corner of the criterion.
+
+- **Same kind × same kind** (stream out of stream, list out of
+  list). Well-posed, contrary to first appearance: it is
+  `sequence` in the nondeterminism monad — every possible way of
+  choosing one element from each inner stream, i.e. the cartesian
+  product. Raggedness is no obstacle. Left out anyway, on
+  usefulness grounds: almost nobody who draws nested streams wants
+  the outer product, and offering it as "commute" would invite
+  accidents. Note this is *not* transpose — see next.
+
+- **Transpose** (row flow with column flow over tabular data). A
+  genuinely different operation from monadic sequence, and the one
+  that actually requires rectangularity — which is exactly what a
+  tabular container's invariant supplies and ragged nested streams
+  don't. The taxonomy slot is coherent, but it belongs to the
+  (future) tabular-data design, not here.
+
+- **Failable streams** — not a commute variant at all, recorded
+  here to mark the boundary. A stream whose terminator is
+  `Nil | Fail(e)`: the notions of error and end-of-stream collapse
+  into one flow kind. (Runtime-wise this is the tagged-end `SFail`
+  constructor an earlier draft of this document introduced and
+  dropped — rejected there as a *mechanism* for keeping commute
+  lazy, but as a first-class flow kind it is a different proposal.)
+  It would fill a real expressiveness gap: the vocabulary has the
+  filter reading (skip failures, keep going — non-commuted close)
+  and the all-or-nothing reading (commuted close), but not
+  *prefix-up-to-failure with partial results kept*. And you would
+  not commute an error flow out of it — you would **join** the
+  error in: the failure is the stream's termination, so a
+  per-element error merges into the terminator rather than being a
+  nested layer to move out. Deferred pending concrete use cases
+  (parsing-shaped ones seem likeliest: tokens until the first bad
+  one, partial results still valuable).
+
+- **Asynchronous flows** (computations on an event loop). A whole
+  topic of its own; deferred. One breadcrumb: the `Delayed`
+  prototype originally had event-loop integration that
+  `lazy-stream-placement-design.md` explicitly strips
+  ("synchronous, minus the event-loop integration"), so when this
+  opens there is a known seam to reopen rather than a blank page.
+
 ## Open questions
 
 1. **Commute through more layers.** ~~`Commuted(Joined(NodeFlow(…)))`
@@ -454,10 +531,20 @@ closes can perturb the chain graph.
    Err, carrying its payload); whether that's a separate flow
    primitive or a generalisation of option-commute can wait.
 
-3. **Other commutes.** Case-split out of stream, option out of
+3. **Other commutes.** ~~Case-split out of stream, option out of
    list (the original eager case we deferred), list out of option
    — each is its own pattern with its own runtime semantic. Out of
-   scope here.
+   scope here.~~ **Resolved (as a map, not designs)** — see "The
+   commute-variant taxonomy" above: the criterion is that a
+   commute operation exists exactly where there is runtime content
+   to repackage or effect timing to re-sequence. Marker-out-of-
+   sequenceable is a real variant (timing, not data); marker ×
+   marker commutes for free; same-kind commute is well-posed
+   (nondeterminism-monad sequence, the cartesian product) but left
+   out on usefulness grounds; transpose is a different operation
+   belonging to tabular data; failable streams are a flow kind,
+   not a commute (error *joins* into the terminator). Individual
+   variants still need their own runtime designs when taken up.
 
 4. **Interaction with the placement algorithm's multi-parent
    zip.** ~~Two closes commuting differently on the same source —
