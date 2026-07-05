@@ -12,9 +12,11 @@
 > discarded is Option 6 as a stopgap: with streams designed, there is no
 > longer a reason to add a commute that cannot short-circuit. The options
 > analysis (1–9) and the list-flow linearity critique remain the design
-> record and are still what the stream docs build on. A separate, still-open
-> divergence — the spec's `Commute` node (swap-and-continue) vs the
-> per-close packaging — is recorded in
+> record and are still what the stream docs build on. A formerly-open
+> divergence — the spec's `Commute` node vs the per-close packaging — was
+> reconciled 2026-07-05: the node (flow wires only, no value ports) is the
+> representation; the per-close construction is the compilation.
+> "Swap-and-continue" turned out not to be expressible at all. See
 > `visual-language-description/visual-language-spec.md` under "Commute".
 
 ## What "commute" means here

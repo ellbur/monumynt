@@ -310,32 +310,37 @@ The output values correspond 1-1 with input values (same names). The output flow
 
 ### Commute
 
-> **Open divergence (recorded 2026-07-05, not yet reconciled).** This node
-> predates the worked-out commute design in
-> `plans/lazy-stream-commute-design.md`, and the two conceptions differ.
-> Both are kept side-by-side pending a decision:
+> **Reconciled (2026-07-05).** An earlier version of this section and the
+> per-close design in `plans/lazy-stream-commute-design.md` were recorded
+> as an open divergence (node-form "swap-and-continue" vs close-form
+> output annotation). The reconciliation: **the node is the
+> representation; the close is the compilation.** The Commute node
+> carries flow wires only — it has no value inputs or outputs. Value
+> computations hang off the original opens' value ports and meet the
+> commute only at a close: a close on a commute-derived flow supplies its
+> value expression from ordinary value wires, like any close. Compilation
+> realizes commute in the close's output construction
+> (`lazy-stream-commute-design.md`); when the two swapped flows are
+> closed separately, the compiler treats the node as a full commuted
+> close followed by an immediate re-open of the still-open layer(s) —
+> internal bookkeeping, never surfaced as ports.
 >
-> - **Node form (this section):** commute is a *swap-and-continue* node.
->   Both flows are re-output with the nesting inverted; computation may
->   continue under the swapped nesting, and values are eventually collected
->   by ordinary closes. Generic over flow kinds via `CommuteVariant`.
-> - **Close form (`lazy-stream-commute-design.md`):** commute is a
->   *per-close output annotation* — a `Commuted` flowRef wrapper parallel to
->   `Joined`/`Filtered`. Nothing is re-entered: the close's output is
->   repackaged, e.g. a close on an option iter inside a stream flow yields
->   `option<stream<X>>` instead of `stream<option<X>>`. Worked out
->   concretely only for option-out-of-stream.
+> Two consequences:
 >
-> The close form is expressible in the node form: it is a Commute
-> immediately followed by closing both swapped flows, never computing under
-> the swapped nesting. The node form is strictly more general — and that
-> generality is exactly what has no design. On eager list flows,
-> `plans/commute-design-notes.md` shows that commute with real
-> short-circuit semantics raises linearity questions the list flow cannot
-> answer; on stream flows, only the close form has been designed. Whether
-> "continue computing under the swapped nesting" is implementable, and on
-> which flow kinds, is what a reconciliation pass must settle before this
-> node's spec can be considered current.
+> - **"Swap-and-continue" is not a thing.** With no value ports, there is
+>   nothing to wire "under the swapped nesting"; the only consumers of
+>   the node's output flows are flow operations (closes, joins, further
+>   commutes). The old open question — whether continuing computation
+>   under the swapped nesting is implementable — is not answered but
+>   dissolved: no such program is expressible.
+> - **The syntax quotients by naturality.** Because value nodes neither
+>   inherit from nor feed the Commute node, "before vs. after the
+>   commute" has no representation: programs equal by the naturality
+>   identity (map-then-commute = commute-then-map) are the same diagram —
+>   the strongest form of the one-way-to-read principle. The compiler is
+>   thereby free to pick evaluation timing; it computes values per
+>   element during the commuted walk, with the short-circuit skipping the
+>   rest. Unobservable in a pure language, so the choice is free.
 
 Swaps the nesting order of two flows.
 
@@ -344,9 +349,7 @@ Commute:
   variant: CommuteVariant
   innerFlow: FlowSource
   outerFlow: FlowSource
-  values: List<{name: String, source: ValueSource}>
 
-  valueOutputs: {<same names as input values>}
   flowOutputs: {inner, outer}
 ```
 
@@ -356,7 +359,32 @@ Commute:
 CommuteVariant: OperationName
 ```
 
-After commute, what was the inner flow becomes outer, and vice versa. The output values correspond 1-1 with input values. Both flows are output as new flows (not pass-through) because commute involves sequencing that downstream nodes may depend on.
+After commute, what was the inner flow becomes outer, and vice versa. Both flows are output as new flows (not pass-through) because commute involves sequencing that downstream nodes may depend on.
+
+The two output flows need not be closed together. Closing the (new) inner flow while leaving the (new) outer flow open is the "defer the error" idiom: a loop that may fail commutes its option/error flow out of the loop, closes the loop, and leaves the error flow open to be handled later. The inner close's output is then an ordinary value wire under the still-open outer flow, referenced by whatever close eventually handles it. A close under a never-closed flow is unreachable (dead by consumer-set analysis), so deferral is "not now," not "never" — the editor should surface a never-closed commute-derived flow rather than let it die silently.
+
+Only option-out-of-stream has a worked-out compile (`lazy-stream-commute-design.md`); other variants (result-out-of-stream, etc.) share the node shape but await their own runtime design.
+
+> **Superseded signature (pre-reconciliation).** The node previously
+> carried per-element value pass-throughs:
+>
+> ```
+> Commute:
+>   variant: CommuteVariant
+>   innerFlow: FlowSource
+>   outerFlow: FlowSource
+>   values: List<{name: String, source: ValueSource}>
+>
+>   valueOutputs: {<same names as input values>}
+>   flowOutputs: {inner, outer}
+> ```
+>
+> with "the output values correspond 1-1 with input values." The value
+> ports were what made "swap-and-continue" look like a design obligation
+> — they suggested computation could attach downstream of the node.
+> Dropped: the 1-1 correspondence they encoded is exactly the naturality
+> identity, which the port-free node expresses better by making the
+> before/after distinction unrepresentable.
 
 ---
 
@@ -865,7 +893,7 @@ These distinctions are not enforced in the structural representation but are sem
 
 The representation is designed to support the "no time travel" rule: flow ordering and nesting relationships must be established at construction time. This is why:
 - Join takes both inner flow, outer flow, and value as inputs
-- Commute takes both flows and values as inputs
+- Commute takes both flows as inputs (it carries no value ports — see the Commute section's reconciliation note)
 - Flow outputs from Join and Commute are new flows, not pass-throughs
 
 ### Nested Representation

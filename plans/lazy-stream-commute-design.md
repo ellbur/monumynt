@@ -69,6 +69,12 @@ User-facing code (sketch):
 Whether this exact syntax is right is a smaller question — the
 semantic point is that commute is a flowRef wrapper.
 
+(Since reconciled: at the *representation* level commute is a node
+on flow wires with no value ports — see "The spec's `Commute`
+node" under "What this doesn't address". The `Commuted` wrapper
+here remains accurate as the compile-level view; the semantics and
+composition discipline in this document apply unchanged.)
+
 ## Runtime shape
 
 The runtime type is just what the user asked for:
@@ -477,15 +483,21 @@ closes can perturb the chain graph.
 - **Implementing commute.** This document is design; implementation
   comes after the basic stream-flow runtime is in place.
 
-- **The spec's `Commute` node.**
-  `visual-language-description/visual-language-spec.md` specs commute
-  as a swap-and-continue *node*: both flows are re-output with the
-  nesting inverted, and computation may continue under the swapped
-  nesting before values are collected. This document's per-close
-  `Commuted` annotation is the special case where both swapped flows
-  are closed immediately. The general node form has no design yet;
-  the divergence is recorded side-by-side in the spec's Commute
-  section.
+- **The spec's `Commute` node.** *(Reconciled 2026-07-05.)* The
+  former divergence — node-form "swap-and-continue" vs this
+  document's per-close packaging — resolved as: the node is the
+  representation, the close is the compilation. The node carries
+  flow wires only (no value ports), so "computation under the
+  swapped nesting" is not expressible — value nodes neither inherit
+  from nor feed the commute node, making before-vs-after-the-commute
+  unrepresentable (the syntax quotients by the naturality identity
+  map-then-commute = commute-then-map). Closes on the node's output
+  flows compile via this document's output construction; when the
+  swapped flows are closed separately (close the loop, defer the
+  error flow), the compiler treats it as the full commuted close
+  plus an immediate re-open of the still-open layer — internal
+  bookkeeping only. See the spec's Commute section for the
+  reconciled node shape and the defer-the-error idiom.
 
 - **Whether commute is the right name.** "Commute" describes the
   swap (`stream<option>` ↔ `option<stream>`); "sequence" describes
