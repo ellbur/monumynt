@@ -505,7 +505,12 @@ note a no-op.
   per-element error merges into the terminator rather than being a
   nested layer to move out. Deferred pending concrete use cases
   (parsing-shaped ones seem likeliest: tokens until the first bad
-  one, partial results still valuable).
+  one, partial results still valuable). *Update*: taken up in
+  `async-flow-design.md` ("Failure as terminator payload") —
+  interruption supplied the concrete use case, and the design
+  generalises to a terminator-payload dimension across flow
+  kinds that also covers async rejection; the join-not-commute
+  observation above holds there verbatim.
 
 - **Asynchronous flows** (computations on an event loop). A whole
   topic of its own; deferred. One breadcrumb: the `Delayed`

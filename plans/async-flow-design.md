@@ -117,7 +117,9 @@ asynchronously — is not a new flow kind at all. It is the existing
 stream flow with the async cell substituted for the synchronous
 one, and it is what external event sources and long-running
 processes are. Most of this document's interesting content lives
-in that cell of the table.
+in that cell of the table. (The dash in the zero-or-one row is
+not an omission; it is explained — and filled — in "Failure as
+terminator payload" below.)
 
 ## Sequential and parallel are structural
 
@@ -330,7 +332,8 @@ deferred — a terminator of `Nil | Interrupted(e)` is the
 "prefix-up-to-failure with partial results kept" shape, arrived at
 from the async side instead of the parsing side. Interruption may
 be the concrete use case failable streams were waiting for; if so,
-the two designs should land together.
+the two designs should land together. (Taken up below in
+"Failure as terminator payload".)
 
 **Interruption is checked at pull boundaries.** The race happens
 per pull, so a step already in flight when the interrupt fires
@@ -342,6 +345,160 @@ cancellation, which is the effects question. Also note the
 converse: a consumer that stops pulling never observes the
 interrupt at all — laziness means the interrupt is only ever
 raced against demand that actually exists.
+
+## Failure as terminator payload
+
+Open question 1 asked whether failure lives inside the async
+value (`async<result<X, E>>`) or in the async flow itself, and
+noted that three separately-deferred threads — JS promise
+rejection, interrupted streams, parsing-style failable streams —
+smelled like one design. Working them together, they are: all
+three are the same concept, and it is not specific to async.
+
+**Every flow kind already has a termination event.** A stream
+ends (`Nil`); an option is absent; an async value delivers. What
+the three deferred threads each independently wanted is that
+event *carrying a payload*:
+
+- A parsing stream ends with `Fail(e)` instead of `Nil` — tokens
+  up to the first bad one, plus what was bad about it.
+- An interrupted stream ends with `Interrupted(e)` — the steps
+  that ran, plus what interrupted them.
+- A failing async terminates by *not* delivering — rejection is
+  the exactly-one flow's second way to end, with the error as
+  payload.
+
+So the design is one dimension, not three features: **a failable
+flow kind is a flow kind whose terminator carries a payload.**
+Which flow kinds it applies to falls out of the now/later table,
+and the table explains its own gap in the process:
+
+|                        | now             | later             |
+|------------------------|-----------------|-------------------|
+| exactly one            | (plain value)   | async flow        |
+| zero-or-one, bare end  | option flow     | *(unobservable)*  |
+| zero-or-one, end+e     | result-as-flow  | **failable async**|
+| many, bare end         | list flow       | async stream      |
+| many, end+e            | failable list   | **failable stream**|
+
+The dash in the original table — "zero-or-one, later" — was not
+an accident of omission. In the *now* column, absence is
+observable by looking: the data is there or it isn't. In the
+*later* column, bare absence is unobservable: an async that
+"just doesn't fire" is indistinguishable from one that hasn't
+fired *yet*, forever. A later-flow's zero case is only meaningful
+if the termination is itself an event — which is to say, only in
+the failable row. Failability isn't an add-on to the async flow;
+it is the only coherent way the async flow *has* a zero case.
+
+### Two consumption modes: propagate and discharge
+
+What does a consumer of a failable flow do about the terminator?
+Two modes, and both already exist in spirit:
+
+**Propagation is the default.** A close over the value flow that
+says nothing about the terminator passes it through: the output
+flow kind keeps the same terminator, payload intact. Mapping over
+a failable stream yields a failable stream that ends the same way
+the input did; a body hung off a failable async's value port
+yields a failable async that, if the input rejects, rejects with
+the same payload. This is `.then`-chaining semantics derived from
+structure — the walk hits the terminator, has no instruction
+about it, and re-emits it. No new machinery, and failure stays
+invisible in diagrams that don't handle it, exactly like a
+promise chain.
+
+**Discharge is where failure becomes data.** At a whole-flow
+close, the terminator is *in hand*: the walk has finished, and
+`Nil`-vs-`Fail(e)` is now a settled, genuine tagged value. By the
+criterion the race section drew, this is precisely when
+`CaseSplit` is the right tool — the sum *exists as data* on the
+close's output side. No barrier is needed, and the bottleneck
+argument doesn't bite: unlike race's contenders, the success
+value and the failure payload have no independent upstream wires
+whose identity a packing would sever. They are born at the same
+settlement.
+
+For streams, discharge is where the expressiveness gap closes.
+A whole-stream close over a failable stream has **two value
+outputs**: the folded prefix, and the terminator. The three
+readings the commute taxonomy catalogued map onto what you do
+with them:
+
+- *All-or-nothing*: discard the prefix when the terminator is
+  `Fail` — the same reading as the deferred result-commute
+  (commute doc, open question 2), reached from the terminator
+  side. (Not identical: result-commute starts from errors *as
+  element data* and would need an error-joining step to land
+  here; whether that step or a separate primitive is nicer is
+  that question's remaining content.)
+- *Prefix-up-to-failure with partial results kept*: use both
+  outputs — the gap the taxonomy recorded, closed by making the
+  terminator an ordinary value you case-split.
+- *Skip-and-continue*: not this design at all — per-element
+  recoverable errors are **data** (a stream of results, handled
+  by filter closes). The boundary the commute doc drew stands:
+  errors that end the flow live in the terminator; errors you
+  recover from per element live in the elements.
+
+### The three threads, unified
+
+- **Parsing streams**: the producer ends the stream with
+  `Fail(e)`. Source-side failability.
+- **Interruption**: the `interrupt` combinator writes
+  `Interrupted(e)` as the derived stream's terminator.
+  Combinator-side failability — same slot, different provenance.
+- **Async rejection**: terminator payload on the exactly-one
+  flow. JS rejection at the FFI boundary maps into it; a cell
+  whose promise rejects is a flow that terminated with payload.
+- **Async streams compose the two levels correctly for free**: a
+  stream cell that rejects is a stream whose termination arrived
+  early — the rejection *joins into the stream's terminator*
+  (the stream ends `Fail(e)`), which is the commute doc's
+  "you would join the error in, not commute it out" observation
+  landing exactly where it predicted.
+
+Race also composes cleanly, one worked detail: racing failable
+contenders is JS-honest — first *settlement* wins, including a
+rejection. Contender `i`'s output flow fires iff `i` settled
+first; if it settled by failing, that branch's continuation is a
+failable flow whose terminator already fired, and propagation
+does the rest — the close's output async rejects with the
+winning contender's failure payload. No extra ports on the race
+barrier; the
+failure rides the terminator through it.
+
+So the answer to open question 1's either/or is: **neither, as
+posed.** Not "keep async infallible and layer `result` inside"
+(that treats a termination as data prematurely, and does nothing
+for streams); not "make the async flow failable" as a one-off
+(that re-derives the same design three times). Failability is a
+uniform dimension on flow kinds — terminator payloads — with
+`result`-as-data remaining correct for element-level errors on
+the other side of the recover-vs-end boundary.
+
+### What this does not settle
+
+- **Payload type composition.** Chaining closes over flows with
+  different payload types `E1`, `E2` needs either payload
+  unification at joins of failability or an error-mapping
+  operation on the terminator. Probably small; not worked out.
+- **Do bodies raise?** A JS `async` function converts thrown
+  exceptions into rejections automatically — if compiled bodies
+  inherit that, *every* async close is failable whether declared
+  or not. JS-honest, but it erases the infallible/failable
+  distinction the table draws. The alternative — bodies are
+  total, failure enters only at declared sources — is cleaner
+  and less honest. Genuinely open.
+- **Port structure.** The discharging close's two value outputs
+  (prefix + terminator) is more port structure than current
+  close nodes carry — the same pressure as open question 5's
+  race barrier, strengthening the first-class-port case from a
+  second direction.
+- **Option convergence.** With failure in the flow, the failable
+  async and a "later result" are the same thing, and option is
+  the payload-less *now* row — open question 6's convergence,
+  sharpened but not decided.
 
 ## External event sources
 
@@ -481,7 +638,7 @@ existing simple-lazy compile discipline:
 
 ## Open questions
 
-1. **Failure.** JS promises reject; our `async<X>` so far cannot.
+1. **Failure.** ~~JS promises reject; our `async<X>` so far cannot.
    Options: keep async infallible and layer result/option inside
    it (`async<result<X, E>>`, handled by the existing flows and
    the eventual result-commute); or make the async flow itself
@@ -489,7 +646,13 @@ existing simple-lazy compile discipline:
    above) suggests failure-as-terminator is a recurring shape;
    whether one design covers async values, interrupted streams,
    and parsing-style failable streams is worth working out in one
-   sitting rather than three.
+   sitting rather than three.~~ **Worked out** — see "Failure as
+   terminator payload" above: one design does cover all three
+   (failability = a payload on the flow kind's termination event;
+   propagate by default, discharge to a data sum at a whole-flow
+   close). Residual sub-questions — payload type composition,
+   whether bodies raise, the discharging close's port structure —
+   are recorded at the end of that section.
 
 2. **Cancellation.** Deferred to the IO design, but with the
    constraint recorded above: the async cell should be able to
@@ -524,7 +687,14 @@ existing simple-lazy compile discipline:
    them separate seems right (data-discrimination vs
    time-displacement; option has a none case, async doesn't), but
    if failure lands *in* the async flow the shapes converge
-   further. Watch it.
+   further. Watch it. *Update*: failure has now landed in the flow
+   ("Failure as terminator payload" above), and the convergence
+   sharpened as predicted — option is the payload-less *now* row
+   of the failability table, failable async the payload-carrying
+   *later* row. Still not merged: the now/later distinction (a
+   checkable discriminator vs an unobservable-until-event zero
+   case) remains a real semantic difference, not just a
+   compile-target difference.
 
 7. **Fairness and starvation.** Two merged streams where one
    resolves synchronously-fast can starve the other's turn on the
