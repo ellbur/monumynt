@@ -474,8 +474,9 @@ That reframes this document. The consumer-set lattice is not *the*
 stream compile; it is the optimisation pass over the stream
 compile — the same category `placement-algorithm-notes.md` now
 occupies for eager flows. Both documents then have the same shape:
-a principled compile-time analysis, preserved for the day profiles
-demand it, sitting above a dumb-but-correct lazy baseline.
+a principled compile-time analysis, deferred but committed
+("Deferred, not conditional" below), sitting above a
+dumb-but-correct lazy baseline.
 
 ### What the baseline gives that the eager compile doesn't
 
@@ -546,17 +547,54 @@ deferred ("optimisation logic in the compiler was paying down debt
 the language hadn't accumulated yet"), and streams shouldn't be
 held to a stricter standard than the compile we already ship.
 
+### Deferred, not conditional
+
+The framing so far — an optimisation to revive "when profiles
+demand it" — is too weak, and it's worth recording why (this came
+out of pushback on the first draft of this postscript): profiles
+may never demand it. Typical workloads may never notice the
+constant factor, and under a benchmarks-only gate the lattice
+would then never be built. But the naive output has a cost
+benchmarks don't measure — it scares people.
+
+The generated JS is read, not just run. Someone evaluating the
+language writes what is conceptually a single pass over a list,
+looks at the output, and sees five independent loops — one per
+close — with the discriminator re-run in each. They do not file a
+performance bug. They ask "how can this possibly scale?" and
+conclude the model is naive, before any benchmark gets a chance
+to argue otherwise. The output is evidence about the language,
+and output that looks pathological is evidence against it, at
+exactly the moment trust is being decided.
+
+This rhymes with the language's own philosophy: concreteness is a
+derived view, and derived views are meant to be read
+(`language-design-philosophy.md`). The compiled JS is the most
+concrete view of all. A program whose most concrete view reads as
+absurd undermines the claim that the abstractions above it are
+sound.
+
+So: the lattice — and the eager hybrid in
+`placement-algorithm-notes.md` — should be done, whether or not
+it ever turns out to be necessary from a computational
+standpoint. What stays deferred is the sequencing, not the
+decision. Semantics first still holds — optimisation logic in the
+compiler while the flow kinds are still moving was exactly the
+debt the retirement paid off, and stream flows shouldn't be gated
+on placement landing. But the end state is committed: one
+conceptual loop should compile to one loop.
+
 ### Effect on the implementation order
 
 Steps 1–3 are unchanged — they were already placement-free. Steps
 4 and 5 (consumer-set bookkeeping, N outputs) drop off the
 critical path: multi-output works on the baseline by construction,
-so those steps become the first steps of the *optimisation pass*,
-taken when benchmarks say so — the same gate
-`placement-algorithm-notes.md` puts on the eager hybrid. Step 6
-(nested flows) stays, but what it validates shrinks to level
-identification and cross-level integration rather than per-level
-lattices.
+so those steps become the first steps of the *optimisation pass* —
+committed either way ("Deferred, not conditional" above), taken
+once the semantics have settled rather than gated on benchmarks.
+Step 6 (nested flows) stays, but what it validates shrinks to
+level identification and cross-level integration rather than
+per-level lattices.
 
 ## Open questions
 
@@ -600,8 +638,9 @@ lattices.
    "stream flows get their own placement-aware compile" but
    "stream flows get no placement at all" — Shape C as the
    baseline, with the lattice joining
-   `placement-algorithm-notes.md` in the optimisation-to-revive
-   category. Also note the "resurrect the eager placement work"
+   `placement-algorithm-notes.md` in the deferred-but-committed
+   optimisation category ("Deferred, not conditional" above).
+   Also note the "resurrect the eager placement work"
    arm now reads differently than when this was written: that
    algorithm was retired as premature and its placeholder
    machinery flagged as fragile, so unification is a bigger lift
