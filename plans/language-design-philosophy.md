@@ -109,3 +109,13 @@ a concrete one is partial recognition). This rests on a homogeneous
 tower — one language where operations carry levels and programs are
 the data of the level above. See `transformation-levels-design.md`
 for the full treatment.
+
+Sharpening: the source of truth is the *highest description that is
+still true*. Reads are free through the derived view; a write into
+one forces a splice — the expansion is materialized into the program
+of record and the abstract form is given up, deliberately, because
+the coming edits would falsify it. Keeping "sum, plus a patch" when
+the step is no longer a sum would be fake abstraction. Rule of
+thumb: reference the derived view to *add*; splice to *change*.
+Level-1 operations (conversions, recognition) are built-in catalog
+entries, not user-written macros.
