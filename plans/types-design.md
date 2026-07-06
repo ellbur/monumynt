@@ -612,7 +612,11 @@ touches the visual layer.
    bundle") and flow-side; it likely wants the same
    witness-and-connector error treatment, and possibly the same
    propagation skeleton, but it is not a value-wire property.
-   Sibling design, not this one.
+   Sibling design, not this one. *Update*: the sibling design now
+   exists — `bundle-provenance-design.md` works it out, and both
+   hunches held: same skeleton (the relational look dissolves
+   into per-wire context paths compared at demand time), same
+   witness treatment (the shared construct plus two cell edges).
 6. **Summary defaults and the tower.** Are generalized-program
    summaries level-1 citizens — derived views with port
    correspondences, like expansions — or editor ephemera? The lens

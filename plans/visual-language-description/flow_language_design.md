@@ -353,6 +353,8 @@ The entire graph structure has meaning only when complete. Intermediate wires ar
 
 ### 2. Flow Bundle Type Checking
 
+> **Taken up** (2026-07-06): `plans/bundle-provenance-design.md` works this out in current vocabulary (context paths compared at combining nodes; one check with time-travel and bundle-mixing as its two clash flavors), including the error-message question. It also gives a partial answer to #3 below (every bundle in the design record is a partition of a parent flow's firings — exclusive by definition) and a sketch toward #4 (merged branches as cell sets).
+
 **Challenge:** Prevent invalid mixing of flows from the same conditional bundle while allowing valid nesting of flows from different bundles.
 
 **Requirements:**
