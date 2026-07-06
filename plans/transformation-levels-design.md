@@ -606,7 +606,7 @@ cherry-pickability.**
 Because every change builds, the construction history is not an
 editor convenience kept beside the program — it is built into the
 model. The program of record *is* the history; any version is a fold
-of a history prefix; the "current program" is just the version at
+of a head's ancestry; the "current program" is just the version at
 the head.
 
 And the history re-runs the tower:
@@ -630,32 +630,88 @@ And the history re-runs the tower:
   cherry-pick/rebase). Both pass the admission test — their content
   is about programs, or histories of programs, never about values.
 
-One caution, flagged open below: "undo" has two classical readings —
-append a reverting step (git revert) versus move the head (git
-reset) — and which the language means, or whether both exist, is not
-yet designed. The level analysis is indifferent to the choice: the
-native level is ≥ 1 either way.
+"Undo" classically has two readings — append a reverting step (git
+revert) versus move the head (git reset) — and choosing between them
+looked like an open design question. The next section dissolves it.
 
 ---
 
-## Representation: history as storage, versions as folds
+## One structure: program and history as aspects
+
+The history and the program are **not two structures**, one stored
+and one derived from it. They are different aspects of the same
+structure — and saying so closes a loop with the very first section
+of this document. The transformation/result distinction said every
+construction step has two readings, the edit and what the edit
+produced, "two views of one construction step," with which one a
+tool shows being a presentation choice. Taken seriously at the level
+of representation, that means the history (the steps read as edits)
+and the program (the steps read as what they produced) are one
+stored thing under two readings.
+
+The node-identity rules were already saying this quietly. Every
+node's id is minted by exactly one step, so for an ordinary 1:1
+construction step, step and node are in bijection: the node *is* the
+step seen at level 0; the step *is* the node seen at level 1. Even
+the edges coincide — the wires a step lays down are its references
+to previously built structure, so a 1:1 step's data edges (wires)
+and its history edges (dependencies on earlier steps) are the same
+arrows. What is genuinely history-only are exactly the steps with no
+single-node reading: the native level-1+ steps (materialize, undo,
+cherry-pick). "Native level" was the name for this all along.
+
+So the stored structure is **one DAG of steps**. The program at a
+head is its level-0 aspect (the fold of the head's ancestry); the
+edit history is its level-1 aspect; and the aspect-reading continues
+upward.
+
+### The DAGs tower — and collapse
+
+The history is DAG-shaped, and it is not one DAG: the history has a
+history (appends, undos, cherry-picks are themselves events), which
+has a history, and so on — an infinite tower of DAGs. It is tamed
+the same way as every tower in this document: nothing is stored
+twice. An ordinary step is degenerately its own entry in the history
+of the history; only a step of native level 2 (undo of an undo) adds
+content at the second tier. In general the level-k DAG differs from
+the level-(k−1) DAG only at steps whose native level is k. One
+stored DAG, heterogeneous in native level; infinitely many readings,
+all derived.
+
+Two open items resolve under this:
+
+- **History shape: DAG**, supplied. Branches arise from building on
+  a non-head version; cross-links from cherry-picks; merges, if and
+  when designed, are further DAG structure — not a new mechanism.
+- **Undo's two classical readings are the two aspects.** At the
+  storage aspect, undo is always an append — the structure only
+  grows, nothing is ever deleted (persistence holds all the way up
+  the tower). At the program aspect, it reads as a reset — the
+  level-0 fold is as if the undone step never happened. Revert
+  versus reset was never a choice between mechanisms; it is the
+  transformation/result distinction applied to undo itself.
+
+---
+
+## Representation: one step-DAG, read at every level
 
 An earlier section says "the program (with its level-1 steps) is the
-thing of record." Concretely: the stored artifact is the
-**construction history** — a sequence of steps (linear or DAG, open
-below), each stored once at its native level. The history is
-heterogeneous in level and that is fine: an add-node step (native
-level 0), a materialize step (native level 1), an undo-of-undo
-(native level 2) sit in one list, each tagged by what it operates
-on. There are no stored strata above the steps themselves; every
-higher reading of every step is degenerate.
+thing of record." Concretely: the stored artifact is the **step
+DAG** of the previous section, each step stored once at its native
+level. The DAG is heterogeneous in level and that is fine: an
+add-node step (native level 0), a materialize step (native level 1),
+an undo-of-undo (native level 2) sit in one structure, each tagged
+by what it operates on. There are no stored strata above the steps
+themselves; every higher reading of every step is degenerate — and
+so is the level-0 reading of the 1:1 steps, which is what "the
+program" is.
 
 Everything else is derived:
 
-- A **version** is a fold of a history prefix — a level-0 program
-  value. Versions share structure the way persistent-data-structure
-  snapshots do: a step touching one path copies that path and shares
-  the rest.
+- A **version** is a fold of a head's ancestry in the DAG — a
+  level-0 program value. Versions share structure the way
+  persistent-data-structure snapshots do: a step touching one path
+  copies that path and shares the rest.
 - A **lens** stores nothing: it is implied by the node species. A
   reduce-close node *is* the level-1 step whose expansion is its
   lens — one stored datum, read at two levels; degeneracy cashing
@@ -818,6 +874,16 @@ Resolved since first drafted (see the sections above):
   the node they correspond to, or mint fresh where no correspondence
   exists. Identity is the id, not the record; path copies are
   id-preserving. See "Node identity" in the representation section.
+- ~~**History shape.**~~ Supplied: a DAG — in fact an infinite tower
+  of DAGs (the history's history, and so on), collapsing by
+  degeneracy into one stored step-DAG. The program and the history
+  are aspects of this one structure, not separate structures. See
+  "One structure: program and history as aspects."
+- ~~**Undo's reading.**~~ Dissolved by the aspect split: at the
+  storage aspect undo is always an append (the structure only
+  grows); at the program aspect it reads as a reset. Revert vs reset
+  is the transformation/result distinction applied to undo itself.
+  (What an undo step concretely records remains open, below.)
 - **Which derived ports a derivation exposes** — reduced from a policy
   question to a per-entry field, with a second consequence discovered:
   principal ports also draw the boundary of cherry-pickability. Still
@@ -834,16 +900,19 @@ Still open:
   to level 0 via enrichments like latent flows.
 - **The single-native-level assumption** stated above — unfalsified by
   the current catalog, unproven in general.
-- **History shape.** Linear sequence or DAG? Branching histories
-  (trying a change, keeping the old head alive) and merging are
-  natural under the persistent frame but undesigned. Cherry-picking
-  already smells like a DAG operation.
 - **The cherry-pick algorithm in detail.** The three translation
   rules above are the spec's skeleton; the actual replay (ordering
   among transplanted steps, conflict presentation, partial
   application) is undesigned.
-- **Undo's reading.** Append-a-reverting-step (git revert) versus
-  move-the-head (git reset), or both. Interacts with history shape.
+- **Merge.** DAG shape makes branches free; combining two branches
+  that both build on a common ancestor is further DAG structure in
+  principle, but the actual merge step (id collisions cannot occur —
+  ids are globally unique — so conflicts are about competing rebuilds
+  of the same node id) is undesigned.
+- **What an undo step records.** The revert-vs-reset question
+  dissolved into the two aspects, but the concrete content of an
+  undo step — how it names its target, whether it can target a set
+  of steps, what its own port/id correspondence is — is undesigned.
 - **Editor gesture mapping.** "Grab a part inside a lens view and
   build with it" must denote materialize-then-build (the part is
   non-principal) or a plain derived-port reference (it is principal).

@@ -113,7 +113,9 @@ for the full treatment.
 Sharpening: nothing is ever edited — every change *builds*, yielding
 a new program version that shares untouched parts with the old one
 (programs are a persistent, functional data structure; the
-construction history is the program of record). Each version reads
+construction history is the program of record — indeed the program
+and its history are aspects of one stored step-DAG, not two
+structures). Each version reads
 at the highest level that is true of it: to *add* to a `sum`,
 reference its derived view's principal ports; to *change* its
 interior, materialize the expansion (a recorded construction step)
