@@ -220,7 +220,20 @@ If runtime laziness becomes a bottleneck — i.e. the per-binding
 object allocation and per-access dispatch through `force(…)` show up
 in profiles for some real workload — this algorithm is one principled
 way to recover tight-loop JS for the subset of programs where
-placement *can* be decided at compile time. The plausible roadmap:
+placement *can* be decided at compile time.
+
+*Update (2026-07-06):* profiles are the weaker of the two reasons
+this comes back. The stronger one — sufficient on its own — is that
+the generated JS is read: a reader who sees one conceptual loop
+compiled into five thunked loops doesn't wait for benchmarks, they
+ask "how can this possibly scale?" and conclude the model is naive.
+So the hybrid below should be built once the semantics settle,
+whether or not laziness ever shows up in a profile — what "when it
+might come back" gates is the sequencing, not the decision. The
+full argument is under "Deferred, not conditional" in
+`lazy-stream-placement-design.md`.
+
+The plausible roadmap:
 
 1. Keep runtime laziness as the default (correct in all cases).
 2. Add a strictness analysis: each binding tagged "always demanded"

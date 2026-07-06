@@ -10,6 +10,16 @@ mechanism is inseparable from the imperative scope/array
 structure — there's literally a different `const out = []`
 allocation location.
 
+> *(2026-07-06: that description is of the retired compile-time-
+> placement compile — see `placement-algorithm-notes.md`. In the
+> shipped runtime-lazy compile a joined close is one self-contained
+> thunk applying the "any list in chain → list" rule
+> (`lazy-compile-design.md`), so no binding physically moves
+> between scopes; join instead changes how many opener levels the
+> thunk's loop nesting walks up. The contrast this paragraph draws
+> — streams have no scopes or arrays to express either version of
+> that in — holds unchanged.)*
+
 Streams don't have scopes or arrays, so the same mechanism
 doesn't translate directly. This document is about what "join"
 *means* for stream flows, and whether/how it interacts with the

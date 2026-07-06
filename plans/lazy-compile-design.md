@@ -95,13 +95,29 @@ forced.
 
 The generated JS is noisy and carries runtime overhead: one object
 allocation per binding, a `__force__` dispatch per reference, and
-duplicated iteration for multi-close. If that ever matters, the
-plausible path (detailed under "When it might come back" in
+duplicated iteration for multi-close. The plausible path back
+(detailed under "When it might come back" in
 `placement-algorithm-notes.md`) is a hybrid: keep laziness as the
 correct-everywhere default, add a strictness analysis, and emit
 strict `const` bindings with compile-time placement for the
 always-demanded fragment.
 
+The noise also has a cost profiles don't measure: the output is
+read, and a reader who sees one conceptual loop compiled into five
+concludes the model can't scale. For that reason the hybrid is
+committed, not contingent — deferred until the semantics settle,
+not until a benchmark complains. See "Deferred, not conditional"
+in `lazy-stream-placement-design.md` for the full argument.
+
 The reason we're not doing that now: most of the language design is
 still open, and optimisation logic in the compiler was paying down
 debt the language hadn't accumulated yet. Semantics first.
+
+The same reasoning carries to stream flows when they arrive: the
+stream analog of this strategy is one memoised stream cell per node
+(the "Shape C" that `lazy-stream-placement-design.md` originally
+dismissed), with the consumer-set lattice analysis as the
+optimisation to revive later — see "The baseline, revisited" in
+that document. One notable difference: the stream baseline restores
+the cross-close sharing this compile gives up, because sibling
+closes pull the same memoised per-node cells.

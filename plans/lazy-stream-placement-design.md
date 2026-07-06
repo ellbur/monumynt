@@ -438,6 +438,164 @@ region is a JS scope (eager) or a Delayed chain (stream)
 depending on the containing flow's kind. The bookkeeping
 differs in shape but not in spirit.
 
+## The baseline, revisited (2026-07-06)
+
+> Postscript. Open question 5 below records that the eager compile
+> is now runtime-lazy with no placement, and asks how two compile
+> strategies should coexist. This section runs the reasoning that
+> retired the eager placement algorithm — semantics first,
+> optimisation logic deferred until the language accumulates the
+> debt — against *this* algorithm, and finds it lands the same
+> way. The semantics-first baseline for streams turns out to be
+> something this document already named, and dismissed one
+> paragraph later.
+
+### Shape C is the runtime-lazy compile, transposed to streams
+
+Of the three naive corners, Shape C (map-per-intermediate: every
+Expr node its own memoised stream derivation) is the only one that
+is semantically right on both axes — the analysis above grants it
+max GC *and* max dedup — and it was rejected purely on constant
+factors: one cell per Expr node per source element.
+
+But the eager compile has since accepted exactly that constant
+factor. Every node compiles to a `__lazy__` binding, and a node
+that depends on a per-iteration value re-emits one lazy allocation
+per iteration inside each consuming close's thunk
+(`lazy-compile-design.md`). Per node, per element, one heap object
+whose job is "compute at most once, on demand" — which is
+precisely what a Shape C cell is. Shape C is not a naive corner to
+be engineered past before shipping; it is the stream transposition
+of the strategy we now run on purpose, chosen for the same reason:
+the compiler decides nothing, and correctness does not depend on
+an analysis.
+
+That reframes this document. The consumer-set lattice is not *the*
+stream compile; it is the optimisation pass over the stream
+compile — the same category `placement-algorithm-notes.md` now
+occupies for eager flows. Both documents then have the same shape:
+a principled compile-time analysis, deferred but committed
+("Deferred, not conditional" below), sitting above a
+dumb-but-correct lazy baseline.
+
+### What the baseline gives that the eager compile doesn't
+
+One asymmetry worth recording, because it means the baseline is
+not merely "the lattice minus the effort." `lazy-compile-design.md`
+names the cost of the simple eager model: per-iteration work is
+not shared across sibling closes — each close's thunk iterates
+independently, and a shared case-split's discriminator runs once
+per consuming thunk rather than once total. At the per-iteration
+level that is Shape B's cost profile, accepted because thunk-local
+re-emission is what keeps the model simple.
+
+Under Shape C the sharing comes back for free. Sibling closes pull
+the same per-node memoised streams, so per-element work runs once
+regardless of how many closes consume it, at whatever pace each
+consumer pulls. The stream representation delivers, through plain
+memoisation, the cross-close sharing that eager flows gave up when
+placement was retired. A multi-close-heavy program might
+reasonably prefer its flows stream-kinded for this reason alone.
+
+### What does not dissolve into the baseline
+
+Three pieces of this document survive unchanged, and one subtlety
+becomes ubiquitous rather than special:
+
+- **Level identification** (algorithm steps 2 and 7). Which source
+  a node's per-element value varies with — the stream analog of
+  the eager compile's `deeper` — is not an optimisation. Even
+  one-cell-per-node has to know which iteration drives each cell,
+  and inner-flow outputs still enter the outer level as values.
+  This is the part of the algorithm the baseline keeps.
+- **Output construction.** Join, commute, filter (the companion
+  documents) were already defined to be independent of chain
+  partitioning — they see only a memoised pull interface. They
+  attach to per-node chains exactly as they would to lattice
+  chains; nothing in either companion document assumed the lattice
+  beyond that interface.
+- **The runtime primitives** (implementation order step 1) are the
+  same either way.
+- **The multi-parent zip** stops being a subtlety and becomes the
+  universal case: under per-node chains, every node with two or
+  more inputs reads its inputs' streams at the same source
+  position. The `zip` primitive this document calls out is still
+  required — everywhere, not occasionally.
+
+### The honest costs
+
+Two, and they are what would eventually justify the lattice:
+
+- **Allocation count.** Per source element, the baseline allocates
+  one cell per node; the lattice allocates one record per distinct
+  consumer-set, and consumer-sets are typically far fewer than
+  nodes (that observation is the heart of this document). Same
+  asymptotic class as the eager compile's per-iteration lazies,
+  but a bigger constant.
+- **Retention.** An eager close's per-iteration lazies die when
+  the iteration's block exits. Stream cells are memoised history:
+  with multiple consumers, everything back to the slowest cursor
+  stays live, and a retained head pins the whole prefix. Per-node
+  cells make that history proportionally fatter than per-chain
+  records would. This is a genuinely new cost axis relative to the
+  eager compile — the one place where "the same constant factor we
+  already accepted" understates.
+
+Neither cost affects semantics. Which is the point: they are
+exactly the kind of concern the runtime-lazy decision explicitly
+deferred ("optimisation logic in the compiler was paying down debt
+the language hadn't accumulated yet"), and streams shouldn't be
+held to a stricter standard than the compile we already ship.
+
+### Deferred, not conditional
+
+The framing so far — an optimisation to revive "when profiles
+demand it" — is too weak, and it's worth recording why (this came
+out of pushback on the first draft of this postscript): profiles
+may never demand it. Typical workloads may never notice the
+constant factor, and under a benchmarks-only gate the lattice
+would then never be built. But the naive output has a cost
+benchmarks don't measure — it scares people.
+
+The generated JS is read, not just run. Someone evaluating the
+language writes what is conceptually a single pass over a list,
+looks at the output, and sees five independent loops — one per
+close — with the discriminator re-run in each. They do not file a
+performance bug. They ask "how can this possibly scale?" and
+conclude the model is naive, before any benchmark gets a chance
+to argue otherwise. The output is evidence about the language,
+and output that looks pathological is evidence against it, at
+exactly the moment trust is being decided.
+
+This rhymes with the language's own philosophy: concreteness is a
+derived view, and derived views are meant to be read
+(`language-design-philosophy.md`). The compiled JS is the most
+concrete view of all. A program whose most concrete view reads as
+absurd undermines the claim that the abstractions above it are
+sound.
+
+So: the lattice — and the eager hybrid in
+`placement-algorithm-notes.md` — should be done, whether or not
+it ever turns out to be necessary from a computational
+standpoint. What stays deferred is the sequencing, not the
+decision. Semantics first still holds — optimisation logic in the
+compiler while the flow kinds are still moving was exactly the
+debt the retirement paid off, and stream flows shouldn't be gated
+on placement landing. But the end state is committed: one
+conceptual loop should compile to one loop.
+
+### Effect on the implementation order
+
+Steps 1–3 are unchanged — they were already placement-free. Steps
+4 and 5 (consumer-set bookkeeping, N outputs) drop off the
+critical path: multi-output works on the baseline by construction,
+so those steps become the first steps of the *optimisation pass* —
+committed either way ("Deferred, not conditional" above), taken
+once the semantics have settled rather than gated on benchmarks.
+Step 6 (nested flows) stays, but what it validates shrinks to
+level identification and cross-level integration rather than
+per-level lattices.
+
 ## Open questions
 
 1. **Filter closes and per-element subsetting.** A filter close
@@ -474,6 +632,19 @@ differs in shape but not in spirit.
    eager placement work too. I lean toward the smaller step first
    — get stream placement working, then decide whether unification
    pays for itself.
+
+   *Update (2026-07-06):* "The baseline, revisited" above argues
+   the smaller step is smaller than this question assumed: not
+   "stream flows get their own placement-aware compile" but
+   "stream flows get no placement at all" — Shape C as the
+   baseline, with the lattice joining
+   `placement-algorithm-notes.md` in the deferred-but-committed
+   optimisation category ("Deferred, not conditional" above).
+   Also note the "resurrect the eager placement work"
+   arm now reads differently than when this was written: that
+   algorithm was retired as premature and its placeholder
+   machinery flagged as fragile, so unification is a bigger lift
+   than this question priced in.
 
 6. **Single-consumer streams via native generators.** Stream flows
    whose chains are known at compile time to have exactly one
@@ -537,7 +708,11 @@ rework is much cheaper than finding out it after.
   obvious — for lists it was just "lift the output up a level";
   for streams it'd have to be redefined. We haven't tackled it,
   and the placement algorithm doesn't depend on it. If we add it
-  later it may affect the algorithm.
+  later it may affect the algorithm. *(Since tackled:
+  `lazy-stream-join-design.md` works join out as per-close output
+  construction — a flatten — and concludes it does not affect
+  this algorithm; `lazy-stream-commute-design.md` reaches the
+  same conclusion for commute.)*
 
 - **Optimisation of the eager compile.** The placement algorithm
   for eager flows is preserved at `plans/placement-algorithm-notes.md`
