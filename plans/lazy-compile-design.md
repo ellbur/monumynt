@@ -105,3 +105,12 @@ always-demanded fragment.
 The reason we're not doing that now: most of the language design is
 still open, and optimisation logic in the compiler was paying down
 debt the language hadn't accumulated yet. Semantics first.
+
+The same reasoning carries to stream flows when they arrive: the
+stream analog of this strategy is one memoised stream cell per node
+(the "Shape C" that `lazy-stream-placement-design.md` originally
+dismissed), with the consumer-set lattice analysis as the
+optimisation to revive later — see "The baseline, revisited" in
+that document. One notable difference: the stream baseline restores
+the cross-close sharing this compile gives up, because sibling
+closes pull the same memoised per-node cells.
