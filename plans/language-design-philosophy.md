@@ -110,12 +110,16 @@ tower — one language where operations carry levels and programs are
 the data of the level above. See `transformation-levels-design.md`
 for the full treatment.
 
-Sharpening: the source of truth is the *highest description that is
-still true*. Reads are free through the derived view; a write into
-one forces a splice — the expansion is materialized into the program
-of record and the abstract form is given up, deliberately, because
-the coming edits would falsify it. Keeping "sum, plus a patch" when
-the step is no longer a sum would be fake abstraction. Rule of
-thumb: reference the derived view to *add*; splice to *change*.
-Level-1 operations (conversions, recognition) are built-in catalog
+Sharpening: nothing is ever edited — every change *builds*, yielding
+a new program version that shares untouched parts with the old one
+(programs are a persistent, functional data structure; the
+construction history is the program of record). Each version reads
+at the highest level that is true of it: to *add* to a `sum`,
+reference its derived view's principal ports; to *change* its
+interior, materialize the expansion (a recorded construction step)
+and build a new loop from the parts — the sum, and every earlier
+version, remain in the history. Removing a conversion later while
+keeping work built after it is a cherry-pick, translated through the
+port correspondence. Level-1 operations (conversions, recognition,
+history operations like undo and cherry-pick) are built-in catalog
 entries, not user-written macros.

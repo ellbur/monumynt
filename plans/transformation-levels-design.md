@@ -356,6 +356,10 @@ residents:
   here.
 - Future form conversions as they arise — any pair of level-0 forms
   the language treats as the same computation differently arranged.
+- **History operations** — undo, cherry-pick/rebase. A second family,
+  developed in "The edit history is the tower" below: their content
+  is about histories of programs, which passes the same admission
+  test.
 
 ---
 
@@ -380,10 +384,15 @@ Making the catalog concrete: every entry is specified by three parts.
 
 The port correspondence is the load-bearing part, for two reasons.
 
-First, it is what makes invoking the operation an **edit** rather
-than a construction: the form being replaced has consumers, and the
-correspondence says where each consumer's wire re-attaches. Without
-it, a conversion would strand every downstream wire.
+First, it is what lets an invocation produce a **complete new
+version** rather than a disconnected fragment: the old form has
+consumers, and when the new version is built, each consumer is
+rebuilt to arrive at the port the correspondence pairs with the one
+it read before. (No wire is ever re-attached in place — see "Nothing
+mutates" below; the correspondence tells the *rebuild* where to
+point.) Without it, a conversion would strand every downstream
+consumer. The same map, read in reverse, is what makes conversions
+removable later (see "Removing a conversion: cherry-picking").
 
 Second, it is the no-bottleneck principle lifted one level. A level-0
 barrier (join, race) passes value wires through as themselves, with
@@ -407,79 +416,94 @@ each catalog entry.
 
 ---
 
-## Two invocation modes: lens and splice
+## Nothing mutates: every change builds
 
-The catalog says what a level-1 operation *is*. This section says what
-invoking one *does* — and resolves a tension that has been implicit
-since "the level-0 result is a derived view."
+A frame correction that governs everything below: **there is no
+editing anywhere in this design — only building.** The program is a
+persistent structure in the functional-data-structure sense. A
+"change" never modifies an existing node; it builds new nodes that
+reuse existing parts, yielding a new program *version* that shares
+all untouched structure with the previous one. Nothing is destroyed:
+the previous version is simply an earlier point in the construction
+history.
 
-The tension: the derived view is read-only, and that is what keeps
-`sum` durable while you build on it. But the motivating scenario for
-conversions is wanting to **tweak** the expanded form — convert the
-reduction to a general iteration precisely in order to change the
-step into something that is no longer a sum. A read-only view cannot
-support that, and recording the tweak as a patch *on top of* `sum`
-would make the program of record claim a sum-ness that is false.
+Concretely, a "tweak" is a path copy, exactly as in a persistent
+tree: build the replacement node, rebuild the nodes on the path from
+it to the version's outputs, share everything else. Upstream
+structure — sources, unrelated branches — is the *same* nodes, not
+copies.
 
-The resolution: one level-1 computation, **two dispositions of its
-output**.
-
-- **Lens mode** — automatic, always-on, read-only. This is the derived
-  view of the earlier sections. Every abstract node has its expansion
-  available as a lens at all times; nothing is invoked, nothing is
-  stored, and the program of record keeps the abstract node. Used to
-  **inspect** and to **build on** (derived-port references). `sum`
-  stays `sum`.
-- **Splice mode** — deliberate, one-shot. The operation runs as an
-  edit: its expansion is materialized into the program of record,
-  replacing the matched form, with consumers rewired along the port
-  correspondence. The abstract node is gone from the record. Used to
-  **tweak the interior**.
-
-Losing the abstract node under splice is not a defect to be repaired;
-it is the honest outcome. The edits that motivated the splice are
-about to falsify the abstraction — a sum whose step you change to
-`state * 0.9 + element` is not a sum, and a record that said
-"sum, plus this patch" would be fake abstraction: the reader would
-have to mentally execute the patch to know what the program does,
-which is exactly the intent-decoding the one-obvious-reading principle
-forbids. The principle "abstraction is the source of truth" is
-sharpened, not violated: **the source of truth is the highest-level
-description that is still true.** Splice is the sanctioned descent for
-when the current abstraction is about to stop being true.
-
-The two modes are connected by a copy-on-write rule: **reads are free
-through the lens; a write into a lens view forces a splice.** The IDE
-gesture "edit this thing inside the expansion of `sum`" is well-formed
-— it means "splice, then apply the edit to the now-materialized
-form." Whether that escalation is silent or confirmed is an editor
-question, but its semantics are fixed: after the gesture, the record
-holds the expansion, not the abstract node.
-
-Asymmetries between the modes, by direction:
-
-- Downward operations (`expand`) have **both** modes: the lens is
-  their always-on form, the splice their edit form. They are total on
-  their pattern.
-- Upward operations (`recognize`) are **splice-only**. Recognition is
-  partial, so there is no always-on upward lens; and its entire point
-  is to change the record (earn the abstraction). Whether the IDE
-  *offers* recognition eagerly — "this loop is a sum, collapse it?" —
-  is an ergonomics question left open below.
-
-A splice may leave an inert **provenance note** ("this loop was
-spliced from a `sum` here") — pure annotation, no semantic weight,
-never consulted by derivation or compile. Whether it is worth having
-is left open below; the design must not lean on it.
+This deletes a design problem an earlier draft of this section was
+gearing up to solve. If derived views could be edited, an edit made
+in a concrete view would need translating back through the
+derivation onto the abstract form — the classic bidirectional-update
+problem. There are no edits, so there is nothing to translate. What
+survives is a strictly smaller *reference*-translation question,
+which appears below as cherry-picking.
 
 ---
 
-## Worked example: tweaking a sum
+## Two invocation modes: lens and materialize
+
+The catalog says what a level-1 operation *is*. This section says
+what invoking one does: one level-1 computation, two dispositions of
+its output.
+
+- **Lens mode** — automatic, always-on, read-only. This is the
+  derived view of the earlier sections. Every abstract node has its
+  expansion available as a lens at all times; nothing is invoked,
+  nothing enters the history, and the current version keeps the
+  abstract node. Building against a lens reaches its **principal
+  ports** only (derived-port references).
+- **Materialize mode** — a deliberate construction step, recorded in
+  the history like any other step. Its result is a new version in
+  which the expansion's nodes exist as ordinary level-0 parts —
+  *all* of them referenceable and reusable as parts, not just the
+  principal ports — and in which consumers of the abstract node's
+  ports arrive instead at the corresponding materialized ports (the
+  port correspondence names each arrival point). Nothing is replaced
+  or destroyed: the abstract node and every pre-conversion version
+  remain in the history.
+
+The difference between the modes is **addressability, not
+mutability** — neither mutates anything. The lens exposes principal
+ports; materializing puts the entire expansion on the table as parts
+to build from.
+
+"Abstraction is the source of truth" is sharpened rather than
+violated: **each version reads at the highest level that is true of
+it.** A version whose outputs route through a pristine `sum` reads as
+a sum; a version built from the materialized parts with a decaying
+step reads as the loop it is. No version ever claims "sum, plus a
+patch" — that description was only ever conceivable under a mutation
+framing, and it dies with it.
+
+Asymmetries by direction:
+
+- Downward operations (`expand`) have both modes: the lens is their
+  always-on form, materialize their history-step form. Total on
+  their pattern.
+- Upward operations (`recognize`) are materialize-only. Recognition
+  is partial, so there is no always-on upward lens; its entire point
+  is to produce a version that reads at a higher level. Whether the
+  IDE *offers* recognition eagerly — "this loop is a sum, collapse
+  it?" — is an ergonomics question left open below.
+
+Provenance comes for free. Under a mutation framing, a splice needed
+an optional annotation ("this loop was a `sum`") or the old form was
+simply lost. Here the materialize step *is* the record: the
+conversion sits in the history with its input version intact and
+recoverable. The provenance-note question from the earlier draft
+dissolves.
+
+---
+
+## Worked example: rebuilding a sum
 
 The motivating scenario, end to end, in the concrete vocabulary of
 `iteration-with-state-design.md`.
 
-Starting program of record:
+Starting version:
 
 ```
 nLst: list
@@ -491,81 +515,172 @@ nUse: f(nSum)
 No conversion is invoked. `nSum`'s lens (the augment-loop expansion)
 exposes its combined list-with-state flow as a principal derived
 port; a *new* augment is built whose `src` references that port and
-carries the `max` state. The record now holds `nSum` (still a
+carries the `max` state. The new version holds `nSum` (still a
 pristine reduce-close) plus the new augment with a cross-level `src`
 wire. This is the second-accumulator story from the iteration doc,
 unchanged.
 
-**Case B — tweak the interior (splice required).** Make the sum decay:
-each iteration should compute `state * 0.9 + element`, which is no
-monoid — this cannot remain a reduce-close. Invoke `expand` on `nSum`
-in splice mode. The record becomes:
+**Case B — change the step (take the parts).** Make the accumulation
+decay: each iteration should compute `state * 0.9 + element`, which
+is no monoid — this cannot be expressed as a reduce-close. Invoke
+`expand` on `nSum` in materialize mode; the history gains a
+conversion step, and the resulting version is:
 
 ```
 nLst:  list
 U:     uncollect  inputs  seed = 0, src = nLst's flow
                   outputs state, element
-nStep: U.state + U.element                  -- feedback advances U.state
+nStep: U.state + U.element        -- feedback advances U.state
 nOut:  collect exposing the final accumulator
-nUse:  f(nOut)                              -- rewired by port correspondence
+nUse:  f(nOut)                    -- arrives here via the port correspondence
 ```
 
-`nUse` moved from `nSum`'s value output to `nOut` automatically —
-that is the port correspondence doing its job. Now the tweak is
-ordinary level-0 editing: change `nStep` to
-`U.state * 0.9 + U.element`. The record reads as what it is — a
-decaying accumulation loop — with no false `sum` claim anywhere.
+Now the change — and nothing above is edited. Build a **new loop
+from the parts**:
+
+```
+U':     uncollect  inputs  seed = 0 (same wire), src = nLst's flow (same wire)
+                   outputs state, element
+nStep': U'.state * 0.9 + U'.element   -- feedback advances U'.state
+nOut':  collect exposing U''s final accumulator
+nUse':  f(nOut')
+```
+
+This is the path copy from "Nothing mutates": the rebuilt path is
+exactly {uncollect, step, collect, use} — the nodes from the changed
+step to the outputs — while `nLst`, the seed literal, and everything
+upstream are shared, not copied. The head version reads as what it
+is, a decaying accumulation loop; the sum version, and the
+materialized-but-unchanged version between, remain in the history
+untouched.
 
 The two cases give the practical rule of thumb: **reference the lens
-to add; splice to change.** If Case B's author later regrets the
-descent and reshapes the loop back into a genuine monoid fold,
-`recognize` is the earned way back up.
+to add; take the parts to change.** If Case B's author later
+reshapes the loop back into a genuine monoid fold, `recognize` is
+the earned way back up.
 
 ---
 
-## Representation: the tower is machinery, not storage
+## Removing a conversion: cherry-picking
+
+The persistent frame surfaces the one translation problem that
+genuinely remains. Suppose the user materializes `sum`'s conversion
+(history step `C`), builds further steps `D` and `E` on top, and
+then changes their mind: they want the conversion gone but the later
+work kept. In git terms: **cherry-pick `D` and `E` onto the version
+before `C`.**
+
+Replaying a construction step onto a different base is a
+reference-translation problem — each wire in `D` that targeted the
+old base must find its target in the new base:
+
+- References to structure untouched by `C` carry over verbatim; by
+  sharing, it is literally the same nodes.
+- References to **principal** materialized ports translate: onto the
+  abstract node's own ports where the port correspondence pairs them
+  (e.g. the final value ↔ `sum`'s output), or into cross-level
+  `DerivedPort` references through `sum`'s lens for principal
+  expansion ports with no abstract-side twin (e.g. the combined
+  list-with-state flow).
+- References to **non-principal** materialized internals — the step
+  node's own output, say — have no image in a history lacking `C`.
+  That is a genuine conflict, surfaced to the user exactly as git
+  surfaces one, with the same honest options: keep the conversion,
+  drop the dependent step, or restructure by hand.
+
+A pleasing alignment: the conflict class is precisely the extra
+addressability that materializing bought. What the lens exposes
+(principal ports) is what survives translation; what only
+materialization exposes is what pins the conversion into any history
+that used it. "Which ports are principal" thus has a second
+consequence beyond reference hygiene: **it draws the boundary of
+cherry-pickability.**
+
+---
+
+## The edit history is the tower
+
+Because every change builds, the construction history is not an
+editor convenience kept beside the program — it is built into the
+model. The program of record *is* the history; any version is a fold
+of a history prefix; the "current program" is just the version at
+the head.
+
+And the history re-runs the tower:
+
+- Every level-0 construction ("add this node") is *also* a level-1
+  act: it extends the history, and the history is a level-1 object —
+  a sequence of operations on programs. Extending the history is in
+  turn describable at level 2, and so on. This is "every operation
+  spans [k, ∞)" again, now with the history as the concrete carrier,
+  and degeneracy disposes of it identically: the step is stored
+  once, at its native level; every higher reading is derived, never
+  stored.
+- Some operations are *natively* history-level. **Undo** is level 1:
+  its content is about the program/history ("revert that step"), not
+  about values. **Undoing an undo** operates on a history that now
+  contains an undo — level 2. The tower does not top out; degeneracy
+  is what keeps each such act one stored step rather than a stored
+  stratum.
+- The catalog therefore holds two families: **form conversions**
+  (`expand`, `recognize`) and **history operations** (undo,
+  cherry-pick/rebase). Both pass the admission test — their content
+  is about programs, or histories of programs, never about values.
+
+One caution, flagged open below: "undo" has two classical readings —
+append a reverting step (git revert) versus move the head (git
+reset) — and which the language means, or whether both exist, is not
+yet designed. The level analysis is indifferent to the choice: the
+native level is ≥ 1 either way.
+
+---
+
+## Representation: history as storage, versions as folds
 
 An earlier section says "the program (with its level-1 steps) is the
-thing of record." The lens/splice split sharpens this into something
-almost anticlimactic, and that is its virtue: **the stored program
-remains level-0 syntax throughout.**
+thing of record." Concretely: the stored artifact is the
+**construction history** — a sequence of steps (linear or DAG, open
+below), each stored once at its native level. The history is
+heterogeneous in level and that is fine: an add-node step (native
+level 0), a materialize step (native level 1), an undo-of-undo
+(native level 2) sit in one list, each tagged by what it operates
+on. There are no stored strata above the steps themselves; every
+higher reading of every step is degenerate.
 
-- A **lens** never stores anything: it is implied by the node species.
-  A reduce-close node *is* the level-1 step whose expansion is its
-  lens — the abstract node and "the step that produces the concrete
-  form" are one stored datum, read at two levels. This is degeneracy
-  cashing out in the representation: the node is stored once, at its
-  native reading, and its transformation-level reading is derived.
-- A **splice** never stores anything either: it is an edit, living in
-  edit history like any other edit, its output ordinary level-0
+Everything else is derived:
+
+- A **version** is a fold of a history prefix — a level-0 program
+  value. Versions share structure the way persistent-data-structure
+  snapshots do: a step touching one path copies that path and shares
+  the rest.
+- A **lens** stores nothing: it is implied by the node species. A
+  reduce-close node *is* the level-1 step whose expansion is its
+  lens — one stored datum, read at two levels; degeneracy cashing
+  out in the representation.
+- A **materialize** is an ordinary history step whose result
+  version contains the expansion's nodes as ordinary level-0
   structure.
-
-So the tower is inhabited — the catalog operations are real, run, and
-have irreducibly level-1 content — but it is inhabited by
-**machinery** (derivation and edit-time computation), not by stored
-strata. The only representational additions the whole design needs:
-
-- **Abstract node species** (reduce-close today; each future entry as
-  it arrives) in the level-0 syntax, each with a catalog entry giving
-  pattern / expansion / port correspondence / principal ports.
 - **Cross-level wire references**: a wire target of the form
-  `DerivedPort(nodeId, portName)` — "the port named `portName` in the
-  expansion of node `nodeId`." Resolution computes the expansion's
-  *shape* (which ports exist), which is structural and cheap; values
-  force lazily as ever. `portName` draws from the catalog entry's
-  declared principal ports, so a reference can never reach a
-  derivation internal — ill-formed references are unrepresentable
-  rather than checked.
-- **Splice as a pure function** `program → program` over the existing
-  structures, per catalog entry. Nothing new in the syntax.
+  `DerivedPort(nodeId, portName)` — "the port named `portName` in
+  the expansion of node `nodeId`." Resolution computes the
+  expansion's *shape* (which ports exist), which is structural and
+  cheap; values force lazily as ever. `portName` draws from the
+  catalog entry's declared principal ports, so a reference can never
+  reach a derivation internal — ill-formed references are
+  unrepresentable rather than checked.
+- **Materialize and cherry-pick as pure functions** over the
+  existing structures (`version → version` and
+  `history × step → option<step>` respectively). Nothing new in the
+  level-0 syntax.
 
-Level 2 and above remain concretely uninhabited. The candidates that
-come to mind — composing two conversions, applying a conversion at
-every matching site — are on inspection still level 1 (a bigger
-pattern or a derived catalog entry, but content about level-0
-programs either way). Degeneracy means the empty upper tower costs
-nothing to keep, and the single-native-level assumption survives the
-whole catalog so far: no entry has independent content at two levels.
+Level 2 gains its first plausible resident in undo-of-undo (above).
+Beyond that the candidates that come to mind — composing two
+conversions, applying a conversion at every matching site — are on
+inspection still level 1 (a bigger pattern, but content about
+level-0 programs either way). Degeneracy means the sparsely
+inhabited upper tower costs nothing to keep, and the
+single-native-level assumption survives the whole catalog so far: no
+entry has independent content at two levels.
 
 ---
 
@@ -632,35 +747,52 @@ Resolved since first drafted (see the sections above):
   suffices because expansions recurse through their own principal
   ports.
 - ~~**The concrete lift map, if the tower is represented directly.**~~
-  Dissolved rather than solved: the tower is not represented directly.
-  Stored programs stay level-0; lenses are implied by node species and
-  splices are edits. No stored lift map is needed.
+  Dissolved rather than solved: no stored strata exist above the
+  history's steps. Each step is stored once at its native level;
+  every higher reading is degenerate. No stored lift map is needed.
+- ~~**Provenance notes.**~~ Dissolved by the persistent frame: the
+  materialize step in the history *is* the provenance, with the
+  pre-conversion version intact and recoverable. No annotation
+  mechanism is needed.
 - **Which derived ports a derivation exposes** — reduced from a policy
-  question to a per-entry field. Still to pin: the actual port list for
-  each entry as it is implemented (for `expand` on reduce-close: the
-  combined list-with-state flow and the final value).
+  question to a per-entry field, with a second consequence discovered:
+  principal ports also draw the boundary of cherry-pickability. Still
+  to pin: the actual port list for each entry as it is implemented
+  (for `expand` on reduce-close: the combined list-with-state flow and
+  the final value).
 
 Still open:
 
-- **Is the tower load-bearing?** Partially answered: conversions are an
-  irreducible level-1 resident, so the tower is load-bearing at least
-  for them. What remains is how *many* such residents there are versus
-  how much collapses to level 0 via enrichments like latent flows.
+- **Is the tower load-bearing?** Strengthened: conversions are an
+  irreducible level-1 resident, history operations (undo,
+  cherry-pick) are a second family, and undo-of-undo is a plausible
+  first level-2 resident. What remains is how much *else* collapses
+  to level 0 via enrichments like latent flows.
 - **The single-native-level assumption** stated above — unfalsified by
   the current catalog, unproven in general.
-- **Splice escalation ergonomics.** Editing inside a lens view forces a
-  splice by rule; whether the editor escalates silently or confirms
-  first is undecided. (Semantics are fixed either way.)
-- **Provenance notes.** Whether a splice leaves an inert "was a `sum`"
-  annotation, and whether the IDE ever surfaces it. The design must not
-  lean on it; the question is only whether it earns its noise.
-- **Eager recognition.** Whether the IDE proactively offers `recognize`
-  ("this loop is a sum — collapse it?") or waits to be asked. Eager
-  offers make abstraction cheaper to earn but risk nagging on loops
-  deliberately left concrete (e.g. one just spliced).
-- **Rewiring existing derived-port references across a splice.** If a
-  wire references a principal port of `sum`'s lens (Case A) and `sum`
-  is later spliced (Case B), the port correspondence should carry the
-  reference onto the materialized structure — principal ports are
-  exactly the ports the correspondence tracks — but this interaction
-  has not been worked in detail.
+- **History shape.** Linear sequence or DAG? Branching histories
+  (trying a change, keeping the old head alive) and merging are
+  natural under the persistent frame but undesigned. Cherry-picking
+  already smells like a DAG operation.
+- **Node identity across versions.** Path copying makes "the same
+  node" subtle: the copied step node in the worked example is a *new*
+  node. What identity, if any, connects a node to its rebuilt
+  counterpart across versions — and whether the port correspondence
+  machinery generalizes to answer it — is undesigned. Cherry-pick
+  translation and any diff/blame view both depend on it.
+- **The cherry-pick algorithm in detail.** The three translation
+  rules above are the spec's skeleton; the actual replay (ordering
+  among transplanted steps, conflict presentation, partial
+  application) is undesigned.
+- **Undo's reading.** Append-a-reverting-step (git revert) versus
+  move-the-head (git reset), or both. Interacts with history shape.
+- **Editor gesture mapping.** "Grab a part inside a lens view and
+  build with it" must denote materialize-then-build (the part is
+  non-principal) or a plain derived-port reference (it is principal).
+  Whether the editor materializes implicitly on the first
+  non-principal grab or requires an explicit gesture is undecided;
+  the semantics underneath are fixed either way.
+- **Eager recognition.** Whether the IDE proactively offers
+  `recognize` ("this loop is a sum — collapse it?") or waits to be
+  asked. Eager offers make abstraction cheaper to earn but risk
+  nagging on loops deliberately built from materialized parts.

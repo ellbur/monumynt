@@ -1240,14 +1240,17 @@ reference the output port of a derived result — is developed in
 derived ports are exposed for reference (the principal output ports, such
 as the combined flow — not arbitrary derivation internals).
 
-This covers *adding alongside* a `sum`. The other case — *tweaking the
-interior* (e.g. making the step decay, which is no monoid) — cannot stay
-a reduce-close and is handled differently: a built-in level-1 `expand`
-invoked in **splice mode** materializes the augment loop into the program
-of record (consumers rewired by port correspondence), after which the
-tweak is ordinary editing. Rule of thumb: reference the derived view to
-add; splice to change. See `transformation-levels-design.md`, "Two
-invocation modes: lens and splice."
+This covers *adding alongside* a `sum`. The other case — *changing the
+interior* (e.g. making the step decay, which is no monoid) — cannot be a
+reduce-close, and is handled without editing anything: a built-in
+level-1 `expand` invoked in **materialize mode** records a construction
+step whose result version contains the augment loop's nodes as ordinary
+parts (consumers rebuilt to arrive at the corresponding ports), and the
+decaying version is then *built* from those parts — a new step and a new
+uncollect sharing the seed and `src` wires — while the sum version
+persists in the history. Rule of thumb: reference the lens to add; take
+the parts to change. See `transformation-levels-design.md`, "Two
+invocation modes: lens and materialize."
 
 ---
 
