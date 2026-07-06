@@ -549,7 +549,10 @@ nUse':  f(nOut')
 This is the path copy from "Nothing mutates": the rebuilt path is
 exactly {uncollect, step, collect, use} — the nodes from the changed
 step to the outputs — while `nLst`, the seed literal, and everything
-upstream are shared, not copied. The head version reads as what it
+upstream are shared, not copied. (The primes are per-version records,
+not new identities: `U'`, `nOut'`, `nUse'` copy the ids of the nodes
+they rebuild; only `nStep'` — the thing actually constructed — mints
+a fresh id. See "Node identity" below.) The head version reads as what it
 is, a decaying accumulation loop; the sum version, and the
 materialized-but-unchanged version between, remain in the history
 untouched.
@@ -673,6 +676,53 @@ Everything else is derived:
   `history × step → option<step>` respectively). Nothing new in the
   level-0 syntax.
 
+### Node identity: minted at construction, copied along correspondence
+
+The "node identity across versions" question has a supplied answer,
+not a designed one — identity comes from the construction process
+itself:
+
+- **Every node the user constructs gets a globally unique id that
+  never changes.** The id is minted by the construction step and
+  recorded in it; it is the node's identity forever after.
+- **Every derived node** — derived by a lens expansion, a
+  materialize, a path copy, an undo, a cherry-pick — either **copies
+  the id** of the node it corresponds to, or, where there is no
+  correspondence, **mints a fresh globally unique id** (recorded in
+  the deriving step, so stable thereafter).
+
+Identity is therefore the id, not the record. Two versions may hold
+different node records under the same id — same node, different
+wiring in different versions. That one distinction sorts every case
+that came up above:
+
+- **Path copies are id-preserving.** In the worked example, the
+  rebuilt uncollect, collect, and consumer correspond one-to-one to
+  the nodes they rebuild, so they copy ids; only the new step node —
+  the thing the user actually constructed — mints one. The id
+  structure says exactly what the user thinks happened: one new
+  node, everything else the same nodes. Persistence is invisible at
+  the identity level.
+- **Diff and blame fall out.** Diff two versions by id: an id in
+  both with different records is a rewire; an id on one side only is
+  an add or a remove. Blame is the history step that minted the id.
+- **Materialize mints where the expansion is new, copies where it
+  corresponds.** The expansion's own nodes (the uncollect, the step)
+  have no pre-existing counterpart: fresh ids, minted once at the
+  materialize step. The rebuilt consumers correspond to their old
+  selves: copied ids. The port correspondence and the id rules are
+  the same map seen twice.
+- **Undo copies.** A node an undo restores corresponds to the node
+  that was there: same id. Undo does not simulate re-construction;
+  it derives, and the correspondence is the identity.
+- **Cherry-pick becomes id-level.** A replayed step re-mints nothing:
+  it carries the ids it originally minted, and its references are
+  ids translated through the recorded correspondences. The three
+  translation rules in the cherry-picking section are statements
+  about ids.
+- **`DerivedPort(nodeId, portName)` is stable by construction** —
+  `nodeId` is a minted id and minted ids never change.
+
 Level 2 gains its first plausible resident in undo-of-undo (above).
 Beyond that the candidates that come to mind — composing two
 conversions, applying a conversion at every matching site — are on
@@ -754,6 +804,12 @@ Resolved since first drafted (see the sections above):
   materialize step in the history *is* the provenance, with the
   pre-conversion version intact and recoverable. No annotation
   mechanism is needed.
+- ~~**Node identity across versions.**~~ Resolved by supplied ids:
+  every user-constructed node carries a globally unique, immutable
+  id minted by its construction step; derived nodes copy the id of
+  the node they correspond to, or mint fresh where no correspondence
+  exists. Identity is the id, not the record; path copies are
+  id-preserving. See "Node identity" in the representation section.
 - **Which derived ports a derivation exposes** — reduced from a policy
   question to a per-entry field, with a second consequence discovered:
   principal ports also draw the boundary of cherry-pickability. Still
@@ -774,12 +830,6 @@ Still open:
   (trying a change, keeping the old head alive) and merging are
   natural under the persistent frame but undesigned. Cherry-picking
   already smells like a DAG operation.
-- **Node identity across versions.** Path copying makes "the same
-  node" subtle: the copied step node in the worked example is a *new*
-  node. What identity, if any, connects a node to its rebuilt
-  counterpart across versions — and whether the port correspondence
-  machinery generalizes to answer it — is undesigned. Cherry-pick
-  translation and any diff/blame view both depend on it.
 - **The cherry-pick algorithm in detail.** The three translation
   rules above are the spec's skeleton; the actual replay (ordering
   among transplanted steps, conflict presentation, partial
