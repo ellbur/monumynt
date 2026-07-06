@@ -189,52 +189,97 @@ What joint demand does *not* give you is consuming two threads'
 outputs incrementally *in arrival order* — for that see merge,
 under racing below.
 
-## Racing is a case split over time
+## Racing is a barrier, not a value
 
 The second extra operation the async flow needs. `race(a, b)`
-takes two async values and resolves when the first of them does.
-The key design observation is what the result *is*: not a value of
-one known type, but a discrimination — **which one won**, plus the
-winner's value. That is an alternative, and alternatives are what
-the case-split machinery already handles.
+takes two async contenders and resolves when the first of them
+does. The result is a discrimination — **which one won**, plus
+the winner's value — so the case-split machinery is clearly
+nearby. The design question is how the discrimination is
+*represented*.
 
-So race decomposes into a small primitive plus existing
-vocabulary:
+The first draft of this document made race a node producing an
+alternative value:
 
     race : (async<A>, async<B>) → async<alt{ First(A) | Second(B) }>
 
-- `race` itself is a node producing an async value whose thunk
-  starts both contenders and settles on the first resolution,
-  tagging it with its origin.
-- The result is *opened* with the ordinary async open, and the
-  alternative inside is *split* with the ordinary `CaseSplit`.
-  Exhaustiveness, per-alt values, filter closes on one alt — all
-  inherited.
+opened with the ordinary async open and split with the ordinary
+`CaseSplit`. The reuse was attractive, but the shape is wrong: it
+forces a **bottleneck**. Contender `a`'s thread enters the race
+and re-emerges as the First alt's flow and value — but only by
+being packed into a tagged value and immediately unpacked again.
+The wire-level identity between the `a` input and the `a` case is
+severed; the correspondence survives only in the tag's name and
+the reader's head. This is the sum-shaped dual of the tuple
+bottleneck — the product one — that the 2D join was designed to
+avoid: there, multiple concurrent values refuse to be packed into
+a tuple just to pass through a join; here, multiple alternative
+threads refuse to be packed into a tagged union just to pass
+through a race. (See "No bottlenecks — neither product nor sum"
+in `language-design-philosophy.md`; the product instance is
+worked through as the functional bottleneck problem in
+`iteration-with-state-design.md`.)
 
-This is "cases as values" doing its job: the outcome of the race
-is a case value you inspect and flow through, not a control
-structure you write code inside.
+So race is instead a **barrier**: a single multi-input,
+multi-output construct whose inputs and outputs are not unrelated
+ports but correspond pairwise —
+
+- N async inputs, one per contender.
+- Per contender `i`, an output **flow** (fires iff contender `i`
+  won) and an output **value** (contender `i`'s resolved value,
+  available on that flow).
+- The output flows form a bundle that must be closed together,
+  exhaustively — exactly the discipline of an opened case split.
+  The close's output is an `async<Y>`: the close repackages the
+  time displacement, since which alt fired isn't known until
+  resolution.
+
+Downstream, everything is inherited from case splits unchanged:
+exhaustive close, per-alt values, filter closes on one alt. What
+the barrier form changes is *upstream identity*: thread `i`
+passes straight through the barrier. In wire terms the `i`-th
+input and the `i`-th case are one thread, interrupted only by the
+barrier line that marks "exactly one of these continues."
+
+The duality with the concurrent join is exact and worth stating:
+
+- **Concurrent join is the product barrier.** N threads enter;
+  all continue together; each value passes through individually;
+  no tuple is constructed.
+- **Race is the sum barrier.** N threads enter; exactly one
+  continues; each value passes through individually; no
+  alternative is constructed.
+
+`CaseSplit` remains the right tool when the sum already exists
+*as data* — a value that genuinely is a tagged union, arriving
+from elsewhere. Race is for the sum that arises structurally,
+from timing; constructing the data sum only to split it again is
+precisely the bottleneck. And the rejected alt-value form isn't
+wasted: it survives as the *compilation* — the emitted JS races
+tagged promises (see the compile sketch), with the tag as
+internal bookkeeping selecting the branch scope, never a
+user-visible value. The same representation-vs-compilation split
+the Commute node landed on.
 
 ### Worked example: timeout
 
 Fetch with a five-second timeout. `fetchD : async<Data>`,
 `timer(5s) : async<unit>`.
 
-    race(fetchD, timer) -> open async -> case split
-      First(data)  -> Some(process(data))
-      Second(())   -> None
+    race(fetchD, timer)
+      fetch-won flow, data  ->  Some(process(data))
+      timer-won flow, ()    ->  None
+    close both flows together  =>  async<option<…>>
 
 Forcing trace:
 
-1. A consumer forces the case close's output. Its thunk forces
-   the async open, which starts the race cell.
-2. The race thunk starts both contenders — the fetch's promise and
-   the timer's promise are now both in flight — and awaits the
-   first settlement.
-3. Say the fetch resolves at 3s. The race resolves to
-   `First(data)`; the case split dispatches; the close's value is
-   `Some(process(data))`.
-4. The timer's promise is still in flight. Its cell is memoised:
+1. A consumer forces the close's output cell. Its thunk starts
+   both contenders — the fetch's promise and the timer's promise
+   are now both in flight — and awaits the first settlement.
+2. Say the fetch resolves at 3s. The fetch-won flow fires with
+   `data` on its value wire; the close takes that branch's
+   value, `Some(process(data))`, and resolves.
+3. The timer's promise is still in flight. Its cell is memoised:
    if some *other* consumer independently forces the timer, they
    share the in-flight promise and get its value at 5s. If nobody
    does, it resolves at 5s into an unobserved cell and is GC'd.
@@ -243,7 +288,7 @@ Forcing trace:
 Determinism: the event loop serialises settlements, so given a
 schedule the winner is well-defined; across schedules it is not.
 The language should promise no more than JS does here —
-nondeterminism is inherent to racing and the case split is
+nondeterminism is inherent to racing and the case structure is
 precisely the honest representation of it.
 
 ### Merge: racing lifted over streams
@@ -251,10 +296,10 @@ precisely the honest representation of it.
 Fork-join consumes two threads' results at the end; **merge**
 consumes them as they arrive. `merge(s1, s2)` interleaves two
 async streams in arrival order — and it is just race applied
-repeatedly: race the two head cells; the winner's value is the
-next output cell; recurse with the winner's tail and the loser's
-*still-in-flight* head (the memoised cell carries over — no work
-is lost or duplicated). Output order is schedule-determined, which
+repeatedly: race the two head cells; on the s1-won flow, emit the
+head and recurse with s1's tail and s2's *still-in-flight* head
+(the memoised cell carries over — no work is lost or duplicated);
+symmetrically on the s2-won flow. Output order is schedule-determined, which
 is the point of the operation.
 
 ## Interruption: unless-and-until
@@ -421,9 +466,11 @@ existing simple-lazy compile discipline:
   syntax.
 - Concurrent join: start all inner cells, then await, as sketched
   above.
-- `race`: start both, `Promise.race` over tagged wrappings (each
-  contender's promise mapped to `{tag, value}` before racing, so
-  the winner self-identifies).
+- `race`: the barrier compiles to start-all plus `Promise.race`
+  over tagged wrappings (each contender's promise mapped to
+  `{tag, value}` before racing), the tag dispatching into the
+  winning branch's scope — compile-internal bookkeeping, never a
+  user-visible value.
 - Async streams are the existing stream cells with the async cell
   in the `Delayed` position — this is precisely the prototype's
   event-loop-integrated `Delayed` (`tick()`), un-stripped. The
@@ -460,10 +507,17 @@ existing simple-lazy compile discipline:
    and parallel walks become two distinct output constructions?
    Needs a concrete effectful use case.
 
-5. **Race arity and shape.** Pairs compose
-   (`race(a, race(b, c))`) but produce nested alternatives; an
-   N-ary race producing a flat N-alt is friendlier and matches
-   CaseSplit's N-alt shape. Probably just N-ary from the start.
+5. **Barrier representation in the Expr graph.** Race needs
+   per-contender flow and value output ports on one construct —
+   more port structure than any current node kind carries
+   (Branch is the nearest precedent). This strengthens the case
+   for the first-class port concept already on the README's
+   next-steps list; a Race node reached through `go`'s
+   node-equals-value-port conflation won't fit. (Arity, at
+   least, is settled by the barrier form: N-ary from the start.
+   The nested-alternative composition question —
+   `race(a, race(b, c))` — was an artifact of the rejected
+   alt-value form.)
 
 6. **Is the async open its own kind, or is `OptionIter` a
    degenerate async?** They share the one-shot-body shape. Keeping

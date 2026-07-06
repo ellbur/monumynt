@@ -115,62 +115,29 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Five principles run through the language design and should be kept in
-mind when evaluating new primitives or constructs:
+Six principles run through the language design; the full statements,
+with the design conversations that earned each one, live in
+`plans/language-design-philosophy.md`. Read that before evaluating any
+new primitive or construct. In one line each:
 
-**Example first, then generalise.** Programs should be writable starting
-from a concrete example, with generalisation applied after the fact —
-not declared upfront. Conventional languages force you to write the
-general form first (function parameters, fold signatures, type
-annotations). This language inverts that: you write the specific case,
-then identify the relationship that makes it general. A proposed
-primitive that requires declaring structure upfront before writing the
-concrete computation is suspect.
-
-**Inside-out / cases as values.** The language avoids constructs that
-make the *interior scope* of an expression different from its exterior.
-Cases (branches, alts) should be values you inspect and flow through,
-not scopes that influence the meaning of expressions written inside
-them. This is why `stateful(initial, update)` was rejected: `prev` was
-only in scope inside the second argument, making that expression's
-meaning depend on where it appeared.
-
-**Foundations before features.** Getting the right building blocks takes
-priority over accumulating features quickly. A wrong primitive compounds
-— everything built on it inherits the flaw. It is cheaper to spend time
-critiquing and rejecting candidates than to implement the wrong thing
-and correct it later. Once foundations are right, building on them
-should be fast and unsurprising.
-
-**Building blocks at the programmer's abstraction level.** The language
-does not subscribe to the Lisp philosophy of minimal primitives. When
-building blocks are much simpler than the programmer's vocabulary, there
-is no one obvious way to write a given program — readers must decode
-intent rather than read it directly. The criterion for a building block
-is not "is this the simplest possible primitive?" but "does this meet
-the programmer at the level of their own abstractions?" The goal is one
-obvious way to express a given program, which is what makes programs
-readable across authors and time. Note this concerns the *reading*: many
-authoring paths may converge to one result-level reading, so
-discoverability (many ways to write) and readability (few ways to read)
-are not in tension.
-
-**Abstraction is the source of truth; concreteness is a derived view.**
-The authored program keeps the highest-level description. Every
-more-concrete form (a `sum`'s running-iteration expansion, any operation's
-lowering) is a read-only *derived view* — always available for inspection
-and reference, never the thing you edit. This makes high-level building
-blocks *durable*: the abstraction is not compiled away in the program you
-hold. You build on a derived view by referencing its ports, not by
-materialising it. Corollary: derivation is free and downward (dropping to
-a concrete form is total and automatic, so a block never traps you);
-abstraction is earned and upward (recovering a high-level form from a
-concrete one is partial recognition). This rests on a homogeneous tower —
-one language where operations carry levels and programs are the data of
-the level above.
-
-See `plans/iteration-with-state-design.md` and
-`plans/transformation-levels-design.md` for extended discussion.
+- **Example first, then generalise.** Write the concrete case, then
+  identify what makes it general — never declare structure upfront.
+- **Inside-out / cases as values.** No construct makes an expression's
+  interior scope differ from its exterior; cases are values you flow
+  through, not scopes; no magic names.
+- **Foundations before features.** Critiquing and rejecting candidates
+  on paper is cheaper than implementing the wrong primitive.
+- **Building blocks at the programmer's abstraction level.** Not
+  minimal primitives; one obvious *reading* per program, however many
+  authoring paths converge to it.
+- **No bottlenecks — neither product nor sum.** Wires pass through
+  combining constructs as themselves: no tuple packed just to pass a
+  join (product), no tagged union packed just to pass a race (sum);
+  joins and races are barriers with corresponding inputs and outputs.
+- **Abstraction is the source of truth; concreteness is a derived
+  view.** Lowerings are read-only derived views you reference, never
+  the thing you edit; derivation is free and downward, abstraction
+  earned and upward.
 
 ## Working with the user
 
