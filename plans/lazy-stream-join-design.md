@@ -206,6 +206,249 @@ example (a commuted close short-circuiting mid-zip, siblings
 unaffected) is in `lazy-stream-commute-design.md`, "Commute and
 the multi-parent zip".
 
+## Join at an option level (taking up open question 2)
+
+*(Added 2026-07-06.)* Open question 2 below asked whether joining a
+stream of options — where the join "transparently skips Nones" — is
+the same operation as stream-filter, and suggested a worked example
+would settle it. Working the example shows the question is sharper
+than it looked: the documents currently in print assign **three
+mutually inconsistent answers** to what happens to a non-firing
+element, and choosing between the two coherent ones is a real
+design decision, not a clarification. This section pins down the
+discrepancy, lays out the two candidate resolutions as complete
+wrapper algebras, and records what would settle the choice. It does
+not make the choice.
+
+### Three readings currently in print
+
+Setting: an option iter opened per element of a stream flow (per
+element, the option either fires with a value or doesn't), and a
+close on that option iter. What is the close's output as the
+enclosing stream layers wrap and join it? The fate of a non-firing
+element differs by document:
+
+1. **Skip at the wrap.** `lazy-stream-commute-design.md`,
+   "Multi-output independence": the plain non-commuted close
+   "yields a `stream<X>` of just the defined values (filter-style
+   reading)". A non-firing element contributes no cell, already at
+   the plain — unjoined, uncommuted — close.
+
+2. **Keep at the wrap; join never touches it.** The same document,
+   "Composing Commuted with Joined", three sections later: the
+   plain close yields `stream<stream<option<X>>>` — the option is
+   packaged as a per-element *value*, Nones kept — and `Joined`
+   merges the two nearest *stream* layers, yielding
+   `stream<option<X>>` with the Nones still present (that
+   section's worked example: `[Some(2), Some(4), None, Some(8)]`).
+
+3. **Keep at the wrap; skip at the join.** The implemented list
+   compile (`lazy-compile-design.md`, "Output form for iter
+   chains"): an unjoined close on an option iter yields a
+   set-iff-fired value — option data in the undefined encoding —
+   while a *joined* close whose walked-up chain crosses the option
+   level skips: "`List<Option<X>>` joined produces a list of just
+   the defined values — push when Some, skip when None." The
+   original language description agrees:
+   `flow_language_design.md`, "Filtering with Partial
+   Conditionals", presents filtering *as* a JOIN of a partial
+   branch's flow with the list flow ("Elements that fail the
+   condition don't execute through the partial branch").
+
+Reading 1 contradicts reading 2 inside one document, and is
+untenable on its own: if the plain wrap already skips, the
+Nones-kept shapes — `stream<option<X>>` and everything the
+composition discipline builds from them — become inexpressible from
+a closed option. It is presumably loose wording for "the sibling
+close that reads filter-style", but the looseness lands exactly on
+this open question's fault line, which is why it is worth pinning
+down rather than waving through.
+
+Readings 2 and 3 are both coherent, and they genuinely disagree:
+`Joined(NodeFlow(optionIter))` means different things under each.
+The disagreement traces to one modelling choice: **does the close
+on an option iter contribute a chain level or not?** The list
+compile starts the walked-up chain at the close's own opener, so
+the first `Joined` fuses the option level with the nearest
+enclosing sequenceable level — skip semantics fall out of "any
+list in chain → list". The composition discipline instead consumes
+the option level into the per-element value shape before any stage
+applies, so `Joined` only ever sees stream layers — a pure flatten
+that can never drop an element.
+
+One vocabulary item makes the algebras below precise. Call a value
+shape **partial** when it is a may-not-fire output of a closed
+option level (or, later, of a single opened alt): "a value on
+iterations where the option fired, nothing on the others". This is
+`flow_language_design.md`'s `PARTIAL_BRANCH` propagation and the
+implemented compile's set-iff-fired binding. Partiality is
+flow-level absence; `option<X>` is data. The two conflate in the
+undefined encoding but the algebra needs them distinguished,
+because the whole question is *which construct converts flow-level
+absence into what*.
+
+### The two candidate algebras
+
+Both algebras agree on the frame: wrapper stacks are
+output-construction stages applied inside-out, each stage's
+requirement checked when reached, ill-formed stacks rejected — the
+shape discipline of `lazy-stream-commute-design.md` survives
+intact. They differ in the stage inventory and in what the plain
+close contributes.
+
+**Spelling J (join crosses levels — the list precedent).** The
+close's chain starts at its own opener. Closing an option level
+yields a partial value. An enclosing layer wrapped with no stage
+materialises partiality as option data (`stream<option<X>>` — this
+is what reading 3's unjoined case does). `Joined` consumes the
+nearest unconsumed enclosing level, of either kind: consuming a
+stream level with a partial value skips non-firings (filter);
+consuming an enclosing option level ANDs the firings (the
+`Option<Option<X>>` rule); consuming a stream level with a plain
+value flattens (the pure-stream join, unchanged). `Commuted`
+consumes the nearest enclosing stream level, requires a partial or
+option-shaped value, abort semantics. There is no separate filter
+stage: filter *is* join at an option level.
+
+**Spelling F (filter is its own stage — the composition
+discipline, completed).** The option level is consumed to option
+*data* immediately, as the composition discipline already has it.
+`Joined` merges stream layers only and never drops an element —
+cardinality-preserving by definition. The skip behaviour, which
+this spelling currently lacks (that lack is what reading 1
+papered over), is restored as its own stage: `Filtered` converts a
+partial or option-shaped per-element value into cell-absence in
+the nearest enclosing stream layer, leaving that layer in place
+for further stages. The name is deliberate — it extends the
+existing case-split `Filtered` to option levels, unifying the
+language's two skip constructs under one spelling.
+
+The algebras are not different semantics so much as different
+*spellings partitioning the same operation inventory*: J overloads
+join with level-kind-dependent behaviour; F splits by behaviour.
+
+### Worked example
+
+Outer stream `S` of inner streams `T`, conceptually
+`[[2, 4], [6, 7], [8]]`; per innermost element an option iter on
+`maybeEven` (fires with `n` iff even). The close is on the option
+iter. Per-element firings: group 1 `[2, 4]` both fire; group 2
+`[6, 7]` fires then doesn't; group 3 `[8]` fires. The middle group
+is the probe: it fails *partially*, which is what separates
+readings that agree on all-or-nothing groups.
+
+| stack | under J | under F |
+|---|---|---|
+| `NodeFlow(opt)` | `[[Some 2, Some 4], [Some 6, None], [Some 8]]` | same |
+| `Joined(NodeFlow)` | `[[2,4],[6],[8]]` — per-group filter, grouping kept | `[Some 2, Some 4, Some 6, None, Some 8]` — flat, Nones kept |
+| `Joined(Joined(NodeFlow))` | `[2,4,6,8]` — flat filter | ill-formed (one flat layer left) |
+| `Filtered(NodeFlow)` | — (spelled `Joined(NodeFlow)`) | `[[2,4],[6],[8]]` |
+| `Joined(Filtered(NodeFlow))` | — (spelled `Joined(Joined(…))`) | `[2,4,6,8]` |
+| `Commuted(NodeFlow)` | `[Some [2,4], None, Some [8]]` | same |
+| `Commuted(Commuted(NodeFlow))` | `None` (grouped abort) | same |
+| `Commuted(Joined(NodeFlow))` | ill-formed (join consumed the partiality; nothing left to commute on) | `None` — flat global abort |
+| `Joined(Commuted(NodeFlow))` | ill-formed | ill-formed |
+| `Filtered(Commuted(NodeFlow))` | — (re-open needed) | `[[2,4],[8]]` — successful groups' payloads |
+| `Joined(Filtered(Commuted(…)))` | — (re-open needed) | `[2,4,8]` — flat |
+
+Every *value* in the table is reachable under either spelling; the
+spellings differ in which combinations are single wrapper stacks
+and which need auxiliary construction:
+
+- Under J, the flat-Nones-kept shape (`Joined(NodeFlow)` in F)
+  takes two closes: close the option unjoined into an option-data
+  value per T-element, then a separate joined close on `T` across
+  `S` carrying that value. The flat global abort
+  (`Commuted(Joined)` in F) is `Commuted(Commuted)` plus a
+  value-level flatten of the Some payload — cheap, since the
+  commute doc's identity shows the two force the same cells in the
+  same order and differ only in payload grouping. The
+  filtered-commute shapes take a re-open of the commuted output.
+- Under F, the filter shapes each take one `Filtered` stage; no
+  auxiliary constructions are needed in the table at all.
+
+Note what the table exposes about the commute doc's rejection of
+`Joined(Commuted(…))`: the redirect there — "the thing a user might
+have wanted from it … is already the *non-commuted* close on the
+same option iter" — is subtly wrong. Flattening the Some payloads
+of a per-group commute keeps only *wholly* successful groups:
+`[2,4,8]`. The filter-style sibling keeps every firing element
+regardless of its group's fate: `[2,4,6,8]`. The `6` is the
+witness — even, but in a group that fails at `7`. The two agree
+only when every failing group fails wholesale, which is exactly the
+kind of coincidence worked examples exist to break. (The rejection
+of the stack itself stands under both spellings; only the redirect
+needs correcting — to `Joined(Filtered(Commuted(…)))` under F, or
+the re-open construction under J.)
+
+### So: is join-over-Nones the same operation as filter?
+
+The question decomposes under the spelling choice:
+
+- **Under J: yes, identically.** The joined close over a chain
+  containing an option level *is* the filter reading — same output
+  construction, differing from the case-split `Filtered` only in
+  the front end that produces the partiality (an option's firing
+  vs a discriminator's alt). This is already how the implemented
+  list compile behaves, where `emitIterClose` over
+  `List<Option<X>>`-joined and `emitFilterClose` share the same
+  skip-vs-push shape.
+- **Under F: no, by design.** Join is cardinality-preserving,
+  always; skipping is `Filtered`'s job, at any level kind. The
+  original question's premise ("the join just transparently skips
+  Nones") is simply false in this spelling.
+
+Open question 2's own phrasing — a None as "an inner 'stream'
+that's empty" — suggests a third account: coerce the option to a
+zero-or-one-cell stream and let pure join flatten it away. That
+coercion reproduces J's join column exactly, but gets the base
+case wrong: the unjoined close would yield a stream of 0/1-streams
+where both precedents yield option data. Partiality-as-firing, not
+option-as-stream, is the cleaner formalisation, and neither
+spelling needs the coercion.
+
+### What is unaffected by the choice
+
+Placement, entirely — under either spelling, `Filtered`/`Joined`/
+`Commuted` stacks remain per-close output construction and never
+participate in the chain partitioning, by the same argument as for
+join and commute individually. The runtime "skip" mechanism (a
+non-firing element must advance the chain without emitting a
+spurious cell) is `lazy-stream-placement-design.md`'s open
+question 1 and is needed under either spelling — the choice moves
+*which construct* owns the skip, not whether it exists.
+
+### What would settle it
+
+Considerations, deliberately not weighed here:
+
+- **Continuity.** J is what the implemented list compile does and
+  what `flow_language_design.md`'s filtering section describes.
+  Choosing F means respelling the implemented
+  `List<Option<X>>`-joined rule as `Filtered` (a small migration in
+  a sandbox codebase, but a real one) and revising the original
+  filtering account. Choosing J means amending the commute doc's
+  composition section (its `Joined(NodeFlow)` and
+  `Commuted(Joined)` rows are F-spelled).
+- **One behaviour per name.** F gives join a single reading —
+  structural flatten, never drops data — and unifies the two
+  existing skip constructs (case-split `Filtered`, joined option
+  chains) under one name. J keeps the skip split across two
+  spellings but keeps `Joined` meaning the same thing on list and
+  stream flows *as implemented today*.
+- **Visibility.** J's defence against "join sometimes drops
+  elements" is structural: whether a join can drop is read off the
+  kinds of the levels it spans, which the diagram shows (cf.
+  `flow_language_design.md`, "Visual Clarity Advantage"). F's
+  defence is nominal: the name alone tells you. The language has
+  precedent for preferring the structural argument — and also a
+  principle ("one obvious reading") that F serves more directly.
+- **Compositionality.** F composes skip freely with commute
+  (`Filtered(Commuted(…))` and its join are single stacks); J
+  reaches those shapes only via re-opens. If filtered-commutes turn
+  out to be a wanted pattern, that weighs toward F; if they stay
+  exotic, the extra stage buys little.
+
 ## Open questions
 
 1. **User-facing form of multi-level join.** For lists we wrote
@@ -217,12 +460,25 @@ the multi-parent zip".
    one more `zipStream` with the level-above's restFlat as atNil).
 
 2. **Join interaction with stream-filter / stream-option-style
-   conditionals.** Joining a stream of options where some are
+   conditionals.** ~~Joining a stream of options where some are
    None: the join just transparently skips Nones (an inner
    "stream" that's empty contributes nothing to the flat output).
    That's filter-by-another-name. Is it actually the same
    operation, or do they differ subtly? Worth a worked example
-   when we get there.
+   when we get there.~~ **Taken up and sharpened** — see "Join at
+   an option level" above. The worked example revealed the
+   question is really a choice between two wrapper-algebra
+   spellings: J (join crosses the option level with skip
+   semantics — the implemented list rule, under which the answer
+   is "yes, the same operation") and F (join is always
+   cardinality-preserving and skip is a `Filtered` stage — the
+   commute doc's composition discipline, under which the answer is
+   "no, by design"). Along the way it surfaced an internal
+   inconsistency in `lazy-stream-commute-design.md` (its
+   "Multi-output independence" and "Composing" sections assume
+   different spellings) and a wrong redirect in that doc's
+   `Joined(Commuted)` rejection. The spelling choice is left
+   open — the section records what would settle it.
 
 3. **Infinite inner streams.** Joining a stream of infinite
    inner streams produces an output stream stuck on the first
