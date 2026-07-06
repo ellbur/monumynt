@@ -301,6 +301,16 @@ predicate doesn't fire). It doesn't change the compile-time chain
 structure; it just means the cell at depth K of the output's chain
 may correspond to a later source element than K.
 
+> *(2026-07-06: two per-element faces are conflated here.
+> Computations that don't run for a non-firing element are
+> laziness proper — unforced slots in a cell that exists, as this
+> paragraph says. An element contributing *no output cell at all*
+> is the skip, which is not an unforced cell but a redirect in
+> the close's output construction; chains themselves never
+> subset, so "the output's chain" in the last sentence should
+> read "the output stream". Worked out in "The skip mechanism"
+> below.)*
+
 So in the stream world, partitions split into two kinds:
 
 - **Per-output (compile-time)**: which outputs care about this value
@@ -596,16 +606,153 @@ Step 6 (nested flows) stays, but what it validates shrinks to
 level identification and cross-level integration rather than
 per-level lattices.
 
+## The skip mechanism (taking up open question 1) (2026-07-06)
+
+> Open question 1 below worried that a filter close — one that
+> produces fewer elements than its source has cells — might need
+> its per-element "skip" expressed carefully in the atCons to
+> advance correctly without emitting a spurious cell, and guessed
+> that the consumer-set lattice is unaffected. The guess is right,
+> and the reason it is right is worth pinning down, because the
+> skip has since become load-bearing:
+> `lazy-stream-join-design.md`'s "Join at an option level" shows
+> that whichever spelling wins its open choice — join crosses
+> levels (J) or `Filtered` as its own stage (F) — this mechanism
+> is needed unchanged. This section fixes where the skip lives,
+> gives the atCons expression, and records the two real footguns
+> the expression must survive. It does not touch the J/F choice.
+
+### Skip lives in output construction; chains never subset
+
+Everything the placement machinery manipulates — lattice chains,
+sub-chain derivation, the multi-parent zip, and equally the
+baseline's per-node cells ("The baseline, revisited" above) — is
+**source-position-aligned**: one cell per source element, always.
+A non-firing element does not delete its cell from any chain; the
+chain cell carries the non-firing *as a value* (the join doc's
+partial value — set iff fired), with slots the runtime simply
+never forces. Subsetting happens in exactly one place: the
+close's output construction (the projection of step 6), where a
+non-firing cell contributes no cell to the output stream.
+
+Three things follow:
+
+- **The lattice is untouched**, as the question guessed, and for
+  a stronger reason than "the lattice is per-output-presence":
+  the skip never enters chain structure at all. Filter — like
+  join and commute in the companion documents — is per-close
+  output construction, invisible to chain partitioning.
+- **The multi-parent zip's alignment assumption is never
+  violated.** Zipping incomparable parents reads both "at the
+  same source cell"; that is sound because no chain ever subsets.
+  The only depth-K-vs-source-K mismatch is between an *output
+  stream* and the source — and nothing ever needs to align an
+  output stream with anything. Outputs are endpoints.
+- **The spelling choice doesn't move the mechanism.** Under J the
+  skip sits inside a joined close's output construction; under F
+  it is the `Filtered` stage's. Same runtime function either way.
+
+### The atCons expression: become the rest
+
+The spurious-cell worry dissolves the same way the flatten's
+intermediate stream-of-streams did: at a non-firing element, the
+fold's atCons doesn't emit a placeholder cell — it *becomes the
+rest of the fold*.
+
+```rescript
+// Sketch, same conventions as the flatten in
+// lazy-stream-join-design.md (synchronous, no tick()).
+let skipAbsent = chain =>
+  zipStream(chain, ready(SNil),
+    (cell, rest) =>
+      // rest: the fold over the tail, one Delayed layer deep
+      switch firing(cell) {
+      | Some(v) => ready(SCons(v, rest->Delayed.flatMap(s => s)))
+      | None => rest->Delayed.flatMap(s => s) // become the rest
+      })
+```
+
+No spurious cell exists even transiently — the output stream's
+cells are exactly the firing elements'. And the move is not new;
+it is the third instance of one primitive the stages already use:
+a fold step may continue with *any* Delayed continuation, not
+just a cons of its own making.
+
+- **Join** redirects at the end of an inner stream: atNil becomes
+  the rest of the flatten (`lazy-stream-join-design.md`).
+- **Filter** redirects at a non-firing element: atCons becomes
+  the rest of the fold (above).
+- **Commute** redirects at a None to a terminal: atCons abandons
+  the rest entirely and becomes the resolved `None`
+  (`lazy-stream-commute-design.md`, "Effect on placement").
+
+Emit-and-continue, become-the-rest, abandon-the-rest. That the
+whole stage inventory reduces to one runtime move is some
+evidence the stage decomposition sits at the right altitude — and
+it is spelling-neutral evidence: J and F partition the same three
+moves differently between names; neither needs a fourth.
+
+### Two footguns
+
+**Pull amplification is inherent; stack depth is not.** Pulling
+one output cell across a run of K consecutive non-firing elements
+forces K source cells — that is what filter means, not a defect.
+But naively it also *nests* K become-the-rest redirects: forcing
+the head runs atCons for cell 0, which returns the tail-fold's
+flatMap, whose force runs atCons for cell 1, and so on. If
+`Delayed`'s force recurses through flatMap, the run costs O(K)
+stack, and a sparse filter over a long source overflows. The
+prototype never saw this: `tick()`'s event-loop integration
+returned to the scheduler between steps, so stripping it for the
+synchronous variant (implementation-order step 1) is what
+*creates* the hazard. The fix belongs in the primitive, not the
+stage: force must follow flatMap/redirect chains iteratively —
+the standard lazy-runtime indirection-following loop — so a
+redirect run is a loop, not a recursion. Recorded as a
+requirement on step 1 below.
+
+**Retention across a forced run.** After the run forces, each of
+the K skipped positions' Delayed cells memoises the same
+resulting cons — computed once, so correctness is fine — but a
+retained reference into the run keeps O(K) indirection objects
+alive alongside the chain cells they point through. This is the
+cost axis "The honest costs" already records (memoised history
+retained back to the slowest cursor), with skip runs adding a
+constant factor along the run, not a new class. The iterative
+force loop can shrink it for free: snap each followed cell to the
+final result while walking (path compression), a one-line
+addition worth making at the same time.
+
+### What this settles
+
+The lattice is unaffected, for the structural reason above; the
+careful atCons expression is the flatten's own become-the-rest
+move applied at a non-firing element; and the real risks live in
+the `Delayed` primitive (iterative force, path compression), not
+in any stage. What stays open is exactly what was open before:
+which language construct *owns* the skip — the J/F spelling
+choice — on which this section is deliberately silent, because
+both spellings compile to this mechanism.
+
 ## Open questions
 
-1. **Filter closes and per-element subsetting.** A filter close
+1. **Filter closes and per-element subsetting.** ~~A filter close
    produces fewer elements than its source's input — the output
    chain's "depth K" doesn't correspond to source depth K. I'm
    fairly sure this doesn't affect the consumer-set lattice (the
    lattice is per-output-presence, not per-element) but the per-
    element "skip" mechanism may need to be expressed carefully in
    the atCons so the chain advances correctly without producing a
-   spurious cell.
+   spurious cell.~~ **Taken up** — see "The skip mechanism"
+   above. The lattice is indeed unaffected, for a stronger reason
+   than the parenthetical guessed: the skip lives entirely in
+   per-close output construction and chains never subset, so no
+   chain's depth K ever diverges from source depth K. The careful
+   atCons expression is become-the-rest (the flatten's own trick
+   at atNil, applied at a non-firing atCons), with two
+   requirements pushed down into the `Delayed` primitive:
+   iterative force (long skip runs must not recurse) and
+   path compression while forcing.
 
 2. **Self-referential or recursive streams.** Outside our current
    scope, but a stream-typed language grows these eventually. If
@@ -666,6 +813,13 @@ Staged so we can validate at each step before proceeding:
    `listToStream` to the compile target. Synchronous (no promise);
    same three-state cache shape as the prototype, minus the
    event-loop integration.
+
+   *Update (2026-07-06):* two requirements from "The skip
+   mechanism" above land here: force must follow
+   flatMap/redirect chains iteratively (a long run of skipped
+   elements is otherwise O(run) stack — a hazard the prototype's
+   `tick()` masked and the stripped synchronous variant exposes),
+   and the force loop should path-compress the cells it walks.
 
 2. **Single-output stream flow.** Get a stream flow with one Close
    compiling correctly to a `zipStream` over the source. No

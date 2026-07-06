@@ -416,7 +416,10 @@ join and commute individually. The runtime "skip" mechanism (a
 non-firing element must advance the chain without emitting a
 spurious cell) is `lazy-stream-placement-design.md`'s open
 question 1 and is needed under either spelling — the choice moves
-*which construct* owns the skip, not whether it exists.
+*which construct* owns the skip, not whether it exists. *(Since
+worked out: that document's "The skip mechanism" — become-the-rest
+in the atCons, the same move this document's flatten makes at
+atNil — spelling-neutral as predicted.)*
 
 ### What would settle it
 
