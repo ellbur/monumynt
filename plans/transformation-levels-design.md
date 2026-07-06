@@ -691,6 +691,14 @@ itself:
   correspondence, **mints a fresh globally unique id** (recorded in
   the deriving step, so stable thereafter).
 
+One fine point: the always-on lens has no recorded deriving step, so
+its internal nodes have no occasion to carry durable minted ids —
+and they need none, because a lens is only addressable through
+`DerivedPort(nodeId, portName)`, i.e. through the *abstract node's*
+id plus a declared port name. Durable fresh ids enter exactly when a
+recorded step derives structure — materialize being the moment a
+lens's nodes acquire them.
+
 Identity is therefore the id, not the record. Two versions may hold
 different node records under the same id — same node, different
 wiring in different versions. That one distinction sorts every case
