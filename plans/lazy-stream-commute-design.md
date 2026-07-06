@@ -146,6 +146,15 @@ treat it differently:
   values.
 - Another close non-commuted: yields a `stream<X>` of just the
   defined values (filter-style reading), with normal `SNil` end.
+
+  > *(2026-07-06: "non-commuted" is loose here — under this
+  > document's own shape discipline ("Composing Commuted with
+  > Joined" below) the plain close yields `stream<option<X>>`,
+  > Nones kept; the defined-values-only reading requires either a
+  > skip stage or, in the implemented list compile's spelling, a
+  > join across the option level. The discrepancy is worked out in
+  > `lazy-stream-join-design.md`, "Join at an option level".)*
+
 - A third close possibly with yet another treatment.
 
 Each close shares the underlying chain — the per-element option
@@ -228,6 +237,21 @@ each enclosing stream layer wraps the result, so the output is
 per-element options.
 
 ### The shape discipline
+
+> *(2026-07-06: this discipline embeds one contestable choice — the
+> close on the option iter contributes no layer of its own (the
+> option is consumed to a per-element value before any stage
+> applies), so `Joined` only ever merges stream layers and can
+> never skip a None. That conflicts with the implemented list
+> compile, where the walked-up chain starts at the close's own
+> opener and the first `Joined` on an option close *is* the skip
+> ("`List<Option<X>>` joined produces a list of just the defined
+> values"). The two candidate algebras are laid out side by side in
+> `lazy-stream-join-design.md`, "Join at an option level"; the rows
+> affected if the list-precedent spelling wins are
+> `Joined(NodeFlow(opt))` and `Commuted(Joined(…))`. The frame of
+> the discipline — stages inside-out, requirements checked when
+> reached, ill-formed stacks rejected — survives either choice.)*
 
 Each wrapper is an output-construction stage, applied inside-out
 (nearest to the `NodeFlow` first). A stage consumes enclosing stream
@@ -335,6 +359,18 @@ is the filter-style reading, which is already the *non-commuted*
 close on the same option iter (see "Multi-output independence"). It
 is a sibling close, not a wrapper stack; the ill-typed stack should
 not be given that meaning.
+
+> *(2026-07-06: the rejection stands, but the redirect is wrong.
+> Flattening the Some payloads of a per-outer-element commute keeps
+> only *wholly* successful groups; the filter-style sibling keeps
+> every firing element regardless of its group's fate. On
+> `[[2, 4], [6, 7], [8]]` with `maybeEven` the former gives
+> `[2, 4, 8]`, the latter `[2, 4, 6, 8]` — the `6` is the witness,
+> even but in a group that fails at `7`. They coincide only when
+> every failing group fails wholesale, which this document's
+> worked example (`[[2, 4], [7], [8]]`) happened to satisfy. The
+> corrected constructions for the per-group reading are in
+> `lazy-stream-join-design.md`, "Join at an option level".)*
 
 ## Commute and the multi-parent zip
 
