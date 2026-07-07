@@ -864,6 +864,17 @@ No `let rec`, no deferred evaluation, no circular value dependency at
 construction time. The back-edge lives in the wiring, where the rest
 of the flow structure already lives.
 
+*(2026-07-07: the Expr-level mechanism for this two-phase wiring is
+now worked out in `first-class-ports-design.md`, "The Delay
+back-edge: the write half is a node." The analogy to Close-wiring is
+made literal rather than approximate: the later act mints its own
+node — a write half holding the read reference and the step — so
+nothing mutates the Delay after construction and the object graph
+stays a DAG unconditionally, with the `step → prev` crossing
+recovered from the pairing. The write half's output is the final
+value: the thread's exit anchor, which the one-node contraction had
+no port for.)*
+
 ### What it costs: the graph is no longer a DAG
 
 The price of the port form is honest and small. The `step` input is a
@@ -1801,7 +1812,11 @@ kept side-by-side (see "Two live candidates, kept side-by-side"):
   is implementation-shaped: the `step` back-edge makes the computation
   graph non-acyclic, which the current DAG-assuming compiler cannot yet
   handle; the compile target is a single mutable `let` register inside
-  the loop (per the iteration-rails notes).
+  the loop (per the iteration-rails notes). *(2026-07-07: the
+  representation half of this is worked out — the write half is its
+  own node, holding the step and outputting the final value; see
+  `first-class-ports-design.md`, "The Delay back-edge." The object
+  graph stays a DAG; only the compiler work remains.)*
 - **The latent-flow representation**: generalize cuts a wire,
   interposing an uncollect whose seed input is the cut wire's producer
   and whose state output feeds the cut wire's consumer, with the source
@@ -1885,7 +1900,12 @@ if it is the uncollect's output, the feedback collect is again a
 terminal node with no output. One of the two discomforts must be
 accepted (the recorded cycles-are-inevitable position leans toward
 accepting the cycle), and the choice shapes the augmented form's
-well-formedness story.
+well-formedness story. *(2026-07-07: the either/or is no longer
+exhaustive — the feedback collect's output can be the final value
+rather than the combined flow, dissolving the terminal-node horn
+while the combined flow comes out of the uncollect with no cycle.
+See the crossover note in `first-class-ports-design.md`, "The Delay
+back-edge.")*
 
 **The state thread's open points.** Whether one-writeback-per-crossing
 survives real loops (conditional carry, multi-site update — test
