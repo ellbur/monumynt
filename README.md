@@ -55,8 +55,9 @@ describes the language itself:
 - `time-travel-programs-design.md` — sanctioning time-travel
   *authoring*: an under-committed program (sibling opens, deferred
   error flows) whose meaning is its completion into a no-time-travel
-  program — derived, canonical-or-refused, shown as editor hints,
-  compiled by translation only.
+  program — derived deterministically (forced, canonical, or honest
+  heuristic), shown faint in the editor, overridden by authoring the
+  operator you meant, compiled by translation only.
 - `first-class-ports-design.md` — the Expr-level port
   representation: per-kind port inventories dissolving Branch and
   the `Joined`/`Filtered` wrappers (into alt ports and binary Join

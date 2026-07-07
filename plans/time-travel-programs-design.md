@@ -166,21 +166,31 @@ Three commitments, fixed up front:
    from "combine these elements" to "…with A's iteration inside
    B's" is derivation; recovering the uncommitted form by eliding
    canonical structure is the earned upward direction.
-3. **The completion is canonical or absent — never searched.**
-   Where the rules below do not determine a unique completion (up
-   to canonicity), the program has no reading, and the residue is
-   surfaced to the user as such. The elaborator never scores,
-   backtracks, or prefers; there is no "best" completion, only
-   the forced one, the canonical one, or none.
+3. **The completion is deterministic — ruled, never searched.**
+   Completion is total up to contradiction: except where the
+   constraints genuinely cycle, every program gets exactly one
+   completion, produced by published rules — the forced
+   consequences of authored structure, then the canonical table,
+   then the heuristic order. The elaborator never scores or
+   backtracks over candidate programs; but it does *pick* where
+   the program leaves genuine freedom, and where a pick is only a
+   heuristic the design says so plainly rather than pretending
+   the rule is principled. Predictability is the product: same
+   program, same completion, and every pick is on screen.
 
 What makes the whole arrangement safe is the lens: **the editor
-hints to the user where the missing parts will be inserted** to
-make the program a no-time-travel program. The inserted structure
-is on screen — ghost nodes at their insertion sites, as
-inspectable as authored ones. If the user doesn't like them, they
-add their own; explicitly drawn structure always preempts
-insertion, and a program that is already complete completes to
-itself.
+displays the inferred operators in place, in a fainter color**,
+so inferred and authored structure are distinguishable at a
+glance. There is no accept or reject gesture, because none is
+needed. If the user likes where an operator was inferred, they do
+nothing — it is already there, and it already is the reading. If
+they want it placed differently, they place a real commute or
+incorporate where they want it; the more specific program
+necessarily excludes the inference they didn't like, and the lens
+re-derives around the authored operator. The user never says
+"that inference was wrong" — they only ever say what they mean.
+Explicitly drawn structure always preempts insertion, and a
+program that is already complete completes to itself.
 
 ## Completion: what is inserted, and what forces it
 
@@ -189,11 +199,14 @@ itself.
 The completion inserts flow bookkeeping only. Concretely, two
 families:
 
-- **Capture / derivation** — the explicit-derivation fix:
-  capturing a value into a flow's context and (for a flow source)
-  uncollecting it there. This is what turns "sibling opens" into
-  "nested opens." Its value-level shadow is the identity: capture
-  changes what context a value is available in, never the value.
+- **Incorporate** — the explicit-derivation fix: bringing a value
+  into a flow's context (the spec's CAPTURE, plus uncollecting
+  there when the value is a flow source — flow_language_design's
+  Solution 1 / NEST_WITHIN family, under the working name the
+  design conversations have settled on). This is what turns
+  "sibling opens" into "nested opens." Its value-level shadow is
+  the identity: incorporation changes what context a value is
+  available in, never the value.
 - **Commute chains** — Commute nodes lifting a flow across
   enclosing flows toward its canonical position. Value-level
   shadow: none at all — the node has no value ports, and the
@@ -218,28 +231,28 @@ The insertions are the same species of pure-structure content —
 which is a first hint that completion belongs in the level-1
 catalog; see "Where it sits" below.)
 
-One honest wrinkle on "identity shadow": inserting a derivation
-assigns a multiplicity — capturing `listA` into `xB` means A's
+One honest wrinkle on "identity shadow": inserting an incorporate
+assigns a multiplicity — incorporating `listA` into `xB` means A's
 uncollect now fires per B-element, n×m in total. That is not the
 insertion changing a defined meaning; the authored program had no
 defined multiplicity, and the constraints (the terminations the
 user drew) are what force this one. Completion never *overrides*
 an authored meaning; it *supplies* the meaning the authored
-structure left open, and only where exactly one supply is
-consistent or canonical.
+structure left open — forced where the constraints force it,
+canonical or heuristic where they don't.
 
 ### The constraint model
 
 The unknowns: the authored program's opens form contexts, but the
 context *tree* is incomplete — some contexts have no drawn parent
 relationship. Completion is the assignment of the missing tree
-structure (each assignment realized as a derivation insertion, so
-the result is drawable, not annotated), plus the commute chains
+structure (each assignment realized as an incorporate insertion,
+so the result is drawable, not annotated), plus the commute chains
 that reconcile authored terminations with the tree.
 
 The constraints, in strength order:
 
-1. **Explicit structure is fixed.** Drawn derivations, joins,
+1. **Explicit structure is fixed.** Drawn incorporates, joins,
    commutes, and the input-derivation chain ("`inner_list` is
    produced by the outer flow") are never revisited. A complete
    program is its own completion, verbatim.
@@ -253,34 +266,61 @@ The constraints, in strength order:
    `bundle-provenance-design.md`'s collecting-node demand checks —
    "each branch's value path is a prefix of its cell's path" —
    run in reverse: instead of verifying the path, solve for it.)
-3. **Combining nodes connect.** An ordinary multi-input node whose
+3. **Authored flow operations direct.** Join is not symmetric:
+   its operands are (outer, inner), so a drawn join between flows
+   whose contexts are not yet related *orders* them — the second
+   operand's flow must end up nested within the first's. Commute
+   likewise names both operands and which is which. (This
+   dissolves what an earlier draft treated as the paradigm
+   ambiguity: two independently opened flows brought to a join
+   are ordered by the join itself. See worked example 3's closing
+   note.)
+4. **Combining nodes connect.** An ordinary multi-input node whose
    operands live in incomparable contexts contributes an
    *undirected* edge: these two contexts must end up on one
    root-to-leaf line, either way around. (This is the
    comparability demand from the same document, relaxed from
    "verify" to "achieve.")
-4. **Canonical commutes break remaining ties.** Per flow-kind
-   pair, a canonical direction, applied only where 1–3 leave the
-   order free. The inaugural entry: **option/error flows commute
-   outward** — a dangling failure flow, collected outside the
-   flows it was opened within, lifts across each of them via
-   inserted Commutes. This is the Koka move: the canonical
-   direction is part of the language definition, a fixed table,
-   not a per-program judgment.
+5. **Canonical commutes break ties that carry meaning.** Per
+   flow-kind pair, a canonical direction, applied only where 1–4
+   leave the order free. The inaugural entry: **option/error
+   flows commute outward** — a dangling failure flow, collected
+   outside the flows it was opened within, lifts across each of
+   them via inserted Commutes. This is the Koka move: the
+   canonical direction is part of the language definition, a
+   fixed table, not a per-program judgment.
+6. **Heuristics break the rest.** Even after 1–5 fix the context
+   tree, more than one arrangement of the inserted operators can
+   realize it — genuinely distinct no-time-travel programs, with
+   nothing principled to choose between them (see worked example
+   3, where the choice is commute-then-join vs
+   join-then-commute). A published, ordered list of heuristics
+   picks one. Inaugural entry: **join as early as possible** —
+   when a drawn join's operands could be joined either before or
+   after an inserted commute chain, join first and commute the
+   combined flow. In the cases so far encountered the candidates
+   a heuristic chooses among are naturality-equivalent, so the
+   pick is closer to a spelling than a behavior — but it is a
+   heuristic, not a principle, and the design says so plainly.
+   What it buys is predictability: the user can learn the rule,
+   and the faint rendering shows its every application.
 
-Solving is partial-order extension over a finite set with no
-choice points — the same complexity class as the checker's
-propagation, and deliberately so (the no-search commitment of
-`types-design.md` applies here with full force).
+Solving is partial-order extension over a finite set, with every
+tie broken by a fixed published rule rather than by search — no
+scoring, no backtracking over candidates, no per-program
+judgment. That is the form of `types-design.md`'s no-search
+commitment that survives here: the solver never *finds* a
+completion among alternatives; it *computes* the one the rules
+name.
 
 ### The four dispositions
 
 A comparability failure — the thing the checker was going to
 report as a time-travel clash — now lands in one of four bins:
 
-1. **Determined.** Constraints 1–3 force a unique tree. The
+1. **Determined.** Constraints 1–4 force a unique completion. The
    two-lists example: the collect order directs, completion
-   inserts one derivation, done. No canonicity even needed.
+   inserts one incorporate, done. No canonicity even needed.
 2. **Canonically completed.** The order is genuinely free but a
    canonical rule covers it. The deferred-option example: nothing
    in the terminations says where the error flow sits except
@@ -292,16 +332,24 @@ report as a time-travel clash — now lands in one of four bins:
    information about *which* absence occurred — so any consistent
    pick is sound, which is the same argument Koka makes for
    commutative effect rows. The moment payloads appear the
-   symmetry breaks; see disposition 3.
-3. **Ambiguous.** More than one completion survives 1–4. Canonical
-   example: two *sibling* result flows with error payloads (parse
-   the same element two independent ways, defer both), values
-   combined. Which flow is outer decides which error is reported
-   when both fail — observable, and no rule in the table covers
-   result-vs-result siblings. The residue is surfaced with its
-   witness (the two flows, the combining node) and the candidate
-   completions; the program has no reading until the user commits
-   one, by drawing structure or accepting a candidate.
+   symmetry breaks and a pick becomes observable — it is still
+   made, and still faint-rendered; see worked example 3's closing
+   note.
+3. **Heuristically completed.** More than one completion survives
+   1–5, and the heuristic order picks. Worked example 3 below:
+   two option flows opened inside a list flow, the list
+   collected, the *join* of the two option flows collected
+   outside — commute each option flow out and then join, or join
+   first and commute the combined flow? Both are legitimate
+   no-time-travel programs, near-equivalent in behavior by the
+   naturality of commute and join, and nonetheless different
+   programs; the compiler needs exactly one. There is no refusing
+   here — a program in this bin has readings, and declining to
+   pick would make the most natural authoring gestures dead ends.
+   So completion picks (join-as-early-as-possible: the second),
+   labels the rule a heuristic, renders the result faint, and is
+   excluded the moment the user draws the operators where they
+   actually want them.
 4. **Contradictory.** The directed constraints cycle: one
    combining-and-collecting chain forces A inside B, another
    forces B inside A. No completion exists. This is a clash in
@@ -315,8 +363,9 @@ And one thing that is **not** a disposition of time travel at all:
 diverge in fate, which retroactively justifies the care. Two
 sibling *cells* of one case split (a Just-value and a
 Nothing-value of the same dispatch) have a canonical pairing and
-never coexist — no insertion of captures or commutes can create a
-joint firing, so there is nothing for completion to complete.
+never coexist — no insertion of incorporates or commutes can
+create a joint firing, so there is nothing for completion to
+complete.
 Time travel is elaborable because the missing fact is an
 *ordering*; bundle mixing is uncompletable because the missing
 fact is an *execution that doesn't exist*.
@@ -335,14 +384,14 @@ Authored:
 
 Constraint walk: the collect of `xA` outputs `perB` at `xA`'s
 parent; `perB` is collected over `xB`, so that parent is `xB`'s
-context (rule 2, directed). The ADD's comparability edge (rule 3)
+context (rule 2, directed). The ADD's comparability edge (rule 4)
 is satisfied by the same assignment. Unique tree: root → `xB` →
 `xA`.
 
-Completion (ghost structure marked `+`):
+Completion (inferred structure marked `+`, rendered faint):
 
     listB -> $ => b, xB
-    + xB -> CAPTURE(listA) => listA_in_B
+    + xB -> INCORPORATE(listA) => listA_in_B
     + listA_in_B -> $ => a, xA          -- xA now created inside xB
     a, b -> ADD => s
     s, xA -> @ => perB
@@ -371,7 +420,7 @@ collect of `xE` whose output is consumed at the root — are both
 ill-placed as drawn: `xE` is nested inside `xL`, but its
 termination sits outside. No termination *direction* is in
 question (rule 2 pins everything); what's missing is the lift.
-The canonical outward commute (rule 4) supplies it:
+The canonical outward commute (rule 5) supplies it:
 
     + xL, xE -> COMMUTE => xE', xL'     -- error now outer, loop inner
     r, xL' -> @ => results              -- the loop collects inside xE'
@@ -399,31 +448,79 @@ The unmarked, most natural gesture gets the fail-fast meaning;
 the other two remain explicit, cheap, and visually distinct. No
 reading became unreachable and none became ambiguous.
 
-### 3. Sibling results (ambiguous)
+### 3. Join and commute out of a list (heuristically completed)
 
-    item -> PARSE_AS_DATE   => maybeDate    -- result, error payload
-    item -> PARSE_AS_NUMBER => maybeNum     -- result, error payload
-    maybeDate -> $ => d, xD
-    maybeNum  -> $ => n, xN
-    d, n -> COMBINE => v
-    …both xD and xN deferred to the end…
+Two option flows opened inside a list flow (the second nested in
+the first); the list collected; the *join* of the two option
+flows collected at the end:
 
-`xD` and `xN` are siblings (rule 3 says they must nest, nothing
-says which way), both errors deferred (rule 4's option entry does
-not cover result-vs-result). If both parses fail, the outer flow's
-error is the one reported — observable, uncanonical. Surfaced:
-witness is the COMBINE plus the two opens; the hint shows both
-candidate completions and the program has no reading until the
-user draws one (or a future canonical rule — say, "first-opened
-wins" — is deliberately adopted into the table; see open
-questions).
+    list -> $ => a, xL              -- list uncollect
+    a -> $ => b, yO                 -- option uncollect (a is option-typed)
+    b -> $ => c, zO                 -- option uncollect (b is again)
+    c, xL -> @ => d                 -- collect the list flow
+    yO, zO -> JOIN => w             -- join the two option flows
+    d, w -> @ => RESULT             -- collect the joined option flow
 
-Note the contrast with the same shape over payload-free options:
-there disposition 2 applies, because no observation distinguishes
-the two completions. The line between "canonical" and "ambiguous"
-is exactly the line between unobservable and observable choice —
-the commute-variant taxonomy's criterion ("runtime content to
-repackage") making a second appearance.
+The context tree is fully pinned by rules 1–4 (`zO` inside `yO`
+inside `xL` by derivation; the terminations put the option
+material outside `xL`). What is *not* pinned is the arrangement
+of the inserted commutes relative to the authored join. Two
+completions realize the same tree:
+
+Choice 1 — commute each option flow out, then join outside:
+
+    + xL, yO -> COMMUTE => yO', xL'
+    + xL', zO -> COMMUTE => zO', xL''
+    c, xL'' -> @ => d
+    yO', zO' -> JOIN => w
+    d, w -> @ => RESULT
+
+Choice 2 — join first, then commute the combined flow out:
+
+    yO, zO -> JOIN => w             -- still inside xL
+    + xL, w -> COMMUTE => w', xL'
+    c, xL' -> @ => d
+    d, w' -> @ => RESULT
+
+Behavior-wise there is not much between them — the naturality of
+commute and join sees to that — but they are different
+no-time-travel programs, and the compiler needs exactly one. No
+constraint or canonical rule prefers either; refusing would leave
+a perfectly reasonable gesture with no reading. So a heuristic
+picks: **join as early as possible** → Choice 2, whose one faint
+COMMUTE (versus Choice 1's two) the editor displays between the
+authored JOIN and the authored collects. The rule is learnable,
+its application is visible, and a user who wants Choice 1 draws
+its commutes solid — after which there is nothing left to infer.
+
+Two notes to close this example.
+
+**What is *not* ambiguous nearby.** Two options opened
+independently — no derivation between them — and joined:
+
+    o1 -> $ => a1, x1
+    o2 -> $ => a2, x2
+    x1, x2 -> JOIN => x3
+
+An earlier draft of this document treated sibling deferred flows
+as the paradigm ambiguity: which is outer? But join is not
+symmetric — its operands are (outer, inner) — so the authored
+join itself directs the nesting (rule 3): `x2` must be the inner
+flow, and completion inserts the incorporate accordingly. The
+ambiguity was an artifact of imagining the flows brought together
+by nothing in particular; any actual bringing-together the user
+draws carries an operand order, and the order is the answer.
+
+**Where a heuristic pick is observable.** Sibling flows whose
+*values* combine but whose flows never reach one operation that
+orders them (say, each collected separately at the end) still
+need an incorporation direction, and there the pick can be
+observable — with payload-carrying result flows, which error wins
+when both fail depends on it. The pick is still made, by the same
+published order, and rendered faint like every pick; the fainter
+color is precisely the cue that the program, not the user, should
+be asked which error ought to win — answered, as always, by
+drawing the operator solid the intended way around.
 
 ### 4. Crossed terminations (contradictory)
 
@@ -447,21 +544,25 @@ transformation-levels machinery:
 
 - **Always-on derived view.** The completion is a lens on the
   program of record, materialized lazily. The "editor hints" are
-  nothing more than this lens rendered in place: inserted nodes
-  drawn as ghosts at their insertion sites. (The graphical side
-  is out of scope in this repo; here "hint" means the completion
-  is a derived artifact addressed to authored node ids — a list
-  of insertions each naming its anchor — which is what an editor
-  would render and what a test runner can print.)
-- **Accepting a hint is materialize.** A recorded construction
-  step; the ghost nodes become ordinary authored structure with
-  fresh minted ids; the program now completes to itself. The
-  port correspondence is the identity on every authored port —
-  insertions add no value ports, so nothing downstream rewires.
-- **Rejecting a hint is authoring.** Draw the structure you meant;
-  rule 1 (explicit structure is fixed) makes it preempt. There is
-  no fight with the elaborator, because the elaborator only ever
-  fills holes.
+  nothing more than this lens rendered in place: the inferred
+  operators drawn at their sites in a fainter color, so inferred
+  and authored structure are distinguishable at a glance. (The
+  graphical side is out of scope in this repo; here "hint" means
+  the completion is a derived artifact addressed to authored node
+  ids — a list of insertions each naming its anchor — which is
+  what an editor would render and what a test runner can print.)
+- **There is no accept gesture.** If the user likes where an
+  operator was inferred, they do nothing: the faint operator is
+  already part of the reading, and the compiler already consumes
+  it. Satisfaction is the default state, not a confirmation step.
+- **There is no reject gesture either.** A user who wants a
+  different completion doesn't argue with the elaborator — they
+  place a real commute or incorporate where they meant it. The
+  more specific program necessarily excludes the inference they
+  didn't like (rule 1: explicit structure is fixed), and the lens
+  re-derives around the authored operator. Overriding is just
+  authoring; the elaborator only ever fills whatever holes
+  remain.
 
 The laws that make this trustworthy, stated as obligations on any
 implementation:
@@ -470,11 +571,17 @@ implementation:
    completion, node for node.
 2. **Idempotence.** Completing a completion changes nothing.
 3. **Determinism.** Same program, same completion — no search, no
-   scoring, no tie-breaking outside the canonical table.
-4. **Materialization stability.** Materializing any subset of the
-   hints yields a program whose completion is the same program it
-   was before, now partly authored. (Accepting hints never
-   changes the reading.)
+   scoring, no tie-breaking outside the published canonical table
+   and heuristic order.
+4. **Solidification stability.** Drawing, as authored structure,
+   exactly what the lens shows changes nothing about the reading
+   — the operator goes from faint to solid and the completion is
+   otherwise identical. More generally, adding explicit structure
+   *consistent* with the current completion never changes the
+   reading; only structure that contradicts an inference moves
+   it. (Whether the editor offers a one-gesture "solidify this
+   faint operator" convenience is ergonomics; semantically it is
+   ordinary authoring.)
 
 And the one genuine cost, named honestly: **completion is a
 whole-diagram inference, so a distant edit can change insertions
@@ -521,18 +628,21 @@ shadow is the identity. Pattern: a time-travel program with a
 defined completion. Expansion: the completion. Port
 correspondence: identity on authored ports; inserted nodes are
 expansion-internal, with the inserted flows' ports (a
-commute-derived error flow, say) as the principal derived ports —
-addressable through the lens, materialized on acceptance. Lens
-and materialize modes exactly as `transformation-levels-design.md`
-defines them. The upward direction exists too: eliding canonical
+commute-derived error flow, say) as the principal derived ports,
+addressable through the lens. Of the two invocation modes in
+`transformation-levels-design.md`, completion leans almost
+entirely on the lens: no interaction *requires* materialize,
+because overriding an inference is authoring, not editing the
+view — and solidifying a faint operator is likewise just
+authoring it. The upward direction exists too: eliding canonical
 structure — recognizing that an authored commute chain is exactly
 what the canonical table would insert, and collapsing the program
 to the more abstract time-travel form — is a `recognize`-family
 entry, partial as ever.
 
 **Well-formedness restated.** A program is well-formed iff its
-completion is defined (dispositions 1 and 2 everywhere; no
-residue, no cycles, no bundle mixing). This is a whole-diagram
+completion is defined (dispositions 1–3 everywhere; no cycles, no
+bundle mixing). This is a whole-diagram
 quotient check in the established family — alt matching,
 no-crossing, Delay productivity — with the one novelty that
 passing it produces an artifact (the completion) rather than mere
@@ -547,9 +657,15 @@ constraints*, projected onto its boundary the same way. Its
 principal property signature then carries both: "a list of things
 with field `price`" and "this input's flow must end up enclosing
 that one." Call-site checking composes the caller's orderings
-with the callee's residue, interior never re-examined. (Slots
-raise the same conditional-signature question they raise for
-demands; deferred with it.)
+with the callee's residue, interior never re-examined. One
+consequence worth pinning now: within a reusable diagram,
+canonical rules and heuristics should fire only on freedom the
+boundary cannot see — an ordering a caller could still direct
+travels outward as residue and is picked, if still free, where
+no further constraint can arrive. Picking early would turn a
+caller's legitimate direction into a contradiction. (Slots raise
+the same conditional-signature question they raise for demands;
+deferred with it.)
 
 **The compiler.** Zero changes to the runtime and zero to the
 emitted JS, by commitment 1. The one repo-level consequence is a
@@ -562,27 +678,30 @@ after the pass it always is.
 
 - **Not a runtime feature.** No lazy nesting resolution, no
   reified flow order, no new emitted forms. Translation only.
-- **Not inference-that-chooses.** The precise ban in the record —
+- **Not silent inference.** The precise ban in the record —
   *"relying on type inference or constraint solving to determine
-  behavior"* — is met at its letter's edge and amended in spirit,
-  and the amendment should be owned rather than smuggled:
-  completion does derive structure the user didn't draw. What
-  keeps it on the right side: the derivation is forced-or-
-  canonical (never searched, never scored), it is always on
-  screen (the lens; nothing behaves differently than shown), and
-  it is always overridable (explicit structure preempts). What is
-  genuinely given up: "the authored strokes alone show the full
-  flow structure." The reading now lives in authored-strokes-
-  plus-lens. That trade is this document's thesis, and it is the
-  same trade Koka and unchecked exceptions made — bought back, in
-  our case, by the lens being *structure*, not prose.
+  behavior"* — is genuinely amended here, and the amendment
+  should be owned rather than smuggled: completion derives
+  structure the user didn't draw, and where the constraints
+  leave freedom it *picks*, by canonical rule or by honest
+  heuristic. What keeps it on the right side: every pick is
+  ruled and published (never searched, never scored, never a
+  per-program judgment), every pick is on screen in the fainter
+  color (nothing behaves differently than shown), and every pick
+  is excludable by ordinary authoring (place the real operator
+  where you meant it). What is genuinely given up: "the authored
+  strokes alone show the full flow structure." The reading now
+  lives in authored-strokes-plus-lens. That trade is this
+  document's thesis, and it is the same trade Koka and unchecked
+  exceptions made — bought back, in our case, by the lens being
+  *structure*, not prose.
 - **Not a repeal of no time travel.** Every reading — every
   completion — satisfies the rule. There is no program whose
   *meaning* involves retroactive determination; there are only
   programs whose *notation* leaves canonical bookkeeping unsaid.
 - **Not layout-driven.** flow_language_design's Future Work #6
   (vertical positioning as elaboration input) would make the
-  editor's geometry a fifth constraint source. Possible, but it
+  editor's geometry another constraint source. Possible, but it
   belongs to the visual side and is out of scope in this repo;
   the constraint model above neither needs nor mentions position.
 
@@ -602,25 +721,28 @@ after the pass it always is.
   inserted structure is ordinary visible wiring, no magic names,
   no context-sensitive readings.
 - **Foundations before features.** This round is on paper; the
-  canonical table starts with one entry; the ambiguity policy
-  ships as "refuse" until a real program demands more. Cheaper to
-  reject candidate canonical rules here than to retract one the
-  ecosystem has leaned on.
+  canonical table starts with one entry and the heuristic order
+  with one heuristic, each admitted only with a worked program
+  behind it. Cheaper to reject candidate rules here than to
+  retract one the ecosystem has leaned on — a heuristic, once
+  shipped, determines readings, and is thereafter as hard to
+  change as any other piece of the semantics.
 - **Building blocks at the programmer's abstraction level.**
   "Add the elements of these two lists," "handle all the errors
   at the end" *are* the programmer's abstractions. One reading
   per program survives because every alternative reading kept
   its own explicit spelling (the three fallible-element forms).
 - **No bottlenecks.** Nothing is packed to pass a structural
-  point: insertions are captures and commutes, which pass value
-  wires through as themselves — commute doesn't even have value
-  ports to bottleneck.
+  point: insertions are incorporates and commutes, which pass
+  value wires through as themselves — commute doesn't even have
+  value ports to bottleneck.
 - **Abstraction is the source of truth; concreteness is a derived
   view.** The time-travel program is the record and the most
   abstract true description; the completion is a read-only lens,
-  compiled from, never edited; accepting hints is materialize;
-  eliding canonical structure is recognize. The feature is almost
-  a corollary of this principle — which is the strongest sign it
+  compiled from, never edited; overriding an inference is
+  authoring into the record, never a change to the view; eliding
+  canonical structure is recognize. The feature is almost a
+  corollary of this principle — which is the strongest sign it
   belongs in the language.
 
 ## Smallest first step
@@ -637,8 +759,10 @@ The repo can grow the skeleton with no UI and no streams:
    where they force a unique nesting, rewrite — re-rooting the
    inner open's source as a value consumed inside the outer flow
    — and report the insertion in test output (ExprPrint the
-   completed program alongside the original). Where they don't:
-   the check's error, now split into ambiguous vs contradictory.
+   completed program alongside the original). Where more than
+   one nesting survives, the heuristic order picks and the
+   report labels the pick heuristic; where the constraints
+   cycle, the check's error.
 3. **Canonical option-outward commute** waits for stream flows
    and the Commute implementation; its design is done here and
    in `lazy-stream-commute-design.md`, and step 2's constraint
@@ -647,18 +771,22 @@ The repo can grow the skeleton with no UI and no streams:
 Each step is testable in `Main.res` style: build a time-travel
 Expr, expect either a specific completion (compare compiled
 output against the hand-completed program — they must be
-identical, which is commitment 1 as a test) or a specific
-residue.
+identical, which is commitment 1 as a test) or a specific clash.
 
 ## Open questions
 
-1. **Ambiguity policy.** Recommended above: surface and refuse —
-   no reading until the user commits. Alternatives: a
-   deterministic tiebreak (first-opened wins) promoted into the
-   canonical table, or per-kind defaults. The refuse policy is
-   the only one that never chooses a meaning; the others buy
-   convenience at the exact spot where the choice is observable.
-   Revisit only with a corpus of real ambiguous programs in hand.
+1. **The heuristic order.** Decided: completion always picks —
+   refusing would make the most natural gestures dead ends (see
+   worked example 3, where both completions are legitimate and
+   the compiler needs one). Open: the contents and ordering of
+   the heuristic list beyond join-as-early-as-possible; whether
+   heuristics can be *required* to pick within a naturality-
+   equivalence class whenever one exists (making the pick a
+   spelling choice, and confining observable picks to the cases
+   where no equivalence is available); and versioning — unlike
+   the canonical table's grow-only rule, changing a heuristic
+   changes existing readings, so the heuristic order is language
+   semantics and must be versioned as such.
 2. **The canonical table's contents.** Option/error outward is
    the inaugural entry. Result-out-of-sequenceable presumably
    joins it (fail-fast with payload — same direction, and
@@ -666,10 +794,12 @@ residue.
    already). Async and incremental kinds need their own rounds;
    the commute-variant taxonomy is the map of which pairs even
    have a commute to canonicalize. The table is language
-   definition, versioned with it — a program's reading must not
-   change because the table grew (new entries may only give
-   readings to previously-residue programs; never alter existing
-   completions).
+   definition, versioned with it — and growing it is *not*
+   automatically safe: since completion always picks, a new
+   canonical entry re-classifies picks that were previously
+   heuristic and changes any it disagrees with. Same versioning
+   discipline as the heuristic order (question 1); the two lists
+   are one semantic surface.
 3. **Completion diffs on edit.** Should the editor actively flag
    "this edit changed the completion over there," and at what
    granularity? The id discipline makes the diff cheap; the UX is
