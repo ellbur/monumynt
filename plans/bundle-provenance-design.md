@@ -382,7 +382,19 @@ partitions — only that its scopes are marked as sibling cells.
    then test the cell-set sketch against it — including whether
    the unopened cells of a partial *open* need to be nameable in
    paths (the README's `PARTIAL_BRANCH` next-step is the same
-   question from the representation side).
+   question from the representation side). *Taken up
+   (2026-07-07): `partial-collect-design.md`. The semantics menu
+   dissolves into distinct complete programs rather than being
+   chosen from (the join-correction diagnosis transfers); the
+   construct is the partial collect, whose covering instance is
+   the exhaustive collect. The sketch survives its test — all
+   three clauses confirmed, with overlap ill-formed already at
+   the node — and the nameability rider gets a no: paths only
+   ever carry cells the program engaged; coverage checks read
+   the Open's cell inventory, not paths. One refinement: at a
+   bundle step the context structure is the subset lattice of
+   constructed sets, not a tree; paths stay unary per-wire
+   facts.*
 2. **The `Bundle`/`Unbundle` name.** Whether the spec's
    organizational node pair should be renamed to leave "bundle"
    unambiguous for the semantic family. Cosmetic but worth doing

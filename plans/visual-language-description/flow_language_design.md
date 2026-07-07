@@ -236,6 +236,8 @@ In Haskell, left-biased vs right-biased monad instances are nominal (determined 
 
 ### Multiple Possible Semantics
 
+> **Taken up** (2026-07-07): `plans/partial-collect-design.md` dissolves this menu the way the binary-join correction dissolved J/F — "closing a partial branch" names one flow while the bundle's other cells' terminations are left unstated, so the candidate semantics were rival conventions for completing an incomplete program. With every termination explicit, each candidate is a distinct program over one collect construct (the monadic and default readings are exhaustive collects whose unopened-cell value is the split's own input or an ancestor constant; the "Nothing" reading is a lone collect on the opened flow; filtering is a join). One collect; the differences are wiring.
+
 Closing a partial branch could have different semantics:
 1. Monadic: unopened branch values pass through unchanged
 2. Nothing: unopened branch values become Nothing
@@ -386,6 +388,8 @@ The entire graph structure has meaning only when complete. Intermediate wires ar
 - How do different bundle types interact?
 
 ### 4. Partial Conditional Algebra
+
+> **Taken up** (2026-07-07): `plans/partial-collect-design.md` states PARTIAL_CLOSE as a node — the **partial collect**, k (value, flow) branches over pairwise-disjoint cell sets of one bundle, one value and one flow out — governed by one law (the merged flow fires exactly when a branch flow fires, with that branch's value). The feared complexity resolves into theorems: multi-level merging is the lattice of disjoint unions (associative, bracketing is presentation); capturing from merged branches into constituents is cell-set containment ({A} ⊆ {A,B}), no capture construct needed; the exhaustive close is the covering instance of the same node; overlap is ill-formed at the node. The open questions below are answered there (valid operations = the termination inventory; scope hierarchies = the subset lattice on paths; composition laws = associativity plus the coverage demand).
 
 **Challenge:** Formalize the algebra of partial conditional merging.
 
