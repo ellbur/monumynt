@@ -51,7 +51,9 @@ Multi-level join generalises the same way: `Join^N` flattens N
 levels of stream nesting.
 
 The syntactic shape mirrors the list case — `join_(streamFlowRef)`
-on the close's branch.flow.
+on the close's branch.flow. *(2026-07-07: superseded — join is a
+binary flow operation, not a close annotation; see "Join is a
+binary flow operation" below.)*
 
 ## Effect on placement
 
@@ -207,6 +209,16 @@ unaffected) is in `lazy-stream-commute-design.md`, "Commute and
 the multi-parent zip".
 
 ## Join at an option level (taking up open question 2)
+
+> *(2026-07-07: superseded — see "Join is a binary flow
+> operation" below. The fork this section constructs between
+> spellings J and F dissolves once join is stated at its proper
+> arity: the contested stack `Joined(NodeFlow(optionIter))` was
+> an *incomplete* program, not an ambiguous one, and J and F
+> were rival conventions for silently completing it. The section
+> stays as the record of how the incompleteness surfaced; its
+> worked table survives as the four-program table in the
+> superseding section.)*
 
 *(Added 2026-07-06.)* Open question 2 below asked whether joining a
 stream of options — where the join "transparently skips Nones" — is
@@ -416,7 +428,10 @@ join and commute individually. The runtime "skip" mechanism (a
 non-firing element must advance the chain without emitting a
 spurious cell) is `lazy-stream-placement-design.md`'s open
 question 1 and is needed under either spelling — the choice moves
-*which construct* owns the skip, not whether it exists.
+*which construct* owns the skip, not whether it exists. *(Since
+worked out: that document's "The skip mechanism" — become-the-rest
+in the atCons, the same move this document's flatten makes at
+atNil — spelling-neutral as predicted.)*
 
 ### What would settle it
 
@@ -449,6 +464,191 @@ Considerations, deliberately not weighed here:
   out to be a wanted pattern, that weighs toward F; if they stay
   exotic, the extra stage buys little.
 
+## Join is a binary flow operation (2026-07-07)
+
+> This supersedes the J/F framing of "Join at an option level"
+> above. The correction is not a choice between the two algebras
+> but a diagnosis: the program that generated the fork was
+> incomplete, and the algebras were rival conventions for
+> completing it. With join stated at its proper arity there is
+> nothing left to choose. (Terminology, adopted here and going
+> forward: **collect**, for the construct the code and earlier
+> documents call Close — same construct, better word, and the
+> renaming's point is the correction's point: one collect closes
+> exactly one flow.)
+
+### The correction
+
+Three statements the wrapper-stack notation did not respect:
+
+1. **A collect closes exactly one flow.** A collect on the
+   innermost option flow of a three-deep nesting leaves the two
+   enclosing flows open. That is not a complete program; every
+   open flow still owes a termination.
+
+2. **Join is a flow operation with two flow inputs and one flow
+   output.** Its inputs are an outer flow and the flow
+   immediately inside it; its output is the newly combined flow.
+   Nesting-adjacency of the operands is a well-formedness
+   requirement. (Since a flow has exactly one immediately
+   enclosing flow, the inner operand technically determines the
+   outer — but naming only one flow is exactly the shorthand
+   that caused the trouble below, so both operands are part of
+   the operation.) In many situations the combined flow can be
+   identified with the outer operand — the outer flow absorbs
+   the inner and continues on — which is also how the
+   implemented list compile behaves mechanically: a joined
+   collect just walks more opener levels; no new flow object
+   exists.
+
+3. **Join on just the innermost flow therefore doesn't make
+   sense.** `Joined(NodeFlow(optionIter))` names one flow where
+   two terminations are owed and two operands are needed. It is
+   not a program with two possible meanings; it is not a
+   program.
+
+### Where J and F actually disagreed
+
+The old notation attached join to the collect, as a wrapper
+stack on the collect's flow reference. That conflates two
+different kinds of node — the collect, and the join(s) — into
+one, and leaves implicit which flows each stage terminates. J
+and F were rival conventions for reading the conflated form: J
+read the stack outward from the named flow (the collect's chain
+starts at its own opener; each `Joined` absorbs the next
+enclosing level), F read the named flow as collected immediately
+and the stack as staging over the enclosing layers. Both were
+internally consistent; neither could be *right*, because the
+notation underdetermined the program. Two coherent algebras with
+no semantic way to choose was the tell.
+
+### The law of the combined flow
+
+Stated once, for every operand-kind pair: **the combined flow
+fires exactly when the inner operand fires** (the inner's
+firings, which occur within the outer's, in time order).
+Everything each old algebra defended follows as a theorem:
+
+- join(list, list) fires per inner element — flatten. F's "join
+  never drops" is this law: nothing that fires is lost, and a
+  non-firing was never a firing.
+- join(list, option) fires per Some — filter. J's "filter is
+  join at an option level" is this law applied to an option
+  inner operand.
+- join(option, option) fires iff both fire — the
+  `Option<Option<X>>` AND rule.
+- join(option, list) fires per inner element, and not at all if
+  the outer never fired.
+
+The implemented "any list in chain → list" output rule is the
+kind half of the same law: the combined flow is list-kind if
+either operand is list-kind (firing count can exceed one),
+option-kind if both are options (zero or one firing).
+
+The old dispute — "does join drop the None?" — dissolves. A None
+is a non-firing, and the law never mentions non-firings; join
+neither drops nor keeps them because they were never firings of
+anything. The Nones-kept output the F algebra was protecting is
+not a property of join at all: it is a property of *collecting*
+the option flow, which converts fired-or-not into data. Which
+termination the option flow gets — absorbed by a join, or
+collected into option data — is the program's explicit choice,
+made per flow.
+
+### The worked example, as four programs
+
+Data `[[2, 4], [6, 7], [8]]`; flows O (outer list), I (inner
+list, opened per O-element), P (option on `maybeEven`, opened
+per I-element). A complete program terminates every flow, each
+by a collect or by being absorbed into its parent via join. The
+contested table rows become distinct programs:
+
+| program | output |
+|---|---|
+| collect P; collect I; collect O | `[[Some 2, Some 4], [Some 6, None], [Some 8]]` |
+| collect P; join(O, I); collect the combined flow | `[Some 2, Some 4, Some 6, None, Some 8]` |
+| join(I, P); collect the combined flow; collect O | `[[2, 4], [6], [8]]` |
+| join(I, P); join(O, that); collect | `[2, 4, 6, 8]` |
+
+Row 2 is what F called `Joined(NodeFlow)`; row 3 is what J
+called `Joined(NodeFlow)` and F called `Filtered(NodeFlow)`; row
+4 is J's `Joined(Joined)` and F's `Joined(Filtered)`. Every
+value in the old table was reachable under both algebras
+(sometimes via auxiliary construction) because these were all
+real programs; the algebras disagreed only about notation, which
+is why the disagreement could not be settled semantically.
+
+### Precedent
+
+`flow_language_design.md`'s original filtering account was
+already binary: filtering is presented as a JOIN of a partial
+branch's flow with the list flow — two named operands. The
+wrapper-stack notation lost the arity, and the J/F fork is what
+growing the design on the lossy notation eventually produced.
+There is also a resonance with the no-bottleneck principle
+(`language-design-philosophy.md`), which characterises the
+concurrency join as a barrier with corresponding inputs and
+outputs: the flatten join now has the same shape — explicit
+corresponding inputs, an explicit output — rather than riding as
+an annotation on a collect.
+
+### What survives
+
+- **The skip mechanism** (`lazy-stream-placement-design.md`,
+  "The skip mechanism") is unchanged: it is needed exactly when
+  a join absorbs an option flow into a list/stream flow (rows 3
+  and 4) — become-the-rest at a non-firing element. Programs
+  that instead collect the option flow (rows 1 and 2) carry data
+  and never skip. The sentence "the choice moves which construct
+  owns the skip" resolves: join-with-an-option-inner owns it.
+- **Placement-independence.** A collect on a combined flow
+  compiles to the same self-contained thunk as today's joined
+  closes — the join nodes determine which opener levels the
+  thunk's walk spans; chains and cells stay source-aligned. The
+  companion documents' phrase "join is per-close output
+  construction" should be read as "the join nodes determine the
+  structure the collect's output construction consumes"; the
+  compiled shape the argument rests on is unchanged.
+- **Every output value** in the superseded section's table, as
+  the four programs above.
+
+### What this opens
+
+Recorded, not decided:
+
+1. **Does commute become binary too?** `Commuted` consumes an
+   enclosing stream layer against an option-shaped value — the
+   same two-operand smell (the option flow, and the enclosing
+   flow it commutes across). If so, the wrapper-stack notation
+   retires entirely, and `lazy-stream-commute-design.md`'s stack
+   rows should be re-read as programs over explicit join/commute
+   nodes (they all translate).
+2. **Representation.** `Expr.res` today spells join as a
+   `flowRef` wrapper peeled by the close. Binary join is a flow
+   node with two flow inputs, and a collect references exactly
+   one flow. Whether the unary spelling survives as sugar (the
+   outer operand is derivable from adjacency) or is dropped (the
+   sugar is what hid the missing termination) is an ergonomics
+   choice.
+3. **Naming, which is all that remains of J vs F.** The law
+   fixes the semantics of every operand-kind pair; what's left
+   is whether option-inner absorption is surfaced under the name
+   join or under the name filter (as sugar for the same
+   operation). The old visibility debate — structural reading
+   off the diagram vs one behaviour per name — lands here,
+   deflated to vocabulary: the diagram shows both operands and
+   their kinds either way.
+4. **What collecting an option flow yields** — option data, the
+   undefined encoding, or a distinguished partial value — was
+   already an open vocabulary point and is unchanged; it now
+   sits on a single construct (collect-on-option) instead of
+   being entangled with join.
+5. **Multi-consumer completeness.** Flows admit multiple
+   collects (multi-close); presumably a flow may likewise be
+   absorbed by one consumer's join while another consumer
+   collects it. "Every flow terminated" reads per consumer path,
+   as multi-close already does.
+
 ## Open questions
 
 1. **User-facing form of multi-level join.** For lists we wrote
@@ -458,6 +658,10 @@ Considerations, deliberately not weighed here:
    confirm the runtime cleanly composes the `zipStream`-with-rest
    trick at multiple levels (it should — each level just nests
    one more `zipStream` with the level-above's restFlat as atNil).
+   *(2026-07-07: the user-facing form is now two binary join
+   nodes rather than a nested wrapper — "Join is a binary flow
+   operation" above; the runtime composition question is
+   unchanged.)*
 
 2. **Join interaction with stream-filter / stream-option-style
    conditionals.** ~~Joining a stream of options where some are
@@ -478,7 +682,11 @@ Considerations, deliberately not weighed here:
    "Multi-output independence" and "Composing" sections assume
    different spellings) and a wrong redirect in that doc's
    `Joined(Commuted)` rejection. The spelling choice is left
-   open — the section records what would settle it.
+   open — the section records what would settle it. *(2026-07-07:
+   dissolved rather than settled — "Join is a binary flow
+   operation" above. The contested stack was an incomplete
+   program; with join binary, the two readings are two distinct
+   programs and no convention is needed.)*
 
 3. **Infinite inner streams.** Joining a stream of infinite
    inner streams produces an output stream stuck on the first
@@ -491,7 +699,11 @@ Considerations, deliberately not weighed here:
    inner flow as a whole? The list case sidestepped this because
    close.flow was always a single opener/branch reference. The
    stream case should too — `join_(NodeFlow(branch_))` joins
-   that specific branch's output.
+   that specific branch's output. *(2026-07-07: another instance
+   of naming only one operand — binary join takes two flows, and
+   a Branch names a flow (one alt's), so the question becomes
+   simply which flow is the inner operand. See "Join is a binary
+   flow operation" above.)*
 
 ## What this doesn't address
 

@@ -153,7 +153,11 @@ treat it differently:
   > Nones kept; the defined-values-only reading requires either a
   > skip stage or, in the implemented list compile's spelling, a
   > join across the option level. The discrepancy is worked out in
-  > `lazy-stream-join-design.md`, "Join at an option level".)*
+  > `lazy-stream-join-design.md`, "Join at an option level" — and
+  > since resolved by that document's "Join is a binary flow
+  > operation" (2026-07-07): the two readings are two distinct
+  > programs, differing in whether the option flow is collected
+  > in place or absorbed into its parent by a join.)*
 
 - A third close possibly with yet another treatment.
 
@@ -252,6 +256,17 @@ per-element options.
 > `Joined(NodeFlow(opt))` and `Commuted(Joined(…))`. The frame of
 > the discipline — stages inside-out, requirements checked when
 > reached, ill-formed stacks rejected — survives either choice.)*
+
+> *(2026-07-07: the choice has since dissolved — join is a binary
+> flow operation (two flow inputs, an outer flow and the flow
+> immediately inside it; one flow output), not a per-collect
+> stage, and the contested stacks were incomplete programs. See
+> `lazy-stream-join-design.md`, "Join is a binary flow
+> operation". This section's rows all translate to programs over
+> explicit join nodes plus collects that each close exactly one
+> flow; whether commute likewise becomes binary — the option flow
+> and the enclosing flow it commutes across as explicit operands
+> — is recorded there as an open follow-up.)*
 
 Each wrapper is an output-construction stage, applied inside-out
 (nearest to the `NodeFlow` first). A stage consumes enclosing stream
