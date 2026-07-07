@@ -72,6 +72,11 @@ describes the language itself:
   well-formedness checks). Also works out the Delay back-edge —
   the write half is its own node, Close-style, with the final
   value as its output.
+- `textual-representation-design.md` — a parseable/printable textual
+  form for programs: nested expressions where the graph is a tree,
+  named flat statements at the seams (multi-port nodes, sharing,
+  register back-edges); labeled rows for barriers, `+`-prefixed
+  completion lines, statement order as the crossing signal.
 - `lazy-compile-design.md` — the current runtime-lazy compile
   strategy (implemented).
 - `placement-algorithm-notes.md` — the retired compile-time placement
