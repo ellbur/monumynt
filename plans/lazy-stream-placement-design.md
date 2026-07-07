@@ -621,6 +621,12 @@ per-level lattices.
 > is needed unchanged. This section fixes where the skip lives,
 > gives the atCons expression, and records the two real footguns
 > the expression must survive. It does not touch the J/F choice.
+> *(2026-07-07: the J/F fork has since dissolved — join is a
+> binary flow operation and the contested program was incomplete;
+> see "Join is a binary flow operation" in
+> `lazy-stream-join-design.md`. The mechanism below is needed
+> exactly when a join absorbs an option flow into a list/stream
+> flow, and is unchanged by the correction.)*
 
 ### Skip lives in output construction; chains never subset
 
@@ -648,9 +654,11 @@ Three things follow:
   The only depth-K-vs-source-K mismatch is between an *output
   stream* and the source — and nothing ever needs to align an
   output stream with anything. Outputs are endpoints.
-- **The spelling choice doesn't move the mechanism.** Under J the
-  skip sits inside a joined close's output construction; under F
-  it is the `Filtered` stage's. Same runtime function either way.
+- **The notation doesn't move the mechanism.** Whether spelled as
+  a per-close stage (the superseded J/F algebras) or as a binary
+  join node absorbing an option flow into a list/stream flow (the
+  correction that superseded them), the runtime function is the
+  same.
 
 ### The atCons expression: become the rest
 
@@ -729,10 +737,12 @@ The lattice is unaffected, for the structural reason above; the
 careful atCons expression is the flatten's own become-the-rest
 move applied at a non-firing element; and the real risks live in
 the `Delayed` primitive (iterative force, path compression), not
-in any stage. What stays open is exactly what was open before:
-which language construct *owns* the skip — the J/F spelling
-choice — on which this section is deliberately silent, because
-both spellings compile to this mechanism.
+in any stage. What stayed open when this was written — which
+language construct *owns* the skip, the J/F spelling choice —
+has since resolved by dissolution: join is binary, the skip
+belongs to join-with-an-option-inner-operand, and both former
+spellings compile to this mechanism ("Join is a binary flow
+operation" in `lazy-stream-join-design.md`, 2026-07-07).
 
 ## Open questions
 

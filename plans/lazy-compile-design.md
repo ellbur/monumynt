@@ -74,6 +74,18 @@ Consequences worth stating:
 - `Option<List<X>>` joined produces a list, built only when the
   outer option fires.
 
+> *(2026-07-07: the language-level design has since recast join
+> as a binary flow operation — an outer flow and the flow
+> immediately inside it, combined — with the any-list rule
+> becoming a theorem about the combined flow's kind, and the
+> combined flow firing exactly when the inner operand fires; see
+> `lazy-stream-join-design.md`, "Join is a binary flow
+> operation". The implemented `Joined` wrapper reads as that
+> adjacent-pair join with the outer operand implied — each
+> `Joined` absorbs the named flow's next enclosing level — and
+> the compiled behaviour described here is exactly the absorb
+> reading, unchanged by the correction.)*
+
 ## What laziness buys
 
 The two placement behaviours the retired algorithm computed at
