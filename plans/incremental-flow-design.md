@@ -740,7 +740,19 @@ the existing cell discipline plus a version word.
    precedent — nearest neighbours are the commute node (crossing
    as a node with flow wires) and the race barrier (open question
    5 of the async doc, first-class ports), which this pressure
-   strengthens from a third direction.
+   strengthens from a third direction. *Update (2026-07-07)*: the
+   port round now exists — `first-class-ports-design.md`, with
+   `hold`/`changes` in its pressure inventory. Two of this
+   question's sub-parts shift under it: kind-crossing nodes are
+   just nodes whose port inventories mix flow kinds (the
+   representation stops being the hard part; the semantics
+   remain this document's), and the `Joined(flowRef)` per-close
+   annotation this question asks about reusing has itself been
+   superseded by binary Join nodes
+   (`lazy-stream-join-design.md`, "Join is a binary flow
+   operation") — so the switch-join question becomes whether
+   switch-join is another Join-node variant with a var-kinded
+   operand, which reads more natural, not less.
 
 8. **Naming.** "var" vs cell vs signal vs behavior; "incremental
    flow" vs "reactive flow"; "hold" vs stepper vs latch;

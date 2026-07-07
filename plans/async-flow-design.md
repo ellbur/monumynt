@@ -680,7 +680,15 @@ existing simple-lazy compile discipline:
    least, is settled by the barrier form: N-ary from the start.
    The nested-alternative composition question —
    `race(a, race(b, c))` — was an artifact of the rejected
-   alt-value form.)
+   alt-value form.) *Update (2026-07-07)*: the port concept now
+   has its design round — `first-class-ports-design.md` works
+   out the Expr-level representation (per-kind port
+   inventories, `ValuePort`/`FlowPort` refs), with the race
+   barrier recorded in its pressure inventory as a client:
+   per-contender value + flow output pairs fit the inventory
+   model directly, no Branch-style satellite nodes needed. The
+   barrier's own design round still owes its semantics; the
+   representational blocker is what dissolves.
 
 6. **Is the async open its own kind, or is `OptionIter` a
    degenerate async?** They share the one-shot-body shape. Keeping
