@@ -52,6 +52,13 @@ describes the language itself:
 - `types-design.md` and `bundle-provenance-design.md` — validity
   checking without a conventional type system, and preventing invalid
   mixing of sibling case flows.
+- `partial-collect-design.md` — partial conditionals settled: the
+  partial open dissolves into partial *use* of an ordinary open, the
+  old "multiple possible semantics" of partial closes dissolve into
+  distinct explicit programs, and what remains is one construct —
+  the partial collect (merge some cells of a bundle into a coarser
+  flow; the exhaustive collect is its covering instance) with its
+  algebra as three short theorems.
 - `time-travel-programs-design.md` — sanctioning time-travel
   *authoring*: an under-committed program (sibling opens, deferred
   error flows) whose meaning is its completion into a no-time-travel
@@ -125,7 +132,10 @@ None committed to.
   is also the front half of *completion* — some findings become
   insertions rather than errors.)
 - **Partial conditionals.** The spec's `PARTIAL_BRANCH` — open just
-  one alt, others propagate "no value".
+  one alt, others propagate "no value". Design now worked out in
+  `plans/partial-collect-design.md` (no new open construct needed;
+  the new node is the partial collect); implementation lands after
+  first-class-ports migration step 2.
 - **`Aggregate`/`Disaggregate`** for struct construction and field
   projection.
 - **Loop-carried state** — implement one of the two candidates in
