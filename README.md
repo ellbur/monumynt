@@ -69,7 +69,9 @@ describes the language itself:
   representation: per-kind port inventories dissolving Branch and
   the `Joined`/`Filtered` wrappers (into alt ports and binary Join
   nodes), and what that unblocks (barrier constructs,
-  well-formedness checks).
+  well-formedness checks). Also works out the Delay back-edge —
+  the write half is its own node, Close-style, with the final
+  value as its output.
 - `lazy-compile-design.md` — the current runtime-lazy compile
   strategy (implemented).
 - `placement-algorithm-notes.md` — the retired compile-time placement
@@ -139,9 +141,17 @@ None committed to.
 - **`Aggregate`/`Disaggregate`** for struct construction and field
   projection.
 - **Loop-carried state** — implement one of the two candidates in
-  `plans/iteration-with-state-design.md`.
+  `plans/iteration-with-state-design.md`. The back-edge
+  construction both candidates need is worked out in
+  `plans/first-class-ports-design.md` ("the write half is a
+  node"): the object graph stays a DAG, and the pair supplies the
+  previously missing `final` readout.
 - **Diagrams as the top-level structure** — the spec's `Diagram`
-  type, compiling to a JS function per diagram.
+  type, compiling to a JS function per diagram. Now has a forcing
+  argument beyond spec fidelity: a Delay write half can be
+  root-unreachable in a complete program, so the program of record
+  is a node set, not a root expression (first-class-ports doc,
+  "the program is a node set").
 - **Structural tests** — pin outer-stmt counts, golden-file the
   generated JS.
 
