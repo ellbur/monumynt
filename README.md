@@ -52,6 +52,12 @@ describes the language itself:
 - `types-design.md` and `bundle-provenance-design.md` — validity
   checking without a conventional type system, and preventing invalid
   mixing of sibling case flows.
+- `time-travel-programs-design.md` — sanctioning time-travel
+  *authoring*: an under-committed program (sibling opens, deferred
+  error flows) whose meaning is its completion into a no-time-travel
+  program — derived deterministically (forced, canonical, or honest
+  heuristic), shown faint in the editor, overridden by authoring the
+  operator you meant, compiled by translation only.
 - `first-class-ports-design.md` — the Expr-level port
   representation: per-kind port inventories dissolving Branch and
   the `Joined`/`Filtered` wrappers (into alt ports and binary Join
@@ -115,7 +121,9 @@ None committed to.
   well-formedness checks and cleaner case-split flows.
 - **Well-formedness checks.** Time-travel detection (`deeper` on
   unrelated scopes) and closed-scope leakage are currently trusted,
-  not checked.
+  not checked. (Per `plans/time-travel-programs-design.md`, detection
+  is also the front half of *completion* — some findings become
+  insertions rather than errors.)
 - **Partial conditionals.** The spec's `PARTIAL_BRANCH` — open just
   one alt, others propagate "no value".
 - **`Aggregate`/`Disaggregate`** for struct construction and field

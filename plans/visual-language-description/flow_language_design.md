@@ -335,6 +335,8 @@ The entire graph structure has meaning only when complete. Intermediate wires ar
 
 ### 1. Pull-Based to Explicit Transformation
 
+> **Taken up** (2026-07-07): `plans/time-travel-programs-design.md` works this out as *time travel programs* — the underspecified form becomes a first-class authored artifact whose meaning is its *completion* into a no-time-travel program (derived as a read-only lens, rendered faint in the editor, compiled by translation only, zero runtime). The three open questions below map onto its machinery: the transformation rules are a constraint model (explicit structure and join operand order > termination-directed nesting > canonical per-flow-kind commutes > published heuristics such as join-as-early-as-possible), the ambiguous cases are picked deterministically by the heuristic order and shown faint rather than refused, and elaboration is impossible exactly at ordering cycles and bundle mixing.
+
 **Challenge:** Can we allow users to write in a more flexible, pull-based style where nesting isn't specified upfront, then automatically transform it into explicit form?
 
 **Approach:**
