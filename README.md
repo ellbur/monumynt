@@ -52,6 +52,11 @@ describes the language itself:
 - `types-design.md` and `bundle-provenance-design.md` — validity
   checking without a conventional type system, and preventing invalid
   mixing of sibling case flows.
+- `first-class-ports-design.md` — the Expr-level port
+  representation: per-kind port inventories dissolving Branch and
+  the `Joined`/`Filtered` wrappers (into alt ports and binary Join
+  nodes), and what that unblocks (barrier constructs,
+  well-formedness checks).
 - `lazy-compile-design.md` — the current runtime-lazy compile
   strategy (implemented).
 - `placement-algorithm-notes.md` — the retired compile-time placement
@@ -102,9 +107,12 @@ npm start           # node lib/es6/src/Main.res.mjs — runs the test suite
 
 None committed to.
 
-- **First-class ports.** `go` conflates a node with its single value
-  output port; Join and Branch already strain this. Would enable
-  compile-time well-formedness checks and cleaner case-split flows.
+- **First-class ports.** `compileExpr` conflates a node with its
+  single value output port; Join and Branch already strain this.
+  Design now worked out in `plans/first-class-ports-design.md`
+  (pressure inventory, `ValuePort`/`FlowPort` refs, staged
+  migration); implementing it would enable compile-time
+  well-formedness checks and cleaner case-split flows.
 - **Well-formedness checks.** Time-travel detection (`deeper` on
   unrelated scopes) and closed-scope leakage are currently trusted,
   not checked.
