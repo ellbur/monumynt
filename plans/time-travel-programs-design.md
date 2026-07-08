@@ -207,6 +207,18 @@ families:
   "sibling opens" into "nested opens." Its value-level shadow is
   the identity: incorporation changes what context a value is
   available in, never the value.
+
+  *(2026-07-08: superseded for the flow–flow case. Incorporating
+  an uncollect source erases a fact the authored program carried
+  — sibling opens are mutually invariant by construction, and the
+  incorporated form reads as dependent nesting, indistinguishable
+  from an inner source computed from the outer element. The
+  insertion for sibling opens is now the Cross node of
+  `product-flows-design.md`, which nests the flows while keeping
+  the mutual-constant relationship; it passes the same
+  identity-shadow admission test. Incorporate remains for the
+  CAPTURE family — bringing a value, not a flow, into a
+  context.)*
 - **Commute chains** — Commute nodes lifting a flow across
   enclosing flows toward its canonical position. Value-level
   shadow: none at all — the node has no value ports, and the
@@ -357,6 +369,17 @@ report as a time-travel clash — now lands in one of four bins:
    — with a two-anchor witness: the two termination chains whose
    directions collide.
 
+   *(2026-07-08: this disposition splits, and mostly dissolves —
+   see `product-flows-design.md`. When the colliding chains'
+   flows are mutually invariant sibling opens, both orders are
+   legitimate readings of one product, and completion inserts a
+   single Cross (plus a faint Commute for the reversed chain);
+   nothing is duplicated, neither opens nor work. What remains
+   genuinely contradictory: constraints that cycle within one
+   termination chain, a reversed-order demand on a dependent
+   nesting (no product exists to transpose), and bundle mixing as
+   ever.)*
+
 And one thing that is **not** a disposition of time travel at all:
 **bundle mixing stays an error.** The two clash flavors that
 `bundle-provenance-design.md` was careful to keep distinct now
@@ -401,6 +424,14 @@ Reading: for each b, the list of a+b over all of A; `out` is a
 list of lists. Had the user collected in the other order, the
 same machinery would have derived B-inside-A — the authored
 gesture is symmetric, and the terminations are the commitment.
+
+*(2026-07-08: the constraint walk is unchanged, but the inserted
+operator is now a Cross rather than an Incorporate —
+`+ xA, xB -> CROSS => xA', xB'` with xA' nested inside xB' — per
+`product-flows-design.md`. The directed constraints still pick
+the orientation; what changes is that the completion preserves
+the flows' mutual invariance instead of lowering to a
+dependent-looking nesting.)*
 
 ### 2. Deferred errors (canonically completed)
 
@@ -536,6 +567,15 @@ compile to independent thunks, but it doubles the iteration
 structure behind the user's back. Whether that rescue should ever
 be offered as an explicit hint rather than performed is an open
 question below; performing it silently is over the line.)
+
+*(2026-07-08: dissolved for this example — `xA` and `xB` are
+mutually invariant sibling opens, so both chains are readings of
+one product; completion inserts one Cross and a faint Commute for
+the reversed chain, and no rescue, duplication, or refusal is
+needed. See `product-flows-design.md` and the note on disposition
+4 above. This example remains the template for the cases that
+stay contradictory only when no product exists — a within-chain
+cycle, or a reversed order on genuinely dependent nesting.)*
 
 ## Safety: the completion is a lens
 
@@ -812,6 +852,13 @@ identical, which is commitment 1 as a test) or a specific clash.
    happily support — is expressible but multiplies iteration
    structure. Never silently; the open question is whether it is
    ever *offered*, as an explicit hint with the duplication drawn.
+   *(2026-07-08: resolved by dissolution — the case that motivated
+   it completes with a single inserted Cross, no duplication of
+   opens or work; see `product-flows-design.md` and the notes on
+   disposition 4 and worked example 4. No duplicating rescue
+   remains wanted for any known program; if one ever is, this
+   entry records the constraint it must satisfy: drawn, never
+   silent.)*
 5. **Boundary residue representation.** How a reusable diagram's
    unresolved ordering constraints appear in its principal
    property signature, and how they compose at call sites —

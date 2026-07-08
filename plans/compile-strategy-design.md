@@ -13,8 +13,8 @@
 > `placement-algorithm-notes.md` (the retired mutating placement
 > pass, whose failure mode is this document's cautionary tale),
 > `time-travel-programs-design.md` (the completion pass this
-> pipeline hosts — and amends; see "A node reached in two
-> contexts"), `transformation-levels-design.md` (what the front
+> pipeline hosts — revised through `product-flows-design.md`; see
+> "A node reached in two contexts"), `transformation-levels-design.md` (what the front
 > half of this pipeline is), `first-class-ports-design.md` (the
 > representation this compiler consumes).
 >
@@ -70,8 +70,8 @@ kept, and the rebuild must reproduce them:
   (`lazy-stream-placement-design.md`, "The baseline, revisited").
 - **Multi-close independence.** Each collect is a self-contained
   consumer; sibling collects on one flow compile to independent
-  iterations. (This doctrine turns out to be the seed of the
-  per-context answer below.)
+  iterations — though what they iterate over may now be a shared
+  point-indexed structure (see "A node reached in two contexts").
 - **The join law and the any-list rule**, read off Join operands
   (`lazy-stream-join-design.md`).
 - **Completion is translation only.** Zero runtime representation
@@ -191,12 +191,12 @@ completion).
 `time-travel-programs-design.md`: harvest directed constraints
 from terminations and authored flow operations, extend the
 partial order (canonical table, then heuristic order, per that
-document), realise the assignments as inserted incorporates and
-commute chains. Output: a completed core plus the insertion
+document), realise the assignments as inserted operators — Cross
+for flow–flow nesting, commute chains for lifts
+(`product-flows-design.md`; Cross replaces Incorporate for the
+sibling-opens case). Output: a completed core plus the insertion
 report addressed to authored node ids (the lens an editor renders
-faint, and a test runner prints). One amendment to that document
-is made below: the solve is **per termination chain**, not
-global.
+faint, and a test runner prints).
 
 **3. annotate.** Cheap derived facts codegen wants handed to it
 rather than discovered mid-walk: for each node, the set of flows
@@ -315,102 +315,121 @@ s  -~> collect => sPerX'  -~> collect => out2     -- ~y inner, ~x outer
 What this should *mean* is not in doubt: `out1` is, per y, the
 list of x+y over all x; `out2` is the transpose. Each output's
 own termination chain fully directs a nesting — for that output.
-The two directions are simply different. And the implementation
-that meaning wants is two separate nested loops:
+The two directions are simply different. And what the meaning
+wants at runtime is two *traversal orders* of **one table of
+values**: the ADD varies with `~x` and `~y`, its values form an
+n×m table indexed by iteration points, and points are order-free
+— order belongs to the traversals, and the traversals belong to
+the collects. (What it must **not** compile to is any single
+joint iteration — an outer-product sequencing in the list monad
+picking one global order. The user drew two readings; a
+Cartesian product in some canonical order is a third program
+nobody drew.)
+
+Neither policy as stated survives this program. Policy 1 refuses
+a program with a perfectly clear meaning. Policy 2 — an earlier
+draft of this document's answer, realised as per-chain completion
+with duplicated opens — compiles the user's ADD once per context,
+and duplicated user computation is the wrong default: sharing is
+opt-in via binding, and the author bound one node expecting one
+computation.
+
+The resolution has a language half and a compile half, worked out
+in `product-flows-design.md`:
+
+- **Language half.** Sibling opens are mutually invariant by
+  construction, so the flows form a *product*; completion inserts
+  one **Cross** node (plus a lawful Commute for the chain reading
+  the other orientation) instead of per-chain incorporates. No
+  opens are duplicated in the completed program.
+- **Compile half.** A node whose flow-variable set spans a
+  product's axes memoises **at the product context** as a
+  point-indexed structure. For the eager fragment, one lazy whose
+  thunk builds the whole table in the stored orientation, the
+  other consumer indexing it transposed:
 
 ```js
-const out1 = __lazy__(() => {
-  const acc = [];
+const s_tab = __lazy__(() => {
+  const t = [];
   for (const y of listY) {
-    const inner = [];
-    for (const x of listX) inner.push(add(x, y));
-    acc.push(inner);
+    const row = [];
+    for (const x of listX) row.push(add(x, y));
+    t.push(row);
   }
-  return acc;
+  return t;
 });
-const out2 = __lazy__(() => { /* the same, loops swapped */ });
+const out1 = __lazy__(() => /* traverse __force__(s_tab) y-outer */);
+const out2 = __lazy__(() => /* traverse __force__(s_tab) transposed */);
 ```
 
-The ADD — one authored node — compiles twice, once per context.
-(What it must **not** compile to is any single joint iteration —
-an outer-product sequencing in the list monad picking one global
-order. The user drew two readings; a Cartesian product in some
-canonical order is a third program nobody drew.)
+The ADD runs once per point, whichever consumer forces first.
+(Whole-table is adequate for the eager fragment because eager
+collects always consume fully; under stream kinds the table
+refines to per-cell `Delayed` cells — Shape C over a product.)
 
-So the answer is policy 2, and the memo table already implements
-it with no additional mechanism: a prefix hit is reuse, an
-incomparable miss is a second entry. Policy 1 isn't discarded so
-much as **subsumed** — "conjoining the contexts" is exactly what
-the completion solver does *within* one termination chain (that
-is its partial-order extension), and when two chains' constraints
-agree, their contexts share prefixes and the memo automatically
-yields one compilation. Conjunction where consistent, duplication
-where not, and no policy decision left at codegen time: the memo's
-lookup rule is the whole answer.
-
-### The amendment to the time-travel document
-
-This resolves that document's open question 4 and reclassifies
-its worked example 4. Crossed terminations were filed as
-**contradictory** — "one chain forces A inside B, another forces
-B inside A; cycle; no completion" — with per-consumer completion
-noted as expressible ("multi-collect consumers already compile to
-independent thunks") but "over the line" to perform silently.
-
-The position taken here: **the completion solve is per
-termination chain**, so crossed terminations across *different*
-outputs are not a contradiction at all — each output gets its own
-context assignment, realised as its own (faint-rendered)
-incorporates, and codegen compiles shared nodes per context. This
-is not a new semantic species: multi-close independence has
-always meant one iteration structure per consumer; per-chain
-completion is that doctrine applied to completion. And it is not
-silent: the insertion report shows both assignments, faint, like
-every other completion pick — the duplication is on screen, which
-is what "performing it silently is over the line" was actually
-guarding.
-
-What genuinely remains an error narrows to two cases:
-
-- **Contradiction within one chain** — a single output whose own
-  termination path forces A inside B *and* B inside A. No reading
-  exists for that output; clash, two-anchor witness, as before.
-- **Bundle mixing** — unchanged and untouched by any of this; the
-  missing fact there is an execution that doesn't exist, not an
-  ordering (`bundle-provenance-design.md`).
-
-`time-travel-programs-design.md` should be updated accordingly
-when this lands: disposition 4 splits into "contradictory within
-a chain" (error) and "divergent across chains" (per-chain
-completion), and open question 4 closes.
+The memo rule survives verbatim; only the order it runs over
+grows. Product contexts make the context order a poset rather
+than a tree (each axis ≤ the product; the axes stay incomparable
+to each other — `product-flows-design.md`, "The context model"),
+and the product context is ≤ both orientations' loop bodies, so
+the table binding is reused by both consumers under the ordinary
+stored-≤-requesting rule. Policy 1's conjunction is what the
+completion solver does within a chain; policy 2's per-context
+entries remain for placement of genuinely unrelated bindings; and
+the shared-value case that motivated the question lands on
+neither — it lifts to the product. Genuine incomparability on a
+value codegen must place never reaches codegen: where no product
+exists (a dependent nesting read backwards, a within-chain
+cycle), the checker clashed earlier, and codegen asserts.
 
 ### The honest costs
 
-- **Work duplicates across incomparable contexts.** In the
-  two-lists program the ADD runs n×m times per output. For pure
-  values this is cost, not meaning — and it is the *same* cost
-  the multi-close doctrine already accepts (a shared case-split's
-  discriminator runs once per consuming thunk today). Sharing is
-  preserved exactly where contexts are comparable; the "one node
-  = one binding" convention becomes "one binding per maximal
-  context," bounded by the number of outputs.
-- **Effects will eventually make duplication observable.** When
-  effect flows / async arrive, running an authored node's work
-  twice is not free semantically. The line to hold, recorded now:
-  a node on an *effect* flow already has its ordering directed by
-  that flow's structure (effect flows are the context), so
-  per-chain divergence should be unreachable for it; if a program
-  ever puts an effectful node under genuinely divergent chain
-  contexts, that is a clash, not a duplication. Worked out for
-  real in the async/effect rounds — flagged here so the memo
+- **Retention, not duplication.** Two traversal orders of a
+  product cannot both stream ephemeral values off one
+  computation; whatever the slower consumer hasn't reached stays
+  live — in the worst case the whole table. Bounded for the eager
+  fragment (the table dies with the last consuming thunk); a
+  genuinely new axis for streams (grid cells lack chain cells'
+  free cursor-GC). Recompute-per-consumer is demoted to a
+  possible future *opt-in* cost policy, never the default.
+- **Same-order multi-close duplication is unchanged — for now.**
+  Sibling collects in one order still iterate independently and
+  re-emit per-iteration work (the documented cost of the simple
+  eager model, `lazy-compile-design.md`); the stream baseline
+  restores that sharing, as already recorded. The product
+  mechanism fixes the *divergent-order* case, which per-context
+  recompilation would otherwise have made worse rather than
+  better.
+- **Effects will eventually notice point order.** Once-per-point
+  is the right effect semantics (each effect happens once), but
+  *which consumer forces first* sets the inter-point order. The
+  line to hold, recorded now: a node on an effect flow has its
+  ordering directed by that flow's structure, so divergent-order
+  demands on it should be unreachable; if a program achieves one
+  anyway, that is a clash, not a scheduling choice. Worked out
+  for real in the async/effect rounds — flagged here so the memo
   design doesn't silently decide it.
 - **Streams change the sharing story again.** Under Shape C,
   per-node cells restore cross-consumer sharing *within* a
-  context; incomparable contexts still mean distinct cell graphs.
-  The consumer-set lattice, when it comes back, partitions within
-  a context — context first, lattice second. (The lattice axes
-  are a context's own outputs; nothing in
+  context; the consumer-set lattice, when it comes back,
+  partitions within a context — context first, lattice second.
+  (The lattice axes are a context's own outputs; nothing in
   `lazy-stream-placement-design.md` crosses contexts.)
+
+### What changed in the time-travel document
+
+An earlier draft of this section resolved the two-context
+question by making the completion solve per termination chain —
+splitting that document's disposition 4 and closing its open
+question 4 by *performing* the duplicating rescue, faintly. The
+product resolution supersedes that on every axis it paid on: one
+faint Cross instead of per-chain insertion sets, no duplicated
+opens, no duplicated work. The notes now placed in
+`time-travel-programs-design.md` (insertion inventory, worked
+examples 1 and 4, disposition 4, open question 4) record the
+surviving shape: Cross replaces Incorporate for flow–flow
+nesting, and contradiction narrows to within-chain cycles,
+reversed dependent nestings, and bundle mixing.
 
 ## Multi-level programs
 
@@ -531,18 +550,18 @@ open packaging question below.
 
 ## Open questions
 
-1. **Effects × per-context duplication.** The claim above — an
-   effectful node's context is always fully directed by its
-   effect flow, so divergent-chain duplication can't reach it —
-   needs to be proven or weakened when async/effect flows are
-   designed against this pipeline. The alternative (clash on
-   effectful divergence) is recorded as the fallback.
-2. **Displaying per-chain completions.** The insertion report now
-   contains, for a shared upstream region, one assignment per
-   termination chain. How ExprPrint (and later TextPrint's `+`
-   lines, and later still the editor) renders "this uncollect is
-   incorporated *here* for out1 and *there* for out2" without
-   implying the node was duplicated in the program of record.
+1. **Effects × point order.** The claim above — an effectful
+   node's ordering is always fully directed by its effect flow,
+   so divergent-order demands can't reach it — needs to be proven
+   or weakened when async/effect flows are designed against this
+   pipeline. The alternative (clash on effectful divergence) is
+   recorded as the fallback.
+2. **The point-indexed structure's concrete shape.** Nested
+   arrays in the stored orientation (transposed consumer indexes
+   `t[j][i]`) vs a keyed map; where the crossed subgraph's
+   *multiple* nodes share one table of records vs one table per
+   node; and the threshold at which per-cell laziness starts
+   paying (it doesn't, for eager collects that consume fully).
 3. **Runtime packaging.** Inline prelude per IIFE (self-contained
    output, as today) vs an imported runtime module (once streams
    make the prelude non-trivial). Interacts with the test

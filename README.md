@@ -88,9 +88,18 @@ describes the language itself:
 - `compile-strategy-design.md` — the planned functional rebuild of
   the compiler: a pipeline of pure passes (derive → check →
   complete → annotate → codegen), downstream facts converted into
-  passed-down context, memoisation keyed by (node, context) with
-  per-context compilation where termination chains diverge, and
-  how multi-level programs reach JS.
+  passed-down context, memoisation keyed by (node, context) over
+  a context poset, values shared once-per-point across
+  divergent-order consumers, and how multi-level programs reach
+  JS.
+- `product-flows-design.md` — the mutual-constant relationship
+  between sibling flows as a construct: the Cross node (flows
+  nested asymmetrically but independently — inner shape may not
+  depend on outer value), commute-as-transpose made lawful over
+  products, partial products vs true raggedness, and the
+  point-indexed table it compiles to. Revises the sibling-opens
+  completion (Cross replaces Incorporate) and dissolves most of
+  the crossed-terminations clash.
 - `implementation-strategy.md` — the map from the design record to
   code: five workstreams, a doc-by-doc ledger of what
   implementation must make concrete, and a proposed sequencing.

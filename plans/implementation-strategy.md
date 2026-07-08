@@ -123,10 +123,24 @@ edges from combining nodes), the solver (partial-order extension
 with the published tie-breakers — start as a literal ordered
 array in code, versioned with the language), and the insertion-
 report format (ExprPrint first, TextPrint's `+` lines when E
-lands). One amendment is already queued from the compile
-document: the solve is per termination chain, disposition 4
-splits, open question 4 closes — fold that back into the document
-when it lands.
+lands). One revision is already recorded in place: for sibling
+opens the inserted operator is a Cross, not an Incorporate, and
+disposition 4 mostly dissolves (`product-flows-design.md`; dated
+notes sit in the time-travel document at the affected sections).
+
+### `product-flows-design.md` — the Cross node
+
+The mutual-constant relationship between sibling flows, as a
+construct: a flow-only Cross node (ports like Join/Commute),
+mutual invariance as its demand, commute made lawful over crossed
+pairs (the transpose), and the point-indexed table as its compile
+target. Smallest first step is in the document (invariance fact →
+node + whole-table compile → completion inserts it → partial
+products with the filter round). What code must settle: the
+oriented-vs-symmetric storage lean (represent oriented, read
+symmetric — with a recorded exit), the product segment in context
+paths (the provenance poset), and naming. Depends on ports (it is
+a flow node) and threads through phases 3–4 below.
 
 ### `types-design.md` + `bundle-provenance-design.md` — checks
 
@@ -262,9 +276,10 @@ phases 5–8 is flexible.
    functional pipeline, node-set entry, vocabulary rename, same
    emitted shapes (golden-filed via TextPrint/JsPrint).
 4. **Checks + completion:** flow-context alignment with witnesses
-   → provenance origins and the mixing/time-travel split →
-   directed completion for sibling opens (per termination chain),
-   insertion report in test output.
+   → provenance origins and the mixing/time-travel split → the
+   Cross node with its whole-table compile → directed completion
+   for sibling opens (inserting Cross, per
+   `product-flows-design.md`), insertion report in test output.
 5. **Streams:** runtime primitives (iterative force, path
    compression) → single-output stream flow → commute (deciding
    binary-or-not and the option-collect question) → stream join.
