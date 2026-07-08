@@ -846,6 +846,177 @@ document's motivating programs actually had their bugs.
    take-while/until; "divide flow" vs recurse/split. Deferred,
    per tradition.
 
+## Addenda (2026-07-08): three notes from review
+
+Three points raised in review of the first draft. None fully
+explored here — each is recorded with enough working-out to show
+where it leads, and left for its own round.
+
+### The visual test, and the species menu revisited
+
+This is a visual language, and a building block's role should,
+where possible, be legible from the drawing — "semantics
+structural, not nominal" applied to the *block inventory*, not
+just to programs. Measured against that, the consolidated
+inventory's item 1 fails as stated: `serial | keyed(key) |
+bounded(n) | unbounded` is a menu of words, and a reader who
+hasn't looked them up learns nothing from seeing one on a
+collect.
+
+Working the menu against the test, most of it dissolves into
+structure:
+
+- **`keyed` decomposes.** Keyed lanes are a **group-by open** —
+  a dynamic partition: one flow in, one sub-flow per runtime key
+  value — whose per-group body is an ordinary serial drain, with
+  groups concurrent among themselves (siblinghood across
+  groups). The correspondence that the word `keyed` named is
+  then *drawn*: the key wire visibly feeds the partition's
+  discriminator, exactly as a case split's discriminator wire is
+  drawn today. The apparent obstacle — the keys aren't known
+  until runtime, so the correspondence is abstract — is handled
+  by a convention the language already relies on everywhere:
+  the **representative instance**. One element wire stands for
+  every element of a list; one alt body stands for every firing
+  of an alt; one lane body stands for every key's lane. A
+  group-by open is drawn like a case split with one
+  representative alt, and the reader's existing training reads
+  it correctly. (Group-by is also independently useful —
+  histograms, word counts, any partition-by-computed-key — so it
+  earns its place as a block in its own right, with keyed
+  concurrency as one reading of it.)
+- **`unbounded` is the degenerate group-by** — group by firing
+  identity; every firing its own lane.
+- **`serial` is no construct at all** — the default collect,
+  unmarked.
+- **`bounded(n)` resists the decomposition**, and the resistance
+  is informative: it is not a partition but a *resource* — n
+  permits, a body runs while holding one. That is the permanence
+  theme's first client (below): permits as permanent objects
+  moving pool → body → pool on wires, the count visible as n
+  token sources rather than as a numeral annotation.
+
+So the "dimension on the collect node" framing in the inventory
+should be read as superseded in spirit: the species are mostly
+*wiring*, not modes, and open question 1 is partially answered.
+Honest residue: some things stay written rather than drawn — the
+key function is authored, an n is a numeral — but
+written-configuration has precedent (register init values), and
+the test is "expressed visually *where possible*", a preference,
+not an absolute.
+
+The test should be applied retroactively to the rest of the
+inventory as each block gets its round: what does a served open
+*look like* such that "the collect answers the requester" is
+visible? What does a bracket region look like such that the
+release's reachability-from-abandonment is apparent? Recorded as
+a standing gate, not answered here.
+
+### A use-case backlog
+
+The five programs here were chosen for maximum stress, but five
+is not enough to firm up a language; convergent demand across
+many unrelated programs is the only reliable signal a block is
+real (it is what promoted the concurrent collect and the served
+flow above the others). Candidates for future rounds, one line
+each, with the blocks they would stress:
+
+- **tail -f with log rotation** — event sources, failable
+  terminators (rotation as a terminator vs a new stream?),
+  bracket.
+- **debounced autosave** — timers, interrupt/switch-join
+  interplay, incremental boundary.
+- **rate limiter / token bucket** — permanence (tokens), timer
+  refill, the bounded-pool permit machinery from the other side.
+- **graceful shutdown** — interrupt + concurrent collect
+  together: refuse new firings, drain in-flight bodies, then
+  release; stresses the lifecycle outputs and bracket ordering.
+- **binary protocol parser** — decision-driven consumption,
+  end-when, data-dependent take; the framing pressure from use
+  case 5 worked to completion.
+- **directory synchronisation / reconciliation** — permanence's
+  headline case: match a real-world set, no duplicates, nothing
+  missing.
+- **a spreadsheet** — incremental flows at scale, switch-join,
+  the deferred incremental-collections question.
+- **a text editor with undo** — transformation-levels (program
+  and history as one structure) meeting a runtime document.
+- **a game loop** — fixed-timestep timer stream, registers,
+  incremental render; fairness and priority pressure.
+- **a build system** — divide flow (dependency recursion),
+  pool, incremental recomputation, and bracket, all at once.
+
+Method note for future rounds: pick one and work it to the same
+depth as this document's five — writing it against the blocks
+until it breaks — rather than surveying many shallowly. The
+backlog is a queue, not a checklist.
+
+### Object permanence as a theme
+
+A concept, not a building block: **swap the copy default.**
+Ordinarily values copy freely — writing an object into one slot
+doesn't remove it from another. Permanence inverts that for a
+designated object: putting it in a result *takes it from* the
+source; there is exactly one of it, and it is wherever it last
+moved. Prior art in text languages is linear/uniqueness typing
+and ownership systems — but the visual reading is native here in
+a way those systems had to encode in types: **the wire is the
+object.** A permanent value's wire is identified with the unique
+object, not with a description of it, and the object goes where
+the wire goes.
+
+That reading makes the discipline *structurally checkable* with
+machinery the language already has. Sharing in this language is
+visible: bind once, reference twice, fan out at a junction. So
+permanence of a wire is simply the demand that it **not fan
+out** — exactly one consumer — a graph check of the same species
+as no-time-travel and provenance. And the design record already
+contains one instance of it: the one-write-per-DelayRead rule in
+`first-class-ports-design.md` is a linearity check on the
+register's back-edge, arrived at independently.
+
+Three worked glimpses of what the theme does to blocks:
+
+- **Comparison returns the values, not a Boolean.** Under
+  permanence, comparing two objects can't yield `true` and quietly
+  keep the objects available for re-reading — it yields *the two
+  objects, in order*: a two-in-two-out barrier (smaller out,
+  larger out), the no-bottleneck principle applied to ordering.
+  Sorting networks are the existence proof that this scales
+  visually — compare-exchange nodes and wires carrying the
+  objects are literally what a sorting-network diagram is. The
+  decision-driven merge under permanence carries *the* elements
+  of both inputs through to the output, and "no element
+  duplicated or dropped" stops being a property to test and
+  becomes a property of the wiring.
+- **The pool matches the world.** Use case 2's live-set var,
+  read through permanence, doesn't hold bookkeeping *about*
+  devices — it holds *the* devices. There is a real set of MIDI
+  devices out there; udev add-events grant possession of one;
+  terminators return it; the display renders what the program
+  holds. No-duplicates-and-nothing-missing is then not an
+  invariant maintained by careful fold logic (the place the
+  hand-written version had its bug) but a conservation law the
+  wiring can't violate.
+- **Existing obligations are permanence claims.** The served
+  flow's respond-exactly-once obligation is linearity of the
+  exchange; bracket's use-exactly-once release is linearity of
+  the resource; `bounded(n)`'s permits are permanent tokens.
+  Three blocks in this document independently reinvented
+  fragments of the theme, which is the usual sign a theme is
+  real.
+
+Status: a lens to hold candidate blocks against — "would this be
+simpler, or its guarantee stronger, if the value were permanent?"
+— and a candidate for eventual promotion alongside the six
+principles if it keeps earning; not promoted here. Open threads
+if it gets a round: how a permanent wire crosses a flow boundary
+(does an open borrow or take?); permanence vs the memo (sharing
+machinery is precisely what it forbids per-object); whether
+fan-in (merging possession) is dual to the forbidden fan-out;
+and escape hatches (an explicit copy node — visible, so the
+discipline stays structural).
+
 ## What this doesn't address
 
 - **Visual depiction.** What a served open, a concurrency
