@@ -85,6 +85,15 @@ describes the language itself:
   strategy (implemented).
 - `placement-algorithm-notes.md` — the retired compile-time placement
   algorithm and how it could return as an optimisation pass.
+- `compile-strategy-design.md` — the planned functional rebuild of
+  the compiler: a pipeline of pure passes (derive → check →
+  complete → annotate → codegen), downstream facts converted into
+  passed-down context, memoisation keyed by (node, context) with
+  per-context compilation where termination chains diverge, and
+  how multi-level programs reach JS.
+- `implementation-strategy.md` — the map from the design record to
+  code: five workstreams, a doc-by-doc ledger of what
+  implementation must make concrete, and a proposed sequencing.
 
 ## What the code implements
 
