@@ -1,11 +1,19 @@
 # Textual Representation Design
 
-Status: draft for discussion. This document proposes a textual form
-for programs — something that can be parsed and generated, sitting
-beside the visual form. Nothing here changes the representation
+Status: draft, revised after design discussion (2026-07-08). This
+document proposes a textual form for programs — something that can
+be parsed and generated, sitting beside the visual form. Nothing
+here changes the representation
 (`visual-language-description/visual-language-spec.md`,
 `first-class-ports-design.md`): the text is a serialization of the
 same nodes, ports, and wires, not a new semantic layer.
+
+Revision note: the first draft used conventional name-first,
+head-first syntax (`b = double(a)`). Discussion identified that as
+inconsistent about reading direction (see "Reading direction") and
+it was replaced by the forward canonical form described here; the
+conventional spellings survive as accepted input. The first draft's
+brace-delimited fan-out was rejected outright (see "Alternatives").
 
 ## Why a textual form
 
@@ -52,7 +60,10 @@ Restating the challenges this document has to answer:
    the shape parsers love, have one route to each subterm. And with
    registers (Delay), the graph is not even acyclic.
 2. **Edge lists are complete but unreadable.** Any graph flattens to
-   `edge(n1.p1, n2.p2)` triples; nobody can read that.
+   `edge(n1.p1, n2.p2)` triples; nobody can read that. The related
+   failure is over-naming: if every seam forces a name, the code
+   goes flat — a list of bindings instead of structure. We want
+   structure like Lisp's, but for a graph rather than a tree.
 3. **No visual crossing signal.** In the diagram, using a flow out of
    order *looks* wrong — wires cross. Text has no 2D plane; some
    analogue of that immediate signal is worth capturing.
@@ -79,18 +90,71 @@ aggregates). It stops being a tree at exactly three kinds of seam:
 - **Back-edges**: a register's `step → prev` crossing, the one edge
   species that crosses an iteration boundary.
 
-So the syntax should be **nested expressions exactly where the graph
-is a tree, and named flat statements exactly at the seams**. Value
-computation reads like ordinary code (`double(a) + 1`); everything
-multi-port, shared, or cyclic gets a name and a statement of its own.
-The text is exactly as flat as the program is graph-like, and no
-flatter.
+So the syntax should be **nested/chained exactly where the graph is
+a tree, with heavier machinery reserved for the seams** — and the
+machinery is graded. Three reference tiers, cheapest first:
 
-This is also why the "edge list" fear resolves: a statement *is* an
-edge list entry — one line per node, inputs referenced inline — just
-factored so that the tree-shaped majority collapses into readable
-expressions, and ordered so the flat minority reads in execution
-order.
+- **Chains** — the linear backbone. A value flows stage to stage;
+  its flow context rides along (marked, see the arrow family); no
+  names at all.
+- **Pronouns** — short-range anaphora for local seams: junction
+  taps (`|`) for nearby fan-out, lane labels for a split's
+  branches, `~` / `~^` for the innermost flows. All of these
+  desugar at parse; the representation never contains one.
+- **Names** — for anything shared or distant. A name is the mark of
+  sharing: anonymous is linear, named is shared, which restates the
+  language's own "sharing is opt-in via binding" as a fact the text
+  displays.
+
+There is a crisp way to say what the tiers achieve: a graph's text
+can nest along its *dominator tree* — everything reachable only
+through one point can be written inside that point's chain,
+including local fan-out (taps and lanes). Names are needed exactly
+for edges that escape dominance.
+
+## Reading direction
+
+A conventional syntax is inconsistent about whether moving forward
+through the text moves forward or backward in dependency order:
+naming moves backward (`a = …`), application moves backward
+(`f(arg)` — the consumer before its inputs), yet statement order
+moves forward. This form resolves it: **the canonical text is
+consistently forward** — postfix application, chains, right-hand
+naming. Forward notation is post-order traversal: producers before
+consumers at every scale, so "token order is time," not just
+"statement order is time."
+
+This is not a novelty for this repo. The design docs' informal
+notation is already forward (`list -> $ => a, xL`, with `->` for
+wiring and `=>` for naming), and `ExprPrint` is already a post-order
+renderer — sources first, then the op, chains for single-consumer
+runs. The first draft's `name = f(x)` was the deviation.
+
+(Prefix notation's claim to naturalness is an artifact of which
+natural languages designed the existing programming languages;
+head-final order — arguments before the operation — is the most
+common clause order across human languages.)
+
+**The grammar is permissive; the printer is canonical.** By "many
+authoring paths, few readings," parse accepts prefix (`f(x, y)`),
+postfix (`x, y -> f`), infix for the operators conventionally
+written that way (`a + b`), and both assignment directions (`name =
+…` and `… => name`), as in R. The canonical printer emits: chains
+and all flow structure forward; small pure-value leaves in
+conventional infix/prefix; left assignment for short leaf
+definitions (externs, constants), right assignment for chain
+results. Printer rules are deterministic, so there is still one
+reading.
+
+Right assignment never needs column alignment, because any chain
+stage may start a new line — `=>` is just the last stage:
+
+```
+xs -> open list
+   -> double
+  -~> collect
+=> doubled
+```
 
 ## Principles
 
@@ -107,41 +171,37 @@ the discipline that pays it.
 
 **P2. Two lexical sorts.** Value references and flow references are
 lexically distinct: flow references carry a `~` sigil (`~L`,
-`~cs.Just`). Confusing the sorts is a parse error, mirroring how
-`expr` vs `flowRef` catches misuse syntactically in `Expr.res`. The
-sigil is provisional and cheap to change; what is not negotiable is
-that the sorts are distinguishable without name resolution. (A third
-species may arrive if the visible state thread of
+`~cs.Just`), and the arrows are sorted too (see the arrow family).
+Confusing the sorts is a parse error, mirroring how `expr` vs
+`flowRef` catches misuse syntactically in `Expr.res`. The sigil is
+provisional and cheap to change; what is not negotiable is that the
+sorts are distinguishable without name resolution. (A third species
+may arrive if the visible state thread of
 `iteration-with-state-design.md` becomes a wire of its own kind;
 reserve room, don't design it now.)
 
-**P3. No lexical scope.** Statements are flat. There are no blocks:
-"inside the loop" is a *derived* fact — a statement is per-iteration
-because its inputs are — never a syntactic region. This is the
-inside-out principle applied to text: a block syntax would make an
-expression's interior scope differ from its exterior, reintroduce
-magic names, and be unable to express what the language allows
-(multi-close on one opener, a close consuming a flow two levels up,
-a value read out of a flow by a join). Indentation exists only as
-printer output (see "The crossing signal"), never as parser input.
+**P3. No lexical scope.** There are no blocks and no delimited
+regions: "inside the loop" is a *derived* fact — a statement is
+per-iteration because its inputs are — never a syntactic region.
+This is the inside-out principle applied to text: a block syntax
+would make an expression's interior differ from its exterior,
+reintroduce magic names, and be unable to express what the language
+allows (multi-close on one opener, a close on a joined flow two
+levels up, a race's contenders continuing as themselves).
+Indentation exists only as printer output, never as parser input.
 
-**P4. Statement order is time.** Statements appear in a topological
-order of the dataflow: definition strictly before use, no forward
-references. This is always possible, even for cyclic programs,
-because of how cycles enter the language: every cycle passes through
-a register, and a register's write half is its own node
-(`first-class-ports-design.md`, "the write half is a node") wired in
-a later, separate act. The one back-edge is therefore always spelled
-as a *late statement referring back to an earlier name* — text stays
-define-before-use while the semantic graph cycles. Reading top to
-bottom is reading time-forward, the same convention `ExprPrint`
-chose.
+**P4. Token order is time.** The canonical text is a post-order
+rendering: every producer appears before its consumers, within a
+line and across lines. No forward references exist — even for
+cyclic programs, because of how cycles enter the language: every
+cycle passes through a register, and a register's write half is its
+own node (`first-class-ports-design.md`, "the write half is a
+node") wired in a later act. The one back-edge is always spelled as
+a later statement referring back to an earlier name.
 
-**P5. Barriers are labeled rows.** A multi-in multi-out barrier is
-written as one statement with one row per lane. The lane label
-appears once at the input row and again in every output reference —
-correspondence by shared label, no tuple, no tagged union. (Details
-under "Barriers".)
+**P5. Barriers are labeled lanes.** A multi-in multi-out barrier is
+written one lane per line; the lane label carries the pairwise
+input↔output correspondence. No tuple, no tagged union.
 
 **P6. Authored and inferred structure are distinguished.** Structure
 the user did not write — a completion's inserted incorporates and
@@ -155,392 +215,443 @@ stored).
 these are the 1:1 steps of the step-DAG, where "the node *is* the
 step seen at level 0." Native level-1 operations (expand, undo,
 cherry-pick) are statements too, distinguished not by an annotation
-but by what their operands are: names of nodes and steps rather than
-wires. Level is read off the operand sort, matching the admission
-test ("an operation belongs at level 1 iff its content is a
-statement about level-0 programs rather than about values").
+but by what their operands are: names of nodes and steps rather
+than wires. Level is read off the operand sort, matching the
+admission test ("an operation belongs at level 1 iff its content is
+a statement about level-0 programs rather than about values").
+
+**P8. Pronouns desugar at parse.** Taps, lane labels, and flow
+anaphora are resolved to explicit wiring by the parser; the
+representation is always fully explicit. This is what keeps
+`$_`-style convenience from becoming `$_`-style fragility: the
+pronoun is never runtime or representation state, only reference
+resolution. Correspondingly, all pronoun binding is **ordinal,
+never spatial** — nothing in the grammar depends on columns or
+alignment.
 
 ## The notation
 
 Comments are `--` to end of line, as in the design docs.
 
-### Value expressions: the tree fragment
+### The arrow family
 
-Where the graph is a tree, the text is an expression:
+Three arrows, one per wire-sort combination:
 
-```
-b = double(a) + offset
-pair = { lo: min(x, y), hi: max(x, y) }
-```
+- `->` — a value wire. Ordinary application, open inputs.
+- `~>` — a flow wire. Wiring a flow into a stage with no value
+  involved: `~L ~> delay init 0`, `~c.Even ~> join into ~L`.
+- `-~>` — a value **with its flow**. Into `collect` (which consumes
+  both), and into `join`/`commute` (which act on the flow while the
+  value rides through).
 
-Literals (`5`, `"s"`, `true`, `[1, 2, 3]`, `{a: 1}`), application
-`f(x, y)`, and operator sugar (`+`, `*`, …) for the corresponding
-primitives — one node, one meaning, no overloading (types-design:
-plus is numeric addition; string concatenation is a different node).
+The third arrow earns its keep by fixing a level-mixing problem. A
+value in a chain has a *context path* — the stack of flows it lives
+under, derivable from the dataflow. It is tempting to let a plain
+`->` into a `collect` silently reach for that context, but then the
+wire is being used to mean not the value it carries but the wire
+itself, as a key for a different associated wire — do you mean the
+variable or its value? `-~>` is the honest spelling: it
+acknowledges, in the syntax, that a flow is entering the stage. The
+stage still needs no *operand* (see "The implicit flow stack" — the
+adjacency rules determine which flow), but the arrow says a flow is
+entering at all.
 
-Host functions enter through an explicit escape hatch while the
-primitive catalog is small (this is the `JsAst.expr` payload of
-today's `Lit`/`App`/discriminators):
+Soundness of the ride-through: `-~>` into a join or commute claims
+the value passes through a node that, representationally, has no
+value ports. That is exactly the naturality quotient — "before vs
+after the commute" is unrepresentable, so the desugaring (value
+refs keep pointing at their producer; the flow ops rewire context)
+loses nothing the language considers real.
 
-```
-extern double = js "x => x * 2"
-extern isJust = js "m => m"          -- discriminator, identity-shaped
-b2 = js "x => x * 3"(a)              -- inline form
-```
+### Chains, lines, and naming
 
-Every subexpression mints a node; writing `double(a)` twice mints two
-App nodes. To share, name it — the textual reflection of "bind once
-and reuse":
+A chain is stages joined by arrows. A stage is a construct keyword
+(`open list`, `split`, `collect`, `join`, `commute`, …) or a value
+operation. Any stage may start a new line; a leading arrow
+continues the previous line's chain. `=> names` is the naming
+stage — it may bind several outputs (`=> a, ~L`) and may stand on
+its own line. Left assignment `name = …` is the short form for leaf
+definitions.
 
-```
-d = double(a)
-out = add(d, d)
-```
-
-### Binders, node names, and ports
-
-A statement's binder names the node it constructs. Ports are reached
-by two rules:
-
-- The **bare name** denotes the node's principal value port (its
-  `value`/`result`/`element`/`prev` — the one value port, for nodes
-  that have exactly one). `~name` denotes the principal flow port.
-- **Projection** reaches named ports: `cs.Just` is the value port
-  named `Just`; `~cs.Just` is the flow port named `Just`. The sigil
-  states the sort of the reference; the checker verifies the node's
-  kind inventory has that port. This is `ValuePort(node, name)` /
-  `FlowPort(node, name)` from `first-class-ports-design.md`, spelled.
-
-For the common two-port opens there is tuple-binder sugar naming both
-principal ports at once. These are equivalent:
+Value operations in chain position take the chain's value as their
+first input; extra inputs go in parentheses: `-> add(ten)` is
+`add(topic, ten)`. When the topic is not the first argument, use
+the full form: `ten, x -> sub`.
 
 ```
-it = open list xs          -- it = element, ~it = flow
-a, ~L = open list xs       -- a = element, ~L = flow
+double = js "x => x * 2"          -- extern: the JsAst escape hatch
+[1, 2, 3] -> open list -> double -~> collect => out
 ```
 
-The printer prefers the tuple form for opens and the node-name form
-for splits and barriers (whose ports are per-alt and better reached
-by projection).
+Writing `double(a)` twice mints two App nodes; to share, name it or
+tap it (below).
+
+### Ports and projections
+
+A binder names the node. The bare name denotes the node's principal
+value port (its `value`/`result`/`element`/`prev`); `~name` the
+principal flow port. Projection reaches named ports: `cs.Just` is
+the value port named `Just`, `~cs.Just` the flow port — the sigil
+states the sort of the reference, the checker verifies the kind's
+inventory has the port. This is `ValuePort(node, name)` /
+`FlowPort(node, name)` from `first-class-ports-design.md`, spelled.
+There is no Branch construct in the text: a branch *is* a reference
+to one output port of the split, so projection replaces the
+satellite node.
 
 Port inventories are per-kind and irregular (Commute has no value
 ports; a register's read half has no flow outputs) — the syntax
-never assumes a fixed shape, it just lets binders and projections
-name whatever the kind's inventory declares.
+never assumes a fixed shape.
 
-### Opens
+### The implicit flow stack
+
+Because a chain's value carries its context path, flow stages in
+chain position need no operands:
+
+- `-~> collect` closes the **innermost** layer of the incoming
+  value's path.
+- `-~> join` merges the **two innermost** layers (inner into outer).
+- `-~> commute` swaps the **two innermost** layers.
+
+Flatten-map, with no names at all:
 
 ```
-a, ~L = open list xs
-v, ~O = open option m
-y, ~Y = open list ys in ~L        -- nested inside ~L, explicitly
+rows -> open list -> open list -> double -~> join -~> collect => flat
+```
+
+This is well-defined, not merely convenient, because of the
+adjacency requirement: binary join's operands must be
+nesting-adjacent, and in a chain the inner operand can only be the
+value's innermost unconsumed layer — the value couldn't cross it
+otherwise. There is nothing to disambiguate. Reaching a *deeper*
+layer is not done by naming it; it is done by more commutes, which
+is semantically honest: commute variants exist per flow-kind pair,
+and where no variant exists, reordering is rightly inexpressible.
+The flow stack is a stack whose only rotation operator has real
+semantics.
+
+The old flowRef wrapper stack was this all along:
+`Commuted(Joined(NodeFlow(…)))` read inside-out is postfix stage
+order, and `ExprPrint` already renders joins as postfix `-> join`.
+
+Flow stages accept an explicit operand when the implicit one is
+unavailable or under-committed: `-~> collect ~O` (required when the
+value is context-free — e.g. collecting a constant: `5 -~> collect
+~L` builds a list of fives; the constant has no path to read the
+flow off). Standalone, fully explicit forms also exist:
+`~c.Even ~> join into ~L => ~keep`.
+
+### Flow anaphora
+
+For statements that are not in a chain and take a flow operand with
+no value input to derive it from (`delay on`, `open … in`), bare
+`~` denotes the innermost live flow at this point in the text and
+`~^` the one outside it — de Bruijn indices over the textual open
+stack. The span property (see "The crossing signal") makes them
+trustworthy: in a well-formed program the textual open stack agrees
+with the semantic context path, so the anaphora cannot lie except
+in programs that are already ill-formed. Per P8 they desugar at
+parse. The printer emits them sparingly (short range only).
+
+### Junction taps: fan-out without names
+
+A `|` mid-chain mints a **tap** — a junction on the wire at that
+point. A line whose chain begins with `|` resumes from a tap:
+
+```
+a -> | b -> c -> d
+| -> e                      -- a also goes to e
+```
+
+Generalized, multiple taps per line, `;` separating resumed chains:
+
+```
+a -> | b -> c -> | d
+| -> e; | -> f              -- a goes to e, c's result goes to f
+```
+
+Mechanics:
+
+- Binding is **ordinal**: the k-th leading `|` on a line binds to
+  the k-th tap of the antecedent line. Never by column (P8);
+  alignment is printer cosmetics.
+- **Antecedent range**: leading `|`s refer to the taps of the
+  nearest preceding line that minted any. Several consecutive
+  continuation lines may reuse the same taps — pronouns bear
+  repetition, so fan-out to three consumers is three `|` lines. A
+  line that mints new taps replaces the antecedents. Anything that
+  must reach further wants a name: pronouns for adjacency, names
+  for distance.
+- On the page, the leading `|` *draws the wire*: a junction dot on
+  one line, the wire dropping a row to the next. The notation
+  recovers a strip of the diagram's second dimension — vertical
+  wire segments — in a form that is still ordinal, not spatial.
+
+Multi-close on one opener, zero names:
+
+```
+xs -> open list -> | double -~> collect => doubled
+| -> triple -~> collect => tripled
+```
+
+Both bare `collect`s close the list flow; the tap carries the
+element to both chains; the opener is shared through the tap.
+
+### Lanes: labeled lines
+
+Branch-shaped constructs — case splits, races, multi-branch
+collects — are written one lane per line, `label:` first, no
+separator (this frees `|` to mean exactly one thing, the wire
+junction). A lane line's chain starts from that lane's value port.
+
+A case split used linearly, with reconverging lanes gathered by an
+exhaustive collect:
+
+```
+maybes -> open list -> split isJust of Just, Nothing
+  Just:    -> double
+  Nothing: 0
+-~> collect                  -- gathers the lanes: the case close
+-~> collect                  -- closes the list flow
+=> out
+```
+
+Lanes that terminate independently (each ends in its own `=>`) —
+the partition idiom, where each lane's bare `join` is the filter
+(alt flow into list flow, both implicit):
+
+```
+xs -> open list -> split parity of Even, Odd
+  Even: -~> join -~> collect => evens
+  Odd:  -~> join -~> collect => odds
+```
+
+The **gather rule** (stated without reference to indentation, per
+P3/P8): a maximal run of label-led lines following a multi-port
+stage forms a lane group; the first arrow-led line after the group
+consumes the lane ends as its branches (subsequent arrow-led lines
+continue the chain normally). If every lane self-terminates, no
+gather follows and the next line is a fresh statement. Provisional
+restriction: a lane's chain is one logical line — a lane complex
+enough to span lines should name the split and use projections.
+This rule is the one place the notation leans on line structure
+rather than pure wiring; it is flagged under "Open questions."
+
+Standalone (non-fused) branch collects label lanes by flow
+reference instead of bare alt name — used when the split is named
+because its ports are consumed non-linearly:
+
+```
+resp -> split status of Ok, Redirect, ClientError, ServerError => h
+collect
+  ~h.ClientError: h.ClientError
+  ~h.ServerError: h.ServerError
+=> errCode, ~err             -- partial collect: value + merged flow
+collect
+  ~h.Ok:       "ok"
+  ~h.Redirect: "moved"
+  ~err:        errCode -> describe
+=> report
+```
+
+Coverage is read off the cells, and the binder arity shows it — a
+partial collect has the merged-flow output, a covering one does not
+(`partial-collect-design.md`: one node, port inventory read off
+coverage).
+
+Races are lanes too — the lane label carries the pairwise
+correspondence across the barrier (P5); no tagged union exists
+between the race and its collect:
+
+```
+race
+  fetch:   fetchD
+  timeout: after(30)
+=> r
+collect
+  ~r.fetch:   r.fetch -> process -> some
+  ~r.timeout: none
+=> out
+```
+
+The concurrent join (product barrier) merges sibling flows —
+genuinely not on one path, so its operands are named; in the
+current lean it is flow-only and values combine in the merged
+context:
+
+```
+~A, ~B ~> join all => ~ab
+x, y -> add -~> collect => sums
+```
+
+If barrier value rows land (the open question shared by spec-Join,
+race, and partial collect — "k branches × m value rows"), lanes
+extend the same way, each row binding its crossing by label. Noted,
+not committed.
+
+### Opens, nesting, commute
+
+```
+xs -> open list => a, ~L
+m -> open option => v, ~O
+ys -> open list in ~L => y, ~Y     -- explicit outer-nesting
 ```
 
 `open <kind> <input>` — the flow kind is part of the node (explicit
-over implicit; there is no type inference to discover it). Future
-kinds slot in without new syntax shapes: `open async p`,
-`open stream s`, `open var v`, `open pool(3) work`.
+over implicit; no inference discovers it). Future kinds slot in
+without new shapes: `open async`, `open stream`, `open var`,
+`open pool(3)`, `open config sort`. The `in` clause is the spec's
+`outerFlows`; when nesting is implied by the value input (opening a
+value that is itself per-iteration), it is omitted; when neither
+implied nor stated, the program is under-committed (below).
 
-The `in ~L` clause is the spec's `outerFlows`: an explicit
-declaration of which existing flow the new flow nests inside,
-outermost to innermost when there are several (`in ~A, ~B`). When
-the nesting is already implied by the value input (opening a value
-that is itself per-iteration of `~L`), the clause is redundant and
-omitted. When it is neither implied nor stated, the program is
-*under-committed* — see "Under-commitment and completion."
-
-### Case splits
+Commute in chain position is bare (`-~> commute`, swapping the two
+innermost layers); standalone it names both operands, inner first —
+join and commute operand order is semantic and must never look
+symmetric:
 
 ```
-cs = split m by isJust of Just | Nothing
-```
-
-One statement binds the node; the per-alt pairs are projections:
-`cs.Just` (the alt's payload value), `~cs.Just` (the alt's flow).
-There is no Branch construct in the text — as in the first-class
-ports design, a branch *is* a reference to one output port of the
-split, so projection replaces the satellite node. The alt inventory
-(`of Just | Nothing`) is stated on the node, where the bundle's cell
-inventory lives.
-
-### Collects
-
-One construct. Each branch is `<flowref>: <value expression>`,
-branches separated by `|`. The kind of close is read off the flows,
-and coverage is read off the cells — the exhaustive case collect and
-the partial collect are one node whose port inventory follows from
-coverage (`partial-collect-design.md`):
-
-```
-out = collect ~L: double(a)                 -- list close
-out = collect ~O: v * 2                     -- option close
-
-out = collect ~cs.Just: double(cs.Just)     -- case close, exhaustive
-            | ~cs.Nothing: 0
-
--- partial collect: branches cover only some cells, so the node has
--- a merged-flow output as well as a value output — the binder
--- arity shows the coverage.
-errStatus, ~err = collect ~h.ClientError: h.ClientError
-                        | ~h.ServerError: h.ServerError
-```
-
-A flow name may be consumed by any number of collect statements —
-multi-close is just several statements naming the same flow:
-
-```
-a, ~L = open list xs
-doubled = collect ~L: double(a)
-tripled = collect ~L: triple(a)
-```
-
-### Join and filter
-
-Join is the binary flow node with asymmetric operands; the keyword
-order carries the asymmetry (`inner` first, `into outer`), because
-join operand order is semantic and must never look symmetric:
-
-```
-~f = join ~I into ~L        -- flatten: inner list flow into outer
-flat = collect ~f: double(x)
-```
-
-Filter is not separate syntax: it is a join whose inner operand is
-an alt flow (the representation-level fact that `Filtered` dissolves
-into Join):
-
-```
-a, ~L = open list xs
-c = split a by parity of Even | Odd
-~keep = join ~c.Even into ~L
-evens = collect ~keep: a
-```
-
-Multi-level flatten is a chain — depth is spelled structurally, no
-numeric levels:
-
-```
-~f1 = join ~L3 into ~L2
-~f2 = join ~f1 into ~L1
-deep = collect ~f2: x
-```
-
-(Adjacency — each join's operands must be nesting-adjacent — is a
-checker rule, not a parser rule; see "Well-formedness.")
-
-### Commute
-
-Flow wires only, per the reconciled node: no value ports, so nothing
-but flow operations can consume its outputs, and the naturality
-quotient (map-then-commute = commute-then-map) holds in text for
-free — there is no place to write "before the commute."
-
-```
-c = commute ~err out of ~loop
+~err ~> commute out of ~loop => c
 -- ~c.outer : the flow that was inner (now outermost)
 -- ~c.inner : the flow that was outer (now inside)
 ```
 
-The defer-the-error idiom then reads: close `~c.inner` now, leave
-`~c.outer` open for a later collect statement.
-
-### Barriers: race and concurrent join
-
-The no-bottleneck constructs. A race is one statement, one labeled
-row per contender; each contender's output pair is reached by
-projecting the *same label*:
-
-```
-r = race fetch:   fetchD
-       | timeout: after(30)
-
-out = collect ~r.fetch:   some(process(r.fetch))
-            | ~r.timeout: none
-```
-
-The lane identity that the diagram carries by wire continuity, the
-text carries by the label appearing at the input row and at every
-output reference. No tagged union exists between the race and its
-collect — `r.fetch` *is* contender `fetch`'s value, on `fetch`'s
-flow. Reconvergence is the ordinary (partial or covering) collect
-over the race's bundle, inherited unchanged from case splits.
-
-The concurrent join (product barrier) merges sibling flows; in the
-current lean it is flow-only and values simply become combinable in
-the merged context:
-
-```
-~ab = join all ~A | ~B
-sum = collect ~ab: x + y
-```
-
-If barrier value rows land (the open question shared by spec-Join,
-race, and partial collect — "k branches × m value rows"), rows
-extend the same shape, each row binding its crossing by label:
-
-```
-x2, y2, ~ab = join all ~A(x => x2) | ~B(y => y2)
-```
-
-This is noted as an option, not committed.
+The defer-the-error idiom in chain form: `-~> commute -~> collect`
+closes the loop first, leaving the option layer open for a later
+collect.
 
 ### Registers: delay and write-back
 
 The read half and the write half are two statements, matching the
 two-phase construction (mint the read; wire the step later). The
-write half is spelled with `<-`, the one back-edge marker in the
-language:
+write-back reads forward — compute, then deposit into the
+register's step; the write node's output is the final value:
 
 ```
-a, ~L = open list xs
-sum = delay on ~L init 0        -- read half; bare `sum` = prev
-total = sum <- sum + a          -- write half; binder = final value
+xs -> open list => a, ~L
+~L ~> delay init 0 => sum          -- read half; bare `sum` = prev
+sum, a -> add -> step of sum => total   -- write half; binder = final
 ```
 
-Reading: `sum` names the register; used in value position it is the
-previous iteration's value (`prev`), `init 0` is the outside-the-flow
-initial value (kept syntactically apart from per-iteration inputs —
-the misplacement that got `stateful(initial, update)` rejected), and
-`sum <- e` wires `e` into the register's step, yielding the final
-value as the write node's output.
-
-Cross-referencing registers are just wires — Fibonacci:
+`init` is the outside-the-flow initial value, kept syntactically
+apart from per-iteration inputs (the misplacement that got
+`stateful(initial, update)` rejected). Cross-referencing registers
+are ordinary wires — Fibonacci:
 
 ```
-n, ~L = open list steps
-fa = delay on ~L init 1
-fb = delay on ~L init 1
-lastA = fa <- fb
-lastB = fb <- fa + fb
+steps -> open list => n, ~L
+~L ~> delay init 1 => fa
+~L ~> delay init 1 => fb
+fb -> step of fa => lastA
+fa, fb -> add -> step of fb => lastB
 ```
 
 A write statement's binder may be omitted when the final value is
-unused:
-
-```
-sum <- sum + a
-```
-
-This is legal and important: a write half can be root-unreachable in
-a complete program, which is exactly why **a program is a node set
-with distinguished outputs, not a root expression** — and why the
+unused (`sum, a -> add -> step of sum`). This is legal and
+important: a write half can be root-unreachable in a complete
+program, which is exactly why **a program is a node set with
+distinguished outputs, not a root expression** — and why the
 textual form is a statement list with declared outputs rather than
 "the last expression is the result."
 
-Text never forward-references even here: the write statement refers
+Even here text never forward-references: the write statement refers
 *back* to `sum`. The productivity check (every cycle crosses a
 register) is what guarantees a define-before-use ordering always
-exists. The same `<-` spelling extends to the incremental kind's
-`hold` if its cyclic uses (a var updated by events computed from its
-own previous value) get the same read/write split.
+exists. The same spelling extends to the incremental kind's `hold`
+if its cyclic uses (a var updated by events computed from its own
+previous value) get the same read/write split.
 
 ### Diagram boundary
 
 A file holds one or more diagrams. A diagram declares its boundary
-ports; outputs are explicit statements (there is no implicit "return
-value" — see the node-set point above):
+ports; outputs are explicit statements (no implicit return — see
+the node-set point above):
 
 ```
 diagram sumOf
   in xs
-  a, ~L = open list xs
-  sum = delay on ~L init 0
-  t = sum <- sum + a
+  xs -> open list => a, ~L
+  ~L ~> delay init 0 => sum
+  sum, a -> add -> step of sum => t
   out total = t
 end
 ```
 
 Flow parameters use the sigil: `in ~io`, `out ~io2 = ~c.outer`.
-Slots and `use`/calls of other diagrams follow the same shape as the
-spec's FunctionCall (named args); this section stays deliberately
-thin until diagrams are the top-level structure in the code.
-
-For the sandbox, a bare statement list with one `out` is a
-one-diagram file.
+Slots and calls of other diagrams follow the spec's FunctionCall
+shape (named args); this section stays deliberately thin until
+diagrams are the top-level structure in the code. For the sandbox,
+a bare statement list with one `out` is a one-diagram file.
 
 ### Under-commitment and completion
 
 A program whose flow structure is under-committed is *writable* —
 sibling opens with no declared order, a combining node over
-incomparable contexts:
+incomparable contexts. The closes name their flows explicitly
+(nothing else could say which close is which):
 
 ```
-a, ~A = open list listA
-b, ~B = open list listB       -- sibling opens; no order authored
-s = a + b                     -- contexts incomparable
-perA = collect ~A: s
-out = collect ~B: perA
+listA -> open list => a, ~A
+listB -> open list => b, ~B      -- sibling opens; no order authored
+a, b -> add => s
+s -~> collect ~A => inner
+inner -~> collect ~B => out
 ```
 
-Its meaning is its completion; the printer renders the derived
-insertions as `+` lines anchored where they apply (the convention
-`time-travel-programs-design.md` already uses):
+Its meaning is its completion. The authored close order pins the
+nesting — `inner` (the close of `~A`) is consumed by the close of
+`~B`, so `~A`'s parent is inside `~B` — and the printer renders the
+derived insertions as `+` lines (the convention
+`time-travel-programs-design.md` already uses), reordering
+statements as needed to restore token-order-is-time:
 
 ```
-a, ~A = open list listA
-+ listB2 = incorporate listB in ~A
-+ b, ~B = open list listB2 in ~A
-s = a + b
-perA = collect ~A: s
-out = collect ~B: perA
+listB -> open list => b, ~B
++ listA -> incorporate in ~B
++   -> open list => a, ~A
+a, b -> add => s
+s -~> collect ~A => inner
+inner -~> collect ~B => out
 ```
 
-`+` lines are derived, deterministic, and not stored: parse discards
-them and re-derivation reproduces them (the completion laws —
-conservativity, idempotence, determinism — do the work). To override
-an inference, author the operator solid: write the line without the
-`+`. A contradictory program (directed constraints cycle) has no
-completion; it still parses and prints, and the *error* is what
+`+` lines are derived, deterministic, and not stored: parse
+discards them and re-derivation reproduces them (conservativity,
+idempotence, determinism). To override an inference, author the
+line solid. A contradictory program (directed constraints cycle)
+has no completion; it still parses and prints, and the *error*
 carries the witness.
 
-## The crossing signal: spans, nesting, indentation
+## The crossing signal: spans, verticals, indentation
 
 The diagram shows an out-of-order flow use as a wire crossing. The
-text has an analogue in one dimension: **statement order plus flow
-lifetimes**.
+text has analogues in one dimension:
 
-A flow name's *span* runs from its binding statement to its last
-consuming statement (its terminations). Because statement order is
-time (P4), the well-formedness facts become visible as interval
-facts:
+- **Spans.** A flow's *span* runs from the statement that opens it
+  to its last termination. Because token order is time (P4),
+  nesting shows as span containment and crossing shows as overlap:
+  two *structural* flows whose statements interleave without
+  containment is exactly the interleaving that needs an explicit
+  relation (a join, a commute, a declared `in`). Effect flows are
+  exempt — they commute freely and may interleave without remark
+  ("most restrictive wins"). The **span lint** flags un-nested
+  overlap of structural flows: a presentation-level early warning
+  of the facts the provenance check establishes properly.
+- **Verticals.** Junction taps and lane labels already draw the
+  short vertical wire segments — local fan-out is *visible* as the
+  `|` margin.
+- **Indentation.** The canonical printer indents each statement by
+  the depth of its flow context. Indentation is derived — the
+  parser ignores it entirely (P3) — but on a well-formed program it
+  reproduces the shape a scoped language would have had, without
+  being scope. On a time-travel program, no consistent indentation
+  exists; the printer falls back to flat and the completion's `+`
+  lines say why. That failure-to-indent is the textual cousin of
+  the visible crossing.
 
-- **Nesting shows as containment.** An inner flow's span sits inside
-  its outer flow's span. Well-nested programs look well-nested.
-- **Crossing shows as overlap.** Two *structural* flows whose spans
-  overlap without containment — statements of one interleaved with
-  statements of the other — is exactly the interleaving that needs
-  an explicit relation (a join, a commute, a declared `in`). Effect
-  flows are exempt: they commute freely, and their spans may
-  interleave without remark ("most restrictive wins" for bundles).
-- The **span lint** flags un-nested overlap of structural flows.
-  This is a presentation-level early warning of the same facts the
-  provenance check establishes properly (context paths compared at
-  combining nodes); it adds no semantics.
-
-On top of this, the **canonical printer indents each statement by
-the depth of its flow context** (the length of its context path).
-Indentation is derived — the parser ignores it entirely (P3) — but
-on a well-formed program it reproduces the block structure a scoped
-language would have had, without ever being scope:
-
-```
-row, ~R = open list rows
-    x, ~I = open list row
-    perRow = collect ~I: double(x)
-out = collect ~R: perRow
-```
-
-And on a time-travel program, no consistent indentation exists —
-the printer falls back to flat and the completion's `+` lines say
-why. That failure-to-indent is the textual cousin of the visible
-crossing: not a check (the checker owns that), but the same
-immediate "this doesn't sit right" signal the 2D layout gives.
-
-Whether indentation should ever be parser-significant was
-considered and rejected: significant whitespace would make
-indentation *authoritative*, and the one thing indentation must not
-be is a second statement of nesting that can disagree with the
-wiring. One source of truth; indentation is a view.
+Significant whitespace was considered and rejected: indentation
+must not become a second, authoritative statement of nesting that
+can disagree with the wiring. One source of truth; indentation is a
+view.
 
 ## Levels
 
@@ -548,149 +659,141 @@ Two senses of "level" need textual answers; they are different
 things and get different answers.
 
 **Flow nesting depth** gets no numerals and no annotation. Depth is
-structural: an open `in ~L`, a chain of binary joins, a chain of
-commutes. "Level-2 join" is two join statements. This follows the
-binary-join correction — the old `Joined(Joined(...))` wrapper
-counting is superseded by naming both operands explicitly.
+structural: an open `in ~L`, chained joins, chained commutes.
+"Level-2 join" is two join stages. This follows the binary-join
+correction — the old `Joined(Joined(…))` wrapper counting is
+superseded by explicit staging.
 
 **Transformation levels** are the real question. The stored program
-is one step-DAG whose 1:1 steps read as node declarations — which is
-exactly what a statement is (P7). So:
+is one step-DAG whose 1:1 steps read as node declarations — which
+is exactly what a statement is (P7). So:
 
-- A **snapshot file** (the common interchange case — "the program at
-  this head") is a statement list containing only level-0
-  statements. Every statement mints nodes; the file is the node set.
+- A **snapshot file** (the common interchange case — "the program
+  at this head") is a statement list containing only level-0
+  statements. Every statement mints nodes; the file is the node
+  set.
 - **Level-1 statements** are the built-in catalog entries, written
   as statements whose operands are *names of nodes/steps*, not
   wires:
 
   ```
-  sumX = expand sum          -- materialize sum's expansion, named
-  w = sum!acc                -- lens reference: DerivedPort(sum, acc)
+  sum -> expand => sumX      -- materialize sum's expansion, named
+  sum!acc -> double => w     -- lens reference: DerivedPort(sum, acc)
   ```
 
   `expand` is a recorded step (its parts become addressable — the
   materialize mode); `!` is the lens mode — referencing a principal
   port of the *derived view* without materializing anything.
-  `sum!acc` is the textual `DerivedPort(nodeId, portName)`, and only
-  principal ports are addressable through it, so ill-formed
+  `sum!acc` is the textual `DerivedPort(nodeId, portName)`, and
+  only principal ports are addressable through it, so ill-formed
   references stay unrepresentable. No level marker is written or
-  needed: `expand sum` is level-1 because its operand is a node, by
-  the admission test.
-
+  needed: `expand` is level-1 because its operand is a node, by the
+  admission test.
 - **History files** — serializing the full step-DAG including undo
-  and cherry-pick — are deferred. The design intent is only pinned:
+  and cherry-pick — are deferred. Only the constraint is pinned:
   the snapshot grammar must remain a strict subset of the history
-  grammar (a snapshot is a history with only 1:1 steps), so nothing
-  chosen here paints over that door.
+  grammar (a snapshot is a history with only 1:1 steps).
 
 **Stable identity.** Node ids are load-bearing across versions
 (diff, blame, completion hints anchored to ids). Names carry
 identity *within* a file; across versions, the printer can be asked
-to emit ids as suffixes:
-
-```
-sum@n42 = delay on ~L init 0
-```
-
-Default output omits them (humans don't want them); tools that diff
-or patch request them. Parse of an id-less file mints fresh ids —
-which is correct for generated-from-scratch programs and is the
-reason round-tripping *with* ids matters for edits.
+to emit ids as suffixes (`=> sum@n42`). Default output omits them;
+tools that diff or patch request them. Parse of an id-less file
+mints fresh ids — correct for generated-from-scratch programs, and
+the reason round-tripping *with* ids matters for edits.
 
 ## Worked examples
 
-The core fragment (everything the code implements today), then
-design-only constructs.
+The core fragment (everything the code implements today):
 
-Map with a hoisted shared constant, flattened:
+Flatten with a shared constant:
 
 ```
-rows = [[1, 2], [3]]
-row, ~R = open list rows
-x, ~I = open list row
 ten = 10
-~f = join ~I into ~R
-out = collect ~f: x + ten          -- [11, 12, 13]
+[[1, 2], [3]] -> open list -> open list -> add(ten) -~> join -~> collect
+=> out                                            -- [11, 12, 13]
 ```
 
-Maybe-double (case split inside a list iteration):
+Maybe-double (case split inside a list iteration, fused lanes):
 
 ```
-m, ~L = open list maybes
-cs = split m by isJust of Just | Nothing
-perElem = collect ~cs.Just: double(cs.Just)
-              | ~cs.Nothing: 0
-out = collect ~L: perElem          -- [2, 0, 10]
+maybes -> open list -> split isJust of Just, Nothing
+  Just:    -> double
+  Nothing: 0
+-~> collect
+-~> collect
+=> out                                            -- [2, 0, 10]
 ```
 
-Partition by two filter joins (multi-way output, one pass):
+Multi-close via a tap:
 
 ```
-a, ~L = open list xs
-c = split a by parity of Even | Odd
-~ke = join ~c.Even into ~L
-~ko = join ~c.Odd into ~L
-evens = collect ~ke: a
-odds  = collect ~ko: a
+xs -> open list -> | double -~> collect => doubled
+| -> triple -~> collect => tripled
 ```
+
+Partition by filter joins (independent lane terminations):
+
+```
+xs -> open list -> split parity of Even, Odd
+  Even: -~> join -~> collect => evens
+  Odd:  -~> join -~> collect => odds
+```
+
+Design-only constructs:
 
 Running sum (register):
 
 ```
-a, ~L = open list xs
-sum = delay on ~L init 0
-total = sum <- sum + a
+xs -> open list => a, ~L
+~L ~> delay init 0 => sum
+sum, a -> add -> step of sum => total
 ```
 
-Timeout race (design-only):
+Timeout race:
 
 ```
-r = race fetch:   fetchD
-       | timeout: after(30)
-out = collect ~r.fetch:   some(process(r.fetch))
-            | ~r.timeout: none
+race
+  fetch:   fetchD
+  timeout: after(30)
+=> r
+collect
+  ~r.fetch:   r.fetch -> process -> some
+  ~r.timeout: none
+=> out
 ```
 
-HTTP status partial collect (design-only):
+HTTP status partial collect: see "Lanes" above.
+
+Defer-the-error (commute):
 
 ```
-h = split resp by status of Ok | Redirect | ClientError | ServerError
-errCode, ~err = collect ~h.ClientError: h.ClientError
-                      | ~h.ServerError: h.ServerError
-report = collect ~h.Ok: "ok"
-               | ~h.Redirect: "moved"
-               | ~err: describe(errCode)
+xs -> open list -> mayFail -> open option -~> commute -~> collect
+=> perElem                    -- loop closed; option layer still open
+perElem -> summarize -~> collect => report
 ```
 
 ## Well-formedness: parser vs checker
 
 The parser owns only what is lexically decidable:
 
-- sort discipline (`~` where a flow is required, none where a value
-  is);
+- sort discipline (the right sigil and the right arrow where each
+  sort is required);
 - single assignment, definition before use;
-- statement arity/shape per keyword (binder counts, clause order).
+- statement/stage shape per keyword;
+- pronoun resolution (taps, lanes, `~`/`~^`) — all desugared to
+  explicit wiring per P8, with their ordinal binding rules.
 
 Everything else stays where it belongs — checks on the
-representation, shared with every other authoring path:
-
-- port existence (a projection names a port in the kind's
-  inventory);
-- flow-borne locality (a per-iteration value referenced only from
-  within its flow);
-- join operand adjacency;
-- collect coverage and partial-collect cell disjointness;
-- productivity (every cycle crosses a register) and one-write-per-
-  register;
-- provenance comparability at combining nodes, with its two clash
-  flavors (time travel — completable; bundle mixing — not).
-
-The text adds *no* checks of its own; the span lint and the
-indentation signal are presentation-level renderings of checker
-facts. A file can parse and still be ill-formed — necessarily so,
-since printing ill-formed programs (to show the witness) is a
-requirement.
+representation, shared with every other authoring path: port
+existence, flow-borne locality, join operand adjacency, collect
+coverage and partial-collect cell disjointness, productivity and
+one-write-per-register, provenance comparability with its two clash
+flavors (time travel — completable; bundle mixing — not). The text
+adds *no* checks of its own; the span lint and the indentation
+signal are presentation-level renderings of checker facts. A file
+can parse and still be ill-formed — necessarily so, since printing
+ill-formed programs (to show the witness) is a requirement.
 
 ## Correspondence to the representation
 
@@ -700,99 +803,131 @@ direct:
 | text | representation |
 |---|---|
 | `5`, `js "…"` | `Lit(JsAst.expr)` |
-| `f(x, y)` | `App({fn, args})` |
-| `a, ~L = open list e` | `Open({flow: ListIter, input})`; `a` = the node in value position, `~L` = `NodeFlow(node)` |
-| `v, ~O = open option e` | `Open({flow: OptionIter, input})` |
-| `cs = split e by d of A \| B` | `Open({flow: CaseSplit({alts, discriminator}), input})` |
+| `x, y -> f` (or `f(x, y)`) | `App({fn, args})` |
+| `xs -> open list => a, ~L` | `Open({flow: ListIter, input})`; `a` = the node in value position, `~L` = `NodeFlow(node)` |
+| `m -> open option => v, ~O` | `Open({flow: OptionIter, input})` |
+| `-> split d of A, B => cs` | `Open({flow: CaseSplit({alts, discriminator}), input})` |
 | `cs.A` / `~cs.A` | `branch_(NodeFlow(cs), "A")` in value / flow position (until first-class ports, when both become port refs) |
-| `~f = join ~I into ~O` + `collect ~f: e` | `close_(join_(NodeFlow(inner)), e)` — the parser checks the `into` operand matches the opener chain |
-| `~k = join ~cs.A into ~L` + `collect ~k: e` | `close_(filter_(NodeFlow(branch)), e)` |
-| `collect ~cs.A: e \| ~cs.B: e2` | `caseClose([{altName, flow, value}, …])` |
+| `-~> join` (then `-~> collect`) | `close_(join_(NodeFlow(inner)), value)` — the chain determines the opener chain the compiler walks |
+| lane `Even: -~> join -~> collect` | `close_(filter_(NodeFlow(branch)), value)` |
+| lane group gathered by `-~> collect` | `caseClose([{altName, flow, value}, …])` |
+| tap `\|` / anaphora `~` | nothing — desugared to shared references |
 
 Under the first-class-ports migration the right column simplifies
 (projections become `ValuePort`/`FlowPort` refs; Join becomes the
-binary node and the parser's adjacency bookkeeping moves to the
-checker), and the text does not change — which is the point of
-writing the text against ports and names rather than against the
+binary node and the chain's adjacency bookkeeping moves to the
+checker), and the text does not change — the point of writing the
+text against ports, chains, and names rather than against the
 current wrapper encoding.
 
 ## Alternatives considered
 
+**Conventional name-first, head-first syntax** (`b = double(a)`;
+the first draft). Familiar — to people and to the LLMs that are
+half the audience — but inconsistent about reading direction:
+naming and application move backward through dependencies while
+statement order moves forward. Rejected as the canonical form;
+retained in full as accepted input, which recovers most of the
+familiarity benefit at zero cost to the one-reading property.
+
+**Brace-delimited fan-out** (`-> { -> f => a | -> g => b }`; also
+first draft). Rejected twice over. First, braces read as scope in a
+language whose defining move is that there is no interior scope
+(P3). Second, the closing brace asserts a non-fact: it says "this
+wire is not used again," but the language expresses the end of
+interest in a value by silence — termination of a *flow* is
+semantic and explicit (a collect, a join); termination of interest
+costs nothing and should say nothing. Junction taps and lanes
+replace it.
+
+**Significant alignment.** Horizontal alignment as syntax (matching
+taps by column, lanes by position on the page) is attractive and a
+known disaster; all pronoun binding is ordinal (P8).
+
 **Raw edge list / JSON dump.** Complete, trivially parseable,
 unreadable — rejected as the primary form. (A mechanical JSON
 projection of the node set may still exist for tooling; it needs no
-design.)
+design.) Note the statement form *is* an edge list, factored: one
+line per node, inputs referenced inline — with the tree-shaped
+majority collapsed into chains.
 
 **S-expressions.** Tree-biased: sharing and cycles need labels
-anyway (`#n#`/`#n=` or `letrec`), at which point the notation has
-all of this design's machinery with less readability. The tree bias
-also invites writing programs as expression trees, which the
-language specifically is not.
-
-**Block structure (loop bodies as indented scopes).** The tempting
-one, and rejected on principle, not taste: blocks make the interior
-of a construct syntactically different from its exterior (the
-inside-out violation), require magic names or parameters for the
-element value, and cannot express the language's non-tree moves —
-multi-close on one opener, a close on a joined flow two levels up,
-partial collects whose branches originate in different "blocks," a
-race's contenders continuing as themselves. Every one of those
-would need an escape hatch; the escape hatch would become the
-language.
+anyway, at which point the notation has all of this design's
+machinery with less readability, and the tree bias invites writing
+programs as expression trees, which the language specifically is
+not.
 
 **Keep authoring in ReScript (status quo).** Fine for the test
 suite, useless for external tools: not parseable without a ReScript
-toolchain, not printable back, and the smart-constructor layer is an
-authoring convenience, not a stable interchange surface.
+toolchain, not printable back, and the smart-constructor layer is
+an authoring convenience, not a stable interchange surface.
 
 ## Open questions
 
-1. **Sigil and keyword spellings.** `~` for flows, `!` for lens
-   references, `<-` for write-back, `in`/`into`/`out of` — all
-   cheap to change, chosen here for readability. The naming
-   deferrals in the flow-kind docs (race vs select, etc.) surface
-   here as keyword choices; keep them cheap.
-2. **Alt-port naming scheme.** Bare alt name on both value and flow
-   side (as here, disambiguated by sigil) vs `(alt, Value)`/`(alt,
-   Flow)` pairs — should match whatever the spec's `outputName`
-   settles on, so text and spec never need a translation table.
-3. **How much the printer inlines.** When does a single-consumer
-   value node print inline vs named? (`ExprPrint`'s heuristics are a
-   starting point.) Canonical-form stability matters more than the
-   particular choice.
-4. **Barrier value rows.** If Join/race/partial-collect grow the
-   general "k lanes × m value rows" shape, the row syntax sketched
-   under "Barriers" needs committing. Blocked on the representation
-   question, correctly.
-5. **Ids in interchange.** Is `@id` on every statement acceptable
-   for tool-to-tool round-trips, or does edit-patching want a
-   separate sidecar (name ↔ id map)?
-6. **History serialization.** Undo/cherry-pick/materialize as
-   statements are sketched, not designed; the snapshot-⊂-history
-   grammar constraint is the only commitment.
-7. **Effect-flow threading sugar.** Effect operations rebind their
-   flow (`~io2 = effect print ~io "hi"`); the docs' prime convention
-   suggests wanting lighter threading for long effect chains.
-   Deferred until effect flows are closer to implementation.
+1. **The gather rule.** "Label-led lines after a multi-port stage
+   form a lane group; the first arrow-led line consumes the lane
+   ends" is stated ordinally, but it is the one place the notation
+   leans on line structure rather than pure wiring — the place a
+   critic could say the syntax grew a scope after all. Needs the
+   most careful specification; the provisional one-logical-line
+   restriction on lanes (name the split for anything bigger) keeps
+   it small until then.
+2. **Tap antecedent range.** Proposed: nearest preceding
+   tap-minting line; consecutive continuation lines may reuse; a
+   new tap-minting line replaces. Alternatives (per-paragraph
+   scope, explicit tap counts) exist if the proposed rule proves
+   too subtle in practice.
+3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `~`/`~^`, `!`,
+   `@`, `+`. Each is cheap to respell; the family structure (sorted
+   arrows, one meaning per glyph — `|` is only ever a junction) is
+   the commitment. Watch `-~>` vs `~>` legibility in practice.
+4. **Stage extra-argument convention.** `-> f(e)` = topic-first.
+   Fine for the current catalog; revisit if operations with
+   non-leading principal inputs appear.
+5. **Printer implicitness thresholds.** When to chain vs tap vs
+   name; when to emit `~` anaphora (rarely or never); when a value
+   leaf prints infix. ExprPrint's inlining heuristics are the seed.
+   Canonical-form stability matters more than the particular
+   choices.
+6. **Alt-port naming scheme.** Bare alt name on both value and flow
+   side (disambiguated by sigil) vs `(alt, Value)`/`(alt, Flow)`
+   pairs — should match the spec's `outputName` so text and spec
+   never need a translation table.
+7. **Barrier value rows.** If Join/race/partial-collect grow the
+   "k lanes × m value rows" shape, lanes extend by labeled rows;
+   blocked on the representation question, correctly.
+8. **Ids in interchange.** Is `@id` on every binder acceptable for
+   tool round-trips, or does edit-patching want a sidecar (name ↔
+   id map)?
+9. **History serialization.** Undo/cherry-pick/materialize as
+   statements are sketched, not designed; snapshot-⊂-history is the
+   only commitment.
+10. **Effect-flow threading.** Effect operations rebind their flow;
+    the docs' prime convention suggests wanting light threading for
+    long effect chains. Deferred until effect flows are closer to
+    implementation.
 
 ## Implementation path
 
 Baby steps, each independently useful:
 
 1. **Core-fragment printer.** `TextPrint.res`: render any current
-   `Expr.expr` in this notation (total; named ports; canonical
-   ordering and indentation). Coexists with `ExprPrint` (which
-   stays as the compact log form) until it clearly supersedes it.
+   `Expr.expr` in this notation. This grows directly out of
+   `ExprPrint` — the topological sort, greedy chain detection, and
+   name-at-fan-in machinery transfer; what changes is names instead
+   of `#N`, taps for local fan-out, lane groups for case closes,
+   and totality. One notation instead of two, eventually.
 2. **Core-fragment parser.** `TextParse.res`: the grammar covering
-   exactly today's `Expr.res` (lit/app/extern, list/option opens,
-   case split with projections, join/filter via `join … into …`,
-   collects). Output: `Expr.expr`.
+   exactly today's `Expr.res` (lit/app/extern in all three fixities,
+   list/option opens, splits with projections and fused lanes,
+   bare and explicit join/filter/collect, taps). Output:
+   `Expr.expr`.
 3. **Round-trip tests.** For each of the 80 suite programs:
    `print → parse → compile → run` agrees with building the Expr
    directly; and `print(parse(t)) = t` on the printed text. Pin a
    few golden files.
-4. **Span lint + indentation.** The presentation-level crossing
-   signal, once the printer exists to host it.
+4. **Span lint + derived indentation.** The presentation-level
+   crossing signal, once the printer exists to host it.
 5. Then track the representation: first-class ports (projections
    become port refs), partial collect, `+`-completion printing —
    each lands in the text the day it lands in the representation.
