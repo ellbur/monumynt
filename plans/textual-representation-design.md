@@ -459,6 +459,34 @@ partial collect has the merged-flow output, a covering one does not
 (`partial-collect-design.md`: one node, port inventory read off
 coverage).
 
+The fused lane form is sugar for this named form — lanes mint the
+split's reference internally and each label is the projection. The
+named form is the general one, and it honors P3 fully: nothing
+requires a split's branches to be described together. One alt's
+work can be built, unrelated statements can intervene, and the
+other alts and the collect can come later — membership is dataflow,
+not adjacency:
+
+```
+m -> split isJust of Just, Nothing => cs
+cs.Just -> double => x
+-- … unrelated statements …
+collect
+  ~cs.Just:    x
+  ~cs.Nothing: 0
+=> out
+```
+
+Mixing is fine too: some alts as self-terminated fused lanes,
+others handled later by name. Spread-out authoring is a path, not a
+reading — the representation keeps only the wiring, so the
+canonical reprint regroups statements into its own order ("many
+authoring paths, few readings" applied to statement order itself).
+And an unrelated flow opened and closed between the split and its
+collect raises no false crossing signal: its span is contained, and
+the derived indentation follows semantic depth, so it prints at its
+own depth, visibly not nested in the alts.
+
 Races are lanes too — the lane label carries the pairwise
 correspondence across the barrier (P5); no tagged union exists
 between the race and its collect:
