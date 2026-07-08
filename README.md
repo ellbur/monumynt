@@ -103,6 +103,15 @@ describes the language itself:
 - `implementation-strategy.md` — the map from the design record to
   code: five workstreams, a doc-by-doc ledger of what
   implementation must make concrete, and a proposed sequencing.
+- `tough-use-cases-design.md` — five real-system programs (an
+  HTTP server, a worker pool over hotplugged devices, mergesort,
+  a child process with pipes, a websocket protocol) written
+  against the existing blocks until they break; the breaks
+  ranked into candidate blocks — a concurrency-species dimension
+  on collects with lifecycle outputs, the served flow (collect
+  as response), bracket, the decision-driven merge family, the
+  divide flow (the link transformation, tree-shaped) — plus
+  requirements the IO/cancellation rounds inherit.
 
 ## What the code implements
 
