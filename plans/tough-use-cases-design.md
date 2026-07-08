@@ -846,9 +846,9 @@ document's motivating programs actually had their bugs.
    take-while/until; "divide flow" vs recurse/split. Deferred,
    per tradition.
 
-## Addenda (2026-07-08): three notes from review
+## Addenda (2026-07-08): four notes from review
 
-Three points raised in review of the first draft. None fully
+Four points raised in review of the first draft. None fully
 explored here — each is recorded with enough working-out to show
 where it leads, and left for its own round.
 
@@ -1016,6 +1016,82 @@ machinery is precisely what it forbids per-object); whether
 fan-in (merging possession) is dual to the forbidden fan-out;
 and escape hatches (an explicit copy node — visible, so the
 discipline stays structural).
+
+### Facets: partial views against crowding
+
+Visual languages have a deserved reputation for becoming
+*literal* spaghetti at even moderate complexity — every wire
+drawn is every wire seen. One answer to record: **facets** —
+ways of viewing a chunk of a program that deliberately don't
+show all of it. The motivating example: code organized around a
+state machine could be viewed *as a state diagram* — states and
+transitions visible, the per-transition computation hidden.
+
+The concept is not foreign to the record. The design already
+contains one facet, hardcoded: the function interface
+(`visual-flow-language.md`) is the "flow skeleton with data
+holes" — flow structure shown, data operations hidden, produced
+by proven-sound rewrites so that no-time-travel and soundness
+remain checkable across the boundary. The facets idea is that
+projection generalized from one built-in view to a family:
+flow-skeleton, state-diagram, the value-dataflow-only view, the
+concurrency/timing view, a possession view (which wires are
+permanent objects and where they currently are). Each hides
+dimensions; none is the program.
+
+The tricky part, named honestly: facets are very hard to make
+flexible, because **code is rarely a perfect instance of the
+facet's vocabulary** — it is a state machine that sometimes
+branches parallel execution paths, or backtracks, or escapes
+into ad-hoc handling. Two routes to a facet, with different
+exposure to that problem:
+
+- **Recognition**: find the state machine hiding in general
+  wiring and render it. Flexible in principle, partial and
+  fragile in practice — and the philosophy already says so:
+  "abstraction is earned and upward"; recovering a high-level
+  form from a concrete one is partial recognition.
+- **Projection of authored structure**: if the state machine is
+  an *authored* high-level construct (the custom protocol flow
+  of use case 5 is exactly this), then its state diagram is a
+  derived view — free, downward, total by construction, per
+  "abstraction is the source of truth". Imperfection then stops
+  being a rendering failure and becomes *marked structure*: the
+  parallel branch is a visible composite region, the escape into
+  detail is a marked exit, because the user authored a state
+  machine *with escapes* and the facet projects what was
+  authored.
+
+The philosophy clearly leans to the second route as primary
+(with recognition as the earned, partial path for hand-rolled
+shapes) — which quietly strengthens the case for authored
+high-level blocks generally: every block whose round this
+document proposes is also a facet opportunity, since an authored
+construct can always project a summary view of itself, while
+wiring that merely *implements* the pattern cannot.
+
+One more mitigation worth naming: part of the flexibility
+problem dissolves if the facet's own vocabulary is chosen richly
+enough. The imperfections listed above — parallel paths,
+returning to where you were — are precisely what Harel
+statecharts added to flat state machines (orthogonal regions,
+hierarchy, history states). A facet family should steal from
+notations that already survived contact with real systems rather
+than inventing minimal diagrams and drowning in their residue.
+
+Open threads if facets get a round: the facet inventory (which
+views, per construct); residue marking (how a facet shows "there
+is more here" without showing it — the data-hole convention is
+the precedent); whether authoring *through* a facet (add a state
+on the state diagram) is admissible as a construction step on
+the underlying program, which is transformation-levels territory;
+and the boundary with the visual/layout side — facets are about
+*what structure is shown*, not how it is laid out, but the two
+meet at the canvas and the split should be kept clean.
+
+Too big a topic to explore now; recorded so the crowding problem
+has a named answer and the protocol-flow round knows a facet is
+among its deliverables.
 
 ## What this doesn't address
 
