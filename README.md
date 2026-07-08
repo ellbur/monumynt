@@ -72,6 +72,15 @@ describes the language itself:
   well-formedness checks). Also works out the Delay back-edge —
   the write half is its own node, Close-style, with the final
   value as its output.
+- `textual-representation-design.md` — a parseable/printable textual
+  form for programs. Consistently forward (postfix chains, right
+  naming — token order is time); three sorted arrows (`->` value,
+  `~>` flow, `-~>` value-with-flow); flows ride the chain implicitly
+  (bare `join`/`commute`/`collect` act on the innermost layers, by
+  adjacency); graded references — chains, then pronouns (junction
+  taps `|`, lane labels, `~` anaphora, all desugared at parse), then
+  names, which mark exactly what is shared; `+`-prefixed completion
+  lines; spans and derived indentation as the crossing signal.
 - `lazy-compile-design.md` — the current runtime-lazy compile
   strategy (implemented).
 - `placement-algorithm-notes.md` — the retired compile-time placement
