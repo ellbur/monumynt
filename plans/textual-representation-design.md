@@ -427,37 +427,66 @@ xs -> open list -> split parity of Even, Odd
 ```
 
 The **gather rule** (stated without reference to indentation, per
-P3/P8): a maximal run of label-led lines following a multi-port
-stage forms a lane group; the first arrow-led line after the group
-consumes the lane ends as its branches (subsequent arrow-led lines
-continue the chain normally). If every lane self-terminates, no
-gather follows and the next line is a fresh statement. Provisional
-restriction: a lane's chain is one logical line — a lane complex
-enough to span lines should name the split and use projections.
-This rule is the one place the notation leans on line structure
-rather than pure wiring; it is flagged under "Open questions."
+P3/P8). A *lane line* is `label: chain` — the label either a bare
+alt name or an explicit flow reference — or `value~` (an implicit
+branch; see below). A *lane group* is a maximal run of lane lines.
+Bare-alt labels resolve against an antecedent multi-port stage (the
+statement the group follows); flow-ref labels and implicit branches
+are self-identifying, so groups made of them need no antecedent.
+The first arrow-led line after the group consumes the group's
+branches (subsequent arrow-led lines continue the chain normally) —
+except that a lane ending in a naming stage (`=> name`) is
+*deferred*: it contributes no branch to the gather, and its flow
+must be terminated elsewhere, by name. A lane may also terminate
+its flow within its own chain (the partition idiom above); if every
+lane is deferred or self-terminating, no gather follows and the
+next line is a fresh statement. Provisional restriction: a lane's
+chain is one logical line — a lane complex enough to span lines
+should name the split and use projections. This rule is the one
+place the notation leans on line structure rather than pure wiring;
+it is flagged under "Open questions."
 
 Standalone (non-fused) branch collects label lanes by flow
 reference instead of bare alt name — used when the split is named
-because its ports are consumed non-linearly:
+because its ports are consumed non-linearly. Flow-ref lanes are
+self-identifying, so the group needs no antecedent and the collect
+is written postfix, as the gather:
 
 ```
 resp -> split status of Ok, Redirect, ClientError, ServerError => h
-collect
-  ~h.ClientError: h.ClientError
-  ~h.ServerError: h.ServerError
-=> errCode, ~err             -- partial collect: value + merged flow
-collect
-  ~h.Ok:       "ok"
-  ~h.Redirect: "moved"
-  ~err:        errCode -> describe
-=> report
+~h.ClientError: h.ClientError
+~h.ServerError: h.ServerError
+-~> collect => errCode, ~err   -- partial collect: value + merged flow
+~h.Ok:       "ok"
+~h.Redirect: "moved"
+~err:        errCode -> describe
+-~> collect => report
 ```
+
+(A keyword-first spelling — `collect` above its lanes — is accepted
+input, like prefix application; the postfix gather is canonical.)
 
 Coverage is read off the cells, and the binder arity shows it — a
 partial collect has the merged-flow output, a covering one does not
 (`partial-collect-design.md`: one node, port inventory read off
 coverage).
+
+**Implicit branches.** A branch value that carries context can
+supply its flow implicitly — read off its path, like every other
+implicit flow. Inline, no new mark is needed: the `-~>` arrow sorts
+the whole comma list, so `y, (~cs.Nothing: 0) -~> collect` says
+each unlabeled item crosses with its flow. On a lane line there is
+no arrow to do the sorting, so the mark is a suffix sigil,
+`value~`. The suffix is the noun form of the arrow: prefix `~y` is
+*the flow port of node y*; suffix `y~` is *the value y together
+with the flow it lives in* — different things, mirror-image marks.
+A context-free branch value (a constant) has no path to read, so it
+must stay labeled; the checker demands of read-off flows exactly
+what it demands of labeled ones (cells of one bundle, pairwise
+disjoint, coverage read off the cells). Large collects probably
+shouldn't be written this way — labels document the branch-to-cell
+correspondence — but the form is consistent with the other implicit
+areas, and consistency is what makes them learnable as one rule.
 
 The fused lane form is sugar for this named form — lanes mint the
 split's reference internally and each label is the projection. The
@@ -471,14 +500,23 @@ not adjacency:
 m -> split isJust of Just, Nothing => cs
 cs.Just -> double => x
 -- … unrelated statements …
-collect
-  ~cs.Just:    x
-  ~cs.Nothing: 0
-=> out
+~cs.Just:    x
+~cs.Nothing: 0
+-~> collect => out
 ```
 
-Mixing is fine too: some alts as self-terminated fused lanes,
-others handled later by name. Spread-out authoring is a path, not a
+Mixing is fine too: an alt handled as a fused lane deferred by
+naming, the rest supplied at the eventual collect — the deferred
+lane contributes no branch to a gather (the gather rule), so this
+parses correctly even with the lanes adjacent:
+
+```
+m -> split isJust of Just, Nothing => cs
+  Just: -> double => y
+y~
+~cs.Nothing: 0
+-~> collect => out
+``` Spread-out authoring is a path, not a
 reading — the representation keeps only the wiring, so the
 canonical reprint regroups statements into its own order ("many
 authoring paths, few readings" applied to statement order itself).
@@ -489,17 +527,18 @@ own depth, visibly not nested in the alts.
 
 Races are lanes too — the lane label carries the pairwise
 correspondence across the barrier (P5); no tagged union exists
-between the race and its collect:
+between the race and its collect. A race's lane labels *declare*
+lane names (interpreted by the gather line's keyword) rather than
+referencing an existing split, and its gather arrow is plain `->`
+— contenders are values with no flow riding:
 
 ```
-race
-  fetch:   fetchD
-  timeout: after(30)
-=> r
-collect
-  ~r.fetch:   r.fetch -> process -> some
-  ~r.timeout: none
-=> out
+fetch:   fetchD
+timeout: after(30)
+-> race => r
+~r.fetch:   r.fetch -> process -> some
+~r.timeout: none
+-~> collect => out
 ```
 
 The concurrent join (product barrier) merges sibling flows —
@@ -781,14 +820,12 @@ sum, a -> add -> step of sum => total
 Timeout race:
 
 ```
-race
-  fetch:   fetchD
-  timeout: after(30)
-=> r
-collect
-  ~r.fetch:   r.fetch -> process -> some
-  ~r.timeout: none
-=> out
+fetch:   fetchD
+timeout: after(30)
+-> race => r
+~r.fetch:   r.fetch -> process -> some
+~r.timeout: none
+-~> collect => out
 ```
 
 HTTP status partial collect: see "Lanes" above.
@@ -892,23 +929,27 @@ an authoring convenience, not a stable interchange surface.
 
 ## Open questions
 
-1. **The gather rule.** "Label-led lines after a multi-port stage
-   form a lane group; the first arrow-led line consumes the lane
-   ends" is stated ordinally, but it is the one place the notation
-   leans on line structure rather than pure wiring — the place a
-   critic could say the syntax grew a scope after all. Needs the
-   most careful specification; the provisional one-logical-line
-   restriction on lanes (name the split for anything bigger) keeps
-   it small until then.
+1. **The gather rule.** The rule as stated (lane lines — labeled,
+   flow-ref, or `value~`; self-identifying groups need no
+   antecedent; deferred lanes contribute no branch; race-style
+   gathers interpret declaring labels) is ordinal throughout, but
+   it is the one place the notation leans on line structure rather
+   than pure wiring — the place a critic could say the syntax grew
+   a scope after all. Needs the most careful specification; the
+   provisional one-logical-line restriction on lanes (name the
+   split for anything bigger) keeps it small until then.
 2. **Tap antecedent range.** Proposed: nearest preceding
    tap-minting line; consecutive continuation lines may reuse; a
    new tap-minting line replaces. Alternatives (per-paragraph
    scope, explicit tap counts) exist if the proposed rule proves
    too subtle in practice.
-3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `~`/`~^`, `!`,
-   `@`, `+`. Each is cheap to respell; the family structure (sorted
-   arrows, one meaning per glyph — `|` is only ever a junction) is
-   the commitment. Watch `-~>` vs `~>` legibility in practice.
+3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `~`/`~^`, the
+   branch suffix `value~`, `!`, `@`, `+`. Each is cheap to respell;
+   the family structure (sorted arrows, one meaning per glyph — `|`
+   is only ever a junction) is the commitment. Watch `-~>` vs `~>`
+   legibility, and whether the prefix/suffix `~` mirror (`~y` the
+   flow port, `y~` the value with its flow) is mnemonic or too
+   subtle in practice — alternatives: `y&`, a headless `y -~`.
 4. **Stage extra-argument convention.** `-> f(e)` = topic-first.
    Fine for the current catalog; revisit if operations with
    non-leading principal inputs appear.
