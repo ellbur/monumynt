@@ -425,7 +425,12 @@ and 2 have no owner), and it is *not* this construct: end-when
 answers "how long," not "how much per step." Bounding this round
 to the one everyday construct is the baby-steps discipline
 applied on purpose; the take question stays with the
-decision-driven family round.
+decision-driven family round. *(2026-07-09: that round now exists
+— `variable-rate-consumption-design.md`, reframing "advance how
+far" as boundary placement (split-when) and recording the
+first-segment relationship between the two constructs as a
+level-1 recognition, not a unification — the same posture this
+round took toward interrupt.)*
 
 ## By kind, and the compile
 

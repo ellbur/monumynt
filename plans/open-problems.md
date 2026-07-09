@@ -93,19 +93,22 @@ single riskiest proposal. Companions:
 `first-class-ports-design.md` (the Delay pair),
 `iteration-rails-design-notes.md`.
 
-**Variable-rate consumption and the running view of a collect —
-I 5, W 4.**
-The only cluster with *no* owning construct anywhere in the
-record: three of the nine breadth-set loops (`real-loop-survey.md`
-— the wrap loop, the tokenizer-substituter, the history-indexed
-table fill). "Advance how far" (the decision-driven family's
-unworked members, `tough-use-cases-design.md` inventory item 4 and
-question 5) plus reading the output-so-far in three sighted guises
-(whole / by index / by key — survey finding 2.5). W = 4 on the
-survey's own words: this is "where the language's breadth risk
-currently concentrates."
-
 ## Tier 2 — big areas with partial designs (≈ 12–16)
+
+**Variable-rate consumption and the running view of a collect —
+I 3, W 4.**
+*(Was I 5 — the record's only ownerless Tier-1 cluster — until the
+2026-07-09 exploration round, `variable-rate-consumption-design.md`:
+"advance how far" reframed as boundary placement via split-when, a
+segmenting binary flow operation; the running view answered as the
+state port of the collect's derived augment form; breadth items 1,
+2, 4 worked end-to-end; three dead ends recorded.)* Remaining: the
+adoption conversation itself, the boundary-destination setting's
+form (jointly with end-when's inclusive bit), the stream compile's
+sequencing constraint, the fixed-length-segment catalog question,
+and the nested-segmentation boundary against grammar vocabulary.
+The decision-driven merge — the family's two-flow member — still
+has only its chooser sketch (tough doc item 4).
 
 **The concurrency constructs — I 4, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -269,3 +272,9 @@ the reason.
 
 - **2026-07-09** — first assessment, all rows, against the record
   as of the end-when round (and its worked question 5).
+- **2026-07-09** (later) — variable-rate consumption / running view:
+  I 5 → 3 (exploration round written,
+  `variable-rate-consumption-design.md`; split-when + the
+  derived-state-port running view; breadth items 1, 2, 4 worked),
+  W 4 unchanged; product 20 → 12, moved Tier 1 → Tier 2. The
+  adoption conversation and the merge's own round remain.

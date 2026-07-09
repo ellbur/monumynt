@@ -1429,7 +1429,12 @@ Six of nine have at least a designed owner to be tested against;
 items 1, 2, and 4 — all three faces of variable-rate consumption and
 the running view — have none. By the 80/20 reading, that cluster is
 where the language's breadth risk currently concentrates, whatever
-the frequency tables say about scans and searches.
+the frequency tables say about scans and searches. *(2026-07-09,
+later: the cluster now has a worked exploration round to be tested
+against — `variable-rate-consumption-design.md` (split-when; the
+running view as the collect's derived state port), which works items
+1, 2, and 4 end-to-end, including their +1 ladders. Nothing adopted;
+the "no owner" statements above describe the record as sampled.)*
 
 *(Companion criterion, adopted the same day as the seventh principle —
 "Building blocks must build", `language-design-philosophy.md`: each
