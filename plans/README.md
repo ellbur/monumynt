@@ -77,6 +77,11 @@ first-implementation convenience, rejected long-term.
 - [`transformation-levels-design.md`](transformation-levels-design.md)
   — program and edit history as one structure; conversions as level-1
   computations; nothing mutates.
+- [`end-when-design.md`](end-when-design.md) — data-driven
+  termination, the surveys' biggest unserved everyday demand, worked
+  as a binary flow operation (subject, stop) with the readout via
+  terminator discharge. **An exploration round with leanings, not an
+  adopted design** — prepared for the design conversation.
 
 ## Flow kinds beyond lists
 
