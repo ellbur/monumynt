@@ -1,5 +1,16 @@
 # Tough Use Cases
 
+> **Status (2026-07-09).** Written 2026-07-08 (the four addenda the
+> same day), after the binary-join, Cross, and completion rounds —
+> its vocabulary is current. The candidate blocks proposed here are
+> *candidates*: the consolidated inventory at the end ranks them by
+> how many use cases demand each, and nothing in this document is
+> decided or implemented. Citations to `visual-flow-language.md`
+> (the first-generation narrative, retired 2026-07-09) refer to the
+> record preserved in git history; its live content is in
+> `core-model.md` and the topic docs this document already lists
+> under "designed-ahead vocabulary."
+
 ## What this is for
 
 Every design round so far started from a construct and worked

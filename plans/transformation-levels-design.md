@@ -1,5 +1,15 @@
 # Transformation Levels
 
+> **Status (2026-07-09).** Begun 2026-07-04 out of the
+> iteration-state round; grown through 2026-07-06 (catalog,
+> lens/splice, persistent frame, node identity). Live: the sixth
+> principle in `language-design-philosophy.md` ("abstraction is the
+> source of truth") rests on this document, and
+> `time-travel-programs-design.md` builds its completion-as-lens
+> story on the machinery here. Nothing is implemented; the still-open
+> items (merge, undo records, the single-native-level assumption)
+> are collected in "What is unresolved" at the end.
+
 This document explores a structural question that arose while designing
 the "generalize" / link primitive (see `iteration-with-state-design.md`):
 when a construction step is best understood as a *transformation on the

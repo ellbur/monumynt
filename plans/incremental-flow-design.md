@@ -3,7 +3,8 @@
 ## What this is for
 
 > Terminology note (2026-07-09): written just before the
-> uncollect/collect correction; "close" throughout means collect.
+> uncollect/collect correction; "open" and "close" throughout mean
+> uncollect and collect.
 
 State that varies over time, with dependencies tracked: a value
 that is always readable *now*, whose current value changes as its

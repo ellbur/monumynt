@@ -1,5 +1,24 @@
 # Joining Stream Flows
 
+> **Status — read this first (2026-07-09).** Begun 2026-05-17 as a
+> placeholder and grown by dated rounds, this document now carries
+> the correction the whole record follows: **"Join is a binary flow
+> operation (2026-07-07)"**, below — join has two flow operands,
+> (outer, inner), and one flow output. The framing it superseded
+> stays above it under dated notes: the unary `join_`
+> close-annotation in "What join means for streams" and the J/F
+> fork of "Join at an option level" are kept as the record of how
+> the correction surfaced. A reader here for the current design
+> should read the correction section first and the rest as
+> history (its "What survives" subsection says which earlier
+> conclusions — the skip mechanism, placement-independence — carry
+> over).
+>
+> Terminology: the pre-correction sections predate the
+> uncollect/collect renaming and say open/close; the correction
+> section adopts **collect** and explains why the renaming and the
+> correction are the same point.
+
 ## What this is for
 
 The list-flow `join_` operation lifts a close's output up one

@@ -549,12 +549,22 @@ note a no-op.
   the outer product, and offering it as "commute" would invite
   accidents. Note this is *not* transpose — see next.
 
+  *(2026-07-09: the decline has since acquired its lawful
+  exception — over a Cross product, same-kind commute is
+  transpose and always defined; the decline applies exactly where
+  the nesting is not a product. See `product-flows-design.md` and
+  the scoping note in this document's header.)*
+
 - **Transpose** (row flow with column flow over tabular data). A
   genuinely different operation from monadic sequence, and the one
   that actually requires rectangularity — which is exactly what a
   tabular container's invariant supplies and ragged nested streams
   don't. The taxonomy slot is coherent, but it belongs to the
-  (future) tabular-data design, not here.
+  (future) tabular-data design, not here. *(2026-07-09: it found
+  an earlier home — `product-flows-design.md`'s Cross supplies the
+  rectangularity by construction, making transpose lawful over any
+  crossed pair; the tabular container remains the case where
+  rectangularity comes from the data rather than from a Cross.)*
 
 - **Failable streams** — not a commute variant at all, recorded
   here to mark the boundary. A stream whose terminator is

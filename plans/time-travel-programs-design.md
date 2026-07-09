@@ -254,6 +254,12 @@ an authored meaning; it *supplies* the meaning the authored
 structure left open — forced where the constraints force it,
 canonical or heuristic where they don't.
 
+*(2026-07-09: for the flow–flow case the inserted operator is the
+Cross — see the note under the insertion inventory above — and
+the wrinkle carries over unchanged: the crossed pair fires once
+per pair of operand firings, n×m, a multiplicity the authored
+program left open.)*
+
 ### The constraint model
 
 The unknowns: the authored program's opens form contexts, but the
@@ -262,6 +268,13 @@ relationship. Completion is the assignment of the missing tree
 structure (each assignment realized as an incorporate insertion,
 so the result is drawable, not annotated), plus the commute chains
 that reconcile authored terminations with the tree.
+
+*(2026-07-09: where the assigned parent relationship nests two
+sibling opens — mutually invariant flows — the assignment is
+realized as a Cross insertion, not an incorporate, per
+`product-flows-design.md`. The tree assignment itself, and the
+constraints below, are unchanged; only the inserted operator
+differs.)*
 
 The constraints, in strength order:
 
@@ -334,6 +347,8 @@ report as a time-travel clash — now lands in one of four bins:
 1. **Determined.** Constraints 1–4 force a unique completion. The
    two-lists example: the collect order directs, completion
    inserts one incorporate, done. No canonicity even needed.
+   *(2026-07-09: one Cross, per `product-flows-design.md` — the
+   collect order still determines its orientation.)*
 2. **Canonically completed.** The order is genuinely free but a
    canonical rule covers it. The deferred-option example: nothing
    in the terminations says where the error flow sits except
@@ -542,6 +557,11 @@ flow, and completion inserts the incorporate accordingly. The
 ambiguity was an artifact of imagining the flows brought together
 by nothing in particular; any actual bringing-together the user
 draws carries an operand order, and the order is the answer.
+
+*(2026-07-09: the two opens being mutually invariant siblings,
+the insertion here too is a Cross, per `product-flows-design.md`;
+the point of the paragraph — the authored join's operand order
+directs the orientation — is unchanged.)*
 
 **Where a heuristic pick is observable.** Sibling flows whose
 *values* combine but whose flows never reach one operation that
@@ -804,6 +824,12 @@ The repo can grow the skeleton with no UI and no streams:
    one nesting survives, the heuristic order picks and the
    report labels the pick heuristic; where the constraints
    cycle, the check's error.
+   *(2026-07-09: superseded in one detail by
+   `product-flows-design.md`: the rewrite inserts a Cross rather
+   than re-rooting the inner open's source — re-rooting erases
+   the mutual invariance the authored program carried. The
+   constraint harvest and the reporting are unchanged; see that
+   document's "Smallest first step" for the coordinated plan.)*
 3. **Canonical option-outward commute** waits for stream flows
    and the Commute implementation; its design is done here and
    in `lazy-stream-commute-design.md`, and step 2's constraint
