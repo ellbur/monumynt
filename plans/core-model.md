@@ -4,7 +4,7 @@
 (`flow_language_design.md`, `visual-flow-language.md`, both since
 retired — git history has the full originals). This is the short
 statement of the core everything else hinges on, in current
-vocabulary. The six principles behind it are in
+vocabulary. The seven principles behind it are in
 `language-design-philosophy.md`; read that first.*
 
 ## Blocks turned inside out

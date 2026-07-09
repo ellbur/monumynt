@@ -10,7 +10,7 @@ tells you where to start.*
 Everything else hinges on these two:
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)**
-  — the six principles every new construct is evaluated against.
+  — the seven principles every new construct is evaluated against.
 - **[`core-model.md`](core-model.md)** — the core in current
   vocabulary: value vs flow wires, uncollect/collect, no time travel,
   binary join, bundles, barriers-not-bottlenecks, the flow kinds.
@@ -114,6 +114,22 @@ first-implementation convenience, rejected long-term.
 - [`tough-use-cases-design.md`](tough-use-cases-design.md) — five
   real-system programs worked against the blocks until they break;
   the ranked candidate-block inventory.
+- [`real-loop-survey.md`](real-loop-survey.md) — sixty seeded-random
+  loops from real codebases (two runs: infrastructure corpora, then
+  numerics/algorithms/simulation/UI/games/graphics) classified
+  against the inventory (evidence, not design): uncollect/collect
+  confirmed as the center; the scan absent in infrastructure but
+  dominant in numerics, with cross-referencing registers in the wild;
+  early exit the biggest unserved everyday demand; the thread's
+  one-writeback rule unbroken across all sixty; Cross, window, and
+  the event-loop inventory sighted in their designed shapes. Read the
+  tallies with the 80/20 counterweight (frequency ranks the
+  effortless; the rare painful tail binds breadth — the nine-loop
+  **breadth set** is collected at the end). First runs of a
+  **standing method** — sampling reality is to be used frequently;
+  the method's statement and rules are in
+  `language-design-philosophy.md`, "A standing method: sample
+  reality."
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

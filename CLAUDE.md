@@ -100,7 +100,7 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Six principles run through the language design; the full statements,
+Seven principles run through the language design; the full statements,
 with the design conversations that earned each one, live in
 `plans/language-design-philosophy.md`. Read that before evaluating any
 new primitive or construct. In one line each:
@@ -123,6 +123,29 @@ new primitive or construct. In one line each:
   view.** Lowerings are read-only derived views you reference, never
   the thing you edit; derivation is free and downward, abstraction
   earned and upward.
+- **Building blocks must build (graceful expansion).** The complex
+  case must be reachable from the simple case by adding structure,
+  never by rewriting into a different construct — `.map()`/`.filter()`
+  being unbuildable-upon, and fold's tuple bottleneck, are the
+  counterexamples. Check every proposal's "+1 steps."
+
+Alongside the principles there is a **standing method — sample
+reality** (adopted 2026-07-09; statement and rules in
+`plans/language-design-philosophy.md`, first run in
+`plans/real-loop-survey.md`): when a construct's importance is
+assumed rather than measured, an inventory needs ranking, or a rule
+needs contact evidence, draw a seeded random sample of real code
+(corpora installed on this machine work fine), classify it against
+the current and candidate vocabulary, and let the frequencies
+reweight the agenda. Seeded and documented protocol, no filtering
+for interesting, biases stated with their direction, evidence kept
+separate from decision. One interpretation rule binds all readings:
+frequency is not importance (the 80/20 counterweight) — high
+frequency ranks what must be effortless, while a rare painful shape
+is a breadth obligation, never a deprioritization candidate; the
+most annoying loop to write can break the language even when the
+common cases are trivial. Use the method frequently — reach for it
+proactively when design discussion is running ahead of evidence.
 
 ## Working with the user
 

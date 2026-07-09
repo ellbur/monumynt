@@ -15,6 +15,15 @@
 >   that technically work are easy to produce; what is needed is a
 >   design both *easy for beginners to understand* and *flexible
 >   enough for complex code*. More work is required before choosing.
+>   *(Sharpened later the same day, with the seventh principle —
+>   "Building blocks must build", `language-design-philosophy.md`:
+>   the bar is not just both ends but the ramp between them. The
+>   beginner's construct must expand into the complex case by
+>   addition — running sum → +max → cross-referencing pair →
+>   take-while termination, each a "+1 step" on the same drawing —
+>   never by switching species. Both live candidates already improve
+>   on fold by exactly this measure; evaluate them, and the thread,
+>   by walking their +1 ladders.)*
 > - The Delay back-edge construction both candidates lean on is worked
 >   out in `first-class-ports-design.md` (the write half is its own
 >   node; the pair supplies the `final` readout).
@@ -1700,7 +1709,13 @@ all; a designed boundary instead. The costs are that the boundary
 must be learnable, and a program that grows across it (a scan that
 acquires a second, cross-referencing accumulator) needs manual
 rewriting at exactly the moment the user is thinking about something
-else.
+else. *(2026-07-09: the seventh principle — "Building blocks must
+build", `language-design-philosophy.md` — names this cost precisely:
+the domain boundary is a designed cliff on a +1 step, the exact
+failure mode the principle exists to forbid. Of the three coexistence
+models, this one now needs the "very good argument" the principle
+demands; the other two are cliff-free — a derived view expands by
+authoring on the view, a common core expands by adding registers.)*
 
 **Common core.** Both forms desugar to a shared result-level core —
 ultimately the loop register: init-before, read-at-top,
@@ -1817,7 +1832,17 @@ the projection that keeps its structure legible.
   one writeback per crossing, with conditional carry expressed as a
   conditional *value* wired into the single writeback. Whether that
   survives contact with real loops is exactly what the rail notes'
-  "sample real code" plan should test.
+  "sample real code" plan should test. *(2026-07-09: two sample runs
+  — `real-loop-survey.md`, sixty loops across infrastructure and
+  domain corpora including dense numerics. The rule survived
+  everything drawn: conditional carry occurred three times and
+  expressed exactly as prescribed each time; a multi-site-append
+  buffer with conditional reset and a backtracking save/restore
+  cursor both still reduce to one conditional value per firing; an
+  eight-register fixed-point kernel is eight parallel one-writeback
+  threads. No sampled loop needed two independent writebacks. The
+  recorded caveat: what strains in the reset case is effect
+  *ordering* within the firing, which no writeback count addresses.)*
 - **The crossing rule.** Threads are a new wire species. Do
   thread/value and thread/thread crossings fall under the existing
   no-crossing rule, or does the thread's horizontal-rail geometry
@@ -1948,8 +1973,33 @@ back-edge.")*
 
 **The state thread's open points.** Whether one-writeback-per-crossing
 survives real loops (conditional carry, multi-site update — test
-against the rail notes' "sample real code" plan); how threads interact
-with the no-crossing rule; and whether the thread is its own
+against the rail notes' "sample real code" plan; *first sample run
+2026-07-09, rule survived — see `real-loop-survey.md`, finding 3, and
+the dated note under "Open questions for the thread"*); how threads
+interact with the no-crossing rule; and whether the thread is its own
 result-level construct or a rendering of a stored projection (the
 cheapest version: store the Delay quotient, render the thread, derive
 the flow view). See "A fourth option: the visible state thread".
+
+**The environment the chosen candidate will live in.** The real-loop
+surveys (`real-loop-survey.md`, two runs, n=60) reweight what
+surrounds this decision. In infrastructure code the simple scan never
+occurred and early termination dominated; the domain sample then
+found the scan alive and concentrated in numerics (five scans/folds
+in thirty draws, four of five mpmath draws stateful), including an
+eight-register kernel with a cross-referencing register pair —
+Fibonacci's shape in production code — and within-iteration chaining
+(one register's step reading another's *new* value: an ordinary value
+wire in both candidates, concretely confirming that stack order among
+augmentations stays semantically inert). So: iteration state is real,
+domain-shaped, and structurally tame so far; and whichever candidate
+is chosen should be evaluated with early exit in the room — real
+numeric loops stop *because of* their carried state (take-while on
+the term size, retry-until-tolerance), so end-when
+(`tough-use-cases-design.md`) must compose with the register/thread
+designs, and the write half's final-value output and a search's
+readout look like the same port — either a unification or a
+coincidence to check. The surveys also put three sightings behind the
+running/history-indexed view of a collect (read-whole, read-by-index,
+read-by-key), which sits unowned between multi-close and the register
+designs.

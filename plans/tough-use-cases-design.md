@@ -10,6 +10,16 @@
 > record preserved in git history; its live content is in
 > `core-model.md` and the topic docs this document already lists
 > under "designed-ahead vocabulary."
+>
+> *(2026-07-09: this document now has a randomly-harvested sibling.
+> The real-loop surveys' singleton hard draws are collected as a
+> nine-loop **breadth set** — `real-loop-survey.md`, "Reading the
+> frequencies: the 80/20 counterweight" — members of the same
+> must-express-without-pain set this document's five programs were
+> constructed for, but drawn blind. Three of the nine currently have
+> no owning construct: the wrap loop, the tokenizer-substituter, and
+> the history-indexed table fill — the variable-rate-consumption /
+> running-view cluster.)*
 
 ## What this is for
 
@@ -756,7 +766,18 @@ Ranked by independent demand across the five use cases:
    scope); **end-when** (data-driven terminator writing, the
    synchronous sibling of interrupt); data-dependent take.
    Demanded by: mergesort's merge, until-loops, protocol
-   framing.
+   framing. *(2026-07-09: the real-loop surveys add everyday
+   demand — across sixty randomly sampled loops in two corpus
+   families, roughly eighteen terminate early or on a data
+   condition, in four guises: first-match, take-until-sentinel,
+   poll-until-result, predicate cursor. Data-dependent take also
+   occurred naturally: line filling, skip-while, a variable-rate
+   tokenizer. The domain sample adds a sharpening: in numerics,
+   data-driven termination arrives *fused to the scan* — loops
+   stop because of their carried state (take-while on the term
+   size, retry-until-tolerance) — so end-when must compose with
+   the register designs. On that evidence end-when outranks this
+   slot; see `real-loop-survey.md`, findings 4–5 and 2.7.)*
 5. **The divide flow** — the link transformation, tree-shaped: a
    self-similar flow with base/divide alts, child-result ports
    at the collect, catalog divisions plus a warned escape hatch.
