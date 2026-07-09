@@ -6,8 +6,8 @@
 ## The higher-order function problem
 
 `sort(list, comparator)`, `filter(list, predicate)` — passing
-functions as values is rejected for this language
-(`rejected-ideas.md` entry 82): a function waiting to be called has
+functions as values is rejected for this language: a function
+waiting to be called has
 no honest visual representation, and the pattern confuses exactly the
 users the language is for.
 

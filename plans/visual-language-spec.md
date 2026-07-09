@@ -16,9 +16,10 @@ The language separates **value wires** (carrying data) from **flow wires** (repr
 > — dissolving Branch and the `Joined`/`Filtered` wrappers into alt
 > ports and binary Join nodes — is worked out in
 > `first-class-ports-design.md`. The superseded IterationRail /
-> TapIn / TapOut machinery formerly preserved in this spec is now
-> recorded in `rejected-ideas.md` (entries 6–7), with the
-> still-valuable rail ideas kept in `iteration-rails-design-notes.md`.
+> TapIn / TapOut machinery formerly preserved here was removed
+> 2026-07-09 (full schemas in git history); the short record of why
+> it died is under Delay below, and the still-valuable rail ideas
+> are kept in `iteration-rails-design-notes.md`.
 
 ---
 
@@ -384,8 +385,10 @@ Only option-out-of-stream has a worked-out compile (`lazy-stream-commute-design.
 
 > The pre-reconciliation signature carried per-element value
 > pass-through ports; those are what made "swap-and-continue" look
-> like a design obligation. Dropped — see `rejected-ideas.md`
-> entry 18.
+> like a design obligation. Dropped: the 1-1 correspondence they
+> encoded is the naturality identity, which the port-free node
+> expresses better by making the before/after distinction
+> unrepresentable.
 
 ---
 
@@ -468,8 +471,8 @@ The output value depends on all flows in the specified order.
 > bringing a value into a flow context — and stays. One usage is
 > corrected: nesting two *sibling* uncollects into one another via
 > Incorporate erases their mutual independence; for that case the
-> right node is a **Cross** (`product-flows-design.md`,
-> `rejected-ideas.md` entry 39). The Cross node has no spec entry yet;
+> right node is a **Cross** (`product-flows-design.md`). The Cross
+> node has no spec entry yet;
 > one is owed when that design lands.
 
 ---
@@ -520,7 +523,7 @@ For a binary tree in the "node" case, this outputs the `element`. The case is de
 
 ### Delay
 
-The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is **one of two live candidate designs** for iteration state; both supersede the IterationRail / TapIn / TapOut trio (`rejected-ideas.md` entries 6–7; the full retired schemas are in git history). The other candidate is the **latent-flow representation**: generalize cuts a value wire and interposes an *augmented uncollect* — the flow's opener with a seed input and a per-iteration state output added — with a feedback collect producing the modified flow. Its node schema is not yet pinned down (the feedback-collect mechanic is open), so only Delay is specified here; see `plans/iteration-with-state-design.md`, "Two live candidates, kept side-by-side", for the comparison and what would decide. The reasoning behind Delay is in that document (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail, which both candidates realize).
+The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is **one of two live candidate designs** for iteration state; both supersede the IterationRail / TapIn / TapOut trio (schemas in git history). What that design got wrong, briefly: multi-slot lookback made the rail visually degenerate under generalization (deeper lookback is chained Delays instead); per-case TapIns put the initial value inside the flow when it belongs outside it; and `ById` symbolic references are replaced by the honest back-edge plus the productivity check. The other candidate is the **latent-flow representation**: generalize cuts a value wire and interposes an *augmented uncollect* — the flow's opener with a seed input and a per-iteration state output added — with a feedback collect producing the modified flow. Its node schema is not yet pinned down (the feedback-collect mechanic is open), so only Delay is specified here; see `plans/iteration-with-state-design.md`, "Two live candidates, kept side-by-side", for the comparison and what would decide. The reasoning behind Delay is in that document (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail, which both candidates realize).
 
 ```
 Delay:
@@ -773,7 +776,7 @@ This is primarily a nested representation where inputs point to outputs. In a co
 
 However, the diagram also maintains an explicit `nodes` set because during editing some nodes may be temporarily disconnected — and because a complete program is a node set (see the Diagram section).
 
-Self-reference needs no symbolic indirection: the cycle is embraced, not avoided. Delay's `step → prev` back-edge is an ordinary structural connection, well-formedness comes from the productivity check, and construction is two-phase (mint the Delay, wire `step` later). The retired alternative — `ById` symbolic references à la bound variable names — is recorded in `rejected-ideas.md` entries 6 and 9.
+Self-reference needs no symbolic indirection: the cycle is embraced, not avoided. Delay's `step → prev` back-edge is an ordinary structural connection, well-formedness comes from the productivity check, and construction is two-phase (mint the Delay, wire `step` later). The retired alternative — `ById` symbolic references à la bound variable names — died with the rail design (see the note under Delay); resurrecting id-as-reference would make Delay the one place a reference is not a structural pointer (`first-class-ports-design.md`, "The three named escapes fail for cause").
 
 ### Types Omitted
 

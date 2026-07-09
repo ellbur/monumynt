@@ -13,7 +13,7 @@ Functions exist for reuse, naming, and modularity. They are **not**
 the bodies of map/filter (flows handle element-wise processing), not
 first-class values passed around, and not closures capturing scope —
 higher-order functions are rejected in favour of configuration scopes
-(`configuration-scopes.md`, `rejected-ideas.md` entry 82).
+(`configuration-scopes.md`, which records the reason).
 
 ## Functions are diagrams with ports
 

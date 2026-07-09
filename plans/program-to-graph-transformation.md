@@ -3,9 +3,10 @@
 > **Status (2026-07-09).** Layout side — out of scope in this repo, kept
 > because the layout algorithm should survive. This doc is the most
 > vocabulary-stale of the layout set: its node specs still include
-> IterationRail/TapOut (superseded by Delay — `rejected-ideas.md`
-> entries 6–7), the pre-reconciliation Commute with value pass-through
-> ports (entry 18), and Incorporate visuals that predate the Cross
+> IterationRail/TapOut (superseded by Delay — see
+> `visual-language-spec.md`), the pre-reconciliation Commute with
+> value pass-through ports (dropped in the spec's reconciliation
+> note), and Incorporate visuals that predate the Cross
 > refinement (entry 39). Treat the per-node visual specs as a template
 > for the current node inventory, not as that inventory.
 

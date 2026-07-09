@@ -10,7 +10,11 @@
 > programs over explicit join nodes plus collects, per that
 > section. Whether commute also becomes a binary node is recorded
 > there as open. The commute semantics and the variant taxonomy here
-> are current.
+> are current, with one later scoping note: the same-kind commute the
+> taxonomy declines on usefulness grounds has a lawful exception —
+> over a Cross product, commute is transpose and is always defined
+> (`product-flows-design.md`); the decline applies exactly where the
+> nesting is not a product.
 
 ## What this is for
 

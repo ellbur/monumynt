@@ -260,6 +260,14 @@ short version: the two are observably identical here (bodies are
 pure), so the choice is real but deferrable — a compile-strategy
 choice, not a semantics choice.
 
+> **Recorded position (design review, 2026-07-09).** Sharpened:
+> pure pull is rejected as the long-term model, not merely
+> disfavoured. Beyond the fan-out pathology, it makes partial
+> updates to lists and similar structures harder to track. It may
+> still serve as the convenient first implementation and remains
+> the semantic baseline the hybrid must agree with; the destination
+> is push-with-values inside a necessity frontier.
+
 ### Cutoff
 
 Version bumps say an input *may* have changed; cutoff is the

@@ -1,8 +1,9 @@
 # Iteration Rails: Design Notes
 
 > **Status (2026-07-09).** The rail *mechanisms* recorded here died — the
-> diagonal wire, TapIn/TapOut, `ById` references (`rejected-ideas.md`
-> entries 5–7) — and the spec's construct is now Delay. But this doc is
+> diagonal wire, TapIn/TapOut, `ById` references (the reasons are in
+> this document and under Delay in `visual-language-spec.md`) — and
+> the spec's construct is now Delay. But this doc is
 > deliberately kept: the rail is not looking promising, yet not totally
 > out, and some of its ideas — the one-visible-column constraint, the
 > state-thread depiction, the split between how a value is *carried* and

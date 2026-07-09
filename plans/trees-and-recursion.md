@@ -8,9 +8,9 @@ is implemented. Status notes mark where later rounds bear on it.*
 
 Trees branch in multiple directions; there is no single spread axis.
 The language's answer must not be "write a recursive function" —
-manual recursive step-taking is rejected
-(`rejected-ideas.md` entry 84). Iteration over recursive structures
-comes from primitives with recursion built in.
+manual recursive step-taking is rejected — it demands exactly the
+expert construction the language exists to avoid. Iteration over
+recursive structures comes from primitives with recursion built in.
 
 ## Zipper-based iteration
 
@@ -63,7 +63,8 @@ case splitting exposes the alternatives, the types do the rest.
 > machinery against mergesort and found its limit: when the recursion
 > structure is *virtual* (a split tree that exists only as call
 > structure), feeding the derivation would mean materialising the
-> tree as data — rejected (`rejected-ideas.md` entry 66). The
+> tree as data — rejected there as declaring structure upfront,
+> exactly what example-first forbids. The
 > **divide flow** proposed there is the candidate primitive for
 > recursion over virtual structure; the ADT derivation remains the
 > story for recursion over *data*.

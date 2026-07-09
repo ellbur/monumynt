@@ -18,11 +18,14 @@
 > - The Delay back-edge construction both candidates lean on is worked
 >   out in `first-class-ports-design.md` (the write half is its own
 >   node; the pair supplies the `final` readout).
-> - What died on the way — `stateful(...)`, `prev(x)`, the Delay
->   lambda form, the terminal stateful-collect (whose rejection
->   stands; see the entry), the old rail machinery — is in
->   `rejected-ideas.md` entries 1–10, with the rail ideas worth
->   keeping in `iteration-rails-design-notes.md`.
+> - What died on the way is recorded in this document —
+>   `stateful(...)` (§"Rejected"), `prev(x)` (§"Considered"), the
+>   Delay lambda form (§"A candidate for the concrete form"), the
+>   terminal stateful-collect (§"The stateful-collect is a terminal
+>   node", whose rejection stands per the recorded position there) —
+>   with the old rail machinery's short record under Delay in
+>   `visual-language-spec.md` and the rail ideas worth keeping in
+>   `iteration-rails-design-notes.md`.
 >
 > Terminology predates the uncollect/collect correction; "close"
 > means collect, "reduce-close" the reduce collect.
@@ -348,6 +351,14 @@ unit.
 > so nothing output-less exists. The "terminal, no output" reading below
 > is retained because the conflict it names is what both reframings
 > answer.
+>
+> **Recorded position (design review, 2026-07-09).** The rejection of
+> an output-less feedback node stands, full stop: a feedback node must
+> have an output. Passages elsewhere in the record that appear to
+> soften this are mistaken readings — what the write-half design
+> (`first-class-ports-design.md`) recovers is a distinct writing
+> *node*, and that node is not terminal precisely because it outputs
+> the final value.
 
 An important distinction from regular collect/close: the operation that
 feeds a step value back into a variable has **no output**.

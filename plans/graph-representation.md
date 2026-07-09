@@ -3,8 +3,8 @@
 > **Status (2026-07-09).** Layout side — out of scope in this repo, kept
 > because the layout algorithm should survive. Predates the newer design
 > rounds; where its examples use retired vocabulary (iteration rails,
-> tap-outs), see `rejected-ideas.md` entries 6–7 and
-> `iteration-rails-design-notes.md`. The layout machinery itself is
+> tap-outs), the current construct is Delay — see
+> `iteration-rails-design-notes.md` and the spec. The layout machinery itself is
 > unaffected: it deliberately carries no semantic concepts.
 
 ## Overview

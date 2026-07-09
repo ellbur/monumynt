@@ -8,9 +8,10 @@ captures the compile-time placement algorithm that lived in
 it in favour of a simpler runtime-lazy compile so the language design
 could move forward without optimisation logic in the compiler. The
 hybrid revival sketched at the end is a committed future optimisation
-pass (see "When it might come back" and `rejected-ideas.md`, "Not
-rejected"); what *is* dead for good is the placeholder-move mechanism
-(§3; `rejected-ideas.md` entry 27).
+pass (see "When it might come back"); what *is* dead for good is the
+placeholder-move mechanism (§3 — it accreted as fixes rather than
+falling out of the design, and the rebuild's architecture exists
+specifically to avoid its shape).
 
 This algorithm is worth keeping a memory of for two reasons:
 

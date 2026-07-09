@@ -79,7 +79,7 @@ flow context — a meaningful primitive in its own right. What
 Incorporate must *not* be used for is nesting two *sibling* uncollects
 into one another: that erases their mutual independence, and the
 completion inserts a **Cross** there instead
-(`product-flows-design.md`; `rejected-ideas.md` entry 39).
+(`product-flows-design.md`).
 
 ## Join, and filtering as join
 
@@ -108,9 +108,10 @@ Positional filtering falls out: collecting only some of a
 partitioned list flow yields a shorter list (e.g. differentiation —
 compute `current − previous` and collect only the positions that have
 a previous). What is *not* live from the old story is positional
-partitioning as the accumulator mechanism (`rejected-ideas.md`
-entries 1–3, 81); loop-carried state is the register design
-(`iteration-with-state-design.md`).
+partitioning as the accumulator mechanism — the initial value belongs
+outside the flow, not in a first-position case; loop-carried state is
+the register design (`iteration-with-state-design.md`, which records
+the rejected `stateful(...)`/`prev(x)` shapes and why).
 
 ## Barriers, not bottlenecks
 
@@ -123,7 +124,7 @@ outputs**; wires pass through as themselves.
 - Sum side: racing two async flows keeps per-contender outputs; no
   tagged union is packed to cross the race
   (`async-flow-design.md`, "Racing is a barrier, not a value" — the
-  canonical bottleneck illustration, `rejected-ideas.md` entry 55).
+  canonical bottleneck illustration).
 
 ## Commute
 
@@ -160,4 +161,6 @@ any kind — not a per-kind bolt-on (`async-flow-design.md`).
   ("the program is a node set"), `transformation-levels-design.md`.
 - Real-system pressure testing and candidate blocks:
   `tough-use-cases-design.md`.
-- What died, and why: `rejected-ideas.md`.
+
+Rejected and dissolved ideas are recorded in place, in the doc that
+owns the topic — each with the reason it must not be pursued again.

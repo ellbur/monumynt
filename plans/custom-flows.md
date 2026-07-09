@@ -34,7 +34,7 @@ word; renaming the organizational pair (`Tie`/`Untie`,
 Only atomic flow operations (commute, join) lift automatically to a
 bundle; everything else goes through unbundle/rebundle — auto-lifting
 arbitrary component operations is rejected as too complex and too
-ambiguous (`rejected-ideas.md` entry 86).
+ambiguous.
 
 ## The vertical segment
 
@@ -69,7 +69,8 @@ Two categories of flow, with different crossing rules:
   no-op and clutter.
 
 Commutativity is **inferred from the definition method**, never
-user-annotated (`rejected-ideas.md` entry 85): algebraic/effect
+user-annotated (an annotation would restate what the definition
+already shows): algebraic/effect
 flows are commutative; ADT-derived flows are structural; bundles
 inherit the most restrictive component (any structural component
 makes the bundle structural).

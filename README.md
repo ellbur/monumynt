@@ -24,9 +24,9 @@ reading order and per-document status. The shortest path in:
   current vocabulary: value vs flow wires, uncollect/collect, no time
   travel, binary join, bundles, barriers-not-bottlenecks, the flow
   kinds.
-- [`plans/rejected-ideas.md`](plans/rejected-ideas.md) — every
-  rejected and dissolved idea with the reason it must not be pursued
-  again, plus the guard list of ideas that look rejected but aren't.
+
+Rejected ideas are recorded in place, in the doc that owns the topic,
+each with the reason it must not be pursued again.
 
 The rest, grouped in the index: the data-representation spec and the
 textual form; iteration state (the biggest open area — two live

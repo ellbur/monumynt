@@ -4,8 +4,8 @@
 > because the layout algorithm should survive. Written against an older
 > generation of the language: the rail/tap-out vocabulary below
 > (Terminology, Guidelines 1, 7, 10, Implementation Notes) describes the
-> superseded IterationRail machinery — see `rejected-ideas.md` entries
-> 6–7; the current construct is Delay (`visual-language-spec.md`). The
+> superseded IterationRail machinery; the current construct is Delay
+> (`visual-language-spec.md`, which records why the rail died). The
 > layout principles themselves (stability, L1 optimization, crossing
 > rules) are not affected by that supersession.
 

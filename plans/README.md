@@ -7,16 +7,23 @@ tells you where to start.*
 
 ## Start here — the fundamentals
 
-Everything else hinges on these three:
+Everything else hinges on these two:
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)**
   — the six principles every new construct is evaluated against.
 - **[`core-model.md`](core-model.md)** — the core in current
   vocabulary: value vs flow wires, uncollect/collect, no time travel,
   binary join, bundles, barriers-not-bottlenecks, the flow kinds.
-- **[`rejected-ideas.md`](rejected-ideas.md)** — every rejected and
-  dissolved idea, with the reason it must not be pursued again, and
-  the guard list of things that *look* rejected but aren't.
+
+Rejected and dissolved ideas are recorded **in place**, in the doc
+that owns the topic — short, and focused on the reason the idea must
+not be pursued again. Four statuses are commonly misread, so, stated
+once here: the compile-time placement pass and the stream
+consumer-set lattice are *deferred* optimisation passes, not
+rejections; the two iteration-state candidates are *both live*;
+Incorporate is a live primitive (only its sibling-opens use was
+corrected to Cross); pure pull for incremental flows is a
+first-implementation convenience, rejected long-term.
 
 ## The biggest open area
 
@@ -126,6 +133,6 @@ status header noting where its vocabulary predates the newer rounds.
 `flow_language_design.md` and `visual-flow-language.md` — the
 first-generation narratives copied in from an older project — were
 retired 2026-07-09. Their live content is in `core-model.md` and the
-topic docs above; their superseded content is recorded in
-`rejected-ideas.md`; the full originals are in git history. Citations
-to them in older docs refer to that preserved record.
+topic docs above; their superseded content is recorded, briefly, in
+the docs that superseded it; the full originals are in git history.
+Citations to them in older docs refer to that preserved record.

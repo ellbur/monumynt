@@ -4,7 +4,8 @@
 > because the layout algorithm should survive. The algorithm operates on
 > the semantics-free graph of `graph-representation.md` and is unaffected
 > by the language-side supersessions; only examples that mention rails or
-> tap nodes use retired vocabulary (see `rejected-ideas.md` entries 6–7).
+> tap nodes use retired vocabulary (the current construct is Delay —
+> see `visual-language-spec.md`).
 
 This document describes the algorithm for rendering a visual programming language graph. The algorithm follows a layered graph drawing approach, adapted for the specific concepts of the language.
 
