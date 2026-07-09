@@ -12,6 +12,12 @@ shape worked against those constraints, the choices that remain
 with options laid out, and two dead ends recorded so they are not
 re-proposed.*
 
+*Update, later the same day: open question 5 (stacked end-whens
+versus the merged stop) has been worked — see "Open question 5,
+worked" at the end. Short answer: both outcomes, in different
+regimes, with the boundary drawn by the partial collect's
+one-bundle demand.*
+
 ## Why this document exists
 
 End-when is the only top-ranked item in the candidate-block
@@ -152,7 +158,11 @@ design:
   the parent (that document's kind theorem), so it is a valid
   `stop` operand, and the law's payload is the firing branch's
   value. Which condition ended the walk rides the terminator with
-  no new machinery.
+  no new machinery. *(Scope note, added when open question 5 was
+  worked: this holds as stated for alts of one split — the
+  partial collect's branches must be disjoint cell sets of one
+  bundle. Conditions from independent splits cannot merge; their
+  story is in "Open question 5, worked" at the end.)*
 - **The empty and total cases are unremarkable.** Stop firing on
   the first subject firing gives a shortened flow with zero
   firings and an immediate terminator-with-payload; stop never
@@ -544,6 +554,15 @@ as join" (it is the same operand pattern with a different verb)
    context (first-of-either cut, payload from whichever fired) —
    verify, and if they agree, that is a recognition rule for
    level 1; if they can disagree, find the program that shows it.
+   *Worked, later the same day — see "Open question 5, worked"
+   below. They agree exactly where the merged form is well-formed
+   (stops from one bundle), giving the recognition rule; across
+   bundles the merged form does not exist, stacking is the only
+   spelling, and its order is the tie-break at simultaneous stops
+   — the retry-with-budget program shows the disagreement. Two
+   residues: the restriction rule needs a stated home, and the
+   tie-break's interaction with the inclusive bit feeds question
+   1.*
 6. **Textual form.** The three-arrow textual representation needs
    a spelling for the (subject, stop) operand pair and the
    discharge readout; belongs to that document's next round.
@@ -553,3 +572,180 @@ as join" (it is the same operand pattern with a different verb)
    operation* (like join), not as a collect variant, since the
    readout composition depends on understanding that the collect
    is downstream of the cut.
+
+---
+
+## Open question 5, worked: stacked end-whens and the merged stop
+
+*(2026-07-09, later the same day. Analysis on paper, extending the
+round above; same standing — nothing adopted. The question asked
+for a verification and, failing that, a counterexample program.
+The answer turns out to be both, in different regimes, and the
+boundary between the regimes is drawn by a demand the partial
+collect already makes.)*
+
+### The validity gate the question hides
+
+The question compares `end-when(end-when(F, a), b)` with one
+end-when over "the partial-collect merge of a and b." But the
+partial collect's branches must carry pairwise-disjoint cell sets
+**of one bundle** — disjointness is a node demand, and so is
+single-bundledness; the law of the merged flow gets its kind
+theorem (option-kind relative to the parent) from the bundle
+being a partition (`partial-collect-design.md`, "Disjointness is
+a node demand"). Two stop conditions that are alts of one case
+split satisfy this. Two stop conditions from *independent* splits
+on the same firing's data — converged, from a split on the term;
+exhausted, from a split on the attempt count — are cells of two
+different bundles, and **no partial collect merges them**. Both
+could fire at one firing, the merged flow would fire twice, and
+"the firing branch" would not refer.
+
+So the comparison splits in two: where the merged form exists
+(one bundle), and where it does not (independent splits). The
+consequence bullet above ("which-condition-stopped-you is free")
+holds as stated in the first regime only; its scope note points
+here.
+
+### A restriction rule the stacked form needs first
+
+Before either regime: `end-when(E1, b)` with `E1 =
+end-when(F, a)` is only well-formed if `b` is an admissible stop
+operand for a subject it was not built against. `b` fires in
+*F's* context, option-kind relative to F; the law demands a stop
+that fires in the *subject's* context, and the subject is now E1.
+
+The rule, stated rather than inherited: **a flow that is
+option-kind relative to F is an admissible stop operand for any
+end-when whose subject's firings are a subset of F's firings
+(here: a prefix), and the law consults it only at subject
+firings.** Every E1 firing is an F firing, so b fires at most
+once per E1 firing; b's firings beyond E1's extent are simply
+never consulted — under demand they are never even pulled. This
+is the flow-wire sibling of the prefix-rule admission for values
+(`bundle-provenance-design.md`): an ancestor context's value is
+readable in a descendant context; an ancestor-aligned stop is
+consultable on a derived prefix flow. If any form of this round
+is adopted, the rule needs a home in the provenance inventory —
+it is a new admission, not a consequence of the existing ones.
+
+### Regime 1 — one bundle: they agree, and it is a recognition rule
+
+Let a and b be disjoint cell sets of one bundle in F's context,
+both end-whens exclusive, and let i_a, i_b be the indices of the
+first subject firing at which each fires (∞ if never). The
+partition gives the load-bearing fact: **a and b never fire at
+the same firing**, so i_a ≠ i_b whenever both are finite.
+
+Case analysis against the law:
+
+- **i_b < i_a.** Merged: cut at i_b, payload b's value. Stacked:
+  E1's cut (at i_a, or never) lies beyond i_b, so i_b is a
+  firing of E1; the outer cuts there with payload b. Equal.
+- **i_a < i_b.** Merged: cut at i_a, payload a's value. Stacked:
+  E1 cuts at i_a with terminator `Stopped(a)`; b's first firing
+  is beyond E1's last firing, so the outer's stop never fires,
+  and the outer passes E1's terminator through unchanged — the
+  law's no-stop clause. Equal, including the tag: a passed-
+  through `Stopped` is the same terminator, not a wrapped one.
+- **Neither fires.** Both forms end the way F ends, terminator
+  passed through. Equal.
+
+The inclusive setting commutes with all three cases (replace "up
+to but not including" throughout; the partition still forbids
+ties), provided both stacked nodes carry the same bit and the
+merged node carries it too. Swapping a and b is symmetric, so
+stacking order is immaterial in this regime; and the partial
+collect's associativity flattens any number of stops from the
+same bundle into one k-branch merge.
+
+So: **for stops drawn from one bundle, every stacking order and
+the single merged end-when denote the same program.** That is
+the recognition rule the question hoped for, in
+`transformation-levels-design.md` vocabulary: a level-1
+recognition whose canonical form is the merged one — one
+end-when, one partial collect over the stop alts — with the
+stackings as presentations, exactly parallel to the partial
+collect's own bracketing result ("bracketing is presentation").
+
+### Regime 2 — independent splits: the program that shows disagreement
+
+The program is the survey's own: retry-until-tolerance with a
+budget (mpmath 4's shape, breadth item 8 with its natural guard
+added). A self-driven flow of attempts; a register carrying the
+doubling parameter; two stop conditions on each firing's data:
+`converged` (an alt of a split on the error, payload the
+computed result) and `exhausted` (an alt of a split on the
+attempt count, payload a diagnostic). Independent splits — and
+genuinely simultaneous when convergence is achieved exactly at
+the last budgeted attempt.
+
+No merged form exists (the gate above). The two stackings, both
+exclusive, at a firing i* where both alts fire:
+
+- `end-when(end-when(F, converged), exhausted)`: the inner cuts
+  at i*, excluding it; i* is not a firing of the inner's output,
+  so the outer never consults `exhausted` there. Terminator
+  `Stopped(result)` — the run **succeeded**.
+- `end-when(end-when(F, exhausted), converged)`: symmetric.
+  Terminator `Stopped(diagnostic)` — the run **failed**, at the
+  same firing of the same walk.
+
+Downstream, the discharge case split routes these to different
+legs. The two stackings are observably different programs; there
+is no canonical form to recognize them into, and there should
+not be — the difference is meaningful, and some program wants
+each. That is the disagreement the question asked to locate,
+pinned to exactly the firings the one-bundle regime excludes.
+
+**The tie-break theorem.** With an exclusive inner, the inner
+stop wins ties: the tied firing is cut out of the outer's
+subject before the outer looks. With an *inclusive* inner, the
+tied firing survives into the outer's subject, so the **outer**
+stop wins. Both are theorems of the law — deterministic, no
+ambiguity, just meaning riding on structure. But the flip is a
+genuine surprise: the inclusive bit, introduced above as a local
+one-bit variation on the cut position, also selects stacking
+priority when stops can tie. That interaction is an input open
+question 1 should weigh when the bit's final form is chosen
+(e.g. if the bit moved onto the stop *wire* rather than the
+node, each stop of a stack could carry its own bit, and the
+priority reading would need restating).
+
+### The authoring reading
+
+Conventional code resolves this same tie silently, by statement
+order inside the loop body — `if err < tol: return r` a line
+above `if n >= maxiter: raise` is a priority decision nobody
+drew. Here the choice is visible structure, and there are
+exactly two ways to spell it:
+
+- **Stack**, and the order (with the bits) is the priority —
+  drawn, not implied.
+- **Split once**, on a discriminator over both facts, producing
+  one bundle `{converged, exhausted, continue}` — writing the
+  discriminator forces the tie decision into the split itself,
+  and the merged form (regime 1) is then available again.
+
+Either way the program says which condition wins; the language
+merely refuses to let the tie be an accident. This is the
+inside-out principle showing up somewhere unplanned: termination
+priority is not an artifact of interior statement order, because
+there is no interior.
+
+### What this settles, what it leaves
+
+Settled on paper: the recognition rule exists with its scope
+exactly the merged form's validity (one bundle, matching bits);
+outside that scope stacking order is content, with a stated
+tie-break; the counterexample program is concrete and drawn from
+the sampled evidence.
+
+Left open, folded back into the question list: the restriction
+rule's home in the provenance inventory (this section states it;
+adoption would move it), and the bit/priority interaction as an
+input to open question 1. One thing deliberately *not* proposed:
+a warning or lint when stacked stops are not provably exclusive
+— the stacked form is deterministic and lawful; whether ties
+were *meant* is a question for the elaboration/completion story
+(`time-travel-programs-design.md`), not for the checker.

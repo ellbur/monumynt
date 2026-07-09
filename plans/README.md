@@ -81,7 +81,11 @@ first-implementation convenience, rejected long-term.
   termination, the surveys' biggest unserved everyday demand, worked
   as a binary flow operation (subject, stop) with the readout via
   terminator discharge. **An exploration round with leanings, not an
-  adopted design** — prepared for the design conversation.
+  adopted design** — prepared for the design conversation. Its open
+  question 5 (stacked end-whens vs the merged stop) is worked at the
+  end of the doc: agreement exactly where the merged form is
+  well-formed (one bundle — a level-1 recognition rule), meaningful
+  stacking order beyond it.
 
 ## Flow kinds beyond lists
 
