@@ -1,5 +1,11 @@
 # Visual Programming Language Rendering Algorithm
 
+> **Status (2026-07-09).** Layout side — out of scope in this repo, kept
+> because the layout algorithm should survive. The algorithm operates on
+> the semantics-free graph of `graph-representation.md` and is unaffected
+> by the language-side supersessions; only examples that mention rails or
+> tap nodes use retired vocabulary (see `rejected-ideas.md` entries 6–7).
+
 This document describes the algorithm for rendering a visual programming language graph. The algorithm follows a layered graph drawing approach, adapted for the specific concepts of the language.
 
 ## Overview

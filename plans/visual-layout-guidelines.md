@@ -1,5 +1,14 @@
 # Visual Layout Guidelines for the Visual Programming Language
 
+> **Status (2026-07-09).** Layout side — out of scope in this repo, kept
+> because the layout algorithm should survive. Written against an older
+> generation of the language: the rail/tap-out vocabulary below
+> (Terminology, Guidelines 1, 7, 10, Implementation Notes) describes the
+> superseded IterationRail machinery — see `rejected-ideas.md` entries
+> 6–7; the current construct is Delay (`visual-language-spec.md`). The
+> layout principles themselves (stability, L1 optimization, crossing
+> rules) are not affected by that supersession.
+
 This document describes the principles and rules for laying out programs in the visual programming language. These guidelines prioritize implementability, rendering speed, consistency, and stability under incremental edits over compactness or aesthetic optimization.
 
 ## Terminology
