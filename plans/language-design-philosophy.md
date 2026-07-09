@@ -175,7 +175,13 @@ The method's rules, which are what make its results trustworthy:
   the survey cited.
 
 New samples extend the record rather than starting over: reuse the
-protocol shape, vary the corpus (the first survey's stated gap is
-numerics, simulation, and UI code) or the unit sampled (loops were
+protocol shape, vary the corpus or the unit sampled (loops were
 first; functions, error paths, data declarations, concurrent
-sections are all sampleable the same way).
+sections are all sampleable the same way). The second survey (same
+day, domain corpora fetched from package registries) demonstrated the
+extension pattern — and demonstrated why extension matters: it
+overturned the first survey's most striking finding (the scan,
+absent in infrastructure code, is the dominant loop shape in
+numerics), exactly along the bias the first survey had flagged.
+Corpora need not be preinstalled; pip/npm fetches of real projects
+work and keep the domain choice deliberate.

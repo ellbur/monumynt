@@ -134,16 +134,20 @@ The right abstractions for these are not yet designed. The intended next step is
 
 The abstractions should emerge from what's actually there, including the proportion of loops that fit the simple rail pattern cleanly. If most short loops are one-rail patterns, the rail is the right central construct and additional vocabulary handles the tail. If even most short loops break the pattern, the rail is in trouble as a foundation and that's worth knowing early.
 
-*(2026-07-09: a first execution of this plan exists —
-`real-loop-survey.md`, thirty seeded-random loops from Python/Ruby/JS
-infrastructure code. Headline answers: half the loops need no state
-at all; the loops that do carry state are mostly not one-rail-shaped
-(cursors, worklists, a resettable buffer, one conditional carry), so
-the question above gets neither of its two anticipated answers — the
-rail is tail vocabulary, and the tail's dominant demand is early
-termination, not carried arithmetic. The simulation/UI/numerics
-domains named above are still unsampled; that's the survey's stated
-next round.)*
+*(2026-07-09: two executions of this plan exist —
+`real-loop-survey.md`, sixty seeded-random loops: thirty from
+Python/Ruby/JS infrastructure code, thirty from domain corpora
+(numerics, graph algorithms, simulation, terminal UI, game logic, 3D
+graphics). Headline answers: half of everything needs no state at
+all; in infrastructure code the carried-state tail is cursors,
+worklists, a resettable buffer, and conditional carries — not
+one-rail scans — while in numerics the scan is the dominant loop
+shape (multi-register recurrence kernels, cross-referencing register
+pairs, take-while termination fused to the carried state). So the
+question above gets a split answer: the rail is tail vocabulary for
+everyday code and central vocabulary for numeric code, every register
+drawn is one-writeback, and the biggest unserved demand across both
+corpus families is data-driven termination, not carried arithmetic.)*
 
 ## Summary of the Reframe
 

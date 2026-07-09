@@ -1817,15 +1817,17 @@ the projection that keeps its structure legible.
   one writeback per crossing, with conditional carry expressed as a
   conditional *value* wired into the single writeback. Whether that
   survives contact with real loops is exactly what the rail notes'
-  "sample real code" plan should test. *(2026-07-09: first sample run
-  — `real-loop-survey.md`. The rule survived everything drawn:
-  conditional carry occurred once and expressed exactly as
-  prescribed; a multi-site-append buffer with conditional reset and a
-  backtracking save/restore cursor both still reduce to one
-  conditional value per firing. No sampled loop needed two
-  independent writebacks. The recorded caveat: what strains in the
-  reset case is effect *ordering* within the firing, which no
-  writeback count addresses.)*
+  "sample real code" plan should test. *(2026-07-09: two sample runs
+  — `real-loop-survey.md`, sixty loops across infrastructure and
+  domain corpora including dense numerics. The rule survived
+  everything drawn: conditional carry occurred three times and
+  expressed exactly as prescribed each time; a multi-site-append
+  buffer with conditional reset and a backtracking save/restore
+  cursor both still reduce to one conditional value per firing; an
+  eight-register fixed-point kernel is eight parallel one-writeback
+  threads. No sampled loop needed two independent writebacks. The
+  recorded caveat: what strains in the reset case is effect
+  *ordering* within the firing, which no writeback count addresses.)*
 - **The crossing rule.** Threads are a new wire species. Do
   thread/value and thread/thread crossings fall under the existing
   no-crossing rule, or does the thread's horizontal-rail geometry
@@ -1965,14 +1967,24 @@ cheapest version: store the Delay quotient, render the thread, derive
 the flow view). See "A fourth option: the visible state thread".
 
 **The environment the chosen candidate will live in.** The real-loop
-survey (`real-loop-survey.md`) reweights what surrounds this decision:
-in the sampled corpus the simple scan never occurred, while early
-termination dominated (11–12 of 30 loops) and the stateful tail was
-cursors, worklists, and a resettable buffer. Whichever candidate is
-chosen should therefore be evaluated with early exit in the room — in
-particular, what the Delay/thread final-value readout means when an
-end-when (`tough-use-cases-design.md`) terminates the flow mid-walk;
-the write half's final-value output and a search's readout look like
-the same port, which is either a unification or a coincidence to
-check. The survey's corpus lacks numerics/simulation/UI, so the
-scan's absence is provisional; it decides nothing here by itself.
+surveys (`real-loop-survey.md`, two runs, n=60) reweight what
+surrounds this decision. In infrastructure code the simple scan never
+occurred and early termination dominated; the domain sample then
+found the scan alive and concentrated in numerics (five scans/folds
+in thirty draws, four of five mpmath draws stateful), including an
+eight-register kernel with a cross-referencing register pair —
+Fibonacci's shape in production code — and within-iteration chaining
+(one register's step reading another's *new* value: an ordinary value
+wire in both candidates, concretely confirming that stack order among
+augmentations stays semantically inert). So: iteration state is real,
+domain-shaped, and structurally tame so far; and whichever candidate
+is chosen should be evaluated with early exit in the room — real
+numeric loops stop *because of* their carried state (take-while on
+the term size, retry-until-tolerance), so end-when
+(`tough-use-cases-design.md`) must compose with the register/thread
+designs, and the write half's final-value output and a search's
+readout look like the same port — either a unification or a
+coincidence to check. The surveys also put three sightings behind the
+running/history-indexed view of a collect (read-whole, read-by-index,
+read-by-key), which sits unowned between multi-close and the register
+designs.

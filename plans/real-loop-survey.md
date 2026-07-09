@@ -1,4 +1,15 @@
-# Real-Loop Survey: Thirty Random Loops Against the Block Inventory
+# Real-Loop Survey: Random Loops Against the Block Inventory
+
+> **Status update (2026-07-09, later the same day).** This document
+> now holds **two** surveys. Survey 1 (below, unchanged): thirty loops
+> from infrastructure corpora (Python/Ruby stdlib, npm's JS). Survey 2
+> ("Survey 2: the missing domains", appended): thirty loops from six
+> domain corpora targeting survey 1's stated gap — numerics,
+> algorithms, simulation, UI/event handling, games, graphics. The
+> single most consequential correction: **the scan occurred in survey
+> 2, concentrated exactly where survey 1 predicted** (numerics), so
+> survey 1's "scan absent" finding is now confirmed as corpus skew,
+> not a fact about real code. The combined picture is at the end.
 
 > **Status (2026-07-09).** First execution of the sampling plan that
 > `iteration-rails-design-notes.md` set out ("sample real loops
@@ -558,6 +569,12 @@ random real code, for whatever this corpus family is worth.
 
 ### 2. The running-sum scan did not occur
 
+*(2026-07-09, later: survey 2 sampled the missing domains and the
+scan occurred immediately and repeatedly in the numerics corpus —
+see survey 2, finding 2.1. This finding's caveat paragraph was right:
+it was corpus skew. The finding stands for infrastructure code
+specifically.)*
+
 The case that anchors the entire iteration-state design conversation —
 `sum = sum + element`, the concrete example behind the link, Delay,
 the augmented uncollect, and the thread — appeared **zero times in
@@ -728,10 +745,630 @@ result in the sample.
   UI/event handling (e.g. a scientific-computing library, a game or
   physics engine, a GUI toolkit) — to test whether the scan's absence
   is real or corpus skew. This is the one finding above that could
-  flip.
+  flip. *(Done, same day — "Survey 2" below. It flipped, exactly as
+  anticipated: the scan lives in numerics.)*
 - **Larger n** if any proportion needs to be load-bearing rather than
   indicative.
 - **A combinator census** (comprehensions, map/filter/reduce counts per
   file) if the "well above half needs no state" claim in finding 1 is
   ever worth firming up; the current statement rests on the exclusion
   bias's direction alone, which is sound but unquantified.
+
+---
+
+# Survey 2: the missing domains
+
+*(2026-07-09, later the same day. Thirty more loops, six domain
+corpora chosen to fill survey 1's stated gap. Same method; protocol
+amendments below.)*
+
+## Protocol (survey 2)
+
+Corpora were fetched from the public package registries (pip / npm)
+onto the survey machine, one project per domain — plus one small
+second project pooled into the simulation corpus:
+
+| Corpus | Project(s) | Domain |
+|---|---|---|
+| mpmath | mpmath 1.4.1 | arbitrary-precision numerics |
+| networkx | networkx 3.6.1 | graph algorithms |
+| sim | mesa 3.3.1 + simpy 4.1.2 | agent-based / discrete-event simulation |
+| textual | textual 8.2.8 | terminal UI, event-driven |
+| chess | python-chess 1.11.2 (sdist) | game logic, engines, formats |
+| three | three.js (npm, r182 era) | 3D graphics (JS) |
+
+Selection as in survey 1: seed `20260709` retagged per corpus
+(`random.Random(f"20260709:{name}")`), shuffled file list, one loop
+per drawn file, five per corpus, thirty total. Excluded paths:
+`*test*`, `__pycache__`, `/docs/`, `/examples/` (and for three.js,
+`/build/` — the bundles duplicate `src/` — and `*.min.js`).
+
+**Protocol amendment, made before any classification.** The first
+draw produced two non-loops: a regex hit on a docstring line
+("...for additional examples.") and a comprehension clause. Rather
+than hand-discarding — which would breach no-filtering — loop
+identification for Python was tightened to the **parser level**:
+loops are `ast.For` / `ast.While` / `ast.AsyncFor` nodes, which
+excludes strings, comments, and comprehensions by construction. The
+draw was then re-run from the same seed. JS identification stays
+regex-based (with comment-line filtering), verified by reading.
+Survey 1's regex draw was inspected retroactively: all thirty of its
+hits are genuine statement loops, so its results are unaffected.
+Future Python surveys should use the ast rule.
+
+Biases: one project per domain, so project style and domain are
+confounded; `mpmath` is unusually loop-dense (fixed-point kernels);
+three.js's idiom is index-based mutation of typed arrays, which reads
+as more stateful than it is. Same n = 30 coarseness as survey 1.
+
+## The sample (survey 2)
+
+Grouped by classification, using survey 1's classes plus the new ones
+the sample forced (marked *new*).
+
+### Class 1 — stateless per-element work (17 of 30)
+
+**mpmath 5** — `mpmath/calculus/differentiation.py:643`
+
+    for j in range(M):
+        for i in range(min(M, L+j+1)):
+            A[j, i] = a[L+j-i]
+
+Filling a matrix from a coefficient list: a 2D index map into a keyed
+collect. The inner bound depends on `j` (ragged, so a nested
+uncollect, not a rectangular Cross), but each cell is computed
+independently. Stateless.
+
+**networkx 2** — `networkx/algorithms/operators/product.py:36`
+
+    for u, v, c in G.edges(data=True):
+        for x, y, d in H.edges(data=True):
+            yield (u, x), (v, y), _dict_product(c, d)
+
+The tensor-product edge generator: all pairs of two independent edge
+flows, each pair mapped and yielded. This is **the Cross node**
+(`product-flows-design.md`), literally — two mutually-independent
+flows combined all-pairs — with a stream output. Field sighting of
+Cross in exactly the designed shape.
+
+**networkx 3** — `networkx/generators/line.py:356`
+
+    for e in list(combinations(T, 2)):
+        if e[0] not in G[e[1]]:
+            raise nx.NetworkXError(...)
+
+Validation walk: per-element check with a failure terminator.
+
+**networkx 4** — `networkx/algorithms/centrality/flow_matrix.py:22`
+
+    for u, v in sorted(...):
+        B = np.zeros(w, dtype=dtype)
+        ...build row...
+        yield row, (u, v)
+
+Per-element map with a fresh local scratch buffer each firing,
+yielded as a stream. Stateless (the scratch never crosses firings).
+
+**networkx 5** — `networkx/generators/community.py:64`
+
+    for start in range(0, l * k, k):
+        edges = itertools.combinations(range(start, start + k), 2)
+        G.add_edges_from(edges)
+
+Per-element effect (build one clique per block).
+
+**sim 1** — `mesa/experimental/meta_agents/meta_agent.py:194`
+
+    for agent_class in agent_classes:
+        for name in agent_class.__dict__:
+            if callable(...) and not name.startswith("__"):
+                meta_methods[name] = original_method
+
+Nested walk, filter, keyed collect (last-wins).
+
+**sim 3** — `mesa/visualization/space_drawers.py:260`
+
+    for vertices in self.hexagons:
+        for v1, v2 in pairwise([*vertices, vertices[0]]):
+            edge = tuple(sorted([...round(v1)..., ...round(v2)...]))
+            edges.add(edge)
+
+Adjacent-pairs iteration — `pairwise` is **window(2)**, here with a
+ring closure (the first vertex appended to close the polygon) —
+normalize, collect into a set (dedup collect). Field sighting of the
+window operation the rail notes mention, plus two wrinkles a window
+construct would need: cyclic wraparound, and dedup-collect as the
+consumer.
+
+**sim 4** — `mesa/discrete_space/voronoi.py:261`
+
+    for region in regions:
+        polygon = [coordinates[i] for i in regions[region]]
+        self._cells[region].properties["polygon"] = polygon
+        ...area, capacity also written...
+
+Per-element computation with three keyed writes — one walk, three
+outputs per element, done as effects. Stateless.
+
+**textual 2** — `textual/_spatial_map.py:98`
+
+    for grid_coordinate in self._region_to_grid_coordinates(region):
+        grid_values = get_grid_values(grid_coordinate)
+        if grid_values is not None:
+            add_results(grid_values)
+
+Map through an option (`Map.get` returning None — OptionIter's exact
+encoding), filter the None, flatten into a collect; dedup after.
+Stateless; a small composition of designed pieces.
+
+**textual 3** — `textual/app.py:3723`
+
+    for stack in self._screen_stacks.values():
+        for stack_screen in reversed(stack):
+            if stack_screen._running:
+                await self._prune(stack_screen)
+        stack.clear()
+
+Teardown: nested walk, conditional async effect per element (in
+reverse order), container cleared after. Stateless; bracket/lifecycle
+territory rather than iteration-state territory.
+
+**textual 5** — `textual/document/_wrapped_document.py:256`
+
+    for y_offset in range(top_y_offset + new_height, len(self._offset_to_line_info)):
+        old_line_index, section_offset = self._offset_to_line_info[y_offset]
+        self._offset_to_line_info[y_offset] = (old_line_index + line_shift, section_offset)
+
+In-place map over a slice of a table: shifting a derived index after
+an edit. Each entry independent — stateless — but note what the code
+*is*: hand-rolled maintenance of a derived structure after an edit,
+i.e. the incremental flow's motivating pattern
+(`incremental-flow-design.md`), written manually.
+
+**chess 1** — `chess/svg.py:359`
+
+    for rank_index, rank_name in enumerate(chess.RANK_NAMES):
+        y = ...rank_index...
+        svg.append(_coord(...)); svg.append(_coord(...))
+
+Per-element effects (two appends per element); `enumerate` supplies
+element + position. Stateless.
+
+**chess 5** — `chess/engine.py:2083`
+
+    for option in self.engine.options.values():
+        if option.default is not None:
+            self.engine.config[option.name] = option.default
+        if option.default is not None and not option.is_managed():
+            self.engine.target_config[option.name] = option.default
+
+Filter + two keyed collects from one walk — a multi-close, done as
+two conditional writes. Stateless.
+
+**three 1** — `three/src/extras/ShapeUtils.js:79`
+
+    for ( let i = 0; i < triangles.length; i += 3 ) {
+        faces.push( triangles.slice( i, i + 3 ) );
+    }
+
+Fixed-size chunking (stride 3): regroup a flat list into triples +
+collect. The fixed-rate cousin of data-dependent take — consumption
+rate ≠ 1, but constant. Stateless.
+
+**three 2** — `three/src/animation/AnimationUtils.js:335`
+
+    for ( let j = 0; j < numTimes; ++ j ) {
+        const valueStart = j * targetValueSize + targetOffset;
+        if ( quaternion ) { ...multiply in place... }
+        else { for k: values[valueStart + k] -= referenceValue[k] }
+    }
+
+Strided in-place map over a flat typed array with a case split.
+Stateless (each stride independent). The flat-array-with-stride idiom
+is pervasive in this corpus — a layout concern, not a flow concern.
+
+**three 3** — `three/src/helpers/CameraHelper.js:335`
+
+    for ( let i = 0, l = points.length; i < l; i ++ ) {
+        position.setXYZ( points[ i ], _vector.x, _vector.y, _vector.z );
+    }
+
+Per-element effect (write one computed value to many indices).
+Stateless. (`_vector` is a module-scratch reuse idiom, not loop
+state.)
+
+**three 5** — `three/src/renderers/webgl-fallback/utils/WebGLTextureUtils.js:547`
+
+    for ( let i = 0; i < mipmaps.length; i ++ ) {
+        const mipmap = mipmaps[ i ];
+        ...case splits on texture kind...
+        gl.compressedTexSubImage2D( ..., i, ..., mipmap.data );
+    }
+
+Per-element effect with case splits (upload each mip level; the index
+is data — the GL level argument). Stateless.
+
+### Class 2 — search / first-match (1 of 30)
+
+**networkx 1** — `networkx/algorithms/regular.py:161`
+
+    for outer_n in outer:
+        for neighbor, attrs in g._adj[outer_n].items():
+            if neighbor not in core_set:
+                g.add_edge(node, neighbor, **attrs)
+                break
+
+Per outer element, find the first acceptable neighbor, act on it,
+stop. First-match with an effect at the match — end-when plus a
+readout again, nested inside a plain walk.
+
+### Class 3 — conditional carry (2 of 30)
+
+**chess 3** — `chess/polyglot.py:468`
+
+    chosen_entry = None
+    for i, entry in enumerate(self.find_all(board, ...)):
+        if chosen_entry is None or _randint(random, 0, i) == i:
+            chosen_entry = entry
+    if chosen_entry is None: raise IndexError()
+
+Reservoir sampling: one carried variable, conditionally overwritten,
+read after; the condition uses the position and a random draw. Second
+field sighting of conditional carry, and again exactly one writeback
+with a conditional value. The post-loop None check is the empty-flow
+case surfacing as a failure.
+
+**three 4** — `three/src/materials/nodes/manager/NodeMaterialObserver.js:578`
+
+    let morphChanged = false;
+    for ( let i = 0; i < ...influences.length; i ++ ) {
+        if ( renderObjectData.morphTargetInfluences[i] !== object.morphTargetInfluences[i] ) {
+            renderObjectData.morphTargetInfluences[i] = object.morphTargetInfluences[i];
+            morphChanged = true;
+        }
+    }
+    if ( morphChanged ) return false;
+
+Compare-and-sync: per-element conditional effect (write back the
+changed entries) **plus** a boolean any-changed flag — an OR-fold that
+cannot early-exit because the sync must visit every element. One walk,
+two outputs (effects + flag). Also notable as hand-rolled change
+detection — cutoff, in the incremental flow's vocabulary.
+
+### Class 4 — read-until-sentinel pump (1 of 30)
+
+**chess 4** — `chess-sdist/fuzz/pgn.py:20`
+
+    while True:
+        game = chess.pgn.read_game(pgn)
+        if game is None: break
+        repr(game)
+        if not game.errors: str(game)
+
+Parse-until-EOF pump: sentinel `None`, per-element effects. Survey
+1's class 4 shape exactly.
+
+### Class 5 — condition-driven repetition / event loop (2 of 30)
+
+**mpmath 4** — `mpmath/functions/bessel.py:953`
+
+    n = m+1
+    while 1:
+        r1, err = mcmahon(ctx, kind, prime, v, n)
+        if err < isoltol:
+            ...compute intervals, fill cache...
+            return find_in_interval(ctx, f, intervals[m-1])
+        else:
+            n = n*2
+
+Retry with geometric escalation: a carried register (`n`, doubled
+each round) driving repeated attempts until a data condition holds,
+then exit with a computed payload (after a cache-filling side walk).
+Register + data-driven exit + result payload in one loop.
+
+**textual 1** — `textual/drivers/_input_reader_linux.py:34`
+
+    while not exit_set():
+        for _key, events in self._selector.select(self.timeout):
+            if events & EVENT_READ:
+                data = read(fileno, 1024)
+                if not data: return
+                yield data
+        yield b""
+
+A complete event loop in seven lines: an external source polled with
+a timeout, an **interrupt** (the exit event ends the stream from
+outside), an **EOF sentinel** (empty read ends it from the data), a
+stream output, and a per-round heartbeat (`yield b""`). The async
+doc's inventory — external flow, interrupt, data-driven end,
+failability's cousins — all at once, in the wild. Stateless apart
+from the control conditions.
+
+### Class 6 — cursor / worklist (1 of 30)
+
+**textual 4** — `textual/css/parse.py:388`
+
+    while True:
+        token = next(iter_tokens, None)
+        if token is None: break
+        if token.name == "variable_name":
+            variable_tokens = variables.setdefault(variable_name, [])
+            yield token
+            while True: ...consume whitespace...
+            while True:
+                ...append definition tokens to variable_tokens...
+                elif token.name == "variable_ref":
+                    ref_name = token.value[1:]
+                    if ref_name in variables: ...substitute stored tokens...
+
+A tokenizer-substituter: pull-based consumption at a variable rate
+(nested sub-loops consume more tokens depending on what was seen),
+stream in / stream out, and a keyed accumulator (`variables`) that is
+**both written and read back during the walk** — variable definitions
+are collected and then substituted into later references. Survey 1's
+class 7 (worklist) shape, and the second independent sighting of
+*reading the collect-so-far mid-walk* (survey 1: textwrap read its
+`lines`; here the parser reads its `variables`).
+
+### Class 9 — the scan: loop-carried arithmetic recurrence (*new*, 5 of 30)
+
+**mpmath 1** — `mpmath/calculus/extrapolation.py:865`
+
+    b = self.ctx.one
+    s = 0
+    for k in range(n):
+        b = 2 * (n + k) * (n - k) * b / ((2 * k + 1) * (k + self.ctx.one))
+        s += b * S[k]
+    value = s / d
+
+The survey-1 no-show, immediately: **two carried variables** — a
+recurrence register (`b`, self-referencing, also using the index) and
+an accumulator (`s`). Note the wiring: `s`'s step reads `b`'s
+*current-iteration updated value*, not `b`'s previous value. In port
+vocabulary: `s.step` wires from the value node feeding `b.step` — an
+ordinary value wire, no second state port needed. Real chained
+recurrences do this routinely (see also mpmath 2), which confirms the
+conversion analysis's load-bearing assumption in the concrete: state
+ports carry no within-iteration dependency on each other; the
+within-iteration chaining rides the value wires.
+
+**mpmath 2** — `mpmath/functions/theta.py:189`
+
+    while are**2 + aim**2 > MIN:
+        bre, bim = (bre*x2re - bim*x2im) >> wp, (bre*x2im + bim*x2re) >> wp
+        are, aim = (are*bre - aim*bim) >> wp, (are*bim + aim*bre) >> wp
+        t1..t4 = ...cnre, cnim, snre, snim rotation...
+        cnre, cnim, snre, snim = t1, t2, t3, t4
+        sre += ((are*cnre - aim*cnim) >> wp)
+        sim += ((aim*cnre + are*cnim) >> wp)
+        n += 2
+
+A fixed-point theta-series kernel: **eight-plus carried registers**
+advancing together — a geometric pair (`b`), a term pair (`a`)
+reading `b`'s new value, a rotation quadruple (`cn`,`sn`) where each
+new value reads *both* old values (the cross-referencing register
+pair — Fibonacci's shape — in production code), two series
+accumulators, and a counter. Termination is a **take-while on the
+carried state** (loop while the term is big enough): the scan and
+data-driven termination (end-when) in one construct, inseparable.
+This single loop exercises nearly everything the iteration-state
+design must serve: many independent registers, cross-references,
+within-iteration chaining, accumulators reading registers, and a
+data-driven end.
+
+**mpmath 3** — `mpmath/libmp/gammazeta.py:1434`
+
+    for n in range(5, N+1, 4):
+        U = (n-1)//4
+        s = zeta_values[4*U+2]*(2*U+1)
+        for k in range(1, 2*U+1):
+            s += ((-1)**k * 2*k * zeta_values[2*k] * zeta_values[4*U+2-2*k]) >> wp
+        zeta_values[n] += ((s*reciprocal_pi) >> wp)//(2*U)
+
+Dynamic programming: filling a table where each entry's computation
+**indexes into earlier entries of the same table** (`zeta_values[2*k]`
+read while `zeta_values[n]` is being produced). The inner loop is a
+plain reduce; the outer structure is a *history-indexed collect* — a
+collect whose per-element body can read arbitrary already-produced
+elements by position. This is stronger than the running-view question
+(reading the collect-so-far as a value) and stronger than window
+(bounded recent history): it is scan-with-full-history, and nothing
+in the current or candidate inventory names it. Recurrence tables are
+the bread of numerics, so this is unlikely to be a rare draw.
+
+**sim 5** — `mesa/discrete_space/property_layer.py:362`
+
+    for prop_name, condition in conditions.items():
+        prop_mask = condition(self._mesa_property_layers[prop_name].data)
+        combined_mask = np.logical_and(combined_mask, prop_mask)
+
+A fold with `logical_and` — associative, with identity (all-true, and
+indeed the surrounding function initialises exactly that). A
+**reduce-close** in the wild, hand-rolled: the operator carries the
+identity, the user never thinks "running mask".
+
+**chess 2** — `chess/__init__.py:4135`
+
+    def intersection_update(self, *others):
+        for other in others:
+            self &= other
+
+A fold with `&` into self — again associative-with-identity, again
+reduce-close-shaped, two lines long. (The surrounding class repeats
+the shape for `|=` in `update`.)
+
+### One-off — recursive gather (1 of 30)
+
+**sim 2** — `mesa/discrete_space/cell.py:199`
+
+    for neighbor in self.connections.values():
+        neighborhood.update(
+            neighbor._neighborhood(radius - 1, include_center=True)
+        )
+
+Radius-r neighborhood by recursion: per-element recursive call,
+results merged into a keyed collect (the dict doubles as dedup, since
+overlapping sub-neighborhoods revisit cells). The loop itself is a
+stateless flatten-and-merge; the interesting structure is the
+recursion it participates in — self-similar descent with a merge at
+each level, which is `trees-and-recursion.md` / divide-flow
+territory rather than iteration state.
+
+## Tally (survey 2)
+
+| Class | n | Note |
+|---|---|---|
+| 1. Stateless per-element work | 17 | incl. Cross (networkx 2), window(2) (sim 3), chunking (three 1), option-filter (textual 2) |
+| 2. Search / first-match | 1 | networkx 1 |
+| 3. Conditional carry | 2 | reservoir sampling; any-changed flag |
+| 4. Read-until-sentinel pump | 1 | chess 4 |
+| 5. Condition-driven repetition / event loop | 2 | retry-escalation; full event loop |
+| 6. Cursor / worklist | 1 | tokenizer with mid-walk readback |
+| 9. Scan / recurrence / fold (*new*) | 5 | 3 numerics, 1 simulation, 1 games |
+| 7, 8 (worklist-textwrap, reset) | 0 | classes from survey 1; no new instances |
+| Recursive gather (*one-off*) | 1 | sim 2: recursive neighborhood merge into a keyed dedup collect — the divide flow / trees territory |
+
+Cross-cutting: early termination 6–7 of 30 (vs 11–12 in survey 1);
+effects-as-payload ≈ 12 of 30; genuine carried state 9 of 30 (vs 5).
+
+## Findings (survey 2)
+
+### 2.1 The scan exists, and it lives where predicted
+
+Five of thirty draws are scans/folds — and all three mpmath stateful
+draws are dense recurrence kernels. Survey 1's zero was corpus skew,
+exactly as its caveat said. The corrected statement, now with evidence
+on both sides: **the scan is real and domain-concentrated.** In
+numerics it is the *dominant* loop shape (4 of 5 mpmath draws carry
+state); in infrastructure code it is nearly absent. The
+iteration-state machinery is not niche — but its demand is
+domain-shaped, which matters for the decision bar: "flexible enough
+for complex code" is mostly a numerics/simulation requirement, while
+the beginner-facing everyday loop is a search, a pump, or a stateless
+walk.
+
+### 2.2 Cross-referencing registers occur in production code
+
+mpmath 2's `cn`/`sn` rotation pair — each new value computed from
+both old values — is the Fibonacci shape the design record treats as
+the canonical hard case, running in a production theta-function
+kernel. The record's insistence that cross-references be ordinary
+wires (both candidates) and that cycles be first-class (the recorded
+cycles-are-inevitable position) is validated by field demand, not
+just by the toy example.
+
+Additionally, both mpmath 1 and mpmath 2 chain registers *within* an
+iteration (`s` reads `b`'s new value, `a` reads `b`'s new value):
+the step of one register wires from the value feeding another
+register's step. This is an ordinary value wire in both candidates —
+no second state port, no ordering among state ports — which concretely
+confirms the conversion analysis's assumption that stack order among
+augmentations carries no semantics (the within-iteration chaining
+rides value wires, never state ports). Worth stating because it is
+exactly the kind of assumption a survey could have broken.
+
+### 2.3 Reduce-close and operator identities gain urgency
+
+Three independent monoid folds (logical-and over masks, bitwise-and
+over square sets, boolean-or as an any-changed flag) — all
+hand-rolled, all with the operator's genuine identity as the start
+value. This is reduce-close's exact boundary
+(`iteration-with-state-design.md`, "Two operations for accumulation"),
+now with field frequency behind it, and it presses on the open
+question recorded there: **how operator identities attach** (`+`→0,
+`and`→true, `&`→full-mask...). Note the third fold (three 4) cannot
+early-exit despite being an `any`, because the same walk performs
+per-element sync effects — one logical iteration, two consumers
+(effects + fold), i.e. multi-close earning its keep.
+
+### 2.4 One-writeback: still unbroken, now including dense numerics
+
+Every register in every survey-2 loop updates exactly once per
+firing, unconditionally (the scans) or conditionally-as-one-value
+(the carries). The eight-register kernel is eight parallel
+single-writeback threads, not a multi-writeback anything. Two surveys
+and sixty loops in, no counterexample to the thread's rule has been
+drawn.
+
+### 2.5 The history-indexed collect is a real gap
+
+mpmath 3 (finding stated in its entry): a collect whose per-element
+body indexes into the collect's own earlier output. Combined with
+survey 1's textwrap (reading the collect-so-far as a whole, and
+rewriting its last element) and survey 2's textual 4 (reading back a
+keyed collect mid-walk to substitute variable references), the
+"running view of a collect" question from survey 1 is now **three
+independent sightings in three guises** — read-whole, read-by-index,
+read-by-key — and should be treated as a recurring demand, not a
+curiosity. It files somewhere between multi-close (what may be
+observed of an iteration while it runs) and the register designs
+(what may be carried), and no current construct owns it.
+
+### 2.6 Designed constructs sighted in the wild, in their designed shapes
+
+Worth recording because it is confirmation the vocabulary is carving
+reality at its joints: **Cross** (networkx 2 — the tensor-product
+generator is two flows all-pairs, verbatim); **window(2)** (sim 3's
+pairwise, with a ring-closure wrinkle a window construct should
+anticipate); **OptionIter's encoding** (textual 2 — `get` returning
+None, checked and skipped); **the async inventory** (textual 1's
+seven-line event loop contains an external source, an interrupt, a
+data-driven end, and a stream output simultaneously); **the
+incremental flow's motivating pattern, hand-rolled** (textual 5's
+derived-index maintenance after an edit; three 4's change detection
+with cutoff); and **trees/divide territory** (sim 2's recursive
+neighborhood gather). Each was designed from first principles or from
+the tough use cases; each was then drawn at random within thirty
+files of its home domain.
+
+### 2.7 Early exit: lower here, still second place
+
+6–7 of 30 (vs survey 1's 11–12): library and numerics code terminates
+early less often than infrastructure glue, but data-driven
+termination still appears across four corpora — and in the numerics
+corpus it appears *fused to the scan* (mpmath 2's take-while on the
+carried term; mpmath 4's retry-until-tolerance). Combined across
+surveys: roughly 18 of 60. The survey-1 recommendation stands, with a
+sharpening: end-when must compose with the register/thread designs,
+because real numeric loops stop *because of* their carried state.
+
+## The combined picture (n = 60)
+
+| | Survey 1 (infra) | Survey 2 (domains) | Combined |
+|---|---|---|---|
+| Stateless per-element work | 15 | 17 | 32 (53%) |
+| Genuine carried state | 5 | 9 | 14 (23%) |
+| — of which scans/folds | 0 | 5 | 5 |
+| Early termination | 11–12 | 6–7 | ~18 (30%) |
+| Effects as the payload | ~13 | ~12 | ~25 (42%) |
+
+The shape that emerges across sixty random loops from nine projects
+in five languages:
+
+- **The center holds.** Half of everything is uncollect/collect
+  vocabulary, before counting the excluded combinators.
+- **Termination is the biggest unserved everyday demand.** ~30%
+  of all loops end early or on a data condition; end-when (plus its
+  readout composition) is the highest-frequency gap in both corpus
+  families.
+- **Iteration state is real, domain-shaped, and internally simple.**
+  ~23% carry state; the hard cases (many registers, cross-references,
+  take-while fused to the scan) concentrate in numerics; and across
+  all fourteen stateful loops, every register is one-writeback and
+  every cross-reference is a plain value wire. The candidates'
+  shared structural commitments survive contact.
+- **Three recurring demands have no owner yet:** the running/
+  history-indexed view of a collect (three sightings, three guises);
+  variable-rate consumption (textwrap, the tokenizer — the
+  decision-driven family's "advance how far"); and reduce-close's
+  operator identities (three hand-rolled monoid folds).
+
+## Next round (updated)
+
+- **UI/browser event-handling in JS** remains under-sampled (textual
+  covered terminal UI in Python; three.js's draws landed in geometry
+  and GPU plumbing, not its event/render loop).
+- **A concurrency-focused sample** (server codebases, async-heavy
+  projects) to give the tough-use-cases inventory items 1–3 the same
+  frequency treatment items 4–5 got here.
+- **Larger n / combinator census**: as before.
