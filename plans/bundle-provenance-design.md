@@ -6,8 +6,11 @@
 > checking problem in the design record —
 > `flow_language_design.md`'s Future Work #2, "Flow Bundle Type
 > Checking" — with a partial answer to its #3 ("General Flow
-> Bundle Semantics") falling out along the way. Nothing here is
-> implemented.
+> Bundle Semantics") falling out along the way. (That doc was
+> retired 2026-07-09; the Future Work passage is quoted in full
+> below, so this document stands alone.) Nothing here is
+> implemented. Terminology here straddles the uncollect/collect
+> correction by one day; "close" means collect.
 
 ## The problem
 

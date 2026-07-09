@@ -2,11 +2,15 @@
 
 ## Status
 
-**Not currently in use.** This document captures the compile-time
-placement algorithm that lived in `src/Compile.res` through commit
-`750b14c` (2026-05-16). We removed it in favour of a simpler runtime-
-lazy compile so the language design could move forward without
-optimisation logic in the compiler.
+**Not currently in use — but deferred, not rejected.** This document
+captures the compile-time placement algorithm that lived in
+`src/Compile.res` through commit `750b14c` (2026-05-16). We removed
+it in favour of a simpler runtime-lazy compile so the language design
+could move forward without optimisation logic in the compiler. The
+hybrid revival sketched at the end is a committed future optimisation
+pass (see "When it might come back" and `rejected-ideas.md`, "Not
+rejected"); what *is* dead for good is the placeholder-move mechanism
+(§3; `rejected-ideas.md` entry 27).
 
 This algorithm is worth keeping a memory of for two reasons:
 

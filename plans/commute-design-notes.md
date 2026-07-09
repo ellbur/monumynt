@@ -17,7 +17,11 @@
 > reconciled 2026-07-05: the node (flow wires only, no value ports) is the
 > representation; the per-close construction is the compilation.
 > "Swap-and-continue" turned out not to be expressible at all. See
-> `visual-language-description/visual-language-spec.md` under "Commute".
+> `visual-language-spec.md` under "Commute".
+>
+> Terminology: this document predates the 2026-07-07
+> uncollect/collect correction (`lazy-stream-join-design.md`) and
+> says open/close throughout; the code still says `Open`/`Close`.
 
 ## What "commute" means here
 

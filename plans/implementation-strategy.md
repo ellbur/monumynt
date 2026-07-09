@@ -250,11 +250,12 @@ dependencies beyond the representation it prints) because every
 other workstream's testing gets cheaper once pass outputs print
 canonically.
 
-### The narrative tail (in `visual-language-description/`)
+### The narrative tail (now the topic docs)
 
-Trees/zippers, reusable diagrams with interface summarisation,
-configuration scopes and slots, concurrency pools, custom/effect
-flows: design-narrative only. Each needs its own starting-point
+Trees/zippers (`trees-and-recursion.md`), reusable diagrams with
+interface summarisation (`functions-design.md`), configuration
+scopes and slots (`configuration-scopes.md`), concurrency pools and
+custom/effect flows (`custom-flows.md`): design-narrative only. Each needs its own starting-point
 document (the types document's "slots" deferral, the async
 document's IO deferral, and the reuse sections of the time-travel
 and types documents all point at these) before any implementation

@@ -4,9 +4,10 @@
 > types and bundle-provenance ones: it works out what falls cleanly
 > out of the existing design, lays out options where a real choice
 > exists, and records the rest as open questions. It takes up
-> `visual-language-description/flow_language_design.md`'s Future
-> Work #1 ("Pull-Based to Explicit Transformation") in current
-> vocabulary. Nothing here is implemented.
+> `flow_language_design.md`'s Future Work #1 ("Pull-Based to
+> Explicit Transformation") in current vocabulary (that doc was
+> retired 2026-07-09; its record lives in git history and its core
+> in `core-model.md`). Nothing here is implemented.
 >
 > Terminology: **uncollect/collect** per the 2026-07-07 correction
 > in `lazy-stream-join-design.md` (the code still says Open/Close).

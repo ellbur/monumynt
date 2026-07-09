@@ -1,5 +1,32 @@
 # Iteration With State
 
+> **Reader's guide (2026-07-09).** This is the record of the biggest
+> design area still to get right. The current state, for a reader who
+> doesn't need the whole conversation:
+>
+> - **Two live candidates, deliberately side by side** (§"Two live
+>   candidates, kept side-by-side"): the **Delay node in port form**
+>   (§"Resolving the lambda") and the **latent-flow augmented
+>   uncollect** (§"The latent-flow representation of generalize").
+>   Neither is chosen. The adopt-one/adopt-both question and the
+>   conjectured **visible state thread** (§"A fourth option") are open
+>   (§"What is still unresolved").
+> - **The bar for a decision** (design review, 2026-07-09): designs
+>   that technically work are easy to produce; what is needed is a
+>   design both *easy for beginners to understand* and *flexible
+>   enough for complex code*. More work is required before choosing.
+> - The Delay back-edge construction both candidates lean on is worked
+>   out in `first-class-ports-design.md` (the write half is its own
+>   node; the pair supplies the `final` readout).
+> - What died on the way — `stateful(...)`, `prev(x)`, the Delay
+>   lambda form, the terminal stateful-collect (whose rejection
+>   stands; see the entry), the old rail machinery — is in
+>   `rejected-ideas.md` entries 1–10, with the rail ideas worth
+>   keeping in `iteration-rails-design-notes.md`.
+>
+> Terminology predates the uncollect/collect correction; "close"
+> means collect, "reduce-close" the reduce collect.
+
 ## Guiding language philosophy: example first, then generalise
 
 A central design principle of this language is that programs should be

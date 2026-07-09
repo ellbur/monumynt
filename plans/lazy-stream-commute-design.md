@@ -1,5 +1,17 @@
 # Commuting Option Out of Stream
 
+> Terminology note (2026-07-09): this document predates the
+> uncollect/collect correction (says close throughout) and spells
+> join/filter in the wrapper-stack notation (`Joined`, `Filtered`,
+> `Commuted` on a close's flow reference). The wrapper spelling of
+> *join* is superseded by binary Join nodes
+> (`lazy-stream-join-design.md`, "Join is a binary flow operation");
+> its "Composing Commuted with Joined" rows should be re-read as
+> programs over explicit join nodes plus collects, per that
+> section. Whether commute also becomes a binary node is recorded
+> there as open. The commute semantics and the variant taxonomy here
+> are current.
+
 ## What this is for
 
 A specific commute: an option flow opened inside a stream flow, moved

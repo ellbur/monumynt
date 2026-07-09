@@ -67,7 +67,9 @@ one line each, so the use cases can reference it:
   port inventories, mixed-kind ports on one node, the
   DelayRead/DelayWrite pair, the program as a node set.
 - **Designed-ahead vocabulary from the language description**
-  (`visual-language-description/visual-flow-language.md`):
+  (now the topic docs `functions-design.md`,
+  `configuration-scopes.md`, `custom-flows.md`,
+  `trees-and-recursion.md`):
   functions as sub-diagrams with port interfaces; configuration
   scopes; custom effect-handle flows with lifecycle
   (open → operations → close); the parallel pool sketch; derived
