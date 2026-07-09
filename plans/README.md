@@ -81,7 +81,11 @@ first-implementation convenience, rejected long-term.
   termination, the surveys' biggest unserved everyday demand, worked
   as a binary flow operation (subject, stop) with the readout via
   terminator discharge. **An exploration round with leanings, not an
-  adopted design** — prepared for the design conversation.
+  adopted design** — prepared for the design conversation. Its open
+  question 5 (stacked end-whens vs the merged stop) is worked at the
+  end of the doc: agreement exactly where the merged form is
+  well-formed (one bundle — a level-1 recognition rule), meaningful
+  stacking order beyond it.
 
 ## Flow kinds beyond lists
 
@@ -138,6 +142,11 @@ first-implementation convenience, rejected long-term.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
+- [`open-problems.md`](open-problems.md) — the ranked index of open
+  problems and incomplete areas: broad pointers into the other
+  docs, scored incompleteness × importance and re-assessed whenever
+  an area is worked. Read its anti-tunnel-vision rules before
+  treating it as a queue.
 
 ## Layout (out of scope in this repo)
 
