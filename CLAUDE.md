@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ReScript 12 project compiling to ES modules and running on Node. Source lives in `src/`; the compiler emits `.res.mjs` files under `lib/es6/` (mirroring the `src/` tree).
 
-This is an experimental sandbox for a visual flow-based programming language. Design docs live under `plans/` (design explorations, most far ahead of the code) and `plans/visual-language-description/` (the language description itself). **The graphical / layout side is explicitly out of scope here** — work in this repo is the non-visual building blocks (data structures, compile pipeline). Specifically out of scope: `graph-representation.md`, `visual-layout-guidelines.md`, `rendering-algorithm.md`, `program-to-graph-transformation.md`, and the visual sections of the other docs (2D spread pictures, diagonal wires, vertical-segment custom-flow drawings, etc.).
+This is an experimental sandbox for a visual flow-based programming language. Design docs live under `plans/` (design explorations, most far ahead of the code); `plans/README.md` is the index with reading order and per-document status, and `plans/rejected-ideas.md` records every rejected/dissolved idea (check it before proposing a construct — and check its "Not rejected" guard list before minimizing one). **The graphical / layout side is explicitly out of scope here** — work in this repo is the non-visual building blocks (data structures, compile pipeline). Specifically out of scope: `plans/graph-representation.md`, `plans/visual-layout-guidelines.md`, `plans/rendering-algorithm.md`, `plans/program-to-graph-transformation.md`, and visual sections of the other docs (vertical-segment custom-flow drawings, rail drawings, etc.).
 
-`README.md` has a map of all the design documents and a list of possible next steps; consult it before proposing big additions.
+`README.md` (root) has the project overview and possible next steps; consult it and `plans/README.md` before proposing big additions.
 
 ## Commands
 
