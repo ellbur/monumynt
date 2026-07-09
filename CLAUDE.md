@@ -100,7 +100,7 @@ Tests are inline in `Main.res`. Each test prints the generated JS, the result, a
 
 ## Language design philosophy
 
-Six principles run through the language design; the full statements,
+Seven principles run through the language design; the full statements,
 with the design conversations that earned each one, live in
 `plans/language-design-philosophy.md`. Read that before evaluating any
 new primitive or construct. In one line each:
@@ -123,6 +123,11 @@ new primitive or construct. In one line each:
   view.** Lowerings are read-only derived views you reference, never
   the thing you edit; derivation is free and downward, abstraction
   earned and upward.
+- **Building blocks must build (graceful expansion).** The complex
+  case must be reachable from the simple case by adding structure,
+  never by rewriting into a different construct — `.map()`/`.filter()`
+  being unbuildable-upon, and fold's tuple bottleneck, are the
+  counterexamples. Check every proposal's "+1 steps."
 
 Alongside the principles there is a **standing method — sample
 reality** (adopted 2026-07-09; statement and rules in

@@ -10,7 +10,7 @@ tells you where to start.*
 Everything else hinges on these two:
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)**
-  — the six principles every new construct is evaluated against.
+  — the seven principles every new construct is evaluated against.
 - **[`core-model.md`](core-model.md)** — the core in current
   vocabulary: value vs flow wires, uncollect/collect, no time travel,
   binary join, bundles, barriers-not-bottlenecks, the flow kinds.

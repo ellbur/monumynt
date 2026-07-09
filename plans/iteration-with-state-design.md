@@ -15,6 +15,15 @@
 >   that technically work are easy to produce; what is needed is a
 >   design both *easy for beginners to understand* and *flexible
 >   enough for complex code*. More work is required before choosing.
+>   *(Sharpened later the same day, with the seventh principle —
+>   "Building blocks must build", `language-design-philosophy.md`:
+>   the bar is not just both ends but the ramp between them. The
+>   beginner's construct must expand into the complex case by
+>   addition — running sum → +max → cross-referencing pair →
+>   take-while termination, each a "+1 step" on the same drawing —
+>   never by switching species. Both live candidates already improve
+>   on fold by exactly this measure; evaluate them, and the thread,
+>   by walking their +1 ladders.)*
 > - The Delay back-edge construction both candidates lean on is worked
 >   out in `first-class-ports-design.md` (the write half is its own
 >   node; the pair supplies the `final` readout).
@@ -1700,7 +1709,13 @@ all; a designed boundary instead. The costs are that the boundary
 must be learnable, and a program that grows across it (a scan that
 acquires a second, cross-referencing accumulator) needs manual
 rewriting at exactly the moment the user is thinking about something
-else.
+else. *(2026-07-09: the seventh principle — "Building blocks must
+build", `language-design-philosophy.md` — names this cost precisely:
+the domain boundary is a designed cliff on a +1 step, the exact
+failure mode the principle exists to forbid. Of the three coexistence
+models, this one now needs the "very good argument" the principle
+demands; the other two are cliff-free — a derived view expands by
+authoring on the view, a common core expands by adding registers.)*
 
 **Common core.** Both forms desugar to a shared result-level core —
 ultimately the loop register: init-before, read-at-top,

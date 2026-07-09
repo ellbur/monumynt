@@ -1,6 +1,6 @@
 # Language Design Philosophy
 
-Six principles run through the language design. They are the
+Seven principles run through the language design. They are the
 criteria against which new primitives and constructs are evaluated;
 a proposal that violates one needs either revision or a very good
 argument. Each was earned in a specific design conversation, noted
@@ -125,6 +125,61 @@ keeping work built after it is a cherry-pick, translated through the
 port correspondence. Level-1 operations (conversions, recognition,
 history operations like undo and cherry-pick) are built-in catalog
 entries, not user-written macros.
+
+## Building blocks must build (graceful expansion)
+
+*(Adopted 2026-07-09, in review of the real-loop surveys, alongside
+the 80/20 counterweight it completes: the counterweight says the rare
+hard cases bind; this principle says how they must be reached.)*
+
+A construct that serves the common case earns its place only if the
+complex cases are reachable *from* it by adding structure — never by
+abandoning it and rewriting in a different vocabulary. A building
+block that doesn't build is not so helpful. Two facets:
+
+**Expansion continuity.** The program one step more complex than the
+simple case should be the simple program *plus something* — one more
+link, one more close, a commute, a condition wired into an existing
+port — not a translation into a different construct. The canonical
+counterexample, which earned this principle: conventional `.map()`
+and `.filter()` are virtually impossible to build on. The moment a
+walk acquires one carried value, nothing transfers — the program must
+be rewritten as a `fold` — and the fold's tuple bottleneck then
+punishes every further accumulator. Each rung of that ladder is a
+cliff: the vocabulary is a set of islands, not a ramp.
+
+**Discoverability.** Beginners learn the simple constructs, and the
+simple constructs are what teach them the language. If the complex
+construct is a different species, the simple one taught them nothing
+about it — mastery of the common case leaves the user stranded at
+exactly the moment their program grows. When expansion is additive,
+the gradient is learnable: the complex drawing *looks like* the
+simple drawing with more visible structure, so the picture itself
+teaches the next step. In a visual language this facet has teeth.
+
+The record's existing choices already embody the principle, which is
+evidence it was implicit all along:
+
+- **Multi-close**: a second output of a loop is added beside the
+  first; the loop is untouched.
+- **Commute**: nesting is reordered by an explicit added node, not by
+  rewriting the loops.
+- **The link**: a second accumulator is a second independent link —
+  the iteration-state candidates improve on `fold` precisely by this
+  measure (the tuple bottleneck is a graceful-expansion failure, and
+  breaking it is what both live candidates and the thread do).
+- **Derived-port reference**: a `sum` grows a lockstep `max` by
+  referencing the sum's derived combined flow — the reduce-close is
+  never lowered, never edited
+  (`iteration-with-state-design.md`, "A second accumulator on a sum").
+
+Test for a proposed construct: enumerate its simple use's **+1
+steps** — one more accumulator, one more output, a carry that turns
+conditional, termination that becomes data-driven, a consumption rate
+that stops being one-per-firing — and check that each is an
+*addition to the drawing*, not a rewrite into something else. Where a
++1 step forces a species change, that boundary is a designed cliff
+and needs either removal or a very good argument.
 
 ---
 

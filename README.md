@@ -19,7 +19,7 @@ everything else in the design documents is design-only so far.
 reading order and per-document status. The shortest path in:
 
 - [`plans/language-design-philosophy.md`](plans/language-design-philosophy.md)
-  — the six principles every new construct is evaluated against.
+  — the seven principles every new construct is evaluated against.
 - [`plans/core-model.md`](plans/core-model.md) — the core model in
   current vocabulary: value vs flow wires, uncollect/collect, no time
   travel, binary join, bundles, barriers-not-bottlenecks, the flow

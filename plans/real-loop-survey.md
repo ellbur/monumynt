@@ -1431,6 +1431,20 @@ the running view — have none. By the 80/20 reading, that cluster is
 where the language's breadth risk currently concentrates, whatever
 the frequency tables say about scans and searches.
 
+*(Companion criterion, adopted the same day as the seventh principle —
+"Building blocks must build", `language-design-philosophy.md`: each
+breadth-set member is also an **expansion test**, not just an
+expressibility test. The question is not only "can this be written
+without pain" but "is it reachable from the simple form of the same
+program by +1 steps" — the theta kernel from a beginner's running
+sum by adding links; the wrap loop from a plain list collect by
+whatever construct eventually owns variable-rate consumption. A
+breadth-set member that is expressible only by abandoning the simple
+vocabulary and starting over fails the test even if the exotic
+version is painless. This is the survey-evidence form of the
+map/filter complaint: constructs the common case teaches must be the
+same constructs the hard case is built from.)*
+
 ## Next round (updated)
 
 - **UI/browser event-handling in JS** remains under-sampled (textual
