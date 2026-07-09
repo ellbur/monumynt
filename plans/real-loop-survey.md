@@ -14,6 +14,16 @@
 > (`iteration-with-state-design.md`), the thread's one-writeback
 > question (same doc, "Open questions for the thread"), and the
 > ranked candidate-block inventory (`tough-use-cases-design.md`).
+>
+> **Adopted as a standing method (2026-07-09).** On review of this
+> first run, sampling reality this way was adopted as a recurring
+> practice, to be used frequently — not a one-off. The method's
+> statement, its rules (seeded, unfiltered, biases stated, evidence
+> separated from decision), and when to reach for it live in
+> `language-design-philosophy.md`, "A standing method: sample
+> reality." Future surveys should reuse the protocol shape below,
+> varying the corpus or the unit sampled, and extend this record
+> rather than replace it.
 
 ## Why this document exists
 

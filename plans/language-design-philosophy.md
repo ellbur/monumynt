@@ -125,3 +125,57 @@ keeping work built after it is a cherry-pick, translated through the
 port correspondence. Level-1 operations (conversions, recognition,
 history operations like undo and cherry-pick) are built-in catalog
 entries, not user-written macros.
+
+---
+
+## A standing method: sample reality
+
+*(Adopted 2026-07-09, after the first real-loop survey. This is a
+method, not a seventh principle — it is how the principles above get
+their contact with the world.)*
+
+The principles are applied in design conversations, and design
+conversations have a known failure mode, named in the rail notes
+before the method existed: designing to the theory's existing
+categories rather than to what real code actually looks like. The
+counterweight is **seeded random sampling of real code**: draw
+programs nobody chose, read each whole and in context, classify
+against the current and candidate vocabulary, and let the frequencies
+reweight the agenda.
+
+The first execution (`real-loop-survey.md`) demonstrated the yield: it
+confirmed the center (uncollect/collect covered half of everything,
+before counting the combinators the protocol excluded), overturned an
+assumed weighting (the running-sum scan, the anchor example of the
+iteration-state conversation, occurred zero times in thirty draws
+while early termination dominated), gave a candidate rule its first
+contact evidence (the one-writeback rule survived), and surfaced a
+question no conversation had produced (the running view of a
+collect).
+
+**Use it frequently.** Specifically, whenever a construct's importance
+is being assumed rather than measured, an inventory needs ranking, a
+proposed rule needs contact with cases nobody constructed for it, or
+a design round has gone several exchanges without touching code that
+exists. Sampling is cheap relative to one wrong primitive — this is
+"foundations before features" applied to evidence.
+
+The method's rules, which are what make its results trustworthy:
+
+- **Seeded and documented.** The protocol (corpora, what counts as an
+  instance, seed, selection procedure) is recorded so the draw is
+  reproducible and demonstrably unchosen.
+- **No hand-picking, no filtering for interesting.** Boring instances
+  are the finding — their proportion is the point.
+- **Biases stated, not hidden.** Corpus skew, protocol exclusions,
+  sample size; and each bias's *direction* noted, so undercounts and
+  overcounts are readable.
+- **Evidence separated from decision.** A survey decides nothing; it
+  reweights. Design decisions stay in the design conversations, with
+  the survey cited.
+
+New samples extend the record rather than starting over: reuse the
+protocol shape, vary the corpus (the first survey's stated gap is
+numerics, simulation, and UI code) or the unit sampled (loops were
+first; functions, error paths, data declarations, concurrent
+sections are all sampleable the same way).

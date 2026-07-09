@@ -118,7 +118,10 @@ first-implementation convenience, rejected long-term.
   loops from real codebases classified against the inventory
   (evidence, not design): uncollect/collect confirmed as the center,
   the scan absent, early exit dominant, the thread's one-writeback
-  rule survived its stated test.
+  rule survived its stated test. First run of a **standing method** —
+  sampling reality is to be used frequently; the method's statement
+  and rules are in `language-design-philosophy.md`, "A standing
+  method: sample reality."
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

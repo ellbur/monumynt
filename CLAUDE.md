@@ -124,6 +124,19 @@ new primitive or construct. In one line each:
   the thing you edit; derivation is free and downward, abstraction
   earned and upward.
 
+Alongside the principles there is a **standing method — sample
+reality** (adopted 2026-07-09; statement and rules in
+`plans/language-design-philosophy.md`, first run in
+`plans/real-loop-survey.md`): when a construct's importance is
+assumed rather than measured, an inventory needs ranking, or a rule
+needs contact evidence, draw a seeded random sample of real code
+(corpora installed on this machine work fine), classify it against
+the current and candidate vocabulary, and let the frequencies
+reweight the agenda. Seeded and documented protocol, no filtering
+for interesting, biases stated with their direction, evidence kept
+separate from decision. Use it frequently — reach for it proactively
+when design discussion is running ahead of evidence.
+
 ## Working with the user
 
 The user designs incrementally and likes to think out loud about a step before any code is written. Rough pattern from past sessions:
