@@ -10,6 +10,16 @@ This document specifies the data structures and types used to represent programs
 
 The language separates **value wires** (carrying data) from **flow wires** (representing iteration/branching context). Both are structurally represented as connections between node ports.
 
+> **Status (2026-07-09).** This is the diagram-level spec. The
+> implemented Expr layer (`src/Expr.res`) is a smaller fragment with
+> its own representation debts, and its migration to first-class ports
+> — dissolving Branch and the `Joined`/`Filtered` wrappers into alt
+> ports and binary Join nodes — is worked out in
+> `first-class-ports-design.md`. The superseded IterationRail /
+> TapIn / TapOut machinery formerly preserved in this spec is now
+> recorded in `rejected-ideas.md` (entries 6–7), with the
+> still-valuable rail ideas kept in `iteration-rails-design-notes.md`.
+
 ---
 
 ## Primitive Identifiers
@@ -24,7 +34,6 @@ FlowParamName: identifier for flow parameters
 SlotName: identifier for diagram slots
 SplitName: identifier for iteration case splits
 CaseName: identifier for cases within a split
-RailId: unique identifier for an iteration rail (superseded design — see Delay)
 ```
 
 ---
@@ -43,12 +52,9 @@ Diagram:
   flowOutputs: List<{name: String}>
   slots: List<{name: String, signature: SlotSignature}>
   nodes: Set<Node>
-  rails: Map<RailId, Node>  // index of IterationRail nodes by ID (superseded design — see Delay)
 ```
 
-The `nodes` field contains all nodes in the diagram. In a complete diagram, most nodes are reachable by recursively following sources from DiagramValueOutput and DiagramFlowOutput nodes, but the explicit set accommodates partially constructed diagrams during editing.
-
-The `rails` field provides lookup of IterationRail nodes by ID, needed to resolve `ById` references in TapOut nodes. It exists only for the superseded IterationRail design; the current Delay node needs no symbolic references (see Delay).
+The `nodes` field contains all nodes in the diagram. In a complete diagram, most nodes are reachable by recursively following sources from DiagramValueOutput and DiagramFlowOutput nodes, but the explicit set accommodates partially constructed diagrams during editing. (It is also load-bearing for complete programs: a Delay write half can be root-unreachable, so the program of record is a node set, not a root expression — `first-class-ports-design.md`, "the program is a node set".)
 
 **Slots** allow a diagram to have "cut-outs" where caller-supplied sub-diagrams are inserted. This enables configuration scopes and similar patterns.
 
@@ -306,6 +312,17 @@ The `innerFlows` list typically has one element for standard joins, but can have
 
 The output values correspond 1-1 with input values (same names). The output flow represents the outer flow after the join.
 
+> **Status (2026-07-09).** The join correction
+> (`lazy-stream-join-design.md`, "Join is a binary flow operation")
+> sharpened join to a binary node with asymmetric operands
+> (outer, inner); multi-level joins are chains of binary joins, not
+> one node with several `innerFlows`. Whether this node keeps its
+> value pass-through ports is `first-class-ports-design.md` open
+> question 3 (the lean is flow-only, with values meeting the join
+> only at collects); the concurrent join is the case that could
+> justify keeping them. This section's signature predates that
+> round and should be revised when it lands.
+
 ---
 
 ### Commute
@@ -365,26 +382,10 @@ The two output flows need not be closed together. Closing the (new) inner flow w
 
 Only option-out-of-stream has a worked-out compile (`lazy-stream-commute-design.md`); other variants (result-out-of-stream, marker-out-of-sequenceable, etc.) share the node shape but await their own runtime design. Which flow-kind pairs get a variant at all — and which commute for free or belong to other operations entirely — is mapped in that document's "The commute-variant taxonomy" section.
 
-> **Superseded signature (pre-reconciliation).** The node previously
-> carried per-element value pass-throughs:
->
-> ```
-> Commute:
->   variant: CommuteVariant
->   innerFlow: FlowSource
->   outerFlow: FlowSource
->   values: List<{name: String, source: ValueSource}>
->
->   valueOutputs: {<same names as input values>}
->   flowOutputs: {inner, outer}
-> ```
->
-> with "the output values correspond 1-1 with input values." The value
-> ports were what made "swap-and-continue" look like a design obligation
-> — they suggested computation could attach downstream of the node.
-> Dropped: the 1-1 correspondence they encoded is exactly the naturality
-> identity, which the port-free node expresses better by making the
-> before/after distinction unrepresentable.
+> The pre-reconciliation signature carried per-element value
+> pass-through ports; those are what made "swap-and-continue" look
+> like a design obligation. Dropped — see `rejected-ideas.md`
+> entry 18.
 
 ---
 
@@ -463,6 +464,14 @@ The output value depends on all flows in the specified order.
    - flowOutputs: {A', B', C'}
    - Result: v depending on [A', D, B', E, C']
 
+> **Status (2026-07-09).** Incorporate is a meaningful primitive —
+> bringing a value into a flow context — and stays. One usage is
+> corrected: nesting two *sibling* uncollects into one another via
+> Incorporate erases their mutual independence; for that case the
+> right node is a **Cross** (`product-flows-design.md`,
+> `rejected-ideas.md` entry 39). The Cross node has no spec entry yet;
+> one is owed when that design lands.
+
 ---
 
 ### IterationCaseSplit
@@ -483,7 +492,7 @@ For example, a list iteration might have:
 - A "past" split with cases "initial" and "step" → outputs named "initial" and "step"
 - A "future" split with cases "last" and "non-last" → outputs named "last" and "non-last"
 
-The output flows are still iteration flows and can be further case-split with a different split, or used with IterationPayload. (The superseded IterationRail design also consumed case-split flows via per-case TapIns; the current Delay design does not — its initial value is wired from outside the flow, so no first/subsequent split is needed for carried state.)
+The output flows are still iteration flows and can be further case-split with a different split, or used with IterationPayload. (Carried state does not need this: Delay's initial value is wired from outside the flow, so no first/subsequent split is required — the split remains for genuinely positional programs.)
 
 ---
 
@@ -511,7 +520,7 @@ For a binary tree in the "node" case, this outputs the `element`. The case is de
 
 ### Delay
 
-The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is **one of two live candidate designs** for iteration state; both supersede the IterationRail / TapIn / TapOut trio preserved below. The other candidate is the **latent-flow representation**: generalize cuts a value wire and interposes an *augmented uncollect* — the flow's opener with a seed input and a per-iteration state output added — with a feedback collect producing the modified flow. Its node schema is not yet pinned down (the feedback-collect mechanic is open), so only Delay is specified here; see `plans/iteration-with-state-design.md`, "Two live candidates, kept side-by-side", for the comparison and what would decide. The reasoning behind Delay is in that document (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail, which both candidates realize).
+The loop-carried-variable construct: a value carried from one iteration of a flow to the next. This is **one of two live candidate designs** for iteration state; both supersede the IterationRail / TapIn / TapOut trio (`rejected-ideas.md` entries 6–7; the full retired schemas are in git history). The other candidate is the **latent-flow representation**: generalize cuts a value wire and interposes an *augmented uncollect* — the flow's opener with a seed input and a per-iteration state output added — with a feedback collect producing the modified flow. Its node schema is not yet pinned down (the feedback-collect mechanic is open), so only Delay is specified here; see `plans/iteration-with-state-design.md`, "Two live candidates, kept side-by-side", for the comparison and what would decide. The reasoning behind Delay is in that document (semantic side: the "link" transformation and the port form) and `iteration-rails-design-notes.md` (visual side: the redesigned rail, which both candidates realize).
 
 ```
 Delay:
@@ -539,143 +548,6 @@ Delay:
 **Compile target.** A single mutable register in the generated loop: `init` sets it before the loop, `prev` reads it at the top of each iteration, `step` assigns it at the bottom. The cross-iteration cycle never appears within one iteration of the generated code.
 
 **Visual representation.** The redesigned iteration rail: a horizontal line crossing the single generic iteration column, with a tap-down read on the left (= `prev`), a writeback-up on the right (= `step`), and the initial value attached by a dotted line (= `init`). No diagonal, no multi-slot shapes, no ghost columns. See `iteration-rails-design-notes.md`.
-
----
-
-### IterationRail (superseded)
-
-> **Superseded** (together with TapIn and TapOut) by the current iteration-state candidates — the Delay node above and the latent-flow alternative its note describes. Preserved for the record. What was discarded, and why:
->
-> - **Multi-slot lookback** (`slotIndex`, previous-previous, tree-child slots): only single-step `prev` survives; deeper lookback is chained Delays. The general slot shapes were what made the rail visually degenerate under generalization (see `iteration-rails-design-notes.md`).
-> - **Per-case TapIns keyed by IterationCaseSplit**: the initial value is not a case of the flow — it is evaluated before the flow produces any iterations and belongs outside it (see "Where the critique points" in `plans/iteration-with-state-design.md`). Delay's `init` is an ordinary outside-the-flow input; no first/subsequent split is required for carried state, and the first/subsequent distinction is handled by the mechanism, invisible inside the flow body.
-> - **`ById` symbolic references**: replaced by an honest back-edge plus the productivity check. Two-phase construction (mint the node, wire `step` later) removes the need for symbolic indirection entirely.
-
-Defines an iteration variable that spans an iteration flow, with values defined per case and accessible at recursive positions.
-
-```
-IterationRail:
-  id: RailId
-  iterationType: IterationType
-  flow: FlowSource
-  tapIns: List<TapIn>
-
-  valueOutputs: {value}
-  flowOutputs: {}
-```
-
-- `id`: Unique identifier for this rail, used by TapOut nodes that need to reference it by ID (to break cycles)
-- `iterationType`: Determines the shape of slots available in each case
-- `flow`: The overall iteration flow (pre-split) that this rail spans
-- `tapIns`: Definitions for each case
-
-The `value` output is an ordinary value depending on the overall iteration flow. This is what gets passed to Collect.
-
-**TapIn:**
-
-```
-TapIn:
-  caseFlow: FlowSource
-  value: ValueSource
-```
-
-- `caseFlow`: The flow for a specific case (obtained from IterationCaseSplit)
-- `value`: The value being fed into the rail for this case
-
-Each TapIn provides the rail's value for one case of the iteration.
-
----
-
-### TapOut (superseded)
-
-> **Superseded by Delay's `prev` output port.** Preserved for the record; see the note on IterationRail.
-
-Accesses the value of an iteration rail at a recursive position.
-
-```
-TapOut:
-  rail: RailReference
-  caseFlow: FlowSource
-  slotIndex: Int
-
-  valueOutputs: {value}
-  flowOutputs: {}
-```
-
-- `rail`: Reference to the iteration rail being accessed
-- `caseFlow`: The case-split flow we're accessing from (determines available slots)
-- `slotIndex`: Which recursive slot to access (visually, which position on the shape to wire from)
-
-The output `value` is the rail's value at the indicated recursive position.
-
-**RailReference:**
-
-```
-RailReference:
-  | Direct(node: Node)  // node.kind must be IterationRail
-  | ById(railId: RailId)
-```
-
-- `Direct`: Structural pointer to the node whose kind is IterationRail. Use when the TapOut's value is not fed back into the same rail (no cycle).
-- `ById`: Symbolic reference by identifier. Use when the reference would create a cycle (e.g., counter pattern where TapOut feeds into a computation that feeds back into the same rail's TapIn).
-
-Both forms are semantically equivalent - they differ only in whether the reference is structural or symbolic.
-
-**Visual Representation:**
-
-The iteration rail is drawn as a diagonal "track" spanning the horizontal (iteration) dimension. The shape of each segment is determined by (iterationType, caseName):
-
-For a list (step case) - one slot for previous:
-```
-    ┌─┐
-... │ │ → ...
-    └─┘
-      ↑
-   wire from here = previous value
-```
-
-For Fibonacci (step case with depth 2) - two slots:
-```
-    ┌─┬─┐
-... │ │ │ → ...
-    └─┴─┘
-      ↑ ↑
-      │ └── previous-previous (slotIndex: 1)
-      └──── previous (slotIndex: 0)
-```
-
-For a binary tree (node case) - two slots for children:
-```
-         ┌─┐
-    ... ←│ │→ ...
-         └─┘
-         / \
-   left    right
-   (0)      (1)
-```
-
-TapIn wires feed values into the rail from above. TapOut wires tap values from specific slots.
-
-**Example: Counter over a list**
-
-A counter that starts at 0 and increments by 1 at each step:
-
-1. Uncollect the list, producing iteration `flow`
-2. IterationCaseSplit on `flow` with split "past", producing `initialFlow` and `stepFlow`
-3. Create Literal node for 0
-4. Create TapOut with:
-   - rail: ById(railId) — must use ById because this creates a cycle
-   - caseFlow: stepFlow
-   - slotIndex: 0
-5. Create Primitive Add node taking TapOut's value and literal 1
-6. Create IterationRail with:
-   - id: railId
-   - iterationType: list iteration type
-   - flow: the pre-split iteration flow
-   - tapIns: [
-       {caseFlow: initialFlow, value: (the literal 0)},
-       {caseFlow: stepFlow, value: (the Add result)}
-     ]
-7. Collect with the rail's `value` output and the iteration flow
 
 ---
 
@@ -863,7 +735,6 @@ Flows created by different mechanisms have different capabilities:
 **Iteration flows** (from Uncollect Iteration):
 - Can be case-split using IterationCaseSplit
 - Can host Delay nodes (loop-carried state; formerly iteration rails)
-- Have zipper structure accessible via TapOut (superseded design)
 - Used for traversing recursive data structures (lists, trees, etc.)
 
 **Alternative flows** (from Uncollect CaseSplit):
@@ -900,19 +771,9 @@ The representation is designed to support the "no time travel" rule: flow orderi
 
 This is primarily a nested representation where inputs point to outputs. In a complete diagram, all nodes are reachable by starting from the diagram's output nodes (DiagramValueOutput, DiagramFlowOutput) and recursively following all sources, tracking visited nodes to handle sharing. Without Delay nodes the structure is a DAG; each Delay's `step` input is a back-edge, so traversal must treat `step` sources like any other shared reference (visited-set) rather than assuming acyclicity. Acyclicity modulo Delay crossings is the productivity check (see Delay).
 
-However, the diagram also maintains an explicit `nodes` set and `rails` index because:
-- During editing, some nodes may be temporarily disconnected
-- TapOut nodes using `ById` references need a way to look up rails by ID without structural traversal (superseded design — under Delay, no symbolic references exist and the `rails` index is unnecessary)
+However, the diagram also maintains an explicit `nodes` set because during editing some nodes may be temporarily disconnected — and because a complete program is a node set (see the Diagram section).
 
-### Avoiding Cycles with Rail References (superseded)
-
-> **Superseded.** This note belongs to the IterationRail design. Neither current candidate needs symbolic references. The port-form Delay takes the opposite position: the cycle is not avoided, it is embraced. The `step → prev` back-edge is an ordinary structural connection — the representation is a graph with cycles, not a DAG — and well-formedness is guaranteed by the productivity check (every cycle must pass through a Delay) rather than by keeping the representation acyclic. Construction is two-phase (mint the Delay, wire `step` later), so no symbolic reference is ever needed. The latent-flow candidate avoids the issue differently: feedback is an uncollect/collect pairing on the flow, and under its cursor-as-feedback reading the result graph stays acyclic by construction. See the Delay section and `plans/iteration-with-state-design.md` ("No construction-time cycle"; "Two live candidates, kept side-by-side").
-
-Iteration patterns like counters are inherently self-referential: the value at each position depends on the value at a previous position. To avoid structural cycles in the representation, TapOut uses `RailReference` which can be either:
-- `Direct`: A structural pointer, used when no cycle would result
-- `ById`: A symbolic identifier, used when the TapOut's value feeds back into the same rail
-
-This is analogous to how lambda calculus uses bound variable names to avoid structural self-reference. The `ById` form is resolved by finding the IterationRail with that ID in scope.
+Self-reference needs no symbolic indirection: the cycle is embraced, not avoided. Delay's `step → prev` back-edge is an ordinary structural connection, well-formedness comes from the productivity check, and construction is two-phase (mint the Delay, wire `step` later). The retired alternative — `ById` symbolic references à la bound variable names — is recorded in `rejected-ideas.md` entries 6 and 9.
 
 ### Types Omitted
 
