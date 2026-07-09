@@ -7,6 +7,11 @@
 the mechanics are documented as comments in the source. Companion to
 `placement-algorithm-notes.md`, which preserves the compile-time
 placement algorithm this one replaced (retired at commit `750b14c`).
+The planned architectural rebuild of this compile (same semantics,
+pipeline of pure passes) is `compile-strategy-design.md`.
+
+Terminology: this document predates the 2026-07-07 uncollect/collect
+correction and says Open/Close/close throughout, matching the code.
 
 ## The model
 

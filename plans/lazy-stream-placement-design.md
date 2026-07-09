@@ -1,5 +1,28 @@
 # Placement for Lazy Stream Flows
 
+> **Status — read this first (2026-07-09).** This document's *body*
+> was overtaken by its own postscripts. The body designs the
+> consumer-set lattice as the stream compile and dismisses Shape C
+> ("map-per-intermediate") as a naive corner; the 2026-07-06/07
+> postscripts invert both conclusions. The current reading:
+>
+> - **Shape C is the committed stream baseline** — the stream
+>   transposition of the runtime-lazy strategy the eager compile
+>   already runs on purpose ("The baseline, revisited").
+> - **The consumer-set lattice is the optimisation pass over that
+>   baseline**, deferred but committed — the same category
+>   `placement-algorithm-notes.md` occupies for eager flows, gated
+>   on sequencing, not benchmarks ("Deferred, not conditional").
+> - The J/F fork discussed around the skip mechanism has since
+>   dissolved — join is a binary flow operation
+>   (`lazy-stream-join-design.md`).
+> - Implementation-order steps 4–5 (consumer-set bookkeeping) are
+>   off the critical path ("Effect on the implementation order").
+>
+> The body remains the full design record for the lattice.
+> Terminology: this document predates the uncollect/collect
+> correction and says open/close throughout.
+
 ## What this is for
 
 We're going to add stream flows alongside the existing list flows.

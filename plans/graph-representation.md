@@ -1,5 +1,12 @@
 # Graph Representation for Visual Layout
 
+> **Status (2026-07-09).** Layout side — out of scope in this repo, kept
+> because the layout algorithm should survive. Predates the newer design
+> rounds; where its examples use retired vocabulary (iteration rails,
+> tap-outs), the current construct is Delay — see
+> `iteration-rails-design-notes.md` and the spec. The layout machinery itself is
+> unaffected: it deliberately carries no semantic concepts.
+
 ## Overview
 
 This document describes a graph representation designed to separate the visual layout of programs from their semantics. The representation captures everything needed to lay out and render a program visually, without encoding any semantic concepts specific to the programming language.

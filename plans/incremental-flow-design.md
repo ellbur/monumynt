@@ -2,6 +2,9 @@
 
 ## What this is for
 
+> Terminology note (2026-07-09): written just before the
+> uncollect/collect correction; "close" throughout means collect.
+
 State that varies over time, with dependencies tracked: a value
 that is always readable *now*, whose current value changes as its
 inputs change; derived values that stay consistent with their
@@ -184,11 +187,14 @@ sequences; join for streams splices inner streams end-to-end;
 join for vars switches among inner vars. Each is the monadic join
 of its kind — for the always-column, "flattening" one level of
 var-ness means following the outer's current selection. And as
-with lists and streams, join should be the same per-close
-annotation (`Joined(flowRef)`), not a new node species: the
-underlying tracking is shared; joined-or-not differs only in
-output construction. Whether that reuse survives contact with the
-Expr graph is open question 7.
+with lists and streams, switch-join should be the same join
+operation, not a new node species. *(2026-07-07: this paragraph
+originally said "the same per-close annotation
+(`Joined(flowRef)`)"; that spelling has since been superseded by
+binary Join nodes — see open question 7's update. The point
+stands with the node substituted: switch-join reads as a Join
+variant with a var-kinded operand.)* Whether that reuse survives
+contact with the Expr graph is open question 7.
 
 ## Glitch-freedom, and the pull model
 
@@ -253,6 +259,14 @@ section below ("The push model, and the demand problem"). The
 short version: the two are observably identical here (bodies are
 pure), so the choice is real but deferrable — a compile-strategy
 choice, not a semantics choice.
+
+> **Recorded position (design review, 2026-07-09).** Sharpened:
+> pure pull is rejected as the long-term model, not merely
+> disfavoured. Beyond the fan-out pathology, it makes partial
+> updates to lists and similar structures harder to track. It may
+> still serve as the convenient first implementation and remains
+> the semantic baseline the hybrid must agree with; the destination
+> is push-with-values inside a necessity frontier.
 
 ### Cutoff
 

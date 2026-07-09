@@ -1,5 +1,16 @@
 # Iteration Rails: Design Notes
 
+> **Status (2026-07-09).** The rail *mechanisms* recorded here died — the
+> diagonal wire, TapIn/TapOut, `ById` references (the reasons are in
+> this document and under Delay in `visual-language-spec.md`) — and
+> the spec's construct is now Delay. But this doc is
+> deliberately kept: the rail is not looking promising, yet not totally
+> out, and some of its ideas — the one-visible-column constraint, the
+> state-thread depiction, the split between how a value is *carried* and
+> how it is *named* — may need resurrecting to harmonize Delay and state
+> flows. Read alongside `iteration-with-state-design.md`, which holds
+> the two live candidates and remains the biggest open design area.
+
 ## Background and Problem
 
 The visual flow language uses a 2D spread model for list iteration: horizontal position represents position in the iteration, vertical position represents computational steps. To carry a value from one iteration to the next, the original design used a **diagonal wire** — a line from a value at position *i*, step *n* down to a tap at position *i+1*, step *n+1*. This is the "iteration rail."
