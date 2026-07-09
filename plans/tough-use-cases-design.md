@@ -778,6 +778,12 @@ Ranked by independent demand across the five use cases:
    size, retry-until-tolerance) — so end-when must compose with
    the register designs. On that evidence end-when outranks this
    slot; see `real-loop-survey.md`, findings 4–5 and 2.7.)*
+   *(Later the same day: end-when now has a worked exploration
+   round — `end-when-design.md` — proposing the binary
+   flow-operation shape (subject, stop), bounding it against the
+   rest of this family, and taking up open question 5's
+   degenerate-case question with a leaning toward separate
+   constructs sharing verdict vocabulary. Nothing adopted.)*
 5. **The divide flow** — the link transformation, tree-shaped: a
    self-similar flow with base/divide alts, child-result ports
    at the collect, catalog divisions plus a warned escape hatch.
