@@ -142,6 +142,11 @@ first-implementation convenience, rejected long-term.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
+- [`open-problems.md`](open-problems.md) — the ranked index of open
+  problems and incomplete areas: broad pointers into the other
+  docs, scored incompleteness × importance and re-assessed whenever
+  an area is worked. Read its anti-tunnel-vision rules before
+  treating it as a queue.
 
 ## Layout (out of scope in this repo)
 
