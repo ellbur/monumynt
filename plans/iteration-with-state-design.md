@@ -1817,7 +1817,15 @@ the projection that keeps its structure legible.
   one writeback per crossing, with conditional carry expressed as a
   conditional *value* wired into the single writeback. Whether that
   survives contact with real loops is exactly what the rail notes'
-  "sample real code" plan should test.
+  "sample real code" plan should test. *(2026-07-09: first sample run
+  — `real-loop-survey.md`. The rule survived everything drawn:
+  conditional carry occurred once and expressed exactly as
+  prescribed; a multi-site-append buffer with conditional reset and a
+  backtracking save/restore cursor both still reduce to one
+  conditional value per firing. No sampled loop needed two
+  independent writebacks. The recorded caveat: what strains in the
+  reset case is effect *ordering* within the firing, which no
+  writeback count addresses.)*
 - **The crossing rule.** Threads are a new wire species. Do
   thread/value and thread/thread crossings fall under the existing
   no-crossing rule, or does the thread's horizontal-rail geometry
@@ -1948,8 +1956,23 @@ back-edge.")*
 
 **The state thread's open points.** Whether one-writeback-per-crossing
 survives real loops (conditional carry, multi-site update — test
-against the rail notes' "sample real code" plan); how threads interact
-with the no-crossing rule; and whether the thread is its own
+against the rail notes' "sample real code" plan; *first sample run
+2026-07-09, rule survived — see `real-loop-survey.md`, finding 3, and
+the dated note under "Open questions for the thread"*); how threads
+interact with the no-crossing rule; and whether the thread is its own
 result-level construct or a rendering of a stored projection (the
 cheapest version: store the Delay quotient, render the thread, derive
 the flow view). See "A fourth option: the visible state thread".
+
+**The environment the chosen candidate will live in.** The real-loop
+survey (`real-loop-survey.md`) reweights what surrounds this decision:
+in the sampled corpus the simple scan never occurred, while early
+termination dominated (11–12 of 30 loops) and the stateful tail was
+cursors, worklists, and a resettable buffer. Whichever candidate is
+chosen should therefore be evaluated with early exit in the room — in
+particular, what the Delay/thread final-value readout means when an
+end-when (`tough-use-cases-design.md`) terminates the flow mid-walk;
+the write half's final-value output and a search's readout look like
+the same port, which is either a unification or a coincidence to
+check. The survey's corpus lacks numerics/simulation/UI, so the
+scan's absence is provisional; it decides nothing here by itself.

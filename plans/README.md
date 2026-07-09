@@ -114,6 +114,11 @@ first-implementation convenience, rejected long-term.
 - [`tough-use-cases-design.md`](tough-use-cases-design.md) — five
   real-system programs worked against the blocks until they break;
   the ranked candidate-block inventory.
+- [`real-loop-survey.md`](real-loop-survey.md) — thirty seeded-random
+  loops from real codebases classified against the inventory
+  (evidence, not design): uncollect/collect confirmed as the center,
+  the scan absent, early exit dominant, the thread's one-writeback
+  rule survived its stated test.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

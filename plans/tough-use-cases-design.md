@@ -756,7 +756,14 @@ Ranked by independent demand across the five use cases:
    scope); **end-when** (data-driven terminator writing, the
    synchronous sibling of interrupt); data-dependent take.
    Demanded by: mergesort's merge, until-loops, protocol
-   framing.
+   framing. *(2026-07-09: the real-loop survey adds everyday
+   demand — 11–12 of 30 randomly sampled loops terminate early,
+   more than every stateful pattern combined, in four guises:
+   first-match, take-until-sentinel, poll-until-result,
+   predicate cursor. Data-dependent take also occurred naturally
+   twice, as line filling and skip-while. On that evidence
+   end-when outranks this slot; see `real-loop-survey.md`,
+   findings 4–5.)*
 5. **The divide flow** — the link transformation, tree-shaped: a
    self-similar flow with base/divide alts, child-result ports
    at the collect, catalog divisions plus a warned escape hatch.

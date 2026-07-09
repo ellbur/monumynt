@@ -134,6 +134,17 @@ The right abstractions for these are not yet designed. The intended next step is
 
 The abstractions should emerge from what's actually there, including the proportion of loops that fit the simple rail pattern cleanly. If most short loops are one-rail patterns, the rail is the right central construct and additional vocabulary handles the tail. If even most short loops break the pattern, the rail is in trouble as a foundation and that's worth knowing early.
 
+*(2026-07-09: a first execution of this plan exists —
+`real-loop-survey.md`, thirty seeded-random loops from Python/Ruby/JS
+infrastructure code. Headline answers: half the loops need no state
+at all; the loops that do carry state are mostly not one-rail-shaped
+(cursors, worklists, a resettable buffer, one conditional carry), so
+the question above gets neither of its two anticipated answers — the
+rail is tail vocabulary, and the tail's dominant demand is early
+termination, not carried arithmetic. The simulation/UI/numerics
+domains named above are still unsampled; that's the survey's stated
+next round.)*
+
 ## Summary of the Reframe
 
 The original rail tried to be a general cross-iteration reference mechanism, encoded as a diagonal wire with implicit semantics about "value one iteration later." It was visually overloaded and broke down beyond the trivial case.
