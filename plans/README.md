@@ -122,9 +122,12 @@ first-implementation convenience, rejected long-term.
   dominant in numerics, with cross-referencing registers in the wild;
   early exit the biggest unserved everyday demand; the thread's
   one-writeback rule unbroken across all sixty; Cross, window, and
-  the event-loop inventory sighted in their designed shapes. First
-  runs of a **standing method** — sampling reality is to be used
-  frequently; the method's statement and rules are in
+  the event-loop inventory sighted in their designed shapes. Read the
+  tallies with the 80/20 counterweight (frequency ranks the
+  effortless; the rare painful tail binds breadth — the nine-loop
+  **breadth set** is collected at the end). First runs of a
+  **standing method** — sampling reality is to be used frequently;
+  the method's statement and rules are in
   `language-design-philosophy.md`, "A standing method: sample
   reality."
 - [`implementation-strategy.md`](implementation-strategy.md) — the

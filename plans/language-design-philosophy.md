@@ -173,6 +173,23 @@ The method's rules, which are what make its results trustworthy:
 - **Evidence separated from decision.** A survey decides nothing; it
   reweights. Design decisions stay in the design conversations, with
   the survey cited.
+- **Frequency is not importance — the 80/20 counterweight.**
+  *(Recorded on review of the first two surveys, 2026-07-09.)* A
+  sample measures how often a shape occurs, not how much time or pain
+  it costs. Per the 80/20 rule, most writing time concentrates in the
+  rare hard cases — so the most annoying loop to write can break the
+  language even when every common case is trivial. Read frequencies
+  in two directions: **high frequency ranks what must be effortless**
+  (the defaults, the one-gesture paths); **low frequency plus high
+  pain ranks what must be possible without too much pain** — breadth.
+  A shape drawn once is a breadth obligation, not a deprioritization
+  candidate; frequency arguments may promote a construct (end-when's
+  everyday demand) but never demote one on rarity alone. This is also
+  why sampling complements rather than replaces the stress-test
+  method (`tough-use-cases-design.md`): the sample finds what is
+  common; the tough use cases find what breaks — a survey's singleton
+  hard draws are randomly-harvested members of the same set the tough
+  use cases construct deliberately.
 
 New samples extend the record rather than starting over: reuse the
 protocol shape, vary the corpus or the unit sampled (loops were

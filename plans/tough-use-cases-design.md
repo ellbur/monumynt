@@ -10,6 +10,16 @@
 > record preserved in git history; its live content is in
 > `core-model.md` and the topic docs this document already lists
 > under "designed-ahead vocabulary."
+>
+> *(2026-07-09: this document now has a randomly-harvested sibling.
+> The real-loop surveys' singleton hard draws are collected as a
+> nine-loop **breadth set** — `real-loop-survey.md`, "Reading the
+> frequencies: the 80/20 counterweight" — members of the same
+> must-express-without-pain set this document's five programs were
+> constructed for, but drawn blind. Three of the nine currently have
+> no owning construct: the wrap loop, the tokenizer-substituter, and
+> the history-indexed table fill — the variable-rate-consumption /
+> running-view cluster.)*
 
 ## What this is for
 

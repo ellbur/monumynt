@@ -10,6 +10,14 @@
 > 2, concentrated exactly where survey 1 predicted** (numerics), so
 > survey 1's "scan absent" finding is now confirmed as corpus skew,
 > not a fact about real code. The combined picture is at the end.
+>
+> **How to read the tallies.** Frequency is not importance (the 80/20
+> counterweight — "Reading the frequencies", near the end, now also a
+> standing rule of the method): high frequency ranks what must be
+> effortless; a shape drawn once is a breadth obligation, not a
+> deprioritization candidate. The singleton hard draws are collected
+> there as **the breadth set** — nine loops the language must handle
+> without too much pain.
 
 > **Status (2026-07-09).** First execution of the sampling plan that
 > `iteration-rails-design-notes.md` set out ("sample real loops
@@ -1362,6 +1370,66 @@ in five languages:
   variable-rate consumption (textwrap, the tokenizer — the
   decision-driven family's "advance how far"); and reduce-close's
   operator identities (three hand-rolled monoid folds).
+
+## Reading the frequencies: the 80/20 counterweight
+
+*(Recorded position, 2026-07-09, on review of both surveys. Now also
+a standing rule of the method — `language-design-philosophy.md`, "A
+standing method: sample reality".)*
+
+The tables above must not be read as "optimize for the fat rows and
+deprioritize the thin ones." A sample measures how often a shape
+occurs, not how much time it costs to write. Per the 80/20 rule, most
+of a programmer's time goes to the rare hard cases — so the most
+annoying loop to write can break the language even when every common
+case is trivial. Frequency evidence therefore cuts one way only:
+high frequency ranks what must be *effortless*; a shape drawn once is
+a **breadth obligation** — something the language must handle without
+too much pain — never a deprioritization candidate.
+
+Read that way, the surveys yield a second artifact alongside the
+tallies: the singleton hard draws are randomly-harvested members of
+the same set `tough-use-cases-design.md` constructs deliberately.
+Collected as **the breadth set** — nine loops the language must be
+able to express without too much pain, each drawn blind:
+
+1. **The wrap loop** (survey 1, textwrap.py) — variable-rate
+   consumption, mid-walk read *and rewrite* of the output-so-far,
+   truncation break. **No owner**; the sharpest standing challenge.
+2. **The tokenizer-substituter** (survey 2, textual css/parse.py) —
+   variable-rate pull, nested state-dependent sub-loops, keyed
+   collect read back mid-walk. **No owner**; the same challenge from
+   the parsing side.
+3. **The theta kernel** (survey 2, mpmath) — eight-plus registers,
+   cross-references, within-iteration chaining, take-while on carried
+   state. Owner: the register candidates + end-when; the test is
+   whether eight threads stay *legible*, not merely expressible.
+4. **The DP table fill** (survey 2, mpmath gammazeta) — a collect
+   indexed into its own earlier output. **No owner** (the
+   history-indexed collect, finding 2.5).
+5. **The buffer with conditional flush** (survey 1, net/http) —
+   multi-site append, reset entangled with effect ordering. Owner:
+   registers + the custom-flows effect story, jointly; untested
+   jointly.
+6. **The backtracking parser** (survey 1, rdoc markdown) —
+   save/restore cursor; wants the save/restore *pairing* visible.
+   Owner: registers express it; nothing yet makes it legible.
+7. **The event loop** (survey 2, textual input reader) — external
+   source, interrupt, sentinel end, stream out, heartbeat, in seven
+   lines. Owner: the async/FFI inventory — this is its acceptance
+   test in miniature.
+8. **The retry-with-escalation** (survey 2, mpmath bessel) — register
+   + data-driven exit with payload + cache side-walk. Owner:
+   register + end-when + the readout composition.
+9. **The recursive gather** (survey 2, mesa cell) — self-similar
+   descent with per-level merge. Owner: the divide flow /
+   trees-and-recursion.
+
+Six of nine have at least a designed owner to be tested against;
+items 1, 2, and 4 — all three faces of variable-rate consumption and
+the running view — have none. By the 80/20 reading, that cluster is
+where the language's breadth risk currently concentrates, whatever
+the frequency tables say about scans and searches.
 
 ## Next round (updated)
 

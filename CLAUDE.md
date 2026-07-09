@@ -134,8 +134,13 @@ needs contact evidence, draw a seeded random sample of real code
 the current and candidate vocabulary, and let the frequencies
 reweight the agenda. Seeded and documented protocol, no filtering
 for interesting, biases stated with their direction, evidence kept
-separate from decision. Use it frequently — reach for it proactively
-when design discussion is running ahead of evidence.
+separate from decision. One interpretation rule binds all readings:
+frequency is not importance (the 80/20 counterweight) — high
+frequency ranks what must be effortless, while a rare painful shape
+is a breadth obligation, never a deprioritization candidate; the
+most annoying loop to write can break the language even when the
+common cases are trivial. Use the method frequently — reach for it
+proactively when design discussion is running ahead of evidence.
 
 ## Working with the user
 
