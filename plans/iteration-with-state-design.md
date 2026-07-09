@@ -27,8 +27,9 @@
 >   `visual-language-spec.md` and the rail ideas worth keeping in
 >   `iteration-rails-design-notes.md`.
 >
-> Terminology predates the uncollect/collect correction; "close"
-> means collect, "reduce-close" the reduce collect.
+> Terminology predates the uncollect/collect correction; "open"
+> and "opener" mean uncollect, "close" means collect,
+> "reduce-close" the reduce collect.
 
 ## Guiding language philosophy: example first, then generalise
 

@@ -766,7 +766,7 @@ These distinctions are not enforced in the structural representation but are sem
 ### No Time Travel Rule
 
 The representation is designed to support the "no time travel" rule: flow ordering and nesting relationships must be established at construction time. This is why:
-- Join takes both inner flow, outer flow, and value as inputs
+- Join takes both inner flow, outer flow, and value as inputs (binary — one inner flow per node, per the Join section's status note; whether it keeps value ports is open there, and the point here needs only the two flow operands)
 - Commute takes both flows as inputs (it carries no value ports — see the Commute section's reconciliation note)
 - Flow outputs from Join and Commute are new flows, not pass-throughs
 

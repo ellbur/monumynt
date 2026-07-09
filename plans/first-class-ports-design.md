@@ -12,6 +12,12 @@
 > opens. This document collects the accumulated pressures, works
 > out the port-level shape, and stages a migration. Nothing here
 > is implemented.
+>
+> Terminology note (2026-07-09): written the day of the
+> uncollect/collect renaming, this document uses Open/Uncollect
+> and Close/Collect interchangeably — each pair names one node
+> kind. Open/Close match the code's constructors; uncollect and
+> collect are the settled design-level names.
 
 ## The conflation
 

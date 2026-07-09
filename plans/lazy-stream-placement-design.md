@@ -95,6 +95,13 @@ becomes its own stream-derivation cell, chained from its inputs.
 
 None of the three is the answer alone.
 
+*(2026-07-09: overtaken — Shape C, plus memoisation, is now the
+committed baseline, with the lattice analysis below as the
+deferred optimisation pass over it; see "The baseline, revisited"
+in the postscripts, and the status header above. The explosion
+argument here is why the optimisation pass stays committed, not
+why the shape is wrong.)*
+
 ## The principle
 
 For each computation, identify its *consumer set* — the set of
@@ -899,7 +906,12 @@ rework is much cheaper than finding out it after.
   `lazy-stream-join-design.md` works join out as per-close output
   construction — a flatten — and concludes it does not affect
   this algorithm; `lazy-stream-commute-design.md` reaches the
-  same conclusion for commute.)*
+  same conclusion for commute. 2026-07-09: join has since been
+  recast as a binary flow operation, and that document says the
+  phrase "per-close output construction" should now be read as
+  "the join nodes determine the structure the collect's output
+  construction consumes"; it restates the placement-independence
+  conclusion under the correction, so it survives.)*
 
 - **Optimisation of the eager compile.** The placement algorithm
   for eager flows is preserved at `plans/placement-algorithm-notes.md`

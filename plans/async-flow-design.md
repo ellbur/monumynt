@@ -14,7 +14,8 @@ there is a known seam to reopen rather than a blank page. This
 document reopens it.
 
 > Terminology note (2026-07-09): written just before the
-> uncollect/collect correction; "close" throughout means collect.
+> uncollect/collect correction; "open" and "close" throughout mean
+> uncollect and collect.
 
 The compile target is promise-shaped JavaScript, but promises as
 JS defines them have the wrong creation semantics for this
