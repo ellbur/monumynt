@@ -28,10 +28,11 @@ facet, a schema — is legitimate as planning, the way an OCaml
 programmer writes type definitions first because they're a good
 way of documenting what the actual code is hoped to do. What the
 principle rules out is a construct that* requires *the general
-form: everything you can do with general schemas must be doable by
-a concrete-first authoring path — write the concrete thing,
-extract the abstraction after. "Force" in the paragraph above is
-the operative word.)*
+form: everything you can do with general schemas should be doable
+by a concrete-first authoring path — write the concrete thing,
+extract the abstraction after. This is a direction the language
+works toward, not an absolute to be honored at all conceivable
+costs. "Force" in the paragraph above is the operative word.)*
 
 ## Inside-out / cases as values
 

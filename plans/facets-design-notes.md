@@ -216,11 +216,13 @@ downstream of it.
    `language-design-philosophy.md`): example-then-generalise
    constrains *obligation, not option* — it doesn't forbid
    writing general schemas; it means you shouldn't *have* to.
-   Everything doable with general schemas must be doable by a
-   concrete-first authoring path. Design consequence for the
+   Everything doable with general schemas should be doable by a
+   concrete-first authoring path — a direction the language works
+   toward, not an absolute to be honored at all conceivable costs
+   (softened in the same follow-up). Design consequence for the
    facets round: both authoring directions (author-then-attach;
-   extract-from-concrete) are requirements, and extraction is the
-   one the principle guarantees.
+   extract-from-concrete) are wanted, and extraction is the one
+   the principle points at.
 2. **No single theory.** Explicitly recorded: this is a huge,
    open-ended idea that likely manifests in several unrelated
    ways; "you can't just say 'this is what a facet is' and be
