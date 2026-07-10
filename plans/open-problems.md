@@ -109,7 +109,20 @@ snapshot; conflict rules are where within-firing ordering
 resurfaces) mapping onto breadth item 5. jq marks the same pole
 degenerately: effects only at the pipeline's edges — viable for a
 guest tool, not a host language. Structure, not a design; no score
-movement.)*
+movement.)* *(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 5) — the hole acknowledged at
+standards level: the TC39 Signals proposal ships **no effect
+construct** ("effect scheduling is subtle and often ties into
+framework rendering cycles"), stopping exactly at this row. Elm's
+`Cmd` is the second effects-as-collected-values witness, with the
+loop closed through ordinary events (results re-enter as `Msg`s).
+The two shipped output poles — recompute-and-diff (Elm/React) vs
+fine-grained push (Solid) — are both drawable (derived view +
+boundary focused update vs per-var `changes` drains), so the pole
+is per-consumer wiring, not a language commitment. Universal
+effect-ordering disclaimers ("MobX does not guarantee the order")
+are the IO thread's mirror; Elm's ports supply the FFI-boundary
+stance (few, owned, message-shaped). Scores unchanged.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -292,7 +305,18 @@ Scores unchanged.)* *(2026-07-10, later: the XQuery/jq comparison
 witness: jq's `while`/`until`/`repeat`/`recurse(f; cond)` are the
 self-driven source hand-built from recursion plus the comma
 operator; `input`/`inputs` sight the pull-based FFI source
-species. Scores unchanged.)*
+species. Scores unchanged.)* *(2026-07-10, later: the reactive
+comparison (`reactive-comparison.md`, finding 3) — RxJS's four
+flattening strategies are the collect-concurrency menu shipped as
+the async lingua franca: switchMap = interrupt-race, concatMap =
+serial (its unbounded-buffer warning is pacing/backpressure
+sighting six), mergeMap(+max) = bounded/unbounded — and
+**exhaustMap names a species the menu lacks**: drop-newest-while-
+busy, a non-queueing serial; handed to the concurrent collect's
+round. The served flow gains React Query's model as furniture:
+keyed async state with staleness policy (fresh-until, refetch on
+mount/refocus/reconnect), retry-with-backoff, and gc of inactive
+keys. Scores unchanged.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -404,7 +428,11 @@ for first-class functions is recorded as the position the record
 declines — they removed a syntactic obstacle, we decline the
 semantics (the round's brief: the uncollect's virtual value does
 the work of every operand slot without a function being passed).
-Scores unchanged.)*
+Scores unchanged.)* *(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 3) — the policy layer's second
+witness-as-furniture: React Query ships retry/backoff/staleness/
+gc as declarative query config interposed between consumers and
+the async source. Scores unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -526,7 +554,19 @@ compatibility question's cousin), and BQN *removed* its Expand
 primitive in favor of Under — a primitive-count dissolution
 arguing the construct is load-bearing. I 5 / W 3 held: nothing
 worked in our vocabulary, but the remaining list is now a
-worked-round agenda.)*
+worked-round agenda.)* *(2026-07-10, later: the reactive
+comparison (`reactive-comparison.md`, finding 2) — the reactive
+costume: Redux's Immutable Update Patterns page teaches the
+spread pyramid as a core skill (the imperative costume
+institutionalized as documentation — feeds the frequency
+condition without discharging it); Immer's draft-recording adds
+**patches as data** (op/path/value with inverses;
+fork-and-rebase) — the update's natural output is a delta stream;
+Solid's path setters are multi-locus updates by index list,
+range, or predicate. New coupling recorded: in a reactive
+setting, **update loci are invalidation keys** — this row and the
+incremental collections layer are two ends of one pipe. Scores
+unchanged.)*
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -558,6 +598,12 @@ XQuery's `count $rank where $rank <= 3` top-N filters without
 stopping (the language has no end-when; termination is the
 optimizer's mercy), while jq's `limit` genuinely aborts via
 `label`/`break` — a drawn-ish lexical label. Scores unchanged.)*
+*(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 7) — XState's final states
+("can no longer receive any events... can have `output` data,
+which is sent to the parent machine") are the terminator-with-
+payload discharge confirmed from the statechart side. Scores
+unchanged.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -591,7 +637,37 @@ a necessity frontier; pure pull rejected long-term). Open: cutoff
 semantics, `changes`'s stream kind (ties to async's event-source
 retention question), `set`-as-effect, and incremental collections
 — a large, separately-designed layer (`incremental-flow-design.md`
-questions 2–6).
+questions 2–6). *(2026-07-10: the reactive comparison round
+(`reactive-comparison.md`) was this row's evidence round. The core
+is confirmed point for point by the TC39 Signals proposal
+(laziness, memoization, cutoff-with-`equals`, dynamic dependencies
+= switch-join, pull-model glitch-freedom independently derived);
+Elm removed reactive variables entirely (the register-centered
+architecture that replaced them is drawable in existing
+vocabulary — the round's §8). The **necessity frontier is the
+genre's shipped shape**: watched/unwatched lifecycle hooks (TC39,
+Preact), computed suspension (MobX), refCount (RxJS),
+inactive-query GC — registration events at the frontier's edge,
+exactly as the pending-pull derivation predicted; the interior
+algorithm everywhere is **dirty/check/clean** two-grade staleness
+(Reactively's coloring; TC39's ~dirty~/~checked~ states) — an
+intermediate option between the rejected value-free dirty bit and
+push-with-values, adequate at UI scale, recorded as such.
+Liveness and memory are one frontier (watched-holds-alive; the
+ecosystem's chronic undisposed-observer leaks are what no-bare-read
+prevents). Flush-timing knobs (pre/post/sync/custom) are question
+3's generation granularity as per-consumer API; cutoff surfaces as
+a stream operator (`distinctUntilChanged`), per question 2's
+prediction; staleness-as-policy (fresh-until, refetch-on-signal)
+noted at the async boundary. Question 6 (collections) gains its
+shipped shapes: keyed families of vars minted on demand
+(atomFamily, observable.map's absent keys), per-key subscriptions
+as the fan-out answer, hierarchical keys with prefix invalidation
+(provenance's prefix rule in runtime clothes), update deltas as
+data (Immer patches — the focused-update row's loci arriving as
+this row's keys), and the `<For>`/`<Index>` identity-vs-position
+fork as a semantic decision. Scores unchanged — evidence, not
+design; the remaining list is much sharper.)*
 
 **How values cross a barrier — I 2, W 4.**
 *(Was I 4 — one question living in four homes — until the
@@ -683,6 +759,15 @@ method rules in `language-design-philosophy.md`):
   gestures, framing) versus independent-handler-shaped; it would
   also supply or deny the custom-protocol-flows probation its
   second demand; `raku-grammars-comparison.md`, finding 2.)*
+  *(2026-07-10, later: the reactive comparison round added the
+  statechart-shaped question — an entire library category
+  (XState: guards, state-gated events, final states with output)
+  exists because reactive cores lack protocol vocabulary, and Elm
+  re-derives the same structure as the Model-union idiom with
+  model-dependent subscription sets; the probation's second
+  demand now has category-strength documentation behind it, and
+  this sample is what can convert that into the field sighting
+  the probation requires; `reactive-comparison.md`, finding 7.)*
 - **A combinator census**, and larger n where a proportion
   becomes load-bearing.
 - **The saturation frequency question** *(2026-07-10, from the Flix
@@ -874,3 +959,31 @@ the reason.
   decomposition/partiality round. Idiom-library epistemology
   recorded: 707 maintained phrases prove the demands and price
   the encoding.
+- **2026-07-10** (later still) — sixth learning-from-other-languages
+  round (`reactive-comparison.md`: Elm and the JS state libraries —
+  TC39 Signals, MobX, Solid, Vue, Preact, Reactively, RxJS, Redux/
+  Immer, XState, React Query, Recoil — run against a stated brief:
+  the monad-like reactive-variable core is already the incremental
+  flow (verified: TC39 matches the row point for point; Elm
+  removed signals), with seven boundary questions as the round's
+  schedule). No new row; no score movement. Incremental flows: the
+  evidence round (necessity frontier as the genre's shipped shape;
+  watched/unwatched hooks as the derived registration events;
+  dirty/check/clean as the intermediate algorithm; collections
+  layer's shipped shapes — keyed var families, per-key
+  subscription, prefix invalidation, deltas, the
+  identity-vs-position fork). IO/effects: the TC39 punt as
+  standards-level acknowledgment; Elm `Cmd` as second
+  effects-as-data witness; two drawable output poles; ordering
+  disclaimers as the IO thread's mirror. Focused update: the
+  reactive costume plus the loci-are-invalidation-keys coupling.
+  Concurrency: the flattening strategies as the shipped
+  concurrency menu, exhaustMap as a new species, pacing sighting
+  six, React Query as served-flow furniture. Functions: policy
+  layer's second furniture witness. End-when: final-states
+  discharge confirmation. Evidence owed: the UI sample gains the
+  statechart-shaped question (custom-protocol-flows' second
+  demand at category strength, awaiting its field sighting).
+  Clash record led by auto-tracking (dependency graphs inferred
+  from execution traces — the invisible wire at ecosystem scale,
+  with its documented footgun bill).

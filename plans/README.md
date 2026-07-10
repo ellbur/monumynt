@@ -273,6 +273,28 @@ first-implementation convenience, rejected long-term.
   a clash record (tacit composition, inverse inference, shape
   coincidence, the ambient index origin, idiom-recognition
   compilation).
+- [`reactive-comparison.md`](reactive-comparison.md) — sixth
+  learning-from-other-languages round (2026-07-10), the reactive
+  round, run under a stated brief: the universe is Elm plus the
+  JS state libraries, the monad-like reactive-variable core is
+  already the incremental flow (verified — the TC39 Signals
+  proposal matches `incremental-flow-design.md` point for point,
+  and Elm removed signals entirely), and seven boundary questions
+  are the schedule: partial updates, async inputs, vars × events,
+  output to the DOM, liveness, inhomogeneous/protocol events,
+  keyed fan-out. Yield: the necessity frontier confirmed as the
+  genre's shipped shape (watched/unwatched hooks as the derived
+  registration events; dirty/check/clean as the intermediate
+  algorithm), the collections layer's shipped shapes (keyed var
+  families, per-key subscriptions, prefix invalidation, deltas as
+  data, the identity-vs-position fork), the Tier-1 effects hole
+  acknowledged at standards level with Elm's `Cmd` as the second
+  effects-as-data witness, the flattening strategies as the
+  shipped concurrency menu (exhaustMap a new species), the
+  statechart category as custom-protocol-flows' second demand,
+  The Elm Architecture drawn in six existing constructs, and a
+  clash record led by auto-tracking (the invisible wire at
+  ecosystem scale, with its documented footgun bill).
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
