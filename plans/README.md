@@ -54,6 +54,14 @@ first-implementation convenience, rejected long-term.
   [`functions-design.md`](functions-design.md),
   [`custom-flows.md`](custom-flows.md),
   [`configuration-scopes.md`](configuration-scopes.md).
+- [`facets-design-notes.md`](facets-design-notes.md) — recorded
+  intuitions (2026-07-10, deliberately undeveloped): facets as
+  authorable, attachable abstractions — the concrete/schematic
+  gap, the struct → interface → facet ladder, algebras and state
+  machines as code facets, holes without breaking, negative
+  constraints, and the views-not-verification bound. Extends the
+  facets addendum in `tough-use-cases-design.md` (which owns the
+  viewing side) with the attachment side.
 
 ## Representation and checking
 

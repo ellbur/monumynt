@@ -221,7 +221,18 @@ connecting to the served flow) and its everyday face, **the test
 double** ("run a diagram that does IO against fake IO"), which the
 record currently cannot answer at all. Four of nine Effekt case
 studies rest on this capability; testing makes it everyday rather
-than exotic.)*
+than exotic.)* *(2026-07-10, later: the facets half now has a
+recorded statement of intent — `facets-design-notes.md`, from the
+design conversation the test-double finding prompted: facets as
+authorable, attachable abstractions (the struct → interface →
+facet ladder; algebras and state machines as code facets; shared
+facet between production and test code as what makes the test
+double informative), holes without breaking, negative constraints
+with their stated direction of doubt, and the explicit bound that
+facets are views for a human, not verification. Scores unchanged —
+intuitions recorded, nothing worked; the doc's open edge 2 records
+the leaning that a first round should work one manifestation (the
+algebra facet + test double) rather than a general theory.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -448,3 +459,12 @@ the reason.
   product 12 → 16, stays Tier 2). Concurrency row: served flow
   gains the recursive provider + keyed cache demands. IO/effects
   (Tier 1) and end-when (Tier 3): confirmation notes only.
+- **2026-07-10** (later still) — facets: intuitions recorded
+  (`facets-design-notes.md`, from the design conversation prompted
+  by the test-double finding — authorable/attachable facets, holes
+  without breaking, negative constraints, views-not-verification).
+  Functions/reuse/facets row scores unchanged at I 4 / W 4:
+  nothing worked, but the facets half moved from a name in an
+  addendum to a statement of intent with named open edges, and the
+  row now carries the leaning for its first round (one
+  manifestation — the algebra facet + test double).
