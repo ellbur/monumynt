@@ -678,7 +678,19 @@ and `final`) and nothing else.
    concurrent join arrives — the async barrier genuinely
    transports values, and it would be odd for the flatten join
    and the concurrent join to disagree on port shape for no
-   semantic reason.
+   semantic reason. *(2026-07-10: taken up with the other
+   barrier corners in one place —
+   `barrier-value-crossing-design.md`. The lean is confirmed
+   and the oddity dissolves: pass-through is availability
+   (provenance over the barrier's flow law), so the flatten
+   join AND the concurrent join are both flow-only — they
+   agree; race differs for a stated reason (sum barrier, minted
+   per-cell values). The spec's corresponding value ports
+   re-read as the drawn form of availability; this table's
+   race row stands as written, and its discharging-collect row
+   sharpens to one settled-sum port on exactly-one kinds and a
+   (prefix, terminator) pair on many kinds. Leanings prepared
+   for the design conversation, not adopted.)*
 4. **Does commute become binary too?** Recorded by the join
    correction; under this design the answer has a concrete home —
    a Commute node with two flow inputs (the option-ish flow and

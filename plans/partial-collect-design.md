@@ -488,7 +488,15 @@ at implementation time, not silently assumed.
    multiply ports. Decide the two together — the flatten join,
    the concurrent join, race, and the partial collect should
    agree on how values cross a barrier, or differ for stated
-   reasons.
+   reasons. *(2026-07-10: taken up in one place —
+   `barrier-value-crossing-design.md`. The lean: no multi-row
+   node. m value rows are m sibling partial collects over the
+   same cell sets, whose outputs land at the same merged context
+   (containment compares cell sets, computed by walking — node
+   identity never enters) and combine freely, so the
+   two-collects-or-pack dilemma was false; the m-row barrier
+   survives as a drawn/recognized view. Leanings prepared for
+   the design conversation, not adopted.)*
 4. **Merged-flow identity.** Two partial collects over the same
    cells with the same values: distinct flows
    (node-identity), or the same flow (structural)? The same

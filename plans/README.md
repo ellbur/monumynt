@@ -57,6 +57,17 @@ first-implementation convenience, rejected long-term.
   Expr-level port representation dissolving Branch and the wrapper
   stack; the Delay write half; the program as a node set. Staged
   migration; first on the implementation path.
+- [`barrier-value-crossing-design.md`](barrier-value-crossing-design.md)
+  — the one-place answer to how values cross barriers, the question
+  four docs deferred to each other: two mechanisms (availability by
+  provenance; minted ports) plus a co-location criterion. The four
+  corners each answered: Join and the concurrent join stay
+  flow-only; race keeps its per-contender (value, flow) pairs,
+  values-in; no multi-row partial collect — m rows are m sibling
+  collects at one context; the discharge is one settled-sum port on
+  exactly-one kinds, the (prefix, terminator) pair on many kinds.
+  **An exploration round with leanings, not an adopted design** —
+  prepared for the design conversation; five dead ends recorded.
 - [`types-design.md`](types-design.md) — validity without a type
   system: property propagation, drawable witnesses, no search.
 - [`bundle-provenance-design.md`](bundle-provenance-design.md) —

@@ -134,23 +134,13 @@ species menu; `bounded(n)`-as-resource and serial-as-default are
 field-confirmed; the concurrent collect's lifecycle outputs gained
 a bug class they would prevent.)*
 
-**How values cross a barrier — I 4, W 4.**
-One question living in four homes, which the docs themselves say
-to decide together: `partial-collect-design.md` question 3
-(multi-row value correspondence), `first-class-ports-design.md`
-question 3 (Join value pass-through ports), race's per-contender
-outputs, and the discharging collect's port structure
-(`async-flow-design.md`). The no-bottlenecks principle rides on
-the answer; deciding it in one place unblocks a corner of each of
-those designs.
-
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
 discharge at a whole-flow collect — `async-flow-design.md`), but
 payload-type composition is unexamined, "do bodies raise?" is
 flagged genuinely open, the discharging collect's ports fold into
-the barrier question above, and the option/async convergence is
-sharpened but undecided. End-when's readout composition leans
+the barrier-crossing row (Tier 3 — now worked with leanings), and
+the option/async convergence is sharpened but undecided. End-when's readout composition leans
 entirely on discharge, so adoption pressure now arrives from the
 everyday side too.
 
@@ -229,6 +219,22 @@ retention question), `set`-as-effect, and incremental collections
 — a large, separately-designed layer (`incremental-flow-design.md`
 questions 2–6).
 
+**How values cross a barrier — I 2, W 4.**
+*(Was I 4 — one question living in four homes — until the
+2026-07-10 round, `barrier-value-crossing-design.md`: crossing
+split into availability (provenance over the barrier's flow law;
+no pass-through value ports anywhere) and minted ports, with a
+co-location criterion for which mints share a node. The four
+corners each answered with leanings: Join and the concurrent join
+flow-only; race's per-contender (value, flow) pairs confirmed,
+values-in; no multi-row partial collect — m rows are m sibling
+collects at one context; the discharge one settled-sum port on
+exactly-one kinds, the (prefix, terminator) pair on many kinds;
+five dead ends recorded.)* Remaining: the adoption conversation,
+the spec-side reconciliation (its Join's value ports re-read as
+drawn availability), and the concurrent join × Cross unification
+question it strengthened.
+
 **Products: the unexamined interactions — I 3, W 3.**
 Cross itself is worked (`product-flows-design.md`); unexamined:
 n-ary products against a concrete three-list example, join on a
@@ -303,3 +309,11 @@ the reason.
   effects, and cancellation: scores unchanged at I 4 / W 5; the
   cancellation half of W is now measured (~8 of 30 sites), not only
   argued.
+- **2026-07-10** (later) — how values cross a barrier: I 4 → 2
+  (round written, `barrier-value-crossing-design.md`; availability
+  vs minted ports, the co-location criterion, all four corners
+  answered with leanings), W 4 unchanged; product 16 → 8, moved
+  Tier 2 → Tier 3. The adoption conversation and the spec
+  reconciliation remain; the race barrier's own semantics round
+  (concurrency row) is unblocked at its port corner but otherwise
+  still owed.

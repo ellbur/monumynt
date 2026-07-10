@@ -522,7 +522,17 @@ the other side of the recover-vs-end boundary.
   (prefix + terminator) is more port structure than current
   close nodes carry — the same pressure as open question 5's
   race barrier, strengthening the first-class-port case from a
-  second direction.
+  second direction. *(2026-07-10: worked with the other barrier
+  corners in one place — `barrier-value-crossing-design.md`.
+  The lean: on exactly-one kinds the discharge is one value
+  output, the settled sum, exactly as this section argues; on
+  many kinds it is the (prefix, terminator) pair on one
+  collect — two ports rather than a packed pair (product
+  bottleneck) or two sibling collects (the standalone total
+  fold would be an error-swallowing primitive). Race's
+  per-contender (value, flow) pairs are derived there from the
+  same criterion. Leanings prepared for the design
+  conversation, not adopted.)*
 - **Option convergence.** With failure in the flow, the failable
   async and a "later result" are the same thing, and option is
   the payload-less *now* row — open question 6's convergence,
