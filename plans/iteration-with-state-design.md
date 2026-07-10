@@ -2002,4 +2002,10 @@ readout look like the same port — either a unification or a
 coincidence to check. The surveys also put three sightings behind the
 running/history-indexed view of a collect (read-whole, read-by-index,
 read-by-key), which sits unowned between multi-close and the register
-designs.
+designs. *(2026-07-09, later: worked —
+`variable-rate-consumption-design.md` proposes the running view as
+the state port of the collect's derived augment form, i.e. this
+document's own "second accumulator on a sum" mechanism made
+everyday. If adopted, it makes the derived augment form load-bearing
+for ordinary programs — pressure on the derived-view machinery, not
+a thumb on the scale between the candidates.)*

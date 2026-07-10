@@ -784,6 +784,13 @@ Ranked by independent demand across the five use cases:
    rest of this family, and taking up open question 5's
    degenerate-case question with a leaning toward separate
    constructs sharing verdict vocabulary. Nothing adopted.)*
+   *(Also 2026-07-09: data-dependent take now has its round too —
+   `variable-rate-consumption-design.md` — reframing "advance how
+   far" as boundary placement: split-when, a segmenting
+   (subject, boundary) flow operation yielding a nested flow, with
+   the count entering as data (a register the boundary reads)
+   rather than as a verdict. The family's remaining unworked
+   member is the two-flow decision-driven merge. Nothing adopted.)*
 5. **The divide flow** — the link transformation, tree-shaped: a
    self-similar flow with base/divide alts, child-result ports
    at the collect, catalog divisions plus a warned escape hatch.
@@ -868,6 +875,14 @@ document's motivating programs actually had their bugs.
    single-input with advance-counts; is there one primitive
    (chooser over N heads returning which-advances) or a small
    family? And is end-when its degenerate case or separate?
+   *(2026-07-09: both halves now have worked leanings. End-when
+   stands alone (`end-when-design.md`); advance-counts dissolves
+   into boundary placement (`variable-rate-consumption-design.md`
+   — split-when owns the single-input case, and the leaning is
+   no N-head chooser at the surface: the chooser is the family's
+   shared lowering shape, the members share verdict/operand
+   vocabulary). The two-flow merge keeps its chooser sketch
+   pending its own round. Nothing adopted.)*
 6. **Keyed-lane key semantics.** Equality of keys (structural?
    user equivalence, like cutoff?); unbounded key spaces (a lane
    per key ever seen is a leak — lanes must be collectable when

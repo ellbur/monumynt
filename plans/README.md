@@ -86,6 +86,13 @@ first-implementation convenience, rejected long-term.
   end of the doc: agreement exactly where the merged form is
   well-formed (one bundle — a level-1 recognition rule), meaningful
   stacking order beyond it.
+- [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
+  — the breadth set's ownerless cluster worked: "advance how far"
+  reframed as boundary placement (split-when, a segmenting binary
+  flow operation) and the running view of a collect answered as the
+  state port of the collect's derived augment form. **An exploration
+  round with leanings, not an adopted design** — prepared for the
+  design conversation; three dead ends recorded.
 
 ## Flow kinds beyond lists
 
