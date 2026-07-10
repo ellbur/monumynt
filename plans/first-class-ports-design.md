@@ -613,6 +613,14 @@ Whether the latent form wants that arrangement is that
 candidate's call, and nothing here makes it; but the either/or as
 recorded is no longer exhaustive.
 
+*(2026-07-10: the latent form took the arrangement — the
+iteration-state equivalence round pins exactly this, shows the
+pinning is forced rather than chosen, and identifies the feedback
+collect with the write half; on that pinning the two candidates
+are proven result-level equivalent, one register pair under two
+drawings. See `iteration-with-state-design.md`, "The equivalence,
+worked: one register, two drawings.")*
+
 ### Against the philosophy, briefly
 
 Inside-out: unchanged — no scope is introduced; `prev` and

@@ -28,10 +28,14 @@ first-implementation convenience, rejected long-term.
 ## The biggest open area
 
 - **[`iteration-with-state-design.md`](iteration-with-state-design.md)**
-  — loop-carried state. Two live candidates deliberately side by side
-  (Delay in port form; the latent-flow augmented uncollect), plus a
-  conjectured fourth option (the visible state thread). Undecided.
-  The bar: easy for beginners *and* flexible enough for complex code.
+  — loop-carried state. The two live candidates (Delay in port form;
+  the latent-flow augmented uncollect) are now proven **result-level
+  equivalent** (2026-07-10 round, "The equivalence, worked": one
+  register-pair construct under two drawings, the feedback collect
+  pinned as the write half, the thread as a third drawing), so the
+  open decision moved from semantics to *surface*: which drawings
+  exist and which is primary. Still undecided. The bar: easy for
+  beginners *and* flexible enough for complex code.
   The reader's guide at the top gives the current state.
   Companions: [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
   (the redesigned rail; rail ideas deliberately kept) and the Delay

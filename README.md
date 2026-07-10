@@ -101,12 +101,14 @@ None committed to.
   first-class-ports migration step 2.
 - **`Aggregate`/`Disaggregate`** for struct construction and field
   projection.
-- **Loop-carried state** — implement one of the two candidates in
-  `plans/iteration-with-state-design.md`. The back-edge
-  construction both candidates need is worked out in
-  `plans/first-class-ports-design.md` ("the write half is a
-  node"): the object graph stays a DAG, and the pair supplies the
-  previously missing `final` readout.
+- **Loop-carried state** — implement the register pair from
+  `plans/iteration-with-state-design.md`. (The 2026-07-10
+  equivalence round there showed the two candidates are one
+  construct at the result level, so the pair serves both; the
+  authoring-surface choice stays open.) The back-edge construction
+  is worked out in `plans/first-class-ports-design.md` ("the write
+  half is a node"): the object graph stays a DAG, and the pair
+  supplies the previously missing `final` readout.
 - **Diagrams as the top-level structure** — the spec's `Diagram`
   type, compiling to a JS function per diagram. Now has a forcing
   argument beyond spec fidelity: a Delay write half can be

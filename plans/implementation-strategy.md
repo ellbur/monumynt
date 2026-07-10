@@ -203,6 +203,16 @@ rides with this round (it needs the loop skeleton and brings the
 operator-identity registry, which must then get its concrete
 form: registry vs node property).
 
+*(2026-07-10: the risk shrank — the equivalence round
+(`iteration-with-state-design.md`, "The equivalence, worked")
+pinned the latent form's feedback collect as the write half and
+proved the two candidates result-level equivalent: one register
+pair under two drawings. Implementing the pair as substrate no
+longer puts a thumb on the scale, because the pair *is* both
+candidates' result form; what substrate gravity can still
+prejudge is the surface question (which drawings, which primary),
+which stays open exactly as the record wants.)*
+
 ### `transformation-levels-design.md` — multi-level
 
 The compiler-facing slice is small and lands with the first
