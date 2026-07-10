@@ -1,8 +1,9 @@
 # Iteration With State
 
-> **Reader's guide (2026-07-09).** This is the record of the biggest
-> design area still to get right. The current state, for a reader who
-> doesn't need the whole conversation:
+> **Reader's guide (2026-07-09; equivalence round appended
+> 2026-07-10).** This is the record of the biggest design area still
+> to get right. The current state, for a reader who doesn't need the
+> whole conversation:
 >
 > - **Two live candidates, deliberately side by side** (§"Two live
 >   candidates, kept side-by-side"): the **Delay node in port form**
@@ -11,6 +12,15 @@
 >   Neither is chosen. The adopt-one/adopt-both question and the
 >   conjectured **visible state thread** (§"A fourth option") are open
 >   (§"What is still unresolved").
+> - **The result-level equivalence is now worked** (2026-07-10,
+>   §"The equivalence, worked: one register, two drawings"): with
+>   the latent form's feedback collect pinned — forced, not chosen —
+>   as the write half, the two candidates are one construct at the
+>   result level (the register pair) under two drawings; the
+>   productivity check transfers verbatim and holds by construction
+>   in the stored form. What remains open moves from semantics to
+>   *surface*: which drawings exist and which is primary — the
+>   beginner-bar conversation, unchanged.
 > - **The bar for a decision** (design review, 2026-07-09): designs
 >   that technically work are easy to produce; what is needed is a
 >   design both *easy for beginners to understand* and *flexible
@@ -1132,6 +1142,13 @@ with the iteration variable woven in. Exposing the accumulator as a
 downstream value is then a *separate*, ordinary collect on that modified
 flow.
 
+*(2026-07-10: pinned, and more precisely — the combined flow comes
+out of the **uncollect**, and the feedback collect outputs the
+**final value**; the pinning is forced, not chosen, and "expose via
+an ordinary collect on the modified flow" reads out the running
+history, not the total — the total is the feedback collect's own
+output. See "The equivalence, worked: one register, two drawings".)*
+
 ### Worked example: two independent accumulators, concretely
 
 Starting program (cursor at `sum`):
@@ -1366,6 +1383,10 @@ decide between them.
   cursor-as-feedback reading the result graph may stay acyclic by
   construction — but its feedback-collect mechanic is not yet pinned
   down, and it has no worked answer to non-productive configurations.
+  *(2026-07-10: this difference is dissolved — the feedback collect is
+  pinned as the write half, both stored forms are DAGs
+  unconditionally, and the productivity check transfers verbatim; see
+  "The equivalence, worked: one register, two drawings".)*
 - **Reading of the inside-out principle.** The port form claims a full
   pass: `prev` is a port like the list element, no interior/exterior
   difference at all. The latent form concedes that the cut node *is*
@@ -1586,6 +1607,13 @@ through the loop**, rather than merely infer it. This is developed in
   `transformation-levels-design.md`) rather than a design fork, and the
   productivity check transfers to the latent form directly. Working
   this equivalence out is the most promising next step.
+
+*(2026-07-10: taken up — "The equivalence, worked: one register, two
+drawings", below. All three deciders land: the feedback mechanic has
+its clean form (it is the write half), compile experience stops
+discriminating (one backend consuming the pair serves both surfaces),
+and the third bullet's conjecture is confirmed — the choice dissolves
+into the transformation-level/result-level distinction as predicted.)*
 
 ---
 
@@ -1857,6 +1885,299 @@ the projection that keeps its structure legible.
   than a new primitive — which is the cheapest version of it that
   still delivers the visible threading.
 
+---
+
+## The equivalence, worked: one register, two drawings (2026-07-10)
+
+> **An exploration round with a worked correspondence and leanings,
+> not an adopted design** — prepared for the design conversation.
+> This takes up the step "What would decide" (above) named as the
+> most promising: whether the port form's Delay is exactly the
+> result-level structure the latent-flow transformation lays down.
+> The worked answer: **yes — once the latent form's undetermined
+> pieces are pinned, and the pinning turns out to be forced rather
+> than chosen.** At the result level the two live candidates are one
+> construct — the register pair — under two drawings, and the open
+> decision moves from semantics to surface. Nothing here chooses the
+> surface; the bar from the 2026-07-09 review (easy for beginners
+> *and* flexible, with the +1 ramp between) governs that
+> conversation, which remains open. Four dead ends recorded at the
+> end.
+
+### Pinning the feedback collect: it is the write half
+
+The latent form's design-shaped residue was (a) cursor vs explicit
+feedback wire, (b) the concrete form of the feedback collect, and
+(c) the stacking rule — plus the sharpened either/or of "which side
+of the feedback collect the combined flow comes out of." The write
+half worked out in `first-class-ports-design.md` ("The Delay
+back-edge: the write half is a node") answers (b) by
+identification, and the identification is forced from three
+directions at once:
+
+- **The collect must have an output.** The recorded position on
+  the terminal stateful-collect stands, full stop: a feedback node
+  must have an output. So "combined flow out of the uncollect,
+  feedback collect output-less" is not available.
+- **The combined flow cannot be that output.** If the combined
+  flow comes out of the feedback collect, cross-referencing
+  accumulators cycle among the augmentations ("The cross-reference
+  cycle does not go away", above).
+- **The register still owes exactly one value.** Without a
+  dedicated exit, the latent form's only readout of a fold's
+  *total* is "collect the state port and take the last element" —
+  which materialises the whole history and gets the empty case
+  wrong (zero firings must yield the seed; the collected list is
+  empty). The missing value is the final value: the last step, or
+  the seed if nothing fired.
+
+One arrangement satisfies all three, and it is the write half's:
+
+> **The pinned form.** The augmented uncollect takes `seed` (value,
+> from the cut wire's producer) and `src` (flow), and outputs the
+> `state` port *and the combined flow*. The feedback collect is the
+> write half: it holds the pairing reference to its augmented
+> uncollect and the `step` wire, and outputs the **final value**.
+
+Residue (a) then dissolves as a level confusion rather than a
+fork. At the result level the feedback collect always holds an
+explicit `step` wire — it is an input port; there is no "cursor
+variant" of the structure. Cursor-as-feedback is an *authoring
+gesture*: it fills that port with the current cursor at generalize
+time. The out-of-order-generalize worry was a worry about the
+gesture's applicability, not about the structure — many authoring
+paths, one reading (`transformation-levels-design.md`).
+
+### The correspondence
+
+With the pinned form on the table, put the two candidates side by
+side. The pair's port signature (`first-class-ports-design.md`)
+transposed Open/Close to the register; the latent form's two nodes
+now carry the same four anchors:
+
+| register anchor | port form (the pair) | latent form (pinned) |
+|---|---|---|
+| outside in | read half `init` | uncollect `seed` |
+| per-iteration out | read half `prev` | uncollect `state` |
+| per-iteration in | write half `step` | feedback collect `step` |
+| outside out | write half `final` | feedback collect `final` |
+| the iteration-boundary crossing | pairing, write → read | pairing, collect → uncollect |
+
+The residue — everything not in the table — is exactly two items:
+the latent uncollect *consumes* the source flow (`src` in,
+combined flow out) where the read half *references* it; and the
+combined flow carries pass-through ports (`element`, earlier
+states) that the port form never draws.
+
+### The residue is drawing, not semantics
+
+**The lockstep lemma.** The augmentation adds no firings and
+removes none: the combined flow fires exactly when `src` fires,
+one for one — the (seed, state, step, final) machinery contributes
+values to firings, never firings. Two corollaries. First,
+"list-with-state" is not a flow kind: the combined flow's kind is
+`src`'s kind, its collects behave as `src`'s collects, and the
+kinds table is untouched. Second, every flow in an augmentation
+chain — the raw source and each combined flow — has identical
+firings, which is what makes the erasures below safe.
+
+**The pass-through ports are availability.** The barrier-crossing
+round (`barrier-value-crossing-design.md`) re-read pass-through
+value ports everywhere as *availability by provenance*: a value
+readable in a context is readable there without being re-exported
+through each node its flow passes through. The combined flow's
+`element` and earlier-state pass-throughs are exactly that — drawn
+availability, not structure. What the augmentation genuinely
+*mints* is `state` (a new per-firing value not present upstream)
+and, at the collect, `final` — and the co-location criterion
+agrees with the pair's grain: each mint is obtainable by a
+complete construct of its own (the read's tap; the write's exit),
+so they sit on separate nodes.
+
+**Stack order and siblinghood are inert.** The conversion analysis
+established that stack order among augmentations carries no
+meaning (every state read is a previous-iteration read). The two
+corollaries above extend the erasure: whether a second
+accumulator's uncollect takes the *combined* flow as `src`
+(stacked) or the *raw* flow (sibling) is equally inert — lockstep
+is guaranteed by firings, and joint readability of the states is
+availability, not port plumbing. So the stacking rule (residue
+(c)) is confirmed as a composition and simultaneously demoted: it
+is a drawn convention, not load-bearing structure. This also
+softens a listed cost of option 2 ("openers grow; the 'same'
+logical iteration exists in several versions"): the chain of
+combined flows is inert drawn structure over one quotient, the
+same way the lowering's n! stack orders were.
+
+### The theorem
+
+> **Result-level equivalence.** Over the pinned form, recognition
+> (augment → pair) and lowering (pair → augment) are total;
+> recognition is canonical; lowering is a section of it up to
+> inert drawn structure (stack order, siblinghood, pass-through
+> ports); and both preserve the program's meaning.
+
+The meaning-preservation half needs no new semantics, because both
+forms already share their compile target — the register core from
+"Coexistence without equivalence": init-before, read-at-top,
+write-at-bottom, final-after, per firing of the (one, shared)
+flow. The correspondence is a bijection on the four anchors that
+preserves every wire into and out of them, so the two forms put
+the same values through the same register at the same firings, by
+induction on firings; the empty case is grounded identically
+(`final` = the seed when nothing fired); and the total comes out
+of the corresponding port on both sides. What the earlier
+conversion section established structurally (Delay is the
+quotient; recognition canonical, lowering choice-laden but inert)
+is untouched — this round adds the pinning that makes the collect
+halves correspond, and the erasure arguments that extend "inert"
+from stack order to the whole residue.
+
+**The productivity check transfers verbatim.** Read "the Delay's
+`step → prev` crossing" as "the pairing edge, feedback collect →
+augmented uncollect" and the condition — every cycle passes
+through a crossing; equivalently, deleting the crossings leaves
+the graph acyclic — is the latent form's cycle story, word for
+word. The open item "what does a non-productive configuration even
+look like in that form" has the same answer as in the port form: a
+cycle that avoids every pairing.
+
+**A sharpening: in the stored form, the check is a theorem.** Both
+forms' Expr representation is immutable and bottom-up, so the
+object graph is a DAG unconditionally (the write-half
+construction; the pinned collect is built the same way). In the
+computation graph, every ordinary data edge runs *against* an
+object pointer (the consumer holds the producer), and the only
+data edges running *with* an object pointer are the pairings (the
+write holds its read; the collect holds its uncollect). A cycle
+built of reversed-DAG edges alone is impossible, so every
+computation cycle passes through a pairing — which is precisely
+the productivity condition. Non-productive programs are therefore
+unrepresentable in the stored form; the check's real subject is
+any surface with mutable wiring (the diagram editor, where
+`x = x + 1` is drawable) and any import path. It stays in the
+well-formedness family, with its enforcement point now
+identified. (The write-count check, by contrast, does *not*
+dissolve: exactly one write per read transfers to exactly one
+feedback collect per augmentation and remains a counting check in
+both forms.)
+
+**The one genuine asymmetry: the self-driven corner.** A link with
+no external source is, in the latent form, an uncollect with no
+`src` — a node that *mints* the self-driven flow. The port form
+has no counterpart: its Delay "references its flow," which
+presupposes a flow-minting node the record never names — the same
+hole the translation exercise hit from the text side ("repetition
+without a source has no opener"; `translation-exercise.md`,
+finding 3). So in this corner the latent form is not equivalent to
+the port form; it is *ahead* of it, by one node. The equivalence
+holds once the port form borrows that node — a bare self-driven
+opener whose only content is the flow mint, with the reads
+referencing it — and the borrow is something the port form needs
+anyway for the corner to be authorable at all. (`final` on a
+self-driven flow is never available; that residue is shared by
+both forms and stays with the async/stream rounds, per
+`first-class-ports-design.md`.)
+
+**The standing caveat.** The quotient holds because nothing
+sequences state updates within a firing — every crossing is a
+whole-iteration delay. A future feature that orders updates within
+a firing would make stack order meaningful and break the erasures
+(already recorded in the conversion section; unchanged). The
+survey evidence (sixty loops, every register one-writeback;
+within-iteration chaining expressed as ordinary value wires) is
+comfort, not proof.
+
+### What this decides, and what it deliberately does not
+
+The three deciders recorded under "What would decide" each land:
+
+1. **The feedback mechanic** has a clean concrete form — it is the
+   write half. So the port form does not win by default; the forms
+   merge instead. And *both* avoid the non-DAG representation: the
+   cycle was never in the stored form on either side.
+2. **Compile experience** stops discriminating. "Generalize Open
+   and add a feedback-collect consumer" and "accept the pair plus
+   a productivity check" name one backend: a compiler consuming
+   the pair (with the check free at this level) serves both
+   surfaces.
+3. **They may be the same thing** — confirmed as conjectured, with
+   the dissolution exactly where that bullet predicted: the choice
+   is a transformation-level/result-level distinction, not a
+   design fork.
+
+Consequences for the three options, and the fourth:
+
+- **The adopt-one/adopt-both question is reframed.** At the result
+  level there is nothing to adopt-one-of: the language has one
+  iteration-state construct, the register pair. Option 3's
+  headline cost — "the coexistence must be defined, or it will be
+  accidental" — collapses exactly as its balance paragraph
+  anticipated ("option 3's cost collapses if the equivalence
+  holds"). "Two compile paths, two well-formedness stories" was
+  double-counted: there is one of each. One-obvious-way is
+  satisfied at the reading level — many drawings, one reading —
+  which is the fifth principle's many-paths/few-readings corollary
+  doing exactly its job.
+- **The stored form: store the pair.** The quotient analysis
+  nominated the Delay side as the program of record; the erasure
+  arguments strengthen it (the augmented drawing carries *only*
+  inert extras). The augmented flow becomes a derived view over
+  the stored pair — machinery that is not hypothetical but already
+  load-bearing: reduce-close's derived augment form and the
+  running view (`variable-rate-consumption-design.md`) are that
+  view in use.
+- **The fourth option becomes literal.** "Store the Delay
+  quotient, render the thread, derive the flow view" was the
+  thread's cheapest version; the equivalence grounds it end to
+  end. One construct, three drawings: the point (the Delay glyph),
+  the flow (the augmented opener), the thread (the path with all
+  four anchors — which the pair, unlike the one-node contraction,
+  fully carries).
+
+What this round deliberately does not decide: **the surface.**
+Which drawings exist, which is primary, what a beginner meets
+first — that is the bar from the 2026-07-09 review, and it is
+untouched. The RTL and ST gestalt critiques survive intact,
+sharpened if anything: they can no longer be dodged by "picking
+the other candidate," because both attach to drawings of the same
+stored construct. The leaning this round leaves for that
+conversation: conduct it as "which projections of the thread do we
+draw, and when does the editor switch projection" — with the
+equivalence guaranteeing that no choice of drawing forecloses any
+semantics.
+
+### Dead ends (this round)
+
+1. **Combined flow out of the feedback collect** — already
+   recorded as one horn of the either/or; now dead for a second
+   reason: it is the arrangement under which the equivalence
+   *fails* (the augmentations acquire cycles the pair form does
+   not have). Do not revisit.
+2. **"List-with-state" as a flow kind.** Dies on the lockstep
+   lemma: the combined flow has no firings of its own and no
+   collect behaviour of its own — a kind with no kind content —
+   and it would fork every row of the kinds table into a stateful
+   twin. State is ports on a flow, never a kind of flow.
+3. **Read-half-as-opener** (identifying the Delay read with an
+   uncollect even when an external source exists, to make the two
+   forms coincide node-for-node with no residue). Dies because it
+   makes each accumulator re-open the flow: stacking or
+   siblinghood becomes structural rather than inert, destroying
+   exactly the quotient property the by-reference tie buys. The
+   latent form escapes the same trap only because its combined
+   flows were shown inert — the same fact read from the other
+   side. (The self-driven corner is the one place read-as-opener
+   is right, because there the flow must be minted by something.)
+4. **Dissolving the write-count check through the correspondence**
+   (hoping "exactly one write per read" would become
+   by-construction on the latent side, the way productivity did).
+   It does not: the counting check transfers unchanged (exactly
+   one feedback collect per augmentation) and remains a quotient
+   constraint in both forms. Invariant, not eliminable — and under
+   the thread-port spelling it is wire linearity in both forms,
+   which is the cheapest it gets.
+
 ## What is still unresolved
 
 This is a work in progress. The following are areas that need further
@@ -1892,6 +2213,12 @@ kept side-by-side (see "Two live candidates, kept side-by-side"):
   variable without closing the outer flow; (c) confirming the stacking
   rule (each generalize takes the current combined flow as `src`) is
   the right composition for arbitrary numbers of accumulators.
+  *(2026-07-10: all three worked — (b) the feedback collect is the
+  write half, pinned and forced; (a) cursor-as-feedback is an
+  authoring gesture over an always-explicit step wire; (c) the
+  stacking rule is confirmed as a composition and demoted to inert
+  drawn structure. See "The equivalence, worked: one register, two
+  drawings".)*
 
 Four ways forward exist — adopt the Delay node, adopt augmented flows,
 keep both with the user choosing per scenario ("The three options and
@@ -1907,6 +2234,15 @@ forms, so acyclicity cannot be the deciding criterion. The thread
 proposal is currently the most promising direction because it answers
 both recorded gestalt critiques (RTL-point and ST-cell) while reusing
 the two candidates as its degradations.
+
+*(2026-07-10: the fork is dissolved at the result level — the
+equivalence round proved the two candidates are one construct, the
+register pair, under two drawings, with the pinned feedback collect
+being the write half. The four ways forward collapse to one open
+decision: the surface — which drawings exist and which is primary —
+with the thread now literally "one construct, three drawings." The
+beginner-bar conversation is what remains. See "The equivalence,
+worked: one register, two drawings".)*
 
 **How the link relates to its flow.** Resolved at the structural level,
 in both candidates: the link is always explicitly tied to a specific
@@ -1935,7 +2271,12 @@ crossing). The latent-flow candidate has no worked cycle story yet:
 under cursor-as-feedback its result graph may stay acyclic by
 construction, but whether the productivity condition transfers — and
 what a non-productive configuration even looks like in that form — is
-open.
+open. *(2026-07-10: no longer — the condition transfers verbatim with
+the pairing edge feedback-collect → uncollect read as the crossing; a
+non-productive configuration is a cycle avoiding every pairing; and
+in the stored form of either candidate the condition holds by
+construction, so the check's subject is the mutable drawn surface.
+See "The equivalence, worked: one register, two drawings".)*
 
 **Non-homogeneous iteration as a separate problem.** What if different
 iterations behave differently — not just first vs. subsequent, but
@@ -1969,7 +2310,11 @@ exhaustive — the feedback collect's output can be the final value
 rather than the combined flow, dissolving the terminal-node horn
 while the combined flow comes out of the uncollect with no cycle.
 See the crossover note in `first-class-ports-design.md`, "The Delay
-back-edge.")*
+back-edge.")* *(2026-07-10: settled that way — combined flow out of
+the uncollect, final value out of the feedback collect; the
+equivalence round shows the pinning is forced by three standing
+positions at once, and neither discomfort survives it. See "The
+equivalence, worked: one register, two drawings".)*
 
 **The state thread's open points.** Whether one-writeback-per-crossing
 survives real loops (conditional carry, multi-site update — test

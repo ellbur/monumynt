@@ -88,22 +88,31 @@ effects simply unwritable (`translation-exercise.md`, finding 1:
 bodies-raise / lightweight failure surfaced as the same row's
 second concrete demand (its finding 2).)*
 
-**Loop-carried state: the candidate decision — I 4, W 5.**
-The record's self-declared biggest open area
-(`iteration-with-state-design.md`; reader's guide at the top). Two
-live candidates deliberately side by side, but the latent form's
-feedback collect has "no pinned concrete form," the Delay/latent
-equivalence is unproven (named there as the most promising next
-step), the visible state thread is a conjecture, and operator
-identities for reduce-close are unattached (three hand-rolled
-monoid folds in the surveys press on this). W = 5: ~23% of
-sampled loops carry state, dominant in numerics;
-`implementation-strategy.md` flags the substrate choice as its
-single riskiest proposal. Companions:
-`first-class-ports-design.md` (the Delay pair),
-`iteration-rails-design-notes.md`.
-
 ## Tier 2 — big areas with partial designs (≈ 12–16)
+
+**Loop-carried state: the surface decision — I 3, W 5.**
+*(Was "the candidate decision", I 4, Tier 1 — the record's
+self-declared biggest open area — until the 2026-07-10 equivalence
+round, `iteration-with-state-design.md`, "The equivalence, worked":
+the latent form's feedback collect pinned as the write half (forced
+by three standing positions at once), the two live candidates
+proven result-level equivalent — one register-pair construct under
+two drawings — with the productivity check transferring verbatim
+and holding by construction in the stored form, and the
+stack-order/siblinghood/pass-through residue shown inert.)*
+Remaining: the decision conversation itself, reframed from "which
+semantics" to "which drawings exist and which is primary" — the
+beginner bar and the RTL/ST gestalt critiques attach to renderings,
+and the thread's rendering questions live here; the self-driven
+source opener the port form must borrow (shared with the
+concurrency row's source-opener item); operator identities for
+reduce-close, unattached (three hand-rolled monoid folds in the
+surveys press on this; jointly with the collect family's spelling
+round, Tier 4). W = 5 unchanged: ~23% of sampled loops carry
+state, dominant in numerics; `implementation-strategy.md`'s
+substrate proposal is de-risked but still a flagged decision.
+Companions: `first-class-ports-design.md` (the Delay pair),
+`iteration-rails-design-notes.md`.
 
 **Variable-rate consumption and the running view of a collect —
 I 3, W 4.**
@@ -375,3 +384,12 @@ the reason.
   candidates with pressure: window(k) (strongest evidence yet),
   the collect family's joint spelling-and-identity round, entry
   opens, zip (a note, not a demand).
+- **2026-07-10** (later still) — loop-carried state: I 4 → 3 (the
+  row's named most-promising step worked — the Delay/latent
+  equivalence proven at result level, with the feedback collect
+  pinned as the write half; `iteration-with-state-design.md`, "The
+  equivalence, worked"), W 5 unchanged; product 20 → 15, moved
+  Tier 1 → Tier 2 and renamed "the candidate decision" → "the
+  surface decision." The decision conversation remains, reframed
+  as a surface choice; operator identities and the self-driven
+  source opener (shared with the concurrency row) remain.
