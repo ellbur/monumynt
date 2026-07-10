@@ -235,6 +235,26 @@ first-implementation convenience, rejected long-term.
   art for recursive shape checking, and a clash record (dynamic
   handler reach, continuations as data, unification by name
   coincidence, type algebra as the safety story).
+- [`xquery-jq-comparison.md`](xquery-jq-comparison.md) — fourth
+  learning-from-other-languages round (2026-07-10), the dataflow
+  round: the family's two shipped relatives — XQuery's
+  FLWOR/windowing/grouping machinery, use cases, and Update
+  Facility; jq's manual and community cookbook — read against the
+  record, with the reading-rule flip for close relatives stated
+  (the risk is mistaking familiarity for validation; read hardest
+  where they strain). Yield: one new open problem (focused update
+  — transform selected loci of a nested value, preserving the
+  rest), the effects row's first structural prior art (the
+  pending update list — effects as collected values applied at a
+  snapshot barrier), the window clause as split-when's
+  confirmation sweep with three new pieces (neighborhood bindings
+  vs the destination knob, the unterminated-final-segment bit,
+  gap-tolerant segmentation), the keyed collect's group-as-flows
+  primary form, the shipped running view (`foreach`), a fifth
+  source-opener witness, and a clash record led by the
+  anti-lesson: implicit flattening and the single-context-value
+  bottleneck are the two costs the record's explicit-join,
+  multi-wire core exists to avoid.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

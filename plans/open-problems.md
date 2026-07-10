@@ -96,7 +96,20 @@ witness from the Flix comparison (`flix-comparison.md`, finding 3)
 — purity there is the typed mirror of drawn effects, every example
 interleaves effects, and `spawn @ region` (task lifetime bounded by
 a drawn scope) is mainstream confirmation for the cancellation
-half. Confirmation only; no score movement.)*
+half. Confirmation only; no score movement.)* *(2026-07-10, later:
+the XQuery/jq comparison (`xquery-jq-comparison.md`, finding 8)
+handed the row its **first structural prior art** rather than
+another confirmation — XQuery's Update Facility answers per-firing
+effects by reifying them: a pending update list (an unordered
+collection of update primitives, gathered by ordinary evaluation,
+applied atomically at a snapshot barrier, conflicts resolved by
+declared rules — the effects-as-collected-plan pole of the design
+space), with its strain points (no read-your-writes inside the
+snapshot; conflict rules are where within-firing ordering
+resurfaces) mapping onto breadth item 5. jq marks the same pole
+degenerately: effects only at the pipeline's edges — viable for a
+guest tool, not a host language. Structure, not a design; no score
+movement.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -124,7 +137,20 @@ cluster yet for the operator-identity/keyed-collect item — three
 hand-rolled `Map.insertWith` merge folds in one application module,
 plus lattice aggregation sitting at the center of the saturation
 row's paradigm, plus a set/distinct collect (`deduplicate`). Scores
-unchanged.)* W = 5 unchanged: ~23% of sampled loops carry
+unchanged.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, findings 5–6) — jq's `foreach (init;
+update; extract)` is the running view / augment form shipped,
+named, and everyday in the corpus's most field-like code, and
+XQuery's total lack of a scan clause is the negative witness:
+running-state queries there bend through windows and recursion.
+The keyed-collect item gains its primary/derived fork:
+group-as-flows (XQuery/jq's shipped form — non-grouping wires
+become per-group flows; aggregation, HAVING, and reports as
+ordinary downstream consumption; the form that builds) vs
+operator-merge (Flix's `insertWith`, the fused special case), with
+the dynamic-alt-set note that a keyed partition's cells are
+data-determined lanes, not a static bundle. Scores unchanged.)*
+W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
 substrate proposal is de-risked but still a flagged decision.
 Companions: `first-class-ports-design.md` (the Delay pair),
@@ -160,7 +186,27 @@ per-segment-value-at-discharge skeleton. Beyond-text demand (event
 grammars, framing, sessionisation) files here too, with the
 measurement question handed to the owed UI sample. Scores
 unchanged — the remaining list is sharper and longer, the center
-untouched.)*
+untouched.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, findings 3–4) — the window clause is
+split-when shipped as a W3C standard: a full confirmation sweep
+plus three new pieces. Question 1 gains the neighborhood-bindings
+alternative (window conditions read the boundary's
+`previous`/`next` items, so each destination is a phrasing rather
+than a knob — fifth wild sighting of the enumeration, first
+non-enumerated form); a **new enumerated bit** lands beside the
+destination setting — the unterminated final segment (input ends
+mid-segment: emit partial vs drop; XQuery's `only`), to be decided
+jointly with the existing bit; and **gap-tolerant segmentation**
+(windows need not partition — items outside any window are
+dropped; framing's scan-for-sync is the field client) joins as a
+variant of the same construct. window(k) locates as the
+fixed-size point of a tumbling/sliding × condition/count-bounded
+family, and positional end conditions answer question 4's form
+(counts as data on position bindings). The 3.0 windowing use
+cases are mostly complex-event recognition matching the grammar
+ladder rung for rung (a strong prior for the owed UI sample, not
+a substitute), and the per-key pairing query's strain shows keyed
+partition must compose with segmentation. Scores unchanged.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -212,7 +258,12 @@ scope-bound task lifetime as a mainstream default; recursive
 channel producers are the third source-opener witness; and the
 retry middleware is a fourth pacing sighting, now as stdlib
 vocabulary — the functions row's policy layer is blocked on it.
-Scores unchanged.)*
+Scores unchanged.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, finding 6) — fifth source-opener
+witness: jq's `while`/`until`/`repeat`/`recurse(f; cond)` are the
+self-driven source hand-built from recursion plus the comma
+operator; `input`/`inputs` sight the pull-based FFI source
+species. Scores unchanged.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -347,7 +398,19 @@ prior sighting named — a failed parse must say what it expected
 clash notes recorded there: rollback semantics chosen by a distant
 declarator; tie laws whose inputs depend on where a spec stops
 being declarative. Scores unchanged — prior-art structure, nothing
-worked.)*
+worked.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, finding 9a) — the shipped *positive*
+witness for the threaded-values leaning: jq is a nondeterministic
+language (value streams, `empty` backtracks, `first`/`limit`
+commit via a lexical label) with zero state-restoration machinery,
+because an abandoned alternative is just an unconsumed value
+stream. Caveat recorded so the row doesn't over-claim: jq owns no
+consumed-input notion, so restoration-free abandonment comes free
+there; the parsing case still has to thread positions. Clash note:
+jq's `//` conflates flow-level absence with value-level falsiness
+— unwritable under the value/flow wire sort, and jq's
+documentation burden is the evidence for keeping the sorts.
+Scores unchanged.)*
 
 **Saturation: closure under rules — I 5, W 3.**
 *(New row, 2026-07-10, from the Flix comparison round —
@@ -378,6 +441,35 @@ everyday clients are domain-concentrated (package/build/import
 tooling, analysis, graph features); frequency question handed to
 the evidence-owed list.
 
+**Focused update: transform selected loci of a nested value —
+I 5, W 3.**
+*(New row, 2026-07-10, from the XQuery/jq comparison round —
+`xquery-jq-comparison.md`, finding 7.)* Change part of a large
+nested value, preserving everything else. Both shipped relatives
+built major machinery for exactly this: half of jq is paths as
+first-class values (every filter, in path context, denotes the
+loci it selects; every assignment is defined by LHS-selected
+paths; `walk`-family deep rewrites), and XQuery grew an entire
+separate W3C facility (Update; `copy ... modify ... return`) to
+say "a changed copy of this tree" at all. The hand-written form —
+XQuery's identity-transform recursion, rebuilding every node to
+change the few that match — is the standing assembly-language
+diagnosis in a fifth costume. In drawn vocabulary: uncollect down
+to the loci, transform there, re-collect upward with untouched
+siblings passing through. Scope items attached: selection and
+update sharing one vocabulary (jq's deepest design win — the
+filter that reads a locus is the filter that writes it); paths as
+drawable witnesses of loci (provenance adjacency, and jq's
+paths-as-data programs show the reflective tier is everyday);
+multi-locus as the primary case, not an extension; the
+tree-rewrite connection to the trees row (jq's `walk` =
+every-matching-node rewrite). I 5: a name and a demand, nothing
+worked. W 3 with any move conditioned on evidence: the shape is
+invisible to loop sampling by construction and this round's
+corpora are domain-biased toward it; the frequency question (its
+imperative costume — spread pyramids, builder copies, `setIn`/
+lens libraries) is on the evidence-owed list.
+
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
 **End-when: adoption and its open questions — I 2, W 5.**
@@ -397,7 +489,17 @@ the terminator-only readout ready for the adoption conversation;
 later: a small outside confirmation — Effekt's `while ... else`
 (an on-normal-exit branch) and labeled break are the same readout
 distinctions the terminator-discharge design already draws;
-`effekt-comparison.md`, finding 6b.)*
+`effekt-comparison.md`, finding 6b.)* *(2026-07-10, later: the
+XQuery/jq comparison (`xquery-jq-comparison.md`, findings 4, 9b)
+— the strongest outside witness yet for the discriminated
+terminator readout: a W3C windowing use case ends a window on a
+three-reason disjunction (timeout / Barbara-in / Anton-out) and
+must re-test in a `where` which reason fired — the side-flags
+idiom survey 3 diagnosed, appearing in a standards document. Also:
+XQuery's `count $rank where $rank <= 3` top-N filters without
+stopping (the language has no end-when; termination is the
+optimizer's mercy), while jq's `limit` genuinely aborts via
+`label`/`break` — a drawn-ish lexical label. Scores unchanged.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -520,6 +622,15 @@ method rules in `language-design-philosophy.md`):
   same sample can carry the functions row's condition: does real
   application code swap providers (test doubles, middleware), or
   is that architecture confined to languages that make it cheap?
+- **The focused-update frequency question** *(2026-07-10, from the
+  XQuery/jq comparison round)* — the shape (change selected loci
+  of a nested value, preserve the rest) is invisible to loop
+  sampling by construction, and the round's corpora are
+  document-domain-biased toward it; a sample of application code's
+  nested-immutable-update idioms (spread pyramids, builder copies,
+  `setIn`/lens libraries, reducer bodies) would measure how often
+  it occurs outside document processing, informing the new row's
+  W.
 
 The standing method is to be used proactively: when any row above
 is worked and its round starts assuming importance rather than
@@ -643,3 +754,28 @@ the reason.
   Loop-carried state: operator-identities sightings cluster.
   IO/effects (Tier 1): confirmation note only. Evidence owed: the
   saturation frequency question added.
+- **2026-07-10** (later still) — fourth learning-from-other-languages
+  round (`xquery-jq-comparison.md`: XQuery's FLWOR/window/group-by
+  machinery, use cases, and Update Facility, plus jq's manual and
+  community cookbook — the family's two shipped relatives; the
+  reading-rule flip for close relatives recorded: the risk is
+  mistaking familiarity for validation, so read hardest where they
+  strain). One new row: focused update — transform selected loci
+  of a nested value, preserving the rest — I 5 / W 3, Tier 2
+  (paths-as-values and a whole W3C facility as the two shipped
+  answers; the identity-transform recursion as the assembly
+  language; frequency sample owed). IO/effects (Tier 1): first
+  *structural* prior art — the pending update list (effects as
+  collected values, applied at a snapshot barrier). Variable-rate:
+  the window-clause sweep (neighborhood bindings on question 1;
+  the new unterminated-final-segment bit; gap-tolerant
+  segmentation; window(k) located in the family; question 4's
+  form); event recognition matches the grammar ladder. Loop-carried
+  state: `foreach` as the shipped running view; the keyed collect's
+  primary/derived fork (group-as-flows vs operator-merge).
+  Concurrency: fifth source-opener witness. End-when: the
+  side-flags witness in a spec. Speculation: the shipped
+  threaded-values witness. Core confirmations recorded in the doc
+  (the tuple stream as barriers-not-bottlenecks; implicit
+  flattening as the anti-lesson for explicit join). Scores
+  unchanged everywhere except the new row.
