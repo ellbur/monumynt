@@ -130,22 +130,29 @@ first-implementation convenience, rejected long-term.
 - [`tough-use-cases-design.md`](tough-use-cases-design.md) — five
   real-system programs worked against the blocks until they break;
   the ranked candidate-block inventory.
-- [`real-loop-survey.md`](real-loop-survey.md) — sixty seeded-random
-  loops from real codebases (two runs: infrastructure corpora, then
-  numerics/algorithms/simulation/UI/games/graphics) classified
-  against the inventory (evidence, not design): uncollect/collect
-  confirmed as the center; the scan absent in infrastructure but
-  dominant in numerics, with cross-referencing registers in the wild;
-  early exit the biggest unserved everyday demand; the thread's
-  one-writeback rule unbroken across all sixty; Cross, window, and
-  the event-loop inventory sighted in their designed shapes. Read the
-  tallies with the 80/20 counterweight (frequency ranks the
-  effortless; the rare painful tail binds breadth — the nine-loop
-  **breadth set** is collected at the end). First runs of a
-  **standing method** — sampling reality is to be used frequently;
-  the method's statement and rules are in
-  `language-design-philosophy.md`, "A standing method: sample
-  reality."
+- [`real-loop-survey.md`](real-loop-survey.md) — the sampling
+  record, three seeded-random runs (evidence, not design). Runs 1–2:
+  sixty loops (infrastructure corpora, then numerics/algorithms/
+  simulation/UI/games/graphics) classified against the inventory:
+  uncollect/collect confirmed as the center; the scan absent in
+  infrastructure but dominant in numerics, with cross-referencing
+  registers in the wild; early exit the biggest unserved everyday
+  demand; the thread's one-writeback rule unbroken across all sixty;
+  Cross, window, and the event-loop inventory sighted in their
+  designed shapes. Run 3 (2026-07-10): thirty concurrency
+  *orchestration sites* from server/async-heavy corpora, giving
+  inventory items 1–3 the frequency treatment — first-of
+  coordination (race/timeout/interrupt/cancellation) outweighs
+  all-of nine-to-one, with the discrimination always reconstructed
+  from side flags; the deferred cell is the most-reached-for
+  primitive; `bounded(n)`-as-resource confirmed; cancellation
+  measured at roughly a quarter of sites. Read the tallies with the
+  80/20 counterweight (frequency ranks the effortless; the rare
+  painful tail binds breadth — the nine-loop **breadth set** is
+  collected at the end of run 2). Runs of a **standing method** —
+  sampling reality is to be used frequently; the method's statement
+  and rules are in `language-design-philosophy.md`, "A standing
+  method: sample reality."
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

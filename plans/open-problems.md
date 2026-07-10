@@ -76,7 +76,12 @@ material (`custom-flows.md`'s lifecycle pattern), not a design.
 W = 5 because ~42% of sampled loops exist to cause effects, and
 both `async-flow-design.md` (question 2) and
 `incremental-flow-design.md` (effect-free tracking contexts) defer
-constraints here that block their own completion.
+constraints here that block their own completion. *(2026-07-10: the
+cancellation half is now measured, not only argued — the
+concurrency survey found roughly eight of thirty orchestration
+sites touching cancellation/abandonment/retention, containing the
+sample's most delicate code; `real-loop-survey.md`, survey 3,
+finding 3.6.)*
 
 **Loop-carried state: the candidate decision — I 4, W 5.**
 The record's self-declared biggest open area
@@ -118,8 +123,16 @@ dissolved into wiring, but `bounded(n)` resists), the served flow
 program for a server?" (`tough-use-cases-design.md` question 7).
 Demanded by three of the five tough use cases; nothing worked
 end-to-end. The event-loop breadth item (7) is this area's
-acceptance test in miniature. Evidence is also thin — see the
-evidence section below.
+acceptance test in miniature. *(2026-07-10: evidence landed —
+`real-loop-survey.md`, survey 3, thirty orchestration sites from
+six server/async corpora. Scores unchanged (nothing designed got
+designed), but the within-area ranking is sharpened: first-of
+coordination (race/timeout/interrupt) outweighed all-of nine-to-one
+and every hand-rolled race reconstructs the winner from side flags,
+so the race barrier's round leads this area, ahead of the collect
+species menu; `bounded(n)`-as-resource and serial-as-default are
+field-confirmed; the concurrent collect's lifecycle outputs gained
+a bug class they would prevent.)*
 
 **How values cross a barrier — I 4, W 4.**
 One question living in four homes, which the docs themselves say
@@ -252,7 +265,12 @@ method rules in `language-design-philosophy.md`):
 
 - **A concurrency-focused sample** (server/async-heavy codebases)
   — would give inventory items 1–3 the frequency treatment items
-  4–5 got, directly informing the concurrency row above.
+  4–5 got, directly informing the concurrency row above. *(Done,
+  2026-07-10 — survey 3 in `real-loop-survey.md`, sampling
+  orchestration sites rather than loops. Its named successor: an
+  application-level sample — survey 3's corpora implement
+  concurrency infrastructure; how often application code reaches
+  for gather vs race vs pool is still unmeasured.)*
 - **UI/browser event-handling in JS** — still under-sampled after
   survey 2.
 - **A combinator census**, and larger n where a proportion
@@ -278,3 +296,10 @@ the reason.
   derived-state-port running view; breadth items 1, 2, 4 worked),
   W 4 unchanged; product 20 → 12, moved Tier 1 → Tier 2. The
   adoption conversation and the merge's own round remain.
+- **2026-07-10** — concurrency constructs: evidence landed (survey
+  3, `real-loop-survey.md` — thirty orchestration sites), scores
+  unchanged at I 4 / W 4; within-area ranking sharpened (race
+  barrier round first; `bounded(n)`-as-resource confirmed). IO,
+  effects, and cancellation: scores unchanged at I 4 / W 5; the
+  cancellation half of W is now measured (~8 of 30 sites), not only
+  argued.

@@ -750,17 +750,47 @@ Ranked by independent demand across the five use cases:
    Demanded by: server (sessions overlap), pool (spawn per
    device, replug race via `keyed`), protocol replies (serial,
    stated visibly). Interacts with registers (likely: forbidden
-   off `serial`; structural check).
+   off `serial`; structural check). *(2026-07-10: the concurrency
+   survey — `real-loop-survey.md`, survey 3 — puts field evidence
+   behind specific parts. Task-per-firing was drawn twice, both
+   times hand-rolling the lifecycle bookkeeping the barrier
+   outputs would provide: a task set maintained by done-callbacks,
+   and registration ordered before spawn to dodge a startup race
+   documented in a four-line comment. `bounded(n)`-as-resource is
+   confirmed three ways (a pool with permits/waiters/drain
+   events, a blocking acquire-bracket, a supervised permanent
+   worker set) — none partition-shaped, supporting the addendum's
+   permits reading. `serial`-as-unmarked-default matches practice:
+   one lock in thirty orchestration draws, and it was serialising
+   a fold. But the survey's headline cuts the other way: the race/
+   timeout/interrupt cluster outweighed collect-species demand
+   nine-to-one — see the note on the race round under finding 3.1
+   there.)*
 2. **The served flow** — an external flow kind whose firings are
    exchanges; the collect's per-firing value is delivered back to
    the source. Demanded by: server (responses), websocket
    (alternating protocols). Generalises to all prompted output.
+   *(2026-07-10: in the concurrency survey the served flow was the
+   ambient structure around many draws — every handler body in
+   three corpora — with no draw contradicting the design. Its
+   per-firing failure leg (open question 3) was sighted in exactly
+   the anticipated shape: client disconnect delivered into the
+   handler body as a lazily-minted per-request abort signal.)*
 3. **Bracket (release-on-any-end)** — acquire/use/release with
    release reachable from abandonment. Demanded by: process
    (kill), pool (fd release feeding the keyed lane), sockets,
    listen ports, served-flow clients that vanish mid-exchange.
    Forces the cancellation capability; consumes the async cell
-   hook already recorded.
+   hook already recorded. *(2026-07-10: frequency evidence — in
+   the concurrency survey roughly eight of thirty sites touch
+   cancellation, abandonment, or retention-across-abandonment,
+   and they are the sample's most delicate code: a timeout's
+   state-machine-plus-uncancel dance, shield-await inside a
+   graceful shutdown's escalation ladder, check-then-subscribe
+   abort wiring, weakref-broken timer retention. The
+   graceful-shutdown backlog program below was itself drawn at
+   random, three escalation stages of it. See survey 3,
+   finding 3.6.)*
 4. **The decision-driven family** — ordered/decision-driven
    merge (two flows, per-heads chooser as a configuration
    scope); **end-when** (data-driven terminator writing, the
