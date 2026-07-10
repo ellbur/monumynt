@@ -322,7 +322,13 @@ The output values correspond 1-1 with input values (same names). The output flow
 > question 3 (the lean is flow-only, with values meeting the join
 > only at collects); the concurrent join is the case that could
 > justify keeping them. This section's signature predates that
-> round and should be revised when it lands.
+> round and should be revised when it lands. *(2026-07-10: the
+> crossing round is now written —
+> `barrier-value-crossing-design.md`. Its lean: flow-only for the
+> flatten and concurrent join both — pass-through is availability
+> by provenance, and this signature's value rows re-read as the
+> drawn form of that availability. Signature revision awaits the
+> adoption conversation.)*
 
 ---
 
