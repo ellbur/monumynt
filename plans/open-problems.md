@@ -132,7 +132,24 @@ form (jointly with end-when's inclusive bit), the stream compile's
 sequencing constraint, the fixed-length-segment catalog question,
 and the nested-segmentation boundary against grammar vocabulary.
 The decision-driven merge — the family's two-flow member — still
-has only its chooser sketch (tough doc item 4).
+has only its chooser sketch (tough doc item 4). *(2026-07-10: the
+Raku comparison round (`raku-grammars-comparison.md`, findings 1,
+2, 4) gave the grammar-vocabulary boundary its shape — the grammar
+ladder's four combinators over segments (repeat: owned by
+split-when; sequence — phased consumption, the start/body/end
+pattern, a consumer that takes a prefix and yields the rest —
+unowned; alternate — typed segments — unexamined; recurse — the
+divide flow's), with question 3's fork stated: boundaries decidable
+per-firing are segmentation vocabulary, boundaries negotiated by
+trial are the speculation row's. Also a confirmation sweep:
+Raku's `%`/`%%` separator quantifiers are a fourth wild sighting of
+the destination enumeration; computed counts are prior art for the
+catalog question; post-order `make`/`made` confirms the
+per-segment-value-at-discharge skeleton. Beyond-text demand (event
+grammars, framing, sessionisation) files here too, with the
+measurement question handed to the owed UI sample. Scores
+unchanged — the remaining list is sharper and longer, the center
+untouched.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -201,7 +218,13 @@ flow is a candidate primitive with an unworked termination story
 (a non-list example — quadtree — is owed;
 `tough-use-cases-design.md` question 4); whether tree iteration
 inherits the register discipline is unresolved. Breadth item 9
-(the recursive gather) is the field sighting.
+(the recursive gather) is the field sighting. *(2026-07-10: the
+Raku comparison round (`raku-grammars-comparison.md`, §4) named
+parsing as the everyday client of recursion-over-virtual-structure
+— the divide flow's worked examples so far are constructed;
+recursive descent (nested-delimiter parsing) is a candidate first
+program with field precedent when the row's round runs. Scores
+unchanged.)*
 
 **Functions, reuse, and facets — I 4, W 4.**
 Also narrative-stage: the function boundary (flow skeleton with
@@ -233,6 +256,18 @@ facets are views for a human, not verification. Scores unchanged —
 intuitions recorded, nothing worked; the doc's open edge 2 records
 the leaning that a first round should work one manifestation (the
 algebra facet + test double) rather than a general theory.)*
+*(2026-07-10, later: the Raku comparison round
+(`raku-grammars-comparison.md`, finding 5) — late-bound operations
+gained its second independent witness (one grammar under
+interchangeable, optional action classes; capability confirmed, the
+method-name-reflection mechanism recorded as a clash), and the
+remaining list gains **extensible alternation**: extend a case
+vocabulary — an alternation and its dispatching consumers — without
+editing the defining site (Raku's proto regexes; their motivating
+complaint is verbatim the unbuildable-upon complaint), with the
+tension flagged that the complete alternative set must stay
+viewable somewhere (a facets-flavored derived view). Scores
+unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -251,7 +286,21 @@ threaded as positional values so restoration is structural (the
 contrast with Effekt's allocation-position rollback is the
 argument); check the +1 ladder first-success → all-results →
 bounded → heuristic order. W 3 as a breadth obligation: parsing
-and search are rare-but-breaking.
+and search are rare-but-breaking. *(2026-07-10: the Raku comparison
+round (`raku-grammars-comparison.md`, finding 3) — the third
+independent arrival at the shape — handed the row structure:
+ordered try-in-order choice (`||`) and best-match choice under a
+tie law (`|`, longest-token matching — race's structural sibling)
+are distinct constructs in the wild, not to be conflated;
+commitment (ratcheting) is Raku's everyday mode, supporting the
+threaded-values leaning (speculation as a bounded construct, not a
+backtracking substrate); and the round added a scope item neither
+prior sighting named — a failed parse must say what it expected
+(Raku's FAILGOAL): error diagnosis belongs to the construct. Two
+clash notes recorded there: rollback semantics chosen by a distant
+declarator; tie laws whose inputs depend on where a spec stops
+being declarative. Scores unchanged — prior-art structure, nothing
+worked.)*
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -377,7 +426,12 @@ method rules in `language-design-philosophy.md`):
   concurrency infrastructure; how often application code reaches
   for gather vs race vs pool is still unmeasured.)*
 - **UI/browser event-handling in JS** — still under-sampled after
-  survey 2.
+  survey 2. *(2026-07-10: the Raku comparison round gave this
+  sample a second question to carry — how much real event-handling
+  is grammar-shaped (phase-sequenced recognition with state:
+  gestures, framing) versus independent-handler-shaped; it would
+  also supply or deny the custom-protocol-flows probation its
+  second demand; `raku-grammars-comparison.md`, finding 2.)*
 - **A combinator census**, and larger n where a proportion
   becomes load-bearing.
 
@@ -468,3 +522,19 @@ the reason.
   addendum to a statement of intent with named open edges, and the
   row now carries the leaning for its first round (one
   manifestation — the algebra facet + test double).
+- **2026-07-10** (later still) — second learning-from-other-languages
+  round (`raku-grammars-comparison.md`: Raku's grammar/regex
+  documentation read against the record — a documentation corpus,
+  one step more curated than Effekt's examples; no field sightings,
+  structure only). No score movement anywhere; four rows gain dated
+  notes: variable-rate consumption (the grammar ladder — the
+  phase-sequence rung unowned, question 3's deterministic/trial
+  fork, a confirmation sweep for split-when's destination
+  enumeration and catalog question), speculation (two choice
+  constructs, commitment-as-default, error diagnosis added to the
+  round's scope), recursion/divide flow (parsing as the everyday
+  client of recursion-over-virtual-structure), functions/reuse/
+  facets (late-bound operations' second witness; extensible
+  alternation added with its viewability tension). Evidence owed:
+  the UI/browser sample gains the grammar-shaped-vs-handler-shaped
+  question.
