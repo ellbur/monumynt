@@ -96,7 +96,33 @@ witness from the Flix comparison (`flix-comparison.md`, finding 3)
 — purity there is the typed mirror of drawn effects, every example
 interleaves effects, and `spawn @ region` (task lifetime bounded by
 a drawn scope) is mainstream confirmation for the cancellation
-half. Confirmation only; no score movement.)*
+half. Confirmation only; no score movement.)* *(2026-07-10, later:
+the XQuery/jq comparison (`xquery-jq-comparison.md`, finding 8)
+handed the row its **first structural prior art** rather than
+another confirmation — XQuery's Update Facility answers per-firing
+effects by reifying them: a pending update list (an unordered
+collection of update primitives, gathered by ordinary evaluation,
+applied atomically at a snapshot barrier, conflicts resolved by
+declared rules — the effects-as-collected-plan pole of the design
+space), with its strain points (no read-your-writes inside the
+snapshot; conflict rules are where within-firing ordering
+resurfaces) mapping onto breadth item 5. jq marks the same pole
+degenerately: effects only at the pipeline's edges — viable for a
+guest tool, not a host language. Structure, not a design; no score
+movement.)* *(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 5) — the hole acknowledged at
+standards level: the TC39 Signals proposal ships **no effect
+construct** ("effect scheduling is subtle and often ties into
+framework rendering cycles"), stopping exactly at this row. Elm's
+`Cmd` is the second effects-as-collected-values witness, with the
+loop closed through ordinary events (results re-enter as `Msg`s).
+The two shipped output poles — recompute-and-diff (Elm/React) vs
+fine-grained push (Solid) — are both drawable (derived view +
+boundary focused update vs per-var `changes` drains), so the pole
+is per-consumer wiring, not a language commitment. Universal
+effect-ordering disclaimers ("MobX does not guarantee the order")
+are the IO thread's mirror; Elm's ports supply the FFI-boundary
+stance (few, owned, message-shaped). Scores unchanged.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -124,7 +150,35 @@ cluster yet for the operator-identity/keyed-collect item — three
 hand-rolled `Map.insertWith` merge folds in one application module,
 plus lattice aggregation sitting at the center of the saturation
 row's paradigm, plus a set/distinct collect (`deduplicate`). Scores
-unchanged.)* W = 5 unchanged: ~23% of sampled loops carry
+unchanged.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, findings 5–6) — jq's `foreach (init;
+update; extract)` is the running view / augment form shipped,
+named, and everyday in the corpus's most field-like code, and
+XQuery's total lack of a scan clause is the negative witness:
+running-state queries there bend through windows and recursion.
+The keyed-collect item gains its primary/derived fork:
+group-as-flows (XQuery/jq's shipped form — non-grouping wires
+become per-group flows; aggregation, HAVING, and reports as
+ordinary downstream consumption; the form that builds) vs
+operator-merge (Flix's `insertWith`, the fused special case), with
+the dynamic-alt-set note that a keyed partition's cells are
+data-determined lanes, not a static bundle. Scores unchanged.)*
+*(2026-07-10, later: the APL-family comparison
+(`apl-family-comparison.md`, findings 5, 8) — the
+operator-identities item gains a shipped **catalog** (Dyalog's
+23-operator identity table; empty reduce yields the identity or
+DOMAIN ERROR) and its sharpest framing: the identity question is
+exactly the **empty-collect question** — BQN's three-way split
+(derive the identity for an empty fold; take a seed via the
+initial-value port, dissolving the need; the scan never asks —
+empty in, empty out). The keyed collect's third consecutive
+round: group output order now has three shipped answers
+(first-appearance / sorted / unspecified; provenance favors
+first-appearance), BQN's classify-then-place decomposition argues
+key extraction is ordinary drawn computation rather than node
+configuration, and ¯1-drop is keyed partial engagement. Scores
+unchanged.)*
+W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
 substrate proposal is de-risked but still a flagged decision.
 Companions: `first-class-ports-design.md` (the Delay pair),
@@ -160,7 +214,41 @@ per-segment-value-at-discharge skeleton. Beyond-text demand (event
 grammars, framing, sessionisation) files here too, with the
 measurement question handed to the owed UI sample. Scores
 unchanged — the remaining list is sharper and longer, the center
-untouched.)*
+untouched.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, findings 3–4) — the window clause is
+split-when shipped as a W3C standard: a full confirmation sweep
+plus three new pieces. Question 1 gains the neighborhood-bindings
+alternative (window conditions read the boundary's
+`previous`/`next` items, so each destination is a phrasing rather
+than a knob — fifth wild sighting of the enumeration, first
+non-enumerated form); a **new enumerated bit** lands beside the
+destination setting — the unterminated final segment (input ends
+mid-segment: emit partial vs drop; XQuery's `only`), to be decided
+jointly with the existing bit; and **gap-tolerant segmentation**
+(windows need not partition — items outside any window are
+dropped; framing's scan-for-sync is the field client) joins as a
+variant of the same construct. window(k) locates as the
+fixed-size point of a tumbling/sliding × condition/count-bounded
+family, and positional end conditions answer question 4's form
+(counts as data on position bindings). The 3.0 windowing use
+cases are mostly complex-event recognition matching the grammar
+ladder rung for rung (a strong prior for the owed UI sample, not
+a substitute), and the per-key pairing query's strain shows keyed
+partition must compose with segmentation. Scores unchanged.)*
+*(2026-07-10, later: the APL-family comparison
+(`apl-family-comparison.md`, findings 3, 4, 9) — the window(k)
+design space arrives shipped three ways (N-wise reduce,
+windows-as-value, centered Stencil), with parameters sighted:
+step/movement (step=k unifies windowing with fixed-length
+split-when), **edge handling as a real dimension** (Stencil pads
+and reports the padding per-invocation; N-wise truncates — the
+unterminated-segment bit at both edges of a symmetric construct),
+per-window reversal, and 2D windows (which file to the products
+row). The FinnAPL segmented-scan genre (grade-of-grade flat
+encodings for per-segment running state, with the community
+benchmarking flat vs nested) is the strongest assembly-language
+exhibit yet for split-when + register; Partition's drop-zeros is
+another gap-tolerant-segmentation sighting. Scores unchanged.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -212,7 +300,23 @@ scope-bound task lifetime as a mainstream default; recursive
 channel producers are the third source-opener witness; and the
 retry middleware is a fourth pacing sighting, now as stdlib
 vocabulary — the functions row's policy layer is blocked on it.
-Scores unchanged.)*
+Scores unchanged.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, finding 6) — fifth source-opener
+witness: jq's `while`/`until`/`repeat`/`recurse(f; cond)` are the
+self-driven source hand-built from recursion plus the comma
+operator; `input`/`inputs` sight the pull-based FFI source
+species. Scores unchanged.)* *(2026-07-10, later: the reactive
+comparison (`reactive-comparison.md`, finding 3) — RxJS's four
+flattening strategies are the collect-concurrency menu shipped as
+the async lingua franca: switchMap = interrupt-race, concatMap =
+serial (its unbounded-buffer warning is pacing/backpressure
+sighting six), mergeMap(+max) = bounded/unbounded — and
+**exhaustMap names a species the menu lacks**: drop-newest-while-
+busy, a non-queueing serial; handed to the concurrent collect's
+round. The served flow gains React Query's model as furniture:
+keyed async state with staleness policy (fresh-until, refetch on
+mount/refocus/reconnect), retry-with-backoff, and gc of inactive
+keys. Scores unchanged.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -314,7 +418,21 @@ function boundary pass a filler's effect/failability wires through
 visibly. W held at 4 with the condition recorded: three curated
 corpora converging argues 5, but per the standing method that
 move should come from the owed application-level sample — does
-real application code swap providers?)*
+real application code swap providers?)* *(2026-07-10, later: the
+APL-family comparison (`apl-family-comparison.md`, finding 1) —
+the operator-catalog audit filed the family's genuinely
+higher-order residue here: arrays of functions and dispatch over
+*computations* (BQN's `◶` tables beyond the case split) are the
+late-bound-operations demand in array costume. BQN's rationale
+for first-class functions is recorded as the position the record
+declines — they removed a syntactic obstacle, we decline the
+semantics (the round's brief: the uncollect's virtual value does
+the work of every operand slot without a function being passed).
+Scores unchanged.)* *(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 3) — the policy layer's second
+witness-as-furniture: React Query ships retry/backoff/staleness/
+gc as declarative query config interposed between consumers and
+the async source. Scores unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -347,7 +465,19 @@ prior sighting named — a failed parse must say what it expected
 clash notes recorded there: rollback semantics chosen by a distant
 declarator; tie laws whose inputs depend on where a spec stops
 being declarative. Scores unchanged — prior-art structure, nothing
-worked.)*
+worked.)* *(2026-07-10, later: the XQuery/jq comparison
+(`xquery-jq-comparison.md`, finding 9a) — the shipped *positive*
+witness for the threaded-values leaning: jq is a nondeterministic
+language (value streams, `empty` backtracks, `first`/`limit`
+commit via a lexical label) with zero state-restoration machinery,
+because an abandoned alternative is just an unconsumed value
+stream. Caveat recorded so the row doesn't over-claim: jq owns no
+consumed-input notion, so restoration-free abandonment comes free
+there; the parsing case still has to thread positions. Clash note:
+jq's `//` conflates flow-level absence with value-level falsiness
+— unwritable under the value/flow wire sort, and jq's
+documentation burden is the evidence for keeping the sorts.
+Scores unchanged.)*
 
 **Saturation: closure under rules — I 5, W 3.**
 *(New row, 2026-07-10, from the Flix comparison round —
@@ -378,6 +508,66 @@ everyday clients are domain-concentrated (package/build/import
 tooling, analysis, graph features); frequency question handed to
 the evidence-owed list.
 
+**Focused update: transform selected loci of a nested value —
+I 5, W 3.**
+*(New row, 2026-07-10, from the XQuery/jq comparison round —
+`xquery-jq-comparison.md`, finding 7.)* Change part of a large
+nested value, preserving everything else. Both shipped relatives
+built major machinery for exactly this: half of jq is paths as
+first-class values (every filter, in path context, denotes the
+loci it selects; every assignment is defined by LHS-selected
+paths; `walk`-family deep rewrites), and XQuery grew an entire
+separate W3C facility (Update; `copy ... modify ... return`) to
+say "a changed copy of this tree" at all. The hand-written form —
+XQuery's identity-transform recursion, rebuilding every node to
+change the few that match — is the standing assembly-language
+diagnosis in a fifth costume. In drawn vocabulary: uncollect down
+to the loci, transform there, re-collect upward with untouched
+siblings passing through. Scope items attached: selection and
+update sharing one vocabulary (jq's deepest design win — the
+filter that reads a locus is the filter that writes it); paths as
+drawable witnesses of loci (provenance adjacency, and jq's
+paths-as-data programs show the reflective tier is everyday);
+multi-locus as the primary case, not an extension; the
+tree-rewrite connection to the trees row (jq's `walk` =
+every-matching-node rewrite). I 5: a name and a demand, nothing
+worked. W 3 with any move conditioned on evidence: the shape is
+invisible to loop sampling by construction and this round's
+corpora are domain-biased toward it; the frequency question (its
+imperative costume — spread pyramids, builder copies, `setIn`/
+lens libraries) is on the evidence-owed list. *(2026-07-10: the
+APL-family comparison (`apl-family-comparison.md`, finding 7) —
+the row's structure round, one round after it opened. BQN's
+structural Under supplies the **commuting law** ((𝔾 of the
+update) ≡ (compute after 𝔾), frame untouched), the
+**well-formedness condition** (the selection must be structural —
+loci fixed as data before the write-back; value-dependent
+selection sanctioned only by materializing the mask first — jq's
+paths-as-data rediscovered as a lawfulness requirement), the
+**lens identification made by the shipped doc itself** (the
+structural getter determines the setter), and the **derived-view
+generalization** (update under reshape/transpose/reverse:
+compute in a reversible re-presentation, write back). Dyalog's
+indexed assignment adds the multi-locus **conflict rule**
+("last-most is assigned" on repeated indices — the PUL
+compatibility question's cousin), and BQN *removed* its Expand
+primitive in favor of Under — a primitive-count dissolution
+arguing the construct is load-bearing. I 5 / W 3 held: nothing
+worked in our vocabulary, but the remaining list is now a
+worked-round agenda.)* *(2026-07-10, later: the reactive
+comparison (`reactive-comparison.md`, finding 2) — the reactive
+costume: Redux's Immutable Update Patterns page teaches the
+spread pyramid as a core skill (the imperative costume
+institutionalized as documentation — feeds the frequency
+condition without discharging it); Immer's draft-recording adds
+**patches as data** (op/path/value with inverses;
+fork-and-rebase) — the update's natural output is a delta stream;
+Solid's path setters are multi-locus updates by index list,
+range, or predicate. New coupling recorded: in a reactive
+setting, **update loci are invalidation keys** — this row and the
+incremental collections layer are two ends of one pipe. Scores
+unchanged.)*
+
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
 **End-when: adoption and its open questions — I 2, W 5.**
@@ -397,7 +587,23 @@ the terminator-only readout ready for the adoption conversation;
 later: a small outside confirmation — Effekt's `while ... else`
 (an on-normal-exit branch) and labeled break are the same readout
 distinctions the terminator-discharge design already draws;
-`effekt-comparison.md`, finding 6b.)*
+`effekt-comparison.md`, finding 6b.)* *(2026-07-10, later: the
+XQuery/jq comparison (`xquery-jq-comparison.md`, findings 4, 9b)
+— the strongest outside witness yet for the discriminated
+terminator readout: a W3C windowing use case ends a window on a
+three-reason disjunction (timeout / Barbara-in / Anton-out) and
+must re-test in a `where` which reason fired — the side-flags
+idiom survey 3 diagnosed, appearing in a standards document. Also:
+XQuery's `count $rank where $rank <= 3` top-N filters without
+stopping (the language has no end-when; termination is the
+optimizer's mercy), while jq's `limit` genuinely aborts via
+`label`/`break` — a drawn-ish lexical label. Scores unchanged.)*
+*(2026-07-10, later: the reactive comparison
+(`reactive-comparison.md`, finding 7) — XState's final states
+("can no longer receive any events... can have `output` data,
+which is sent to the parent machine") are the terminator-with-
+payload discharge confirmed from the statechart side. Scores
+unchanged.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -431,7 +637,37 @@ a necessity frontier; pure pull rejected long-term). Open: cutoff
 semantics, `changes`'s stream kind (ties to async's event-source
 retention question), `set`-as-effect, and incremental collections
 — a large, separately-designed layer (`incremental-flow-design.md`
-questions 2–6).
+questions 2–6). *(2026-07-10: the reactive comparison round
+(`reactive-comparison.md`) was this row's evidence round. The core
+is confirmed point for point by the TC39 Signals proposal
+(laziness, memoization, cutoff-with-`equals`, dynamic dependencies
+= switch-join, pull-model glitch-freedom independently derived);
+Elm removed reactive variables entirely (the register-centered
+architecture that replaced them is drawable in existing
+vocabulary — the round's §8). The **necessity frontier is the
+genre's shipped shape**: watched/unwatched lifecycle hooks (TC39,
+Preact), computed suspension (MobX), refCount (RxJS),
+inactive-query GC — registration events at the frontier's edge,
+exactly as the pending-pull derivation predicted; the interior
+algorithm everywhere is **dirty/check/clean** two-grade staleness
+(Reactively's coloring; TC39's ~dirty~/~checked~ states) — an
+intermediate option between the rejected value-free dirty bit and
+push-with-values, adequate at UI scale, recorded as such.
+Liveness and memory are one frontier (watched-holds-alive; the
+ecosystem's chronic undisposed-observer leaks are what no-bare-read
+prevents). Flush-timing knobs (pre/post/sync/custom) are question
+3's generation granularity as per-consumer API; cutoff surfaces as
+a stream operator (`distinctUntilChanged`), per question 2's
+prediction; staleness-as-policy (fresh-until, refetch-on-signal)
+noted at the async boundary. Question 6 (collections) gains its
+shipped shapes: keyed families of vars minted on demand
+(atomFamily, observable.map's absent keys), per-key subscriptions
+as the fan-out answer, hierarchical keys with prefix invalidation
+(provenance's prefix rule in runtime clothes), update deltas as
+data (Immer patches — the focused-update row's loci arriving as
+this row's keys), and the `<For>`/`<Index>` identity-vs-position
+fork as a semantic decision. Scores unchanged — evidence, not
+design; the remaining list is much sharper.)*
 
 **How values cross a barrier — I 2, W 4.**
 *(Was I 4 — one question living in four homes — until the
@@ -456,7 +692,22 @@ product (operand-walk rules), registers over products (a fold
 demands an order a product doesn't have), and the provenance
 product segment against the walk-and-classify algorithm
 (questions 3–5, 8). Spec entry and textual spelling are owed
-bookkeeping.
+bookkeeping. *(2026-07-10: the APL-family comparison
+(`apl-family-comparison.md`, finding 2) promoted **the aligned
+product (zip)** from the translation exercise's "note, not a
+demand" to a named demand on this row: the family's ground floor
+is lockstep pairing (pervasion, blend, mesh, inner product), and
+the showpiece audit localized the record's only real
+representation struggle to it — Life needs Cross to enumerate the
+neighborhood and zip to overlay it, at rank 2. The aligned
+product is Cross's positional sibling (same extent paired by
+position vs independent extents paired exhaustively); the compile
+already owns a stream-level zip primitive, so the gap is
+authoring vocabulary. The family's rank-2 evidence (2D windows,
+transpose-heavy idioms) attaches to questions 3–5. Scalar
+extension recorded as Incorporate's implicit costume — capability
+confirmed, implicitness clashed. Scores unchanged — a demand
+grew, nothing got worked.)*
 
 ## Tier 4 — presentation and polish (≤ 7)
 
@@ -508,6 +759,15 @@ method rules in `language-design-philosophy.md`):
   gestures, framing) versus independent-handler-shaped; it would
   also supply or deny the custom-protocol-flows probation its
   second demand; `raku-grammars-comparison.md`, finding 2.)*
+  *(2026-07-10, later: the reactive comparison round added the
+  statechart-shaped question — an entire library category
+  (XState: guards, state-gated events, final states with output)
+  exists because reactive cores lack protocol vocabulary, and Elm
+  re-derives the same structure as the Model-union idiom with
+  model-dependent subscription sets; the probation's second
+  demand now has category-strength documentation behind it, and
+  this sample is what can convert that into the field sighting
+  the probation requires; `reactive-comparison.md`, finding 7.)*
 - **A combinator census**, and larger n where a proportion
   becomes load-bearing.
 - **The saturation frequency question** *(2026-07-10, from the Flix
@@ -520,6 +780,15 @@ method rules in `language-design-philosophy.md`):
   same sample can carry the functions row's condition: does real
   application code swap providers (test doubles, middleware), or
   is that architecture confined to languages that make it cheap?
+- **The focused-update frequency question** *(2026-07-10, from the
+  XQuery/jq comparison round)* — the shape (change selected loci
+  of a nested value, preserve the rest) is invisible to loop
+  sampling by construction, and the round's corpora are
+  document-domain-biased toward it; a sample of application code's
+  nested-immutable-update idioms (spread pyramids, builder copies,
+  `setIn`/lens libraries, reducer bodies) would measure how often
+  it occurs outside document processing, informing the new row's
+  W.
 
 The standing method is to be used proactively: when any row above
 is worked and its round starts assuming importance rather than
@@ -643,3 +912,78 @@ the reason.
   Loop-carried state: operator-identities sightings cluster.
   IO/effects (Tier 1): confirmation note only. Evidence owed: the
   saturation frequency question added.
+- **2026-07-10** (later still) — fourth learning-from-other-languages
+  round (`xquery-jq-comparison.md`: XQuery's FLWOR/window/group-by
+  machinery, use cases, and Update Facility, plus jq's manual and
+  community cookbook — the family's two shipped relatives; the
+  reading-rule flip for close relatives recorded: the risk is
+  mistaking familiarity for validation, so read hardest where they
+  strain). One new row: focused update — transform selected loci
+  of a nested value, preserving the rest — I 5 / W 3, Tier 2
+  (paths-as-values and a whole W3C facility as the two shipped
+  answers; the identity-transform recursion as the assembly
+  language; frequency sample owed). IO/effects (Tier 1): first
+  *structural* prior art — the pending update list (effects as
+  collected values, applied at a snapshot barrier). Variable-rate:
+  the window-clause sweep (neighborhood bindings on question 1;
+  the new unterminated-final-segment bit; gap-tolerant
+  segmentation; window(k) located in the family; question 4's
+  form); event recognition matches the grammar ladder. Loop-carried
+  state: `foreach` as the shipped running view; the keyed collect's
+  primary/derived fork (group-as-flows vs operator-merge).
+  Concurrency: fifth source-opener witness. End-when: the
+  side-flags witness in a spec. Speculation: the shipped
+  threaded-values witness. Core confirmations recorded in the doc
+  (the tuple stream as barriers-not-bottlenecks; implicit
+  flattening as the anti-lesson for explicit join). Scores
+  unchanged everywhere except the new row.
+- **2026-07-10** (later still) — fifth learning-from-other-languages
+  round (`apl-family-comparison.md`: FinnAPL's 707 idioms, Dyalog
+  reference pages and notebooks, BQN's argued docs and BQNcrate,
+  J fragments — read under a stated brief: no higher-order
+  surface; the round hunts example programs the drawn vocabulary
+  struggles with). No new row; no score movement. The
+  operator-catalog audit maps the family's second-order layer
+  item-for-item onto the record's first-order constructs
+  (validating the brief), with the higher-order residue filed on
+  the functions row. Products row: **aligned product (zip)**
+  promoted from note to demand — the round's one localized
+  representation struggle (Life needs Cross and zip at once, at
+  rank 2). Focused update: the structure round (Under's commuting
+  law, the structural-selection condition, the lens
+  identification, derived-view updates, the conflict rule, the
+  Expand dissolution). Variable-rate: window(k)'s shipped design
+  space (step, edge handling, 2D) and the segmented-scan
+  assembly-language exhibit. Loop-carried state: the identity
+  catalog and the empty-collect framing; keyed collect's order/
+  decomposition/partiality round. Idiom-library epistemology
+  recorded: 707 maintained phrases prove the demands and price
+  the encoding.
+- **2026-07-10** (later still) — sixth learning-from-other-languages
+  round (`reactive-comparison.md`: Elm and the JS state libraries —
+  TC39 Signals, MobX, Solid, Vue, Preact, Reactively, RxJS, Redux/
+  Immer, XState, React Query, Recoil — run against a stated brief:
+  the monad-like reactive-variable core is already the incremental
+  flow (verified: TC39 matches the row point for point; Elm
+  removed signals), with seven boundary questions as the round's
+  schedule). No new row; no score movement. Incremental flows: the
+  evidence round (necessity frontier as the genre's shipped shape;
+  watched/unwatched hooks as the derived registration events;
+  dirty/check/clean as the intermediate algorithm; collections
+  layer's shipped shapes — keyed var families, per-key
+  subscription, prefix invalidation, deltas, the
+  identity-vs-position fork). IO/effects: the TC39 punt as
+  standards-level acknowledgment; Elm `Cmd` as second
+  effects-as-data witness; two drawable output poles; ordering
+  disclaimers as the IO thread's mirror. Focused update: the
+  reactive costume plus the loci-are-invalidation-keys coupling.
+  Concurrency: the flattening strategies as the shipped
+  concurrency menu, exhaustMap as a new species, pacing sighting
+  six, React Query as served-flow furniture. Functions: policy
+  layer's second furniture witness. End-when: final-states
+  discharge confirmation. Evidence owed: the UI sample gains the
+  statechart-shaped question (custom-protocol-flows' second
+  demand at category strength, awaiting its field sighting).
+  Clash record led by auto-tracking (dependency graphs inferred
+  from execution traces — the invisible wire at ecosystem scale,
+  with its documented footgun bill).
