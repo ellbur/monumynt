@@ -91,7 +91,12 @@ external confirmation from the Effekt comparison
 (`effekt-comparison.md`, finding 5) — every one of their nine case
 studies freely interleaves effects mid-computation, i.e. the hole
 gates ordinary programs, not just effect-heavy ones; no score
-movement, the row already carries W 5.)*
+movement, the row already carries W 5.)* *(2026-07-10, later: same
+witness from the Flix comparison (`flix-comparison.md`, finding 3)
+— purity there is the typed mirror of drawn effects, every example
+interleaves effects, and `spawn @ region` (task lifetime bounded by
+a drawn scope) is mainstream confirmation for the cancellation
+half. Confirmation only; no score movement.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -113,7 +118,13 @@ source opener the port form must borrow (shared with the
 concurrency row's source-opener item); operator identities for
 reduce-close, unattached (three hand-rolled monoid folds in the
 surveys press on this; jointly with the collect family's spelling
-round, Tier 4). W = 5 unchanged: ~23% of sampled loops carry
+round, Tier 4). *(2026-07-10: the Flix comparison
+(`flix-comparison.md`, finding 6) added the strongest sighting
+cluster yet for the operator-identity/keyed-collect item — three
+hand-rolled `Map.insertWith` merge folds in one application module,
+plus lattice aggregation sitting at the center of the saturation
+row's paradigm, plus a set/distinct collect (`deduplicate`). Scores
+unchanged.)* W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
 substrate proposal is de-risked but still a flagged decision.
 Companions: `first-class-ports-design.md` (the Delay pair),
@@ -190,7 +201,18 @@ the served flow's round two demands — the recursive provider (a
 server defined partly by requests back to itself) and the keyed
 cache in front of a served flow, both from the build-system case
 study — and added an outside witness that the missing source
-opener blocks the canonical beginner generator.)*
+opener blocks the canonical beginner generator.)* *(2026-07-10,
+later: the Flix comparison (`flix-comparison.md`, finding 4) —
+timeout-as-ordinary-contender confirms the race round's derived
+timeout; the **default arm (poll)** is a derived form the race
+round's vocabulary hasn't named (a race with one
+immediately-settled contender that loses all ties — well-defined
+under the drawn-order tie law); `spawn @ region` confirms
+scope-bound task lifetime as a mainstream default; recursive
+channel producers are the third source-opener witness; and the
+retry middleware is a fourth pacing sighting, now as stdlib
+vocabulary — the functions row's policy layer is blocked on it.
+Scores unchanged.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -210,6 +232,14 @@ workstream D. The *design-side* gaps: recursive shapes (its
 question 2, waiting on the tree constructs), slots/higher-order
 signatures (question 3), the catalog schema and its trusted JS
 edge (question 4), equality's fine print (question 8).
+*(2026-07-10: the Flix comparison (`flix-comparison.md`, findings
+3, 5, 7b) — restrictable variants are the strongest prior art yet
+for question 2 (recursive case-set properties trackable and
+paying for themselves), with their own illegible-at-scale type
+algebra supporting the drawable-witnesses stance over imported
+Boolean indices; "this hole demands a pure filler" added as
+demands/offers vocabulary; `@Terminates` noted as prior art for
+declared, checked termination. Scores unchanged.)*
 
 **Recursion: the divide flow and trees — I 4, W 3.**
 `trees-and-recursion.md` is narrative-stage (no starting-point
@@ -267,7 +297,24 @@ editing the defining site (Raku's proto regexes; their motivating
 complaint is verbatim the unbuildable-upon complaint), with the
 tension flagged that the complete alternative set must stay
 viewable somewhere (a facets-flavored derived view). Scores
-unchanged.)*
+unchanged.)* *(2026-07-10, later: the Flix comparison
+(`flix-comparison.md`, findings 2, 3, 7e) — late-bound operations
+and the test double gain their third and strongest witness: the
+double is standard-library furniture there, and ordinary
+applications are assembled as provider stacks at the edge. The
+remaining list gains the **policy layer** (middleware —
+cross-cutting operational policy interposed at the operation
+boundary: retry, circuit-break, throttle, sandbox, atomicity,
+audit; in the row's leaning, a sub-diagram spliced into the
+provider wiring, with stack order visible as nesting) and the
+**decorated tree** (one tree, stacked per-node decorations,
+consumers demanding only what they read — facets' second
+independent witness), plus the purity mirror's demand that the
+function boundary pass a filler's effect/failability wires through
+visibly. W held at 4 with the condition recorded: three curated
+corpora converging argues 5, but per the standing method that
+move should come from the owed application-level sample — does
+real application code swap providers?)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -301,6 +348,35 @@ clash notes recorded there: rollback semantics chosen by a distant
 declarator; tie laws whose inputs depend on where a spec stops
 being declarative. Scores unchanged — prior-art structure, nothing
 worked.)*
+
+**Saturation: closure under rules — I 5, W 3.**
+*(New row, 2026-07-10, from the Flix comparison round —
+`flix-comparison.md`, finding 1.)* Compute the closure of a seed
+set under derivation rules until nothing new appears — graph
+reachability/cycles/ordering, dependency resolution, dataflow and
+program analysis. One round of rule application is drawable today
+(uncollects over fact sets, the shared-variable constraint as a
+wire, a set collect); what nothing owns is the **feedback at the
+flow level** — firings minting future firings, termination when
+the set stops growing. Distinct from the register (value feedback
+along a fixed walk) and from the divide flow (recursion over
+virtual nested structure); dual to the served flow's recursive
+provider (Effekt's build system — demand-driven top-down vs
+saturation bottom-up), to be worked aware of each other. Two
+scope items attached: the keyed-merge variant (lattice semantics =
+keyed collect merging by a lawful operator; shortest-distance is
+keyed-min-collect plus feedback — joint with the collect family's
+operator-identity question) and **explanation as an output**
+(Flix's provenance queries: why is this member in the closure —
+witness firings, drawable; squarely the record's
+drawable-witnesses and derivation-is-downward instincts surfacing
+at runtime). The imperative encoding — frontier queue plus
+seen-set — is the standing "assembly language" diagnosis in a
+fourth costume. I 5: a name and a demand, nothing worked. W 3 as
+a breadth obligation: absent from all three random surveys;
+everyday clients are domain-concentrated (package/build/import
+tooling, analysis, graph features); frequency question handed to
+the evidence-owed list.
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -434,6 +510,16 @@ method rules in `language-design-philosophy.md`):
   second demand; `raku-grammars-comparison.md`, finding 2.)*
 - **A combinator census**, and larger n where a proportion
   becomes load-bearing.
+- **The saturation frequency question** *(2026-07-10, from the Flix
+  comparison round)* — closure-shaped computation was absent from
+  all three random surveys; a domain sample (package/build/import
+  tooling, program-analysis code, graph features inside
+  applications) would measure how often the shape occurs in the
+  wild and in what costume (hand-rolled worklists, embedded query
+  engines, union-find), informing the new saturation row's W. The
+  same sample can carry the functions row's condition: does real
+  application code swap providers (test doubles, middleware), or
+  is that architecture confined to languages that make it cheap?
 
 The standing method is to be used proactively: when any row above
 is worked and its round starts assuming importance rather than
@@ -538,3 +624,22 @@ the reason.
   alternation added with its viewability tension). Evidence owed:
   the UI/browser sample gains the grammar-shaped-vs-handler-shaped
   question.
+- **2026-07-10** (later still) — third learning-from-other-languages
+  round (`flix-comparison.md`: the Flix example suite, ~190
+  programs, read against the record — a curated corpus with mixed
+  levels; the three small apps noted as the genre's most field-like
+  sightings so far, still not random-sample evidence). One new row:
+  saturation — closure under rules, I 5 / W 3, Tier 2 (flow-level
+  feedback unowned; keyed-merge and provenance-explanation scope
+  items attached; dual to the served flow's recursive provider).
+  Functions/reuse/facets: remaining list gains the policy layer
+  (middleware) and the decorated tree; late-bound operations + test
+  double gain their third and strongest witness; W held at 4 with
+  the move to 5 conditioned on the owed application-level sample.
+  Concurrency: dated note (default-arm/poll to the race round;
+  scope-bound spawn; third source-opener witness; fourth pacing
+  sighting). Checking: dated note (restrictable variants as
+  recursive-shapes prior art; purity demands; `@Terminates`).
+  Loop-carried state: operator-identities sightings cluster.
+  IO/effects (Tier 1): confirmation note only. Evidence owed: the
+  saturation frequency question added.
