@@ -21,6 +21,18 @@ The link transformation in `iteration-with-state-design.md` is the
 worked instance: you write one step of the computation concretely,
 then the link turns the feedback into iteration.
 
+*(Clarified 2026-07-10, in the facets conversation —
+`facets-design-notes.md`, open edge 1: the principle constrains
+obligation, not option. Writing abstract structure first — a
+facet, a schema — is legitimate as planning, the way an OCaml
+programmer writes type definitions first because they're a good
+way of documenting what the actual code is hoped to do. What the
+principle rules out is a construct that* requires *the general
+form: everything you can do with general schemas must be doable by
+a concrete-first authoring path — write the concrete thing,
+extract the abstraction after. "Force" in the paragraph above is
+the operative word.)*
+
 ## Inside-out / cases as values
 
 The language avoids constructs that make the *interior scope* of an

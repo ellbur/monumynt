@@ -140,19 +140,28 @@ the wild — and that may be because they are actually useless,
 because they are too weak. But it's a thought to keep in mind.
 *(Recorded with its stated direction of doubt.)*
 
-*[Annotation: one field sighting worth recording, from the corpus
-just studied: Effekt's capture sets are negative constraints in
-type form — `() => Unit at {}` says "this block touches nothing
-ambient," and their scheduler's safety argument rests on such
-absences. The practical form there is possession-shaped rather
-than assertion-shaped: the code *was never handed* the capability,
-so the absence holds by construction. That form may be unusually
-cheap for us: in a language where resources are wires, "will not
-touch those files" is "no wire from that resource enters this
-region" — a drawable, provenance-checkable fact
-(`bundle-provenance-design.md`), not an assertion about behavior.
-If negative constraints ever get worked, possession-by-wiring is
-the leaning to test first.]*
+*(Clarified 2026-07-10, follow-up: a capture-set type like
+Effekt's `() => Unit at {}` — offered in an earlier draft of this
+note as a sighting — is **not** a negative constraint. It is a
+positive constraint that hasn't been handed anything: an
+enumeration of what the code may touch, with the enumeration
+empty. A negative constraint is "do anything except X" — one
+exclusion asserted over code that is otherwise a complete
+mystery. That form remains unsighted, and may be unsighted
+because it is useless.)*
+
+*[Annotation, corrected accordingly: the whitelist form and the
+single-exclusion form differ in exactly the dimension this doc
+cares about. A whitelist must enumerate everything the code does
+touch — which re-creates the counter problem (add one logging
+call and the enumeration breaks). The single-exclusion form
+coexists with the mystery, which is why it fits the
+holes-without-breaking story if anything does. The one drawable
+candidate spotted so far: a connectivity absence — "no wire from
+resource R reaches this region" — asserts a single exclusion
+without enumerating anything else, and is provenance-checkable
+(`bundle-provenance-design.md`). Whether even that is useful
+inherits the stated doubt above.]*
 
 ## What facets are NOT: verification
 
@@ -194,17 +203,24 @@ downstream of it.
 
 ## Open edges (stated, not worked)
 
-1. **Facet-first vs example-first.** "Write just a facet, nothing
-   concrete" sits in visible tension with the first principle
-   (write the concrete case, then generalise — never declare
-   structure upfront). Candidate reconciliation for a future
-   round, not decided here: attachment is bidirectional in time —
-   a facet can be extracted *from* a concrete program after the
-   fact (abstraction earned and upward) just as well as authored
-   first; and when the facet is authored first, that's because the
-   facet itself *is* the concrete example being worked (you are
-   designing the state machine, not the program). Whether that
-   dissolves the tension or hides it is for the round to find out.
+1. **Facet-first vs example-first — resolved in follow-up
+   (2026-07-10).** The apparent tension dissolved on two points
+   from the follow-up conversation. First: **extraction** —
+   pulling a facet out of concrete code after the fact — is the
+   correct example-first path to a facet. Second: writing
+   abstract facets first is nonetheless legitimate, as
+   **planning** — the way an OCaml programmer writes type
+   definitions first because they're a good way of documenting
+   what the actual code is hoped to do. The principle itself was
+   sharpened in the process (clarification recorded in
+   `language-design-philosophy.md`): example-then-generalise
+   constrains *obligation, not option* — it doesn't forbid
+   writing general schemas; it means you shouldn't *have* to.
+   Everything doable with general schemas must be doable by a
+   concrete-first authoring path. Design consequence for the
+   facets round: both authoring directions (author-then-attach;
+   extract-from-concrete) are requirements, and extraction is the
+   one the principle guarantees.
 2. **No single theory.** Explicitly recorded: this is a huge,
    open-ended idea that likely manifests in several unrelated
    ways; "you can't just say 'this is what a facet is' and be
