@@ -221,6 +221,20 @@ first-implementation convenience, rejected long-term.
   split-when confirmation sweep, and a clash record (sigspace,
   dynamic variables, method-name action binding, declarator-chosen
   rollback).
+- [`flix-comparison.md`](flix-comparison.md) — third
+  learning-from-other-languages round (2026-07-10): the Flix
+  example suite (~190 programs — first-class Datalog, the
+  effect-handler stdlib ecosystem, channels, regions, restrictable
+  variants) read against the record. Yield: one new open problem
+  (saturation — closure under rules, with keyed-merge and
+  provenance-explanation in scope), the policy layer (middleware)
+  and the decorated tree handed to the functions row alongside the
+  test double's third witness, the purity mirror's two demands,
+  piecewise concurrency confirmations (poll arm, scope-bound
+  spawn, source opener, pacing), restrictable variants as prior
+  art for recursive shape checking, and a clash record (dynamic
+  handler reach, continuations as data, unification by name
+  coincidence, type algebra as the safety story).
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
