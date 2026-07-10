@@ -123,6 +123,24 @@ is per-consumer wiring, not a language commitment. Universal
 effect-ordering disclaimers ("MobX does not guarantee the order")
 are the IO thread's mirror; Elm's ports supply the FFI-boundary
 stance (few, owned, message-shaped). Scores unchanged.)*
+*(2026-07-10, later: the Zig comparison (`zig-comparison.md`,
+findings 6, 8) handed the **cancellation/bracket half** its
+structural prior art, complementing the pending-update-list prior
+art on the effects half — `defer`/`errdefer` supply four
+properties any bracket design should reproduce: release written
+adjacent to acquisition (in the record's terms a late-wired
+release half on the acquiring node, the `<port> of <name>`
+two-phase form, fired at the owning flow's discharge); cleanup
+keyed by exit reason (errdefer = per-terminator-lane release,
+error payload capturable); the infallibility asymmetry ("Resource
+allocation may fail; resource deallocation must succeed"); and
+per-firing as well as per-flow attachment (defer in a loop body).
+Plus the new `std.Io` cancellation cluster: `Future.cancel` is
+"equivalent to await but places a cancellation request" —
+cancellation *discharges a readable terminator*; group wait
+propagates cancellation to members (scope-bound lifetime's second
+witness); `cancelRequested` polling as the cooperative floor.
+Structure, not a design; scores unchanged.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -177,6 +195,13 @@ round: group output order now has three shipped answers
 first-appearance), BQN's classify-then-place decomposition argues
 key extraction is ordinary drawn computation rather than node
 configuration, and ¯1-drop is keyed partial engagement. Scores
+unchanged.)*
+*(2026-07-10, later: the Zig comparison (`zig-comparison.md`,
+finding 1) — the write-half design confirmed from the imperative
+mainstream: Zig's `while` continue expression is the register
+step pulled out of the body and attached to the loop precisely so
+`continue` cannot skip it; C's skip-the-increment bug class is
+the negative witness for making the step structural. Scores
 unchanged.)*
 W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
@@ -249,6 +274,12 @@ encodings for per-segment running state, with the community
 benchmarking flat vs nested) is the strongest assembly-language
 exhibit yet for split-when + register; Partition's drop-zeros is
 another gap-tolerant-segmentation sighting. Scores unchanged.)*
+*(2026-07-10, later: the Zig comparison (`zig-comparison.md`) —
+small note: `std.mem.window(T, buf, size, advance)` ships
+window(k) with an independent step parameter and emits the
+partial final window (the unterminated-final-segment bit set to
+"emit"), one more point in the window family's design space.
+Scores unchanged.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -317,6 +348,21 @@ round. The served flow gains React Query's model as furniture:
 keyed async state with staleness policy (fresh-until, refetch on
 mount/refocus/reconnect), retry-with-backoff, and gc of inactive
 keys. Scores unchanged.)*
+*(2026-07-10, later: the Zig comparison (`zig-comparison.md`,
+findings 2, 8) — a **priority correction on the source opener**:
+Zig's plainest counter `while` transcribes onto the self-driven
+flow, and the stdlib's whole iteration story is pull-until-null
+(`next() ?T`) — the opener gates ordinary loops, not just pumps
+and generators; seventh and most institutional witness. The
+concurrent collect's round gains the asynchrony-as-possibility /
+concurrency-as-failable-resource-claim distinction (`io.async`
+may run synchronously — the DAG's stance in API form;
+`io.concurrent` fails with `ConcurrencyUnavailable`, slotting
+beside `bounded(n)`-as-resource). The race round gains the
+select-union note: `io.select` packs a tagged union to cross the
+race (the sum bottleneck), but discriminated by contender name —
+discrimination-must-be-structural confirmed, the packing what the
+barrier form dissolves. Scores unchanged.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -326,7 +372,20 @@ flagged genuinely open, the discharging collect's ports fold into
 the barrier-crossing row (Tier 3 — now worked with leanings), and
 the option/async convergence is sharpened but undecided. End-when's readout composition leans
 entirely on discharge, so adoption pressure now arrives from the
-everyday side too.
+everyday side too. *(2026-07-10: the Zig comparison
+(`zig-comparison.md`, finding 7) gave both flagged residues field
+answers. Bodies-raise: yes, at one keyword's cost — `try` is
+propagate-by-default shipped, the strongest witness for the
+lightweight `fail` direction (the seven-statement end-when
+encoding of a raise is not viable as the everyday form).
+Payload-type composition: error-set algebra shipped — union at
+merge points (`||`), subset-to-superset coercion along
+propagation, inference by default with a named escape to explicit
+sets, and the warning that inference breaks on recursion (a
+constraint to carry to the divide flow and feedback forms).
+`catch |e| switch` with exhaustive error switches is the
+discharge + split-on-tag idiom in the mainstream. Prior art, not
+a design; scores unchanged.)*
 
 **Checking: the deferred design rounds — I 3, W 4.**
 The stance is settled (demands/offers, no search, drawable
@@ -432,7 +491,18 @@ Scores unchanged.)* *(2026-07-10, later: the reactive comparison
 (`reactive-comparison.md`, finding 3) — the policy layer's second
 witness-as-furniture: React Query ships retry/backoff/staleness/
 gc as declarative query config interposed between consumers and
-the async source. Scores unchanged.)*
+the async source. Scores unchanged.)* *(2026-07-10, later: the
+Zig comparison (`zig-comparison.md`, finding 8) — late-bound
+operations' fourth witness and the flattest mechanism yet:
+Allocator/Io as **ordinary parameters**, no capability machinery
+at all, supporting the row's inside-out provider-on-a-port
+leaning over any dynamic-scope reading. The test-double question
+gains **fault injection as configuration**
+(`std.testing.FailingAllocator` — "fails after N allocations,
+useful for making sure out of memory conditions are handled
+correctly"); allocator wrappers (arena, leak-checking, logging)
+are the policy layer's third furniture witness. Scores
+unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -603,7 +673,14 @@ optimizer's mercy), while jq's `limit` genuinely aborts via
 ("can no longer receive any events... can have `output` data,
 which is sent to the parent machine") are the terminator-with-
 payload discharge confirmed from the statechart side. Scores
-unchanged.)*
+unchanged.)* *(2026-07-10, later: the Zig comparison
+(`zig-comparison.md`, finding 4) — the strongest syntax-level
+confirmation yet: every Zig loop is an expression whose `break v`
+/ `else d` pair is the discharge's Stopped/RanOut split
+lane-for-lane, and a `while` over an error union gives `else`
+the error payload — the failable source's terminator payload in
+the wild. Labeled break across nesting is the readout targeting
+an outer flow. Scores unchanged.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -707,7 +784,16 @@ authoring vocabulary. The family's rank-2 evidence (2D windows,
 transpose-heavy idioms) attaches to questions 3–5. Scalar
 extension recorded as Incorporate's implicit costume — capability
 confirmed, implicitness clashed. Scores unchanged — a demand
-grew, nothing got worked.)*
+grew, nothing got worked.)* *(2026-07-10, later: the Zig
+comparison (`zig-comparison.md`, finding 3) — the aligned
+product's second shipped witness, from the imperative side and
+as the **primary loop syntax**: multi-object `for (a, b) |x, y|`
+with the length-equality side condition asserted at the barrier
+("at the start of the loop", not per element), and indices as
+one more aligned lane (`for (items, 0..)` — the unbounded range
+takes its extent from its siblings), which answers the
+translation exercise's range-materializing note in the
+affirmative. Scores unchanged.)*
 
 ## Tier 4 — presentation and polish (≤ 7)
 
@@ -768,6 +854,14 @@ method rules in `language-design-philosophy.md`):
   demand now has category-strength documentation behind it, and
   this sample is what can convert that into the field sighting
   the probation requires; `reactive-comparison.md`, finding 7.)*
+  *(2026-07-10, later: the Zig comparison added the shape's first
+  field sighting anywhere — labeled switch (`continue :state
+  .next`, added in 0.14 with the stated virtue that state
+  transitions become "unambiguous, explicit, and immediately
+  understandable") shipping in Zig's own production tokenizer —
+  a systems-language sighting, not yet the UI-population one this
+  sample is for; the probation re-read belongs to its owning
+  doc; `zig-comparison.md`, finding 5.)*
 - **A combinator census**, and larger n where a proportion
   becomes load-bearing.
 - **The saturation frequency question** *(2026-07-10, from the Flix
@@ -987,3 +1081,31 @@ the reason.
   Clash record led by auto-tracking (dependency graphs inferred
   from execution traces — the invisible wire at ecosystem scale,
   with its documented footgun bill).
+- **2026-07-10** (later still) — seventh learning-from-other-languages
+  round (`zig-comparison.md`: the Zig language reference read at
+  source plus the stdlib as field code — tokenizer, mem iterators
+  and window, the new `std.Io`, FailingAllocator — run under a
+  stated brief: Zig is the imperative mainstream's deliberate
+  redesign of C's control flow, so each modification is read as a
+  field-tested claim about where raw imperative control flow
+  fails, checked against the record's constructs). No new row; no
+  score movement. Central confirmation: Zig's redesigned loop
+  headers decompose into exactly the record's constructs — the
+  `while` header is (end-when, register write half) pulled out of
+  the body; `break v`/`else d` is the discharge's readout split
+  shipped as expression syntax. IO/effects (Tier 1): the
+  bracket/cancellation half's structural prior art
+  (defer/errdefer's four properties; cancel-as-await; group
+  propagation). Failability: both flagged residues gain field
+  answers (try; error-set algebra). Concurrency: source-opener
+  priority correction (the imperative ground floor; seventh
+  witness), asynchrony-as-possibility vs failable concurrency
+  claim, the select-union note. Functions: fourth late-bound
+  witness (ordinary parameters), fault injection on the test
+  double, policy layer's third witness. Products: zip's second
+  shipped witness as primary loop syntax. Custom-protocol-flows
+  probation: third arrival and first field sighting (labeled
+  switch in the production tokenizer, 13% besides) — noted on the
+  evidence-owed UI sample, decision left with the owning doc.
+  Clash record led by visibility-by-prohibition vs by-drawing
+  (same Zen, opposite mechanism).

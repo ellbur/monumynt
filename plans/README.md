@@ -295,6 +295,27 @@ first-implementation convenience, rejected long-term.
   The Elm Architecture drawn in six existing constructs, and a
   clash record led by auto-tracking (the invisible wire at
   ecosystem scale, with its documented footgun bill).
+- [`zig-comparison.md`](zig-comparison.md) — seventh
+  learning-from-other-languages round (2026-07-10), the imperative
+  round, run under a stated brief: Zig deliberately redesigned C's
+  control flow, so each modification is read as a field-tested
+  claim about where raw imperative control flow fails, checked
+  against the record. Central confirmation: the redesigned loop
+  headers decompose into exactly the record's constructs (the
+  `while` header is end-when plus the register write half;
+  `break v`/`else d` is the discharge readout shipped as
+  syntax). Yield: the bracket half's structural prior art
+  (defer/errdefer — adjacency, exit-reason keying, the
+  infallibility asymmetry, per-firing attachment; cancel-as-await
+  from the new `std.Io`), field answers for failability's two
+  flagged residues (try; error-set algebra), the source-opener
+  priority correction (the imperative ground-floor loop starts
+  off the page), zip's second shipped witness (multi-object
+  `for`), the custom-protocol-flows probation's first field
+  sighting (labeled switch in the production tokenizer), the
+  late-bound-operations witness with fault injection
+  (FailingAllocator), and a clash record led by
+  visibility-by-prohibition vs by-drawing.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
