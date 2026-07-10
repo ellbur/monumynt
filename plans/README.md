@@ -206,6 +206,21 @@ first-implementation convenience, rejected long-term.
   flow (recursive provider; keyed cache), a clash record of what
   must not be imported and why, and confirmations for the IO,
   end-when, and source-opener items.
+- [`raku-grammars-comparison.md`](raku-grammars-comparison.md) —
+  second learning-from-other-languages round (2026-07-10): Raku's
+  grammar and regex documentation read against the record — a
+  documentation corpus, so structure only, no field sightings
+  (reading rule 4 there). Organizing observation: grammars as a
+  special case of *inhomogeneous iteration*, an algebra for buying
+  complex loops by adding atoms, none of it text-specific. Yield:
+  the grammar ladder's unowned phase-sequence rung and the
+  deterministic/trial fork (to the variable-rate row), structure
+  for the speculation row (two choice constructs, commitment,
+  error diagnosis in scope), parsing as the divide flow's everyday
+  client, extensible alternation (to the functions row), a
+  split-when confirmation sweep, and a clash record (sigspace,
+  dynamic variables, method-name action binding, declarator-chosen
+  rollback).
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
