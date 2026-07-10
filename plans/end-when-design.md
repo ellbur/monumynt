@@ -389,6 +389,18 @@ from outside it — arguably a difference the picture should
 show). Until a concrete program needs them unified, they stay
 siblings with deliberately rhyming shapes.
 
+*(2026-07-10: the race round — `race-barrier-design.md` —
+supplies the mechanics half of the deciding test. With race's
+law stated, interrupt's mechanical content inventories as:
+per-pull race construction, the memoised interrupt cell carried
+across pulls, the pull boundary as yield point, the cooperative
+caveat, and the per-pull tie-break — none of which an aligned
+stop has. The shared content is exactly the output type and the
+downstream story, i.e. what the conjecture's own test discounts.
+Sibling stance confirmed from that side; the drawing half of the
+test — whether one picture would mislead — remains open and is
+not this repo's to decide.)*
+
 ## The decision-driven family: scope bounded
 
 The tough doc's open question 5 asked whether end-when is the

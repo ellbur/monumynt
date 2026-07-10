@@ -122,6 +122,15 @@ first-implementation convenience, rejected long-term.
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   event-loop values, racing as a barrier, failability as terminator
   payloads.
+- [`race-barrier-design.md`](race-barrier-design.md) — the race
+  barrier's own semantics round (the piece survey 3 put first):
+  the barrier's law with drawn-order ties, the unary race as the
+  async uncollect, subset merges failable by construction,
+  dynamic sets redirected to the completions stream, the
+  lost-cell cancellation hook, merge/interrupt/timeout as
+  derived vocabulary. **An exploration round with leanings, not
+  an adopted design** — prepared for the design conversation;
+  five dead ends recorded.
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (vars): hold/changes, cutoff, push-with-values
   inside a necessity frontier as the destination.
