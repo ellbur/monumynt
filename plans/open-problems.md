@@ -86,7 +86,12 @@ everyday failure mode — the translation exercise found per-firing
 effects simply unwritable (`translation-exercise.md`, finding 1:
 "you cannot transcribe `task.cancel()` in a loop"), and
 bodies-raise / lightweight failure surfaced as the same row's
-second concrete demand (its finding 2).)*
+second concrete demand (its finding 2).)* *(2026-07-10, later:
+external confirmation from the Effekt comparison
+(`effekt-comparison.md`, finding 5) — every one of their nine case
+studies freely interleaves effects mid-computation, i.e. the hole
+gates ordinary programs, not just effect-heavy ones; no score
+movement, the row already carries W 5.)*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -162,7 +167,13 @@ survey classes 4–5 cannot start on the page) and **pacing**: a
 self-driven flow whose next firing waits on a per-firing async
 value (sleep-between-retries), a semantic hole with three field
 sightings that blocks the retry composite;
-`translation-exercise.md`, finding 3.)*
+`translation-exercise.md`, finding 3.)* *(2026-07-10, later: the
+Effekt comparison (`effekt-comparison.md`, findings 4, 6a) handed
+the served flow's round two demands — the recursive provider (a
+server defined partly by requests back to itself) and the keyed
+cache in front of a served flow, both from the build-system case
+study — and added an outside witness that the missing source
+opener blocks the canonical beginner generator.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -192,7 +203,7 @@ flow is a candidate primitive with an unworked termination story
 inherits the register discipline is unresolved. Breadth item 9
 (the recursive gather) is the field sighting.
 
-**Functions, reuse, and facets — I 4, W 3.**
+**Functions, reuse, and facets — I 4, W 4.**
 Also narrative-stage: the function boundary (flow skeleton with
 data holes, `functions-design.md`), its conjectured relationship
 to summaries-as-generalized-programs (`types-design.md` read-out
@@ -201,7 +212,46 @@ to summaries-as-generalized-programs (`types-design.md` read-out
 (recorded in `tough-use-cases-design.md`'s addenda as "too big a
 topic to explore now"). A useful language eventually needs reuse;
 the deferral is deliberate but should not become permanent by
-inertia.
+inertia. *(2026-07-10: W 3 → 4 — the Effekt comparison round
+(`effekt-comparison.md`, findings 1–2) added two demands to the
+remaining list: **late-bound operations** (a diagram written
+against operations whose meaning is wired in per use — the
+inside-out form is a request/response port pair on the boundary,
+connecting to the served flow) and its everyday face, **the test
+double** ("run a diagram that does IO against fake IO"), which the
+record currently cannot answer at all. Four of nine Effekt case
+studies rest on this capability; testing makes it everyday rather
+than exotic.)* *(2026-07-10, later: the facets half now has a
+recorded statement of intent — `facets-design-notes.md`, from the
+design conversation the test-double finding prompted: facets as
+authorable, attachable abstractions (the struct → interface →
+facet ladder; algebras and state machines as code facets; shared
+facet between production and test code as what makes the test
+double informative), holes without breaking, negative constraints
+with their stated direction of doubt, and the explicit bound that
+facets are views for a human, not verification. Scores unchanged —
+intuitions recorded, nothing worked; the doc's open edge 2 records
+the leaning that a first round should work one manifestation (the
+algebra facet + test double) rather than a general theory.)*
+
+**Speculation: ordered alternatives with rollback — I 4, W 3.**
+*(New row, 2026-07-10, from the Effekt comparison round —
+`effekt-comparison.md`, finding 3.)* Try alternatives in drawn
+order; an attempt can fail; the world is restored between
+attempts. Field demand predates the round (breadth item 6, the
+backtracking parser: "wants the save/restore pairing visible";
+`real-loop-survey.md`), and the comparison found the shape twice
+independently (parser, pretty-printer-as-search). Pieces exist —
+race's drawn-order ties (`race-barrier-design.md`), failability's
+fail, the chooser family (`tough-use-cases-design.md` item 4),
+registers (express save/restore but illegibly) — but nothing owns
+the construct. The recorded leaning for its round: a sequential,
+ordered race-sibling with failable contenders, consumed input
+threaded as positional values so restoration is structural (the
+contrast with Effekt's allocation-position rollback is the
+argument); check the +1 ladder first-success → all-results →
+bounded → heuristic order. W 3 as a breadth obligation: parsing
+and search are rare-but-breaking.
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -218,7 +268,11 @@ first transcription evidence — the stop/discharge/split-on-tag
 composition survived contact with the textual form and reads
 well, with strawman spellings for the flow-op form, the bit, and
 the terminator-only readout ready for the adoption conversation;
-`translation-exercise.md`, B1/B2/C2 and finding 5.)*
+`translation-exercise.md`, B1/B2/C2 and finding 5.)* *(2026-07-10,
+later: a small outside confirmation — Effekt's `while ... else`
+(an on-normal-exit branch) and labeled break are the same readout
+distinctions the terminator-discharge design already draws;
+`effekt-comparison.md`, finding 6b.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -393,3 +447,24 @@ the reason.
   surface decision." The decision conversation remains, reframed
   as a surface choice; operator identities and the self-driven
   source opener (shared with the concurrency row) remain.
+- **2026-07-10** (later still) — first learning-from-other-languages
+  round (`effekt-comparison.md`: Effekt's nine case studies + tour,
+  read against the record; a curated-corpus evidence genre — biases
+  stated in the doc, frequencies mean nothing). One new row:
+  speculation — ordered alternatives with rollback, I 4 / W 3,
+  Tier 2 (two corpus sightings joining breadth item 6; pieces in
+  race/failability/chooser/registers, no owner). Functions, reuse,
+  and facets: W 3 → 4 (late-bound operations and the test double —
+  the record has no answer to "run a diagram against fake IO";
+  product 12 → 16, stays Tier 2). Concurrency row: served flow
+  gains the recursive provider + keyed cache demands. IO/effects
+  (Tier 1) and end-when (Tier 3): confirmation notes only.
+- **2026-07-10** (later still) — facets: intuitions recorded
+  (`facets-design-notes.md`, from the design conversation prompted
+  by the test-double finding — authorable/attachable facets, holes
+  without breaking, negative constraints, views-not-verification).
+  Functions/reuse/facets row scores unchanged at I 4 / W 4:
+  nothing worked, but the facets half moved from a name in an
+  addendum to a statement of intent with named open edges, and the
+  row now carries the leaning for its first round (one
+  manifestation — the algebra facet + test double).

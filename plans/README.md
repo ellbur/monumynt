@@ -54,6 +54,14 @@ first-implementation convenience, rejected long-term.
   [`functions-design.md`](functions-design.md),
   [`custom-flows.md`](custom-flows.md),
   [`configuration-scopes.md`](configuration-scopes.md).
+- [`facets-design-notes.md`](facets-design-notes.md) — recorded
+  intuitions (2026-07-10, deliberately undeveloped): facets as
+  authorable, attachable abstractions — the concrete/schematic
+  gap, the struct → interface → facet ladder, algebras and state
+  machines as code facets, holes without breaking, negative
+  constraints, and the views-not-verification bound. Extends the
+  facets addendum in `tough-use-cases-design.md` (which owns the
+  viewing side) with the attachment side.
 
 ## Representation and checking
 
@@ -187,6 +195,17 @@ first-implementation convenience, rejected long-term.
   bodies-raise and source openers missing, the write-half
   two-phase form demanded by every on-cycle operand, the collect
   family's spelling-and-identity debt.
+- [`effekt-comparison.md`](effekt-comparison.md) — first
+  learning-from-other-languages round (2026-07-10): Effekt's nine
+  case studies and tour read against the record — problems
+  extracted, never mechanisms; reading rules for the genre
+  (curated-corpus bias — this is *not* a random sample) stated in
+  the doc. Yield: one new open problem (speculation — ordered
+  alternatives with rollback), two demands for the functions row
+  (late-bound operations; the test double), two for the served
+  flow (recursive provider; keyed cache), a clash record of what
+  must not be imported and why, and confirmations for the IO,
+  end-when, and source-opener items.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
