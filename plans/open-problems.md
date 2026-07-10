@@ -115,15 +115,15 @@ and the nested-segmentation boundary against grammar vocabulary.
 The decision-driven merge — the family's two-flow member — still
 has only its chooser sketch (tough doc item 4).
 
-**The concurrency constructs — I 4, W 4.**
+**The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
 dissolved into wiring, but `bounded(n)` resists), the served flow
 (item 2), the race barrier's own semantics round (owed per
 `async-flow-design.md` question 5), fairness, and "what is a
 program for a server?" (`tough-use-cases-design.md` question 7).
-Demanded by three of the five tough use cases; nothing worked
-end-to-end. The event-loop breadth item (7) is this area's
-acceptance test in miniature. *(2026-07-10: evidence landed —
+Demanded by three of the five tough use cases. The event-loop
+breadth item (7) is this area's acceptance test in miniature.
+*(2026-07-10: evidence landed —
 `real-loop-survey.md`, survey 3, thirty orchestration sites from
 six server/async corpora. Scores unchanged (nothing designed got
 designed), but the within-area ranking is sharpened: first-of
@@ -132,7 +132,16 @@ and every hand-rolled race reconstructs the winner from side flags,
 so the race barrier's round leads this area, ahead of the collect
 species menu; `bounded(n)`-as-resource and serial-as-default are
 field-confirmed; the concurrent collect's lifecycle outputs gained
-a bug class they would prevent.)*
+a bug class they would prevent.)* *(2026-07-10, later: the race
+round is written — `race-barrier-design.md`, building on the
+crossing round's port answer: the barrier's law and ties, the
+unary-race leaning, failable subset merges, the dynamic-set
+redirect, the cancellation hook, merge/interrupt/timeout as
+derived vocabulary; fairness answered by relocation to the
+chooser family. I 4 → 3: the area's lead item now has worked
+leanings, but the concurrent collect's own round, the served
+flow, and the server-program question remain, and nothing is
+adopted.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -317,3 +326,12 @@ the reason.
   reconciliation remain; the race barrier's own semantics round
   (concurrency row) is unblocked at its port corner but otherwise
   still owed.
+- **2026-07-10** (later still) — concurrency constructs: I 4 → 3
+  (the area's lead item worked — `race-barrier-design.md`, the
+  race barrier's semantics round; async question 7 answered by
+  relocation; end-when's unification conjecture gets its
+  mechanics-side answer), W 4 unchanged; product 16 → 12, stays
+  Tier 2. Remaining in the row: the concurrent collect's own
+  round (lifecycle outputs, `bounded(n)`), the served flow, the
+  chooser family (now also owning merge fairness), and the
+  server-program question.

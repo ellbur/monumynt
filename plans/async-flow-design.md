@@ -726,7 +726,18 @@ existing simple-lazy compile discipline:
    per-contender value + flow output pairs fit the inventory
    model directly, no Branch-style satellite nodes needed. The
    barrier's own design round still owes its semantics; the
-   representational blocker is what dissolves.
+   representational blocker is what dissolves. *Update
+   (2026-07-10)*: the port/crossing corner is worked in
+   `barrier-value-crossing-design.md` (values-in, minted
+   per-contender pairs, derived from the co-location criterion),
+   and the semantics round itself now exists —
+   `race-barrier-design.md`: the barrier's law with drawn-order
+   ties, the unary-race-is-the-async-uncollect leaning, subset
+   merges landing failable-by-construction, dynamic sets
+   redirected to the completions stream, the lost-cell
+   cancellation trigger, and merge/interrupt pinned as catalog
+   blocks with corecursive derived lowerings. Leanings prepared
+   for the design conversation, not adopted.
 
 6. **Is the async open its own kind, or is `OptionIter` a
    degenerate async?** They share the one-shot-body shape. Keeping
@@ -748,6 +759,13 @@ existing simple-lazy compile discipline:
    does" is the honest answer, matching the determinism stance
    under racing — but merge-heavy programs may eventually want a
    fairness knob, and it should be an explicit operation if so.
+   *Update (2026-07-10)*: answered by relocation in
+   `race-barrier-design.md` — for race itself the question is
+   vacuous (one settlement; the only bias is the specified
+   drawn-order tie-break), and merge's fairness variants are
+   per-heads-decision variants belonging to the decision-driven
+   merge family's round, confirming the "explicit operation"
+   suspicion with an address. A leaning, not adopted.
 
 8. **Naming.** "Async flow" for the kind; the open's constructor
    name (`AsyncIter`? `Await`?); "race" vs "select"; "interrupt"

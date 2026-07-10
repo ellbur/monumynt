@@ -537,6 +537,13 @@ should not be re-proposed:
    abandonment/cancellation interplay, and merge/interrupt as
    derived combinators — still owed (`async-flow-design.md`,
    question 5); only the port/crossing corner is worked here.
+   *(2026-07-10, later: now written — `race-barrier-design.md`
+   takes this list item by item, building on this round's port
+   answer unchanged. One addition touches this document's
+   subject matter: a subset partial collect over a race bundle
+   leans failable-by-construction, its terminator written at the
+   settlement that decides all cells — a kind-instantiation of
+   the partial collect, not a change to the crossing story.)*
 5. **Terminator payload composition** (`E1`/`E2` across chained
    failability) — unchanged from the async residuals, and now
    clearly a value-level question, not a port question.
