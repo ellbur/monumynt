@@ -83,6 +83,17 @@ Two vocabulary points fall out:
   wasted CPU; once effects exist it is observable. See "Effects,
   abandonment, cancellation" below.
 
+*(2026-07-10: the concurrency survey — `real-loop-survey.md`,
+survey 3, findings 3.3 and 3.9 — confirms the cell model from the
+field. The deferred (a promise minted empty, write half separate,
+often memoised-once and lazily created) was the sample's
+most-reached-for primitive; nobody was drawn using `new Promise`
+for its designed eager purpose, and JS itself has since added
+`Promise.withResolvers`. The cell's timing contract also earns its
+keep: three sites exist solely to keep continuations from running
+re-entrantly — the "release Zalgo" discipline the event-loop-cell
+semantics provides by construction.)*
+
 ## The async flow as an open/close
 
 An `async<X>` opens the way an option does. `Open(AsyncIter?)` on
@@ -266,6 +277,19 @@ tagged promises (see the compile sketch), with the tag as
 internal bookkeeping selecting the branch scope, never a
 user-visible value. The same representation-vs-compilation split
 the Commute node landed on.
+
+*(2026-07-10: field evidence for both halves of this section, from
+the concurrency survey — `real-loop-survey.md`, survey 3, findings
+3.1–3.2. First-of coordination (race, timeout, interrupt,
+cancellation) outweighed all-of coordination nine-to-one in thirty
+random orchestration sites — the reverse of this document's design
+attention, which has fork-join fully worked while race's own round
+(question 5) is still owed. And in every hand-rolled race drawn,
+"which contender won" was reconstructed after the fact from side
+state — a `request is not None` check, `reply.sent` flags, a
+four-state enum plus exception conversion — never delivered
+structurally: exactly the correspondence the barrier's
+per-contender outputs exist to preserve.)*
 
 ### Worked example: timeout
 

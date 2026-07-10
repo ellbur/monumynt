@@ -1,15 +1,23 @@
 # Real-Loop Survey: Random Loops Against the Block Inventory
 
-> **Status update (2026-07-09, later the same day).** This document
-> now holds **two** surveys. Survey 1 (below, unchanged): thirty loops
-> from infrastructure corpora (Python/Ruby stdlib, npm's JS). Survey 2
-> ("Survey 2: the missing domains", appended): thirty loops from six
-> domain corpora targeting survey 1's stated gap — numerics,
-> algorithms, simulation, UI/event handling, games, graphics. The
-> single most consequential correction: **the scan occurred in survey
-> 2, concentrated exactly where survey 1 predicted** (numerics), so
-> survey 1's "scan absent" finding is now confirmed as corpus skew,
-> not a fact about real code. The combined picture is at the end.
+> **Status update (2026-07-10).** This document now holds **three**
+> surveys. Survey 1 (below, unchanged): thirty loops from
+> infrastructure corpora (Python/Ruby stdlib, npm's JS). Survey 2
+> ("Survey 2: the missing domains"): thirty loops from six domain
+> corpora targeting survey 1's stated gap — numerics, algorithms,
+> simulation, UI/event handling, games, graphics. The single most
+> consequential correction of survey 2: **the scan occurred,
+> concentrated exactly where survey 1 predicted** (numerics), so
+> survey 1's "scan absent" finding is confirmed as corpus skew, not a
+> fact about real code. Survey 3 ("Survey 3: concurrency
+> orchestration", appended 2026-07-10): thirty **concurrency
+> orchestration sites** — a different unit than loops — from six
+> server/async-heavy corpora, giving the candidate-block inventory's
+> items 1–3 the frequency treatment items 4–5 got from the loop
+> surveys. Its headline: the sum-shaped barriers (race / timeout /
+> interrupt / cancellation) dominate the sample nine-to-one over the
+> all-of join, and every hand-rolled race reconstructs "who won" from
+> side flags rather than receiving it structurally.
 >
 > **How to read the tallies.** Frequency is not importance (the 80/20
 > counterweight — "Reading the frequencies", near the end, now also a
@@ -1457,5 +1465,869 @@ same constructs the hard case is built from.)*
   and GPU plumbing, not its event/render loop).
 - **A concurrency-focused sample** (server codebases, async-heavy
   projects) to give the tough-use-cases inventory items 1–3 the same
-  frequency treatment items 4–5 got here.
+  frequency treatment items 4–5 got here. *(Done, 2026-07-10 —
+  "Survey 3" below, with a protocol variation: the unit sampled is
+  the orchestration site, not the loop.)*
 - **Larger n / combinator census**: as before.
+
+---
+
+# Survey 3: concurrency orchestration
+
+*(2026-07-10. Thirty concurrency orchestration sites from six
+server/async-heavy corpora. Same method, different unit: surveys 1–2
+sampled loops; this survey samples the places where code creates,
+coordinates, or guards concurrency, because that is where inventory
+items 1–3 — the concurrent collect, the served flow, bracket — and
+the async doc's barriers live. Protocol below.)*
+
+## Why a different unit
+
+The loop surveys measured what iteration constructs must serve.
+Inventory items 1–3 were promoted by the five tough use cases, not
+by frequency — `open-problems.md` flags the concurrency row's
+evidence as thin, and the async doc's race barrier (question 5) owes
+its own round. Sampling loops again would not reach this code: the
+interesting structure in concurrent programs sits at spawn points,
+barriers, timeouts, locks, and queues, most of which are not loops.
+So the unit here is the **orchestration site**, defined by a fixed
+published vocabulary (below), drawn seeded and unfiltered exactly as
+before.
+
+## Protocol (survey 3)
+
+Corpora fetched from the public registries (pip / npm) onto the
+survey machine, one project per subdomain:
+
+| Corpus | Project | Domain |
+|---|---|---|
+| aiohttp | aiohttp 3.14.1 | async HTTP server + client (Python) |
+| uvicorn | uvicorn 0.51.0 | ASGI server: process supervision, protocols |
+| websockets | websockets 16.0 | WebSocket protocol library (Python) |
+| celery | celery 5.6.3 | distributed task queue, thread-based worker |
+| fastify | fastify 5.10.0 | HTTP server framework (JS) |
+| undici | undici 8.7.0 | HTTP client with connection pooling (JS) |
+
+**What counts as a site.** Python identification is parser-level
+(`ast`), per survey 2's amendment:
+
+- an `ast.Call` whose callee name (or attribute suffix) is in a
+  fixed orchestration vocabulary — spawn/structured concurrency
+  (`create_task`, `ensure_future`, `gather`, `wait`, `wait_for`,
+  `as_completed`, `shield`, `to_thread`, `run_in_executor`,
+  `run_coroutine_threadsafe`, `TaskGroup`, `create_task_group`,
+  `start_soon`, `open_nursery`), timers/scheduling (`sleep`,
+  `call_soon`, `call_later`, `call_at`, `call_soon_threadsafe`,
+  `timeout`), sync-primitive constructors (`Lock`, `RLock`,
+  `Semaphore`, `BoundedSemaphore`, `Event`, `Condition`, `Barrier`,
+  `Queue` and variants, `Future`, `create_future`),
+  threads/processes/pools (`Thread`, `Timer`, `ThreadPoolExecutor`,
+  `ProcessPoolExecutor`, `Pool`, `submit`), and
+  `add_signal_handler`;
+- an `ast.AsyncWith` or `ast.AsyncFor` statement;
+- an `ast.With` whose context expression mentions an identifier
+  containing lock/sem/cond/mutex (lock-usage sites).
+
+JS identification is regex-based with comment-line filtering,
+verified by reading (survey 1's precedent): Promise combinators
+(`all`/`race`/`any`/`allSettled`/`withResolvers`), `new Promise`,
+`AbortController`/`AbortSignal`, timers (`setTimeout`,
+`setInterval`, `setImmediate`, `queueMicrotask`,
+`process.nextTick`), `new Worker`, `MessageChannel`, `Atomics`,
+`for await`.
+
+**Selection.** Seed `20260710` retagged per corpus
+(`random.Random(f"20260710:{name}")`), shuffled sorted file list,
+walk in shuffled order, in each file containing at least one site
+pick **one** site uniformly at random, five per corpus, thirty
+total. Excluded paths: `*test*`, `__pycache__`, `/docs/`,
+`/examples/`, `/benchmarks/`, `*.min.js`, `.dist-info`. File counts
+after exclusion: aiohttp 53, uvicorn 41, websockets 48, celery 154,
+fastify 39, undici 112.
+
+**Two identification slips, kept and flagged** (don't-filter means
+they stay; both turned out to be genuine concurrency sites of a
+different kind than the pattern intended):
+
+- celery 5 was drawn by the with-lock heuristic matching
+  `block=True` — "block" contains "lock". The site is actually a
+  *pooled-resource acquire bracket*, in scope on its own merits.
+  Future runs should match on word boundaries.
+- celery 3 was drawn by the `Queue` constructor rule, but the
+  `Queue` is kombu's AMQP queue — a broker route declaration, not a
+  threading queue. A vocabulary collision across domains; kept and
+  classified at the domain level.
+
+Stated biases, beyond the vocabulary itself:
+
+- **These corpora implement concurrency infrastructure.** All six
+  are libraries/frameworks whose job is to provide concurrency to
+  applications, so the sample over-represents the *machinery* of
+  primitives (timeout internals, pool guts, protocol bridges)
+  relative to application-level orchestration ("fetch these five
+  things in parallel"). Direction: it strengthens findings about
+  what hand-rolled machinery a language would replace, and
+  under-measures how often an application reaches for gather vs
+  race. An application-level sample is the stated next round.
+- **Plain `await` is excluded by construction.** Sequential
+  composition (bind) is the dominant async operation and is already
+  served structurally (nesting); counting it would only inflate the
+  "already served" bucket. Same direction as survey 1's combinator
+  exclusion.
+- **Event-listener registration (`.on`/`.once`) is excluded** on
+  the JS side, and callback-slot assignment generally — so
+  event-source *wiring* is undersampled relative to its true
+  frequency in Node code.
+- **n = 30**, same coarseness as before; one site per file caps
+  density, so loop-dense files contribute no more than sparse ones.
+
+## The sample (survey 3)
+
+Grouped by classification; class names defined by the entries.
+
+### Class C1 — completion cells: deferreds, one-shot futures, memoised barriers (4 of 30)
+
+**aiohttp 1** — `aiohttp/client_reqrep.py:400`
+
+    @property
+    def upload_complete(self):
+        if self._upload_complete is None:
+            self._upload_complete = self._loop.create_future()
+            if self._stream_writer is None:  # upload already finished
+                self._upload_complete.set_result(None)
+        return self._upload_complete
+
+A lazily-minted future marking "request body fully sent" —
+already-resolved if the milestone has passed. A **lifecycle
+completion output** as a first-class value, minted on demand so that
+un-observed milestones cost nothing. The inventory's "lifecycle
+barrier outputs (completions)" appearing as a hand-built cell.
+
+**fastify 2** — `fastify/lib/promise.js:7`
+
+    function withResolvers () {
+      let res, rej
+      const promise = new Promise((resolve, reject) => { res = resolve; rej = reject })
+      return { promise, resolve: res, reject: rej }
+    }
+
+The deferred pattern as a utility (polyfill for
+`Promise.withResolvers`): a promise created **empty**, with the
+write half handed out separately. The eager-promise conflation
+(`async-flow-design.md`) undone by hand — the executor exists only
+to smuggle the resolvers out. That a server framework needs this as
+a building block (and that JS eventually added it to the language)
+is field evidence that the write-once cell with an external write
+half, not the eager computation, is the primitive.
+
+**fastify 5** — `fastify/fastify.js:526`
+
+    function ready (cb) {
+      if (this[kState].readyResolver !== null) { ...share existing promise... }
+      process.nextTick(runHooks)
+      // "It will work as a barrier for all the .ready() calls
+      //  (ensuring single hook execution)"
+      this[kState].readyResolver = PonyPromise.withResolvers()
+      ...
+
+The ready barrier: the first `.ready()` call mints a deferred and
+schedules the boot hooks; every later call shares the same promise.
+A **memoised one-shot cell** — lazily started, computed once, value
+shared by all consumers — which is precisely the async doc's
+`__asyncCell__` discipline, hand-enforced with a null check and a
+stored resolver.
+
+**undici 1** — `undici/lib/web/websocket/stream/websocketstream.js:116`
+
+    this.#openedPromise = Promise.withResolvers()
+    this.#closedPromise = Promise.withResolvers()
+    if (options.signal != null) {
+      if (signal.aborted) { ...reject both, return... }
+      addAbortListener(signal, () => { ...fail connection, reject both... })
+    }
+
+A resource (WebSocketStream, per the WHATWG spec) with **two
+lifecycle cells — opened and closed — plus an interrupt input**. The
+abort wiring shows the standard two-step: check if the signal
+already fired, then subscribe — the registration race every
+event-object consumer must handle by hand. Lifecycle outputs and the
+cancellation input as explicit per-resource ports, in a spec-mandated
+shape.
+
+### Class C2 — race and timeout (5 of 30)
+
+**websockets 3** — `websockets/asyncio/server.py:136`
+
+    await asyncio.wait(
+        [self.request_rcvd, self.connection_lost_waiter],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    if self.request is not None:
+        ...proceed with handshake...
+
+**The race barrier, verbatim**: handshake-request arrival raced
+against connection loss. And the load-bearing detail: the
+discrimination — who won — is *not delivered by the race*; it is
+reconstructed afterwards by inspecting a side variable
+(`self.request is not None`). The correspondence between contender
+and continuation survives only in the programmer's head, which is
+exactly the bottleneck argument for race's per-contender output
+flows (`async-flow-design.md`, "Racing is a barrier, not a value").
+
+**websockets 5** — `websockets/cli.py:118`
+
+    incoming = asyncio.create_task(print_incoming_messages(websocket))
+    outgoing = asyncio.create_task(send_outgoing_messages(websocket, protocol.messages))
+    try:
+        await asyncio.wait([incoming, outgoing], return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        incoming.cancel(); outgoing.cancel(); transport.close()
+
+The interactive client: two stream-drains (server→screen,
+stdin→server) raced; whichever ends first (server close or ^D) wins;
+the loser is cancelled in `finally`. Unless-and-until over two
+threads-as-drained-streams, with abandonment handled by explicit
+cancellation and bracket-shaped cleanup.
+
+**fastify 4** — `fastify/lib/route.js:530`
+
+    const ac = new AbortController()
+    request[kTimeoutTimer] = setTimeout(() => {
+      if (!reply.sent) {
+        const err = new FST_ERR_HANDLER_TIMEOUT(...)
+        ac.abort(err); reply.send(err)
+      }
+    }, handlerTimeout)
+    const onAbort = () => { if (!ac.signal.aborted) ac.abort(); clearTimeout(...) }
+    req.on('close', onAbort)
+
+Per-request handler timeout: a timer racing the handler, the winner
+determined by **flag checks** (`reply.sent`, `signal.aborted`),
+cancellation propagated by signal, and the timer/close cleanup
+paired by hand. race(handler, timer) with the discrimination again
+reconstructed from state.
+
+**websockets 4** — `websockets/asyncio/async_timeout.py:254` *(vendored
+copy of the async-timeout library — library-machinery code, flagged
+as such)*
+
+    self._timeout_handler = self._loop.call_at(deadline, self._on_timeout)
+    ...
+    def _do_exit(self, exc_type):
+        if exc_type is asyncio.CancelledError and self._state == _State.TIMEOUT:
+            _uncancel_task(self._task)
+            raise asyncio.TimeoutError
+
+The inside of `async with timeout(...)`: a timer that **cancels the
+current task**, a four-state machine (INIT/ENTER/TIMEOUT/EXIT), and
+an exit hook that converts the self-inflicted `CancelledError` into
+`TimeoutError` — carefully un-counting the cancellation so an outer
+*real* cancellation still propagates. This is what
+interrupt-plus-terminator-discharge costs when the interrupt channel
+is task cancellation: the "why did this end" discrimination is
+threaded through an exception type, a state enum, and a cancel
+counter.
+
+**aiohttp 4** — `aiohttp/helpers.py:600`
+
+    return loop.call_at(when, _weakref_handle, (weakref.ref(ob), name))
+
+Timeout plumbing: schedule a method call at a deadline — through a
+**weakref**, so the pending timer does not keep the target alive.
+The retention question (`async-flow-design.md`, event sources;
+`lazy-stream-placement-design.md`, `Delayed` retention) in the wild:
+a scheduled future effect is a reference, and library authors must
+hand-break the cycle timer→object→timer.
+
+### Class C3 — interrupt, shutdown, and cancellation delivery (4 of 30)
+
+**uvicorn 1** — `uvicorn/supervisors/basereload.py:35`
+
+    self.should_exit = threading.Event()
+    def signal_handler(self, sig, frame):
+        self.should_exit.set()
+    def pause(self):
+        if self.should_exit.wait(self.config.reload_delay):
+            raise StopIteration()
+
+The interrupt shape end-to-end: OS signal → one-shot event; the
+reload loop's tick is `should_exit.wait(delay)` — literally
+race(timer, interrupt) once per iteration, with the interrupt
+winning by raising out of the iterator. The async doc's
+unless-and-until, hand-rolled on threading primitives.
+
+**aiohttp 2** — `aiohttp/web_protocol.py:327`
+
+    self._force_close = True
+    ...
+    self._handler_waiter = self._loop.create_future()
+    async with ceil_timeout(timeout):
+        await self._handler_waiter          # wait for graceful completion
+    ...
+    async with ceil_timeout(timeout):
+        if self._current_request is not None:
+            self._current_request._cancel(asyncio.CancelledError())
+        await asyncio.shield(self._task_handler)
+    ...
+    self._task_handler.cancel()             # force-close non-idle handler
+
+Graceful connection shutdown: refuse new work, wait bounded time for
+the in-flight request (a completion cell created only when needed),
+then cancel-and-shield-await, then force-cancel. **The
+graceful-shutdown backlog program** (tough doc addenda) drawn at
+random: interrupt + bounded drain + escalating cancellation, three
+stages of it, each stage a timeout race. The `shield` is the honest
+marker of how delicate "wait for the thing you are cancelling" is.
+
+**celery 2** — `celery/worker/pidbox.py:107`
+
+    shutdown = self._node_shutdown = threading.Event()
+    stopped = self._node_stopped = threading.Event()
+    try:
+        with c.connection_for_read() as connection:
+            while not shutdown.is_set() and c.connection:
+                if resets[0] < self._resets: ...reset channel...
+                try: connection.drain_events(timeout=1.0)
+                except socket.timeout: pass
+    finally:
+        stopped.set()
+
+The broadcast-command thread: a drain loop checking a shutdown event
+every bounded drain, a connection bracket, a reset counter
+reconciled per round — and the **two-event handshake**: `shutdown`
+(interrupt in) set by the stopper, `stopped` (completion out) set in
+`finally`, awaited by the stopper. The lifecycle barrier pair —
+interrupt input, completion output — built from two Events and a
+try/finally.
+
+**fastify 3** — `fastify/lib/request.js:221`
+
+    get signal() {
+      let ac = this[kRequestSignal]
+      if (ac) return ac.signal
+      ac = new AbortController()
+      this.raw.on('close', () => { if (!ac.signal.aborted) ac.abort() })
+      return ac.signal
+    }
+
+The served flow's failure leg (tough doc question 3), resolved the
+Node way: client disconnect becomes an abort signal lazily minted
+per request and delivered *into* the handler body, which must wire
+it onward by hand. Per-firing cancellation as an explicit port on
+the exchange.
+
+### Class C4 — task spawn: per-firing, companion, root (4 of 30)
+
+**uvicorn 2** — `uvicorn/protocols/websockets/wsproto_impl.py:234`
+
+    self.queue.put_nowait({"type": "websocket.connect"})
+    task = self.loop.create_task(self.run_asgi())
+    task.add_done_callback(self.on_task_complete)
+    self.tasks.add(task)
+
+Task-per-connection — the **unbounded concurrent collect's firing**
+— with its lifecycle bookkeeping hand-rolled: a task set (so
+shutdown can find the in-flight bodies) maintained by a
+done-callback. The collect's "starts" and "completions" outputs,
+built from a set and a callback.
+
+**websockets 2** — `websockets/legacy/server.py:147`
+
+    # Register the connection with the server before creating the handler
+    # task. Registering at the beginning of the handler coroutine would
+    # create a race condition between the creation of the task, which
+    # schedules its execution, and the moment the handler starts running.
+    self.ws_server.register(self)
+    self.handler_task = self.loop.create_task(self.handler())
+
+Task-per-connection again (second sighting), and the comment is the
+finding: registration must precede spawn or the task's startup races
+the bookkeeping. The **spawn-registration race** is real enough to
+carry a four-line explanatory comment in a mature library — the
+ordering a structural "starts" output would give by construction.
+
+**uvicorn 5** — `uvicorn/lifespan/on.py:51`
+
+    main_lifespan_task = loop.create_task(self.main())  # noqa: F841
+    # Keep a hard reference to prevent garbage collection
+    # See https://github.com/Kludex/uvicorn/pull/972
+    await self.receive_queue.put(startup_event)
+    await self.startup_event.wait()
+
+Spawn a long-lived companion task, then rendezvous with it via a
+queue and a one-shot event. The comment marks a real bug class:
+asyncio holds tasks weakly, so a spawned task referenced by nothing
+gets **garbage-collected mid-flight**. A complete program whose
+parts hang off no root expression — the "program is a node set, not
+a root expression" consequence (`first-class-ports-design.md`) with
+a production incident number attached.
+
+**aiohttp 3** — `aiohttp/worker.py:63`
+
+    self._task = self.loop.create_task(self._run())
+    try:
+        self.loop.run_until_complete(self._task)
+    except Exception: ...
+    self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+    self.loop.close()
+
+The gunicorn worker's root: spawn the serve task, run the loop to
+its completion, then shut down async generators and close. The
+sync→async **program-root bridge** — the task handle exists so
+signal handlers elsewhere can cancel the whole composition. "What is
+a program for a server?" (tough doc question 7) at the process
+level: the program's value is its ongoing behaviour, and its exit is
+an interrupt delivered to the root task.
+
+### Class C5 — pools and permits (3 of 30)
+
+**undici 5** — `undici/lib/dispatcher/pool-base.js:198`
+
+    if (!dispatcher) {
+      this[kNeedDrain] = true
+      this[kQueue].push({ opts, handler })
+    } else if (!dispatcher.dispatch(opts, handler)) { ...mark client draining... }
+    ...
+    [kAddClient] (client) {
+      client.on('drain', ...).on('connect', ...).on('disconnect', ...)
+      this[kClients].push(client)
+      if (this[kNeedDrain]) {
+        queueMicrotask(() => { if (this[kNeedDrain]) this[kOnDrain](...) })
+      }
+    }
+
+The connection pool's guts: free client → dispatch; none → push to a
+wait queue and mark `needDrain`; drain events redistribute queued
+work; adding a client schedules a deferred drain check. This is
+**`bounded(n)` as a resource** exactly as the inventory's addendum
+reads it — permits (clients), waiters (the queue), release events
+(drain) — none of it partition-shaped, all of it
+permit-acquisition machinery.
+
+**celery 5** — `celery/backends/rpc.py:331`
+
+    with self.app.pool.acquire_channel(block=True) as (_, channel):
+        binding = self._create_binding(task_id)(channel)
+        binding.declare()
+        for _ in range(limit):
+            msg = binding.get(accept=accept, no_ack=no_ack)
+            if not msg: break
+            yield msg
+        else:
+            raise self.BacklogLimitExceeded(task_id)
+
+A **pool-acquire bracket**: take a channel from the connection pool
+(blocking on a permit), use it, release on exit. Inside: a bounded
+drain (take-until-empty with a hard cap, the cap overflow a
+failure), and upstream of this draw the caller deduplicates the
+drained messages by task id, last-state-wins — a keyed latest-of
+collect. Permits, bracket, bounded take, keyed collect, in one
+function.
+
+**uvicorn 3** — `uvicorn/supervisors/multiprocess.py:203`
+
+    while not self.should_exit.wait(0.5):
+        self.handle_signals()
+        self.keep_subprocess_alive()
+    self.terminate_all(); self.join_all()
+    ...
+    def keep_subprocess_alive(self):
+        for idx, process in enumerate(self.processes):
+            if process.is_alive(timeout=...): continue
+            process.kill(); process.join()
+            ...restart or give up...
+
+The process supervisor: a heartbeat loop (poll the interrupt with a
+timeout, again race(timer, interrupt) per tick) whose body
+**reconciles a pool of permanent workers against a desired count** —
+health-check each, restart the dead, distinguish
+failed-at-startup (give up: the failure would repeat) from
+died-while-serving (restart). Plus a rolling restart that races
+`wait_until_ready` against a health timeout before swapping old for
+new. The permanence theme (a real-world set kept matching a spec)
+governing a worker pool.
+
+### Class C6 — queues as callback→stream bridges (2 of 30)
+
+**uvicorn 4** — `uvicorn/protocols/websockets/websockets_sansio_impl.py:74`
+
+    self.queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue()
+    ...protocol callbacks put_nowait() events...
+    ...the ASGI app awaits queue.get() as its receive stream...
+    self.writable = asyncio.Event()   # flow control
+    ...ping/pong keepalive timers alongside...
+
+The per-connection bridge: transport callbacks (sans-io world)
+produce protocol events into a queue; the application consumes the
+queue as its receive stream. **An external event source materialized
+as a stream by hand** — the FFI-node stream-output shape — with
+explicit flow control beside it (`pause_reading` when a message is
+buffered; a writability event for the send side). The queue is the
+seam between push (callbacks) and pull (the app's awaits), which is
+precisely where the language's external-flow nodes sit.
+
+**celery 3** — `celery/utils/nodenames.py:49` *(vocabulary collision,
+kept and flagged — kombu's `Queue`, an AMQP entity, not a threading
+queue)*
+
+    def worker_direct(hostname):
+        return Queue(
+            WORKER_DIRECT_QUEUE_FORMAT.format(hostname=hostname),
+            WORKER_DIRECT_EXCHANGE,
+            hostname,
+        )
+
+A broker route declaration: the direct-to-one-worker queue, named by
+the worker's node name. At the distributed level this is a **lane
+keyed by worker identity** — the keyed-lane shape (one serial
+channel per key, lanes concurrent among themselves) existing as
+infrastructure between processes rather than within one. Read as
+evidence that the lane abstraction is not event-loop-specific.
+
+### Class C7 — async pumps and collects (3 of 30)
+
+**undici 4** — `undici/lib/mock/mock-utils.js:282`
+
+    async function getResponse (body) {
+      const buffers = []
+      for await (const data of body) {
+        buffers.push(data)
+      }
+      return Buffer.concat(buffers).toString('utf8')
+    }
+
+Collect over an async stream, then fold. The async flow's collect in
+exactly the designed shape — the second verbatim sighting across
+surveys (survey 1's js 9 was the first).
+
+**aiohttp 5** — `aiohttp/web_request.py:774`
+
+    while (field := await multipart.next()) is not None:
+        ...
+        tmp = await self._loop.run_in_executor(None, tempfile.TemporaryFile)
+        while chunk := await field.read_chunk(size=DEFAULT_CHUNK_SIZE):
+            async for decoded_chunk in field.decode_iter(chunk):
+                await self._loop.run_in_executor(None, tmp.write, decoded_chunk)
+                size += len(decoded_chunk)
+                if 0 < max_size < size:
+                    await self._loop.run_in_executor(None, tmp.close)
+                    raise HTTPRequestEntityTooLarge(max_size)
+
+Multipart upload parsing: three nested pumps (fields, chunks,
+decoded chunks — take-until-sentinel at each level), blocking file
+effects offloaded to the executor (`to_thread`-shaped sync→async
+bridging, four calls), a running size register guarding a failure
+terminator that aborts the whole walk. Survey 1's class-4 pump,
+composed three deep and interleaved with offloaded effects.
+
+**celery 1** — `celery/backends/asynchronous.py:401`
+
+    prev_on_m, self.on_message = self.on_message, on_message
+    try:
+        for _ in self.drain_events_until(result.on_ready, timeout=timeout, ...):
+            yield
+            sleep(0)
+    except socket.timeout:
+        raise TimeoutError(...)
+    finally:
+        self.on_message = prev_on_m
+
+Wait-for-result: drain backend events **until a predicate cell
+fires** (`result.on_ready` — a promise), with a timeout converted at
+the boundary, a cooperative yield each round, and a save/restore
+bracket on a callback slot. Drain-until is end-when's shape over an
+event pump; the handler swap is a scoped-configuration bracket.
+
+### Class C8 — retry with backoff (2 of 30)
+
+**websockets 1** — `websockets/legacy/client.py:612`
+
+    backoff_delay = self.BACKOFF_MIN / self.BACKOFF_FACTOR
+    while True:
+        try:
+            async with self as protocol:
+                yield protocol
+        except Exception:
+            if backoff_delay == self.BACKOFF_MIN:
+                await asyncio.sleep(random.random() * self.BACKOFF_INITIAL)
+            else:
+                await asyncio.sleep(int(backoff_delay))
+            backoff_delay = min(backoff_delay * self.BACKOFF_FACTOR, self.BACKOFF_MAX)
+            continue
+        else:
+            backoff_delay = self.BACKOFF_MIN
+
+`async for connection in connect(...)`: reconnect forever with
+truncated exponential backoff, jittered first delay, reset on
+success. A register (the delay) carried across firings of a
+self-driven flow, stepped on the failure leg, reset on the success
+leg, driving a timer. Survey 2's retry-with-escalation (mpmath 4),
+now in network form.
+
+**undici 3** — `undici/lib/handler/retry-handler.js:218`
+
+    if (statusCode != null && ... && !statusCodes.includes(statusCode)) { cb(err); return }
+    if (counter > maxRetries) { cb(err); return }
+    const retryTimeout = retryAfterHeader > 0
+        ? Math.min(retryAfterHeader, maxTimeout)
+        : Math.min(minTimeout * timeoutFactor ** (counter - 1), maxTimeout)
+    setTimeout(() => cb(null), retryTimeout)
+
+The same construct from the client side: give-up guards (method not
+idempotent, status not retryable, counter exhausted), delay from
+either the server's `Retry-After` or the exponential formula, timer,
+retry — plus checkpoint state for resuming a partial body. Third
+sighting of retry-with-escalation across the surveys; the shape is
+cross-domain.
+
+### Class C9 — the hand-rolled all-of join (1 of 30)
+
+**fastify 1** — `fastify/lib/reply.js:919`
+
+    let cbAlreadyCalled = false
+    function cb (err, value) {
+      if (cbAlreadyCalled) return
+      cbAlreadyCalled = true
+      handled++
+      ...
+      process.nextTick(send)
+    }
+    const result = reply[kReplyTrailers][trailerName](reply, payload, cb)
+    if (typeof result === 'object' && typeof result.then === 'function') {
+      result.then((v) => cb(null, v), cb)
+    }
+
+HTTP trailer computation: scatter each trailer function (callback or
+promise style, adapted by hand), join on a **completion counter**
+with per-callback once-guards, and re-check readiness on the next
+tick after each completion. `gather` rebuilt from a counter, a
+boolean per branch, and a scheduler bounce — the one all-of join in
+the sample, and it is hand-rolled because the values arrive through
+callbacks rather than as awaitables.
+
+### One-offs (2 of 30)
+
+**undici 2** — `undici/lib/api/api-request.js:239`
+
+    } catch (err) {
+      if (typeof callback !== 'function') throw err
+      queueMicrotask(() => callback(err, { opaque }))
+    }
+
+Zalgo discipline: a synchronous failure during dispatch is
+**deferred to a microtask** so the callback never runs re-entrantly
+inside the caller's stack. The timing half of the async value's
+contract — a consumer never observes resolution synchronously —
+which the event-loop-cell semantics provides by construction and
+callback code must enforce by hand. (The same discipline appears as
+`process.nextTick(send)` in fastify 1 and the deferred drain check
+in undici 5.)
+
+**celery 4** — `celery/worker/consumer/consumer.py:708`
+
+    with self.qos._mutex:
+        if any((not self.app.conf.worker_enable_prefetch_count_reduction,
+                self._maximum_prefetch_restored)):
+            return
+        new_prefetch_count = min(self.max_prefetch_count, self._new_prefetch_count)
+        self.qos.value = self.initial_prefetch_count = new_prefetch_count
+        self.qos.set(self.qos.value)
+
+The sample's only lock: a mutex-guarded read-modify-write of shared
+QoS state, called from message-ack promise callbacks that may race,
+with an idempotence guard. In flow terms: a fold over an event flow
+(acks → prefetch state) that must be *serial*, with the lock
+supplying the serialisation the unmarked serial collect would give
+by construction.
+
+## Tally (survey 3)
+
+| Class | n | Inventory owner |
+|---|---|---|
+| C1. Completion cells / deferreds | 4 | async cell + lifecycle outputs |
+| C2. Race and timeout | 5 | race barrier (round owed) |
+| C3. Interrupt, shutdown, cancellation delivery | 4 | interrupt + bracket + the cancellation gap |
+| C4. Task spawn (per-firing / companion / root) | 4 | concurrent collect + node-set programs |
+| C5. Pools and permits | 3 | `bounded(n)` as resource; permanence |
+| C6. Callback→stream bridge queues | 2 | external event sources (FFI nodes) |
+| C7. Async pumps and collects | 3 | async collect, end-when, executor bridge |
+| C8. Retry with backoff | 2 | register + timer + end-when composite |
+| C9. Hand-rolled all-of join | 1 | concurrent join (already designed) |
+| One-offs: scheduling discipline; lock-guarded fold | 2 | cell timing contract; serial collect |
+
+Cross-cutting counts:
+
+- **Sum-shaped coordination (first-of: race, timeout, interrupt,
+  cancellation — C2 + C3): 9 of 30.** All-of coordination (the
+  join): 1. The field weight is nine to one in favor of the
+  construct the record has *not* yet given its own round.
+- **Sites where "who won / has it fired" is reconstructed from side
+  state** (flags, None checks, state enums) rather than delivered
+  structurally: at least 6 (websockets 3, websockets 4, fastify 1,
+  fastify 4, fastify 5, undici 1).
+- **Sites touching cancellation, cleanup-on-abandonment, or
+  retention across an abandonment**: roughly 8 of 30 (aiohttp 2,
+  aiohttp 4, websockets 4, websockets 5, fastify 3, fastify 4,
+  undici 1, celery 2).
+- **Locks: 1 of 30.** The event loop serialises; where these
+  corpora need mutual exclusion they mostly restructure (queues,
+  single-consumer drains) rather than lock.
+
+## Findings (survey 3)
+
+### 3.1 Racing dwarfs gathering, and the design attention is inverted
+
+Nine of thirty sites coordinate by *first-of* (race, timeout,
+interrupt, cancellation); one coordinates by *all-of* (the trailer
+join) — and that one is hand-rolled only because its inputs are
+callbacks. The record has the concurrent join fully worked
+(`async-flow-design.md`, sequential/parallel are structural) while
+race owes its own semantics round (its question 5); the field weight
+is the reverse of the design attention. On this evidence the race
+barrier round — and the interrupt/timeout composites over it — is
+the concurrency area's most demanded piece, not the concurrent
+collect's species menu.
+
+### 3.2 Hand-rolled races never get the discrimination structurally
+
+In every sampled race or timeout, "which contender won" is
+reconstructed after the fact from side state: `self.request is not
+None` (websockets 3), `reply.sent` and `signal.aborted` flags
+(fastify 4), a four-state enum plus an exception-type conversion
+(websockets 4), started/ready booleans (fastify 5). The pairwise
+input/output correspondence that the barrier form of race promises
+is exactly what this code lacks and rebuilds by convention — the
+strongest field support yet for "racing is a barrier, not a value,"
+and for the no-bottlenecks principle behind it.
+
+### 3.3 The deferred cell is the most-reached-for primitive
+
+The most common single shape (C1, 4 of 30, plus appearances inside
+C3/C4 sites): a promise/future created **empty** with its write half
+separate, often memoised (mint once, share with every consumer),
+often lazily (mint on first observation, already-resolved if the
+milestone passed). Nobody was sampled using `new Promise` for its
+designed eager purpose. This confirms the eager-promise-problem
+analysis in `async-flow-design.md` — the write-once, memoised,
+externally-written cell is the primitive; eager start is the
+accident — and it puts everyday frequency behind the inventory's
+lifecycle outputs: opened/closed/upload-complete milestones are what
+the deferreds are minted *for*.
+
+### 3.4 The concurrent collect's bookkeeping is real, and it bites
+
+Both task-per-firing sightings hand-roll the lifecycle bookkeeping
+the collect's barrier outputs would provide: a task set maintained
+by done-callbacks (uvicorn 2), registration ordered before spawn to
+dodge a startup race, documented in a four-line comment
+(websockets 2). And uvicorn 5's hard-reference comment marks a
+production bug class — asyncio's weakly-held tasks are
+garbage-collected mid-flight when nothing references them —
+which is the "program is a node set, not a root expression"
+consequence (`first-class-ports-design.md`) observed as a real
+incident: a complete program whose parts are unreachable from any
+root. The spawn/registration/retention triple is where this code's
+subtlety concentrates, not in the per-firing bodies.
+
+### 3.5 `bounded(n)` is a resource — confirmed three ways
+
+The addendum's reading (permits, not partitions) is what the field
+shows: undici's pool is permits + a wait queue + release events;
+celery's `acquire_channel(block=True)` is a permit acquisition
+worn as a bracket; uvicorn's supervisor keeps a *permanent* worker
+set reconciled against a desired count — the permanence theme
+governing the pool from above. None of the three is remotely
+partition-shaped. The species menu's dissolution (`keyed` →
+group-by wiring, `serial` → unmarked default) plus these three
+sightings leaves `bounded(n)`/permits as the one genuinely
+resource-shaped member, now with field confirmation.
+
+### 3.6 Cancellation is where the hardest sampled code lives
+
+Roughly eight of thirty sites deal with cancellation, abandonment,
+or retention-across-abandonment, and they contain the sample's most
+delicate machinery: the timeout context manager's
+state-machine-plus-uncancel dance (websockets 4), shield-await
+inside a graceful shutdown's escalation ladder (aiohttp 2),
+check-then-subscribe abort wiring (undici 1), weakref-broken timer
+retention (aiohttp 4), cancel-both-in-finally (websockets 5). The
+Tier-1 "IO, effects, and cancellation" row
+(`open-problems.md`) now has frequency evidence to go with its six
+documented arrivals: in concurrency-infrastructure code, roughly a
+quarter of all orchestration sites touch the gap, and they are the
+sites least expressible in the current vocabulary.
+
+### 3.7 Locks are nearly absent; the boundary discipline is the queue
+
+One lock in thirty draws (celery 4 — serialising a fold over racing
+callbacks), against two callback→stream bridge queues and repeated
+single-consumer drain loops. Where the loop surveys confirmed
+uncollect/collect as the center of iteration, this survey confirms
+the async doc's structural bet: event-loop code coordinates by
+*flow* (queues, drains, single writers), not by shared-state
+locking, so "serial is no construct at all — the default collect,
+unmarked" matches practice. The lock that did occur is exactly a
+serial collect hand-enforced.
+
+### 3.8 Retry-with-backoff is a cross-domain composite worth an expansion test
+
+Third and fourth sightings across the surveys (mpmath 4's geometric
+escalation; websockets' reconnect; undici's Retry-After/exponential
+handler): a register (delay/counter) stepped on the failure leg and
+reset on success, a timer, give-up guards, and an exit payload. All
+pieces are designed vocabulary (register, timer, end-when, failure
+legs); none of the samples needed anything novel. This is a natural
++1-ladder test case — beginner's retry → add backoff → add jitter →
+add Retry-After override → add give-up guards — for whichever
+register/end-when combination lands.
+
+### 3.9 The cell's timing contract is real discipline, not pedantry
+
+Three sites (undici 2, undici 5's deferred drain check, fastify 1's
+nextTick bounce) exist solely to guarantee that a continuation never
+runs re-entrantly inside the frame that armed it — the "release
+Zalgo" rule. The event-loop-cell semantics gives this by
+construction (resolution is observed only via the loop), so it is a
+cost the designed model pays nothing for; worth recording because it
+is invisible in the design documents precisely where it is
+ever-present in the field code.
+
+## What this changes, and what it doesn't
+
+For the **candidate-block inventory**
+(`tough-use-cases-design.md`): the race barrier and its composites
+(timeout, interrupt, cancellation delivery) gain everyday-frequency
+demand that item 1's species menu does not show (findings 3.1–3.2);
+`bounded(n)`-as-resource is confirmed (3.5); the lifecycle barrier
+outputs gain both frequency (3.3) and a bug class they would
+prevent (3.4). Item 2 (the served flow) was the ambient structure
+around many draws — every handler body in three corpora — but no
+draw contradicted or extended its design; its per-firing failure
+leg was sighted in exactly the shape question 3 anticipates
+(fastify 3).
+
+For the **Tier-1 cancellation gap** (`open-problems.md`): frequency
+evidence added; the gap's load-bearing status is now measured, not
+only argued (finding 3.6).
+
+For the **async flow's foundations**: the cell model (eager-promise
+correction, memoised write-once cells, the timing contract) is
+confirmed against field practice from three independent directions
+(findings 3.3, 3.9); threads-as-drained-streams and
+structural-parallelism appeared in their designed shapes
+(websockets 5; fastify 1's counter is what their absence costs).
+
+Not changed: no draw pressed on the iteration-state candidates, the
+commute taxonomy, or the incremental flow — as expected from the
+corpus family; and this survey, sampling sites rather than loops,
+does not update the loop-shape proportions of surveys 1–2.
+
+## Next round (updated, 2026-07-10)
+
+- **Application-level concurrency** — these corpora *implement*
+  concurrency infrastructure; a sample of applications that *use*
+  it (bots, scrapers, data pipelines, deployment tools) would
+  measure how often application code reaches for gather vs race vs
+  pool, complementing this survey's machinery view.
+- **UI/browser event-handling in JS** — still owed from survey 2.
+- **Larger n / combinator census** — as before.

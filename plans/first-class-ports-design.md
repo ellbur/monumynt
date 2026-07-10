@@ -585,6 +585,16 @@ entry takes the writes alongside the root
 (`compileToBody(root, ~writes)`), which states the requirement
 without building Diagram yet.
 
+*(2026-07-10: the node-set consequence now has a field bug class
+behind it. The concurrency survey — `real-loop-survey.md`,
+survey 3, finding 3.4 — drew a spawned companion task carrying the
+comment "Keep a hard reference to prevent garbage collection" with
+a production incident link: asyncio holds tasks weakly, so a
+complete, running program whose parts are unreachable from any root
+gets collected mid-flight. Root-reachability as the definition of
+the program is not just insufficient for Delay write halves; it
+loses live tasks in mainstream runtimes today.)*
+
 ### The latent-flow crossover
 
 Both candidates needed the back-edge answer, per the open
