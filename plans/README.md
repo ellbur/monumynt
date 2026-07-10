@@ -316,6 +316,23 @@ first-implementation convenience, rejected long-term.
   late-bound-operations witness with fault injection
   (FailingAllocator), and a clash record led by
   visibility-by-prohibition vs by-drawing.
+- [`tidyverse-comparison.md`](tidyverse-comparison.md) — eighth
+  learning-from-other-languages round (2026-07-10), the tabular
+  round: dplyr/tidyr/purrr vignettes read against the record,
+  under the stated question "is a table more than a list of
+  structs?" Answer: yes — the data frame is the multi-wire flow
+  at rest (k columns = wires, n rows = firings, alignment
+  retained from common provenance), the third shipped member of
+  the tuple-stream family. Yield: the aligned product's **value
+  form** (the multi-wire collect/uncollect — products row, W
+  raised), the keyed partition's **readout family**
+  (collapse/pass-through/flatMap — grouped summarise vs mutate),
+  the broadcast-back as a fold-then-re-walk composite, the
+  pivots dissolved into the keyed pair once static-schema and
+  data-keyed columns are distinguished, the purrr audit
+  (`done()` as end-when-as-a-value; `modify` as focused update's
+  sixth witness), and a clash record led by ambient magic names
+  and grouping as a mode bit. Deliberately no new row.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

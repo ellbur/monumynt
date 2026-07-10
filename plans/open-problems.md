@@ -203,6 +203,30 @@ step pulled out of the body and attached to the loop precisely so
 `continue` cannot skip it; C's skip-the-increment bug class is
 the negative witness for making the step structural. Scores
 unchanged.)*
+*(2026-07-10, later: the tidyverse comparison
+(`tidyverse-comparison.md`, findings 2, 3, 6) — the keyed
+collect's fourth consecutive round, this time supplying its
+**readout family**: one keyed partition barrier consumed several
+ways — collapse (dplyr `summarise`: one output per group, keys ⊕
+aggregates, the keyed collect as already recorded), **pass-through**
+(grouped `mutate`/`filter`: per-firing values riding back to the
+parent walk in original order — the case bundle's exhaustive
+collect generalized to data-determined cells; new structure),
+flatMap (`reframe`: per-lane output that is itself a flow joined
+upward), and whole-lane engagement (`filter_out(n() == 1)`). The
+group *stack* confirmed as drawn nesting (summarise pops one
+level; `.groups` is the how-many-levels choice as API). Two
+corollaries recorded: the **broadcast-back** composite (`x -
+mean(x)`, grouped z-scores — a fold consumed by a re-walk of its
+own source; two walks, not time travel; under grouping it
+requires the per-group value, the lane collected to a re-openable
+sub-list — group-as-flows' group-as-*value* corollary, which
+dplyr ships independently as `nest_by`), and the **keyed index**
+consumption pattern (joins: build lanes once, read per-firing of
+another flow; left join = the fired-empty completion; jq's
+`INDEX` made everyday). Also `pivot_wider` located as the keyed
+collect itself (its `values_fn` collision case is the
+operator-merge variant). Scores unchanged.)*
 W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
 substrate proposal is de-risked but still a flagged decision.
@@ -279,7 +303,14 @@ small note: `std.mem.window(T, buf, size, advance)` ships
 window(k) with an independent step parameter and emits the
 partial final window (the unterminated-final-segment bit set to
 "emit"), one more point in the window family's design space.
-Scores unchanged.)*
+Scores unchanged.)* *(2026-07-10, later: the tidyverse comparison
+(`tidyverse-comparison.md`, finding 10) — a fourth-ecosystem
+assembly-language sighting for split-when: tidyr's contact-list
+example synthesizes a grouping key from row order
+(`cumsum(field == "name")`) because the vocabulary lacks
+boundary-driven segmentation — the scan costume of the construct.
+Rolling aggregates named as a family but delegated out of dplyr
+is a small demand datum on window(k). Scores unchanged.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -502,7 +533,17 @@ gains **fault injection as configuration**
 useful for making sure out of memory conditions are handled
 correctly"); allocator wrappers (arena, leak-checking, logging)
 are the policy layer's third furniture witness. Scores
-unchanged.)*
+unchanged.)* *(2026-07-10, later: the tidyverse comparison
+(`tidyverse-comparison.md`, finding 8) — the remaining list gains
+the **authoring gesture** demand: dplyr's `across` (apply one
+operation to k schema-selected columns, output names computed) is,
+over a static schema, k-fold repetition of drawn structure — the
+demand is one gesture producing k readable nodes (a schematic
+sub-diagram instantiated per wire; the many-authoring-paths /
+one-reading stance), not a runtime construct. Over data-keyed
+tables it is the keyed uncollect, already owned. `cur_column()`
+recorded as a magic-name clash whose legitimate content is the
+lane-key wire. Scores unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -636,7 +677,74 @@ Solid's path setters are multi-locus updates by index list,
 range, or predicate. New coupling recorded: in a reactive
 setting, **update loci are invalidation keys** — this row and the
 incremental collections layer are two ends of one pipe. Scores
-unchanged.)*
+unchanged.)* *(2026-07-10, later: the tidyverse comparison
+(`tidyverse-comparison.md`, finding 9) — the sixth witness, third
+ecosystem, and the most law-abiding: purrr's `modify` family
+(shape-preserving update of selected elements, rest untouched)
+states the functor laws outright (`modify(x, identity) === x`;
+composition), `modify_if`/`modify_at` select loci by predicate or
+name, and `modify_in` writes at a pluck path — jq's paths, BQN's
+Under, and purrr's modify now agree across three ecosystems.
+tidyr's `hoist` supplies the read half (pluck paths selecting
+*out* of depth). The frequency sample can add
+`modify_at`/`modify_in` to its idiom list. Scores unchanged.)*
+
+**Products: the table, zip, and the unexamined interactions —
+I 3, W 4.**
+*(Moved from Tier 3, 2026-07-10 — W 3 → 4 after the tidyverse
+comparison round; row retitled from "the unexamined
+interactions".)* Cross itself is worked
+(`product-flows-design.md`); unexamined: n-ary products against a
+concrete three-list example, join on a product (operand-walk
+rules), registers over products (a fold demands an order a product
+doesn't have), and the provenance product segment against the
+walk-and-classify algorithm (questions 3–5, 8). Spec entry and
+textual spelling are owed bookkeeping. *(2026-07-10: the APL-family
+comparison (`apl-family-comparison.md`, finding 2) promoted **the
+aligned product (zip)** from the translation exercise's "note, not
+a demand" to a named demand on this row: the family's ground floor
+is lockstep pairing (pervasion, blend, mesh, inner product), and
+the showpiece audit localized the record's only real
+representation struggle to it — Life needs Cross to enumerate the
+neighborhood and zip to overlay it, at rank 2. The aligned product
+is Cross's positional sibling (same extent paired by position vs
+independent extents paired exhaustively); the compile already owns
+a stream-level zip primitive, so the gap is authoring vocabulary.
+The family's rank-2 evidence (2D windows, transpose-heavy idioms)
+attaches to questions 3–5. Scalar extension recorded as
+Incorporate's implicit costume — capability confirmed, implicitness
+clashed.)* *(2026-07-10, later: the Zig comparison
+(`zig-comparison.md`, finding 3) — the aligned product's second
+shipped witness, from the imperative side and as the **primary
+loop syntax**: multi-object `for (a, b) |x, y|` with the
+length-equality side condition asserted at the barrier ("at the
+start of the loop", not per element), and indices as one more
+aligned lane (`for (items, 0..)` — the unbounded range takes its
+extent from its siblings), which answers the translation
+exercise's range-materializing note in the affirmative.)*
+*(2026-07-10, later: the tidyverse comparison
+(`tidyverse-comparison.md`, finding 1) — the round that raised W.
+The data frame is the multi-wire flow **at rest**: k columns = k
+value wires, n rows = n firings, alignment retained from common
+provenance ("a data frame bundles together multiple vectors so
+that everything is tracked together"). The row gains the aligned
+product's **value form** as a named demand — the multi-wire
+collect whose product is a table (k lists that remember they were
+collected from the same walk) and whose uncollect returns the
+wires; k sibling collects today forget they shared a walk. The
+row-splat wart (`function(x, y, ...)`), dplyr's documented retreat
+from purrr's map-arity matrix to table-native `rowwise`, and join
+suffix collisions argue the open form is wires, not row-structs.
+Small new data: per-edge alignment (`reduce2`'s length-(n−1)
+second input — values aligned with the gaps between firings) and
+the observed-product vs full-product distinction (tidyr's
+`nesting()` inside `expand`). W 3 → 4: the row now owns tabular
+data as a domain, not just lockstep pairing as an operation —
+three consecutive rounds landed their central evidence here, and
+an entire mainstream ecosystem is organized around the row's
+missing value form. Honesty: a curated corpus; the move is about
+the row's scope, and the owed field sample (real analysis
+scripts) should confirm it.)*
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -680,7 +788,18 @@ confirmation yet: every Zig loop is an expression whose `break v`
 lane-for-lane, and a `while` over an error union gives `else`
 the error payload — the failable source's terminator payload in
 the wild. Labeled break across nesting is the readout targeting
-an outer flow. Scores unchanged.)*
+an outer flow. Scores unchanged.)* *(2026-07-10, later: the
+tidyverse comparison (`tidyverse-comparison.md`, finding 9) —
+end-when's **value form**, shipped in a resolutely functional
+interface: purrr's `done(out)` returned from inside a
+`reduce`/`accumulate` step means "stop, this is the answer," bare
+`done()` means "the previous accumulator was the answer" — early
+exit composed with loop-carried state as a returned value, with
+the inclusive/exclusive readout appearing as the wrapper's arity
+(a datum for the bit and for the register's final-readout anchor
+at once); in `accumulate` it truncates the emitted trajectory.
+`detect`'s miss returning `NULL`/default is the option-shaped
+discharge. Scores unchanged.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -761,39 +880,6 @@ five dead ends recorded.)* Remaining: the adoption conversation,
 the spec-side reconciliation (its Join's value ports re-read as
 drawn availability), and the concurrent join × Cross unification
 question it strengthened.
-
-**Products: the unexamined interactions — I 3, W 3.**
-Cross itself is worked (`product-flows-design.md`); unexamined:
-n-ary products against a concrete three-list example, join on a
-product (operand-walk rules), registers over products (a fold
-demands an order a product doesn't have), and the provenance
-product segment against the walk-and-classify algorithm
-(questions 3–5, 8). Spec entry and textual spelling are owed
-bookkeeping. *(2026-07-10: the APL-family comparison
-(`apl-family-comparison.md`, finding 2) promoted **the aligned
-product (zip)** from the translation exercise's "note, not a
-demand" to a named demand on this row: the family's ground floor
-is lockstep pairing (pervasion, blend, mesh, inner product), and
-the showpiece audit localized the record's only real
-representation struggle to it — Life needs Cross to enumerate the
-neighborhood and zip to overlay it, at rank 2. The aligned
-product is Cross's positional sibling (same extent paired by
-position vs independent extents paired exhaustively); the compile
-already owns a stream-level zip primitive, so the gap is
-authoring vocabulary. The family's rank-2 evidence (2D windows,
-transpose-heavy idioms) attaches to questions 3–5. Scalar
-extension recorded as Incorporate's implicit costume — capability
-confirmed, implicitness clashed. Scores unchanged — a demand
-grew, nothing got worked.)* *(2026-07-10, later: the Zig
-comparison (`zig-comparison.md`, finding 3) — the aligned
-product's second shipped witness, from the imperative side and
-as the **primary loop syntax**: multi-object `for (a, b) |x, y|`
-with the length-equality side condition asserted at the barrier
-("at the start of the loop", not per element), and indices as
-one more aligned lane (`for (items, 0..)` — the unbounded range
-takes its extent from its siblings), which answers the
-translation exercise's range-materializing note in the
-affirmative. Scores unchanged.)*
 
 ## Tier 4 — presentation and polish (≤ 7)
 
@@ -1109,3 +1195,30 @@ the reason.
   evidence-owed UI sample, decision left with the owning doc.
   Clash record led by visibility-by-prohibition vs by-drawing
   (same Zen, opposite mechanism).
+- **2026-07-10** (later still) — eighth learning-from-other-languages
+  round (`tidyverse-comparison.md`: dplyr/tidyr/purrr vignettes
+  plus purrr's reference examples, read under the stated question
+  "is a table more than a list of structs?" — a curated showcase
+  corpus with inverted ergonomics (R is column-major), late-added
+  constructs read as field reports). No new row — tabular data
+  deliberately dissolves onto existing rows, which is the round's
+  strongest result. **Products: W 3 → 4, product 9 → 12, moved
+  Tier 3 → Tier 2, retitled** "the table, zip, and the unexamined
+  interactions" — the data frame is the multi-wire flow at rest;
+  the aligned product gains its value form as a named demand (the
+  multi-wire collect/uncollect; k lists that remember they were
+  collected from the same walk), plus per-edge alignment and the
+  observed-product datum; the move is about the row's scope, with
+  the field sample owed. Loop-carried state (keyed collect): the
+  readout family (collapse / pass-through / flatMap / whole-lane),
+  the broadcast-back composite with its group-as-value corollary,
+  the keyed-index consumption pattern, pivot_wider located as the
+  keyed collect. End-when: `done()` as the value-form witness.
+  Focused update: sixth witness (modify family, functor laws
+  stated). Variable-rate: fourth-ecosystem split-when
+  assembly-language sighting (cumsum key synthesis).
+  Functions/reuse: the authoring-gesture demand (across over
+  static schema). Clash record led by ambient magic names and
+  grouping as a mode bit, with purrr's recycling/typed-suffix
+  tightenings recorded as a shipped correction toward the barrier
+  law and wire sorts.
