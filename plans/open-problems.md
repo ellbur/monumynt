@@ -81,7 +81,12 @@ cancellation half is now measured, not only argued — the
 concurrency survey found roughly eight of thirty orchestration
 sites touching cancellation/abandonment/retention, containing the
 sample's most delicate code; `real-loop-survey.md`, survey 3,
-finding 3.6.)*
+finding 3.6.)* *(2026-07-10, later: the effects half gained its
+everyday failure mode — the translation exercise found per-firing
+effects simply unwritable (`translation-exercise.md`, finding 1:
+"you cannot transcribe `task.cancel()` in a loop"), and
+bodies-raise / lightweight failure surfaced as the same row's
+second concrete demand (its finding 2).)*
 
 **Loop-carried state: the candidate decision — I 4, W 5.**
 The record's self-declared biggest open area
@@ -141,7 +146,14 @@ derived vocabulary; fairness answered by relocation to the
 chooser family. I 4 → 3: the area's lead item now has worked
 leanings, but the concurrent collect's own round, the served
 flow, and the server-program question remain, and nothing is
-adopted.)*
+adopted.)* *(2026-07-10, later: the translation exercise added
+two items to this row's remaining list — source openers (the FFI
+pull source and the self-driven flow have no authoring form, so
+survey classes 4–5 cannot start on the page) and **pacing**: a
+self-driven flow whose next firing waits on a per-firing async
+value (sleep-between-retries), a semantic hole with three field
+sightings that blocks the retry composite;
+`translation-exercise.md`, finding 3.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -192,7 +204,12 @@ form (now with the tie-break interaction as an input), interrupt
 unification, the register final-readout anchor (touches the
 iteration-state round), the textual spelling. Low I is recent
 work; W = 5 (the surveys' biggest unserved everyday demand) is
-why the remaining distance is worth closing soon.
+why the remaining distance is worth closing soon. *(2026-07-10:
+first transcription evidence — the stop/discharge/split-on-tag
+composition survived contact with the textual form and reads
+well, with strawman spellings for the flow-op form, the bit, and
+the terminator-only readout ready for the adoption conversation;
+`translation-exercise.md`, B1/B2/C2 and finding 5.)*
 
 **Completion's contents — I 3, W 3.**
 The time-travel machinery is settled; its *contents* are thin by
@@ -260,7 +277,17 @@ The gather rule "needs the most careful specification"; spellings
 are owed for Cross and end-when; history serialization is
 sketched, not designed (`textual-representation-design.md`, open
 questions). By design this doc tracks the representation, so most
-of its debt clears as other areas land.
+of its debt clears as other areas land. *(2026-07-10: the
+translation exercise turned "spellings owed" into a concrete
+list, with strawmen for each (`translation-exercise.md`, findings
+4–8): the late-wired-operand generalization of the write half
+(`boundary of`, `value of` beside `step of` — the exercise's most
+useful notation finding, jointly owned with
+`first-class-ports-design.md`); the discharge readout's binder
+convention and terminator-only form; the collect family's
+spellings (keyed/set/last/any) jointly with the operator-identity
+question; entry opens' two value ports; identity lanes. Scores
+unchanged — the list is sharper, not shorter.)*
 
 **Naming rounds — I 4, W 1.**
 Deferred everywhere by tradition, correctly: they gate user-facing
@@ -335,3 +362,16 @@ the reason.
   round (lifecycle outputs, `bounded(n)`), the served flow, the
   chooser family (now also owning merge fairness), and the
   server-program question.
+- **2026-07-10** (later still) — translation exercise run
+  (`translation-exercise.md`: thirteen sampled loops transcribed
+  into the textual form). Scores unchanged everywhere — the round
+  produced pressure and content, not designs. IO/effects (Tier 1):
+  everyday failure mode identified (per-firing effects
+  unwritable; bodies-raise). Concurrency (Tier 2): source openers
+  and the pacing hole added to the remaining list. End-when
+  (Tier 3): first transcription evidence plus strawman spellings.
+  Textual catch-up (Tier 4): owed-spellings list made concrete,
+  led by the late-wired-operand generalization. New small
+  candidates with pressure: window(k) (strongest evidence yet),
+  the collect family's joint spelling-and-identity round, entry
+  opens, zip (a note, not a demand).

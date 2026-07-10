@@ -173,6 +173,16 @@ first-implementation convenience, rejected long-term.
   sampling reality is to be used frequently; the method's statement
   and rules are in `language-design-philosophy.md`, "A standing
   method: sample reality."
+- [`translation-exercise.md`](translation-exercise.md) — the
+  surveys' sampled loops transcribed into the textual form
+  (2026-07-10): thirteen translations from trivial to breadth-set,
+  every invented spelling marked provisional and gathered in one
+  table. The core and the scans carried cleanly; the ranked
+  improvement list at the end is the round's output — per-firing
+  effects unwritable (the Tier-1 row's everyday failure mode),
+  bodies-raise and source openers missing, the write-half
+  two-phase form demanded by every on-cycle operand, the collect
+  family's spelling-and-identity debt.
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.
