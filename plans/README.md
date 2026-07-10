@@ -255,6 +255,24 @@ first-implementation convenience, rejected long-term.
   anti-lesson: implicit flattening and the single-context-value
   bottleneck are the two costs the record's explicit-join,
   multi-wire core exists to avoid.
+- [`apl-family-comparison.md`](apl-family-comparison.md) — fifth
+  learning-from-other-languages round (2026-07-10), the array
+  round, run under a stated brief: the higher-order operator
+  layer is not wanted (the uncollect's virtual value does the
+  work of every operand slot); the round reads the family's
+  programs — FinnAPL's 707 idioms, Dyalog reference and
+  notebooks, BQN's argued docs, BQNcrate — hunting for ones the
+  drawn vocabulary struggles to represent. Yield: the
+  operator-catalog audit (the family's second-order layer maps
+  item-for-item onto the record's first-order constructs), the
+  aligned product (zip) promoted to a demand as the one localized
+  struggle, the focused-update row's structure round (structural
+  Under's commuting law, the loci-as-data condition, derived-view
+  updates, the Expand dissolution), window(k)'s shipped design
+  space, the identity catalog with the empty-collect framing, and
+  a clash record (tacit composition, inverse inference, shape
+  coincidence, the ambient index origin, idiom-recognition
+  compilation).
 - [`implementation-strategy.md`](implementation-strategy.md) — the
   map from the design record to code: workstreams, ledger,
   sequencing.

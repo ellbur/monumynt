@@ -150,6 +150,21 @@ ordinary downstream consumption; the form that builds) vs
 operator-merge (Flix's `insertWith`, the fused special case), with
 the dynamic-alt-set note that a keyed partition's cells are
 data-determined lanes, not a static bundle. Scores unchanged.)*
+*(2026-07-10, later: the APL-family comparison
+(`apl-family-comparison.md`, findings 5, 8) — the
+operator-identities item gains a shipped **catalog** (Dyalog's
+23-operator identity table; empty reduce yields the identity or
+DOMAIN ERROR) and its sharpest framing: the identity question is
+exactly the **empty-collect question** — BQN's three-way split
+(derive the identity for an empty fold; take a seed via the
+initial-value port, dissolving the need; the scan never asks —
+empty in, empty out). The keyed collect's third consecutive
+round: group output order now has three shipped answers
+(first-appearance / sorted / unspecified; provenance favors
+first-appearance), BQN's classify-then-place decomposition argues
+key extraction is ordinary drawn computation rather than node
+configuration, and ¯1-drop is keyed partial engagement. Scores
+unchanged.)*
 W = 5 unchanged: ~23% of sampled loops carry
 state, dominant in numerics; `implementation-strategy.md`'s
 substrate proposal is de-risked but still a flagged decision.
@@ -207,6 +222,20 @@ cases are mostly complex-event recognition matching the grammar
 ladder rung for rung (a strong prior for the owed UI sample, not
 a substitute), and the per-key pairing query's strain shows keyed
 partition must compose with segmentation. Scores unchanged.)*
+*(2026-07-10, later: the APL-family comparison
+(`apl-family-comparison.md`, findings 3, 4, 9) — the window(k)
+design space arrives shipped three ways (N-wise reduce,
+windows-as-value, centered Stencil), with parameters sighted:
+step/movement (step=k unifies windowing with fixed-length
+split-when), **edge handling as a real dimension** (Stencil pads
+and reports the padding per-invocation; N-wise truncates — the
+unterminated-segment bit at both edges of a symmetric construct),
+per-window reversal, and 2D windows (which file to the products
+row). The FinnAPL segmented-scan genre (grade-of-grade flat
+encodings for per-segment running state, with the community
+benchmarking flat vs nested) is the strongest assembly-language
+exhibit yet for split-when + register; Partition's drop-zeros is
+another gap-tolerant-segmentation sighting. Scores unchanged.)*
 
 **The concurrency constructs — I 3, W 4.**
 Concurrent collect (inventory item 1; its species menu partly
@@ -365,7 +394,17 @@ function boundary pass a filler's effect/failability wires through
 visibly. W held at 4 with the condition recorded: three curated
 corpora converging argues 5, but per the standing method that
 move should come from the owed application-level sample — does
-real application code swap providers?)*
+real application code swap providers?)* *(2026-07-10, later: the
+APL-family comparison (`apl-family-comparison.md`, finding 1) —
+the operator-catalog audit filed the family's genuinely
+higher-order residue here: arrays of functions and dispatch over
+*computations* (BQN's `◶` tables beyond the case split) are the
+late-bound-operations demand in array costume. BQN's rationale
+for first-class functions is recorded as the position the record
+declines — they removed a syntactic obstacle, we decline the
+semantics (the round's brief: the uncollect's virtual value does
+the work of every operand slot without a function being passed).
+Scores unchanged.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -468,7 +507,26 @@ worked. W 3 with any move conditioned on evidence: the shape is
 invisible to loop sampling by construction and this round's
 corpora are domain-biased toward it; the frequency question (its
 imperative costume — spread pyramids, builder copies, `setIn`/
-lens libraries) is on the evidence-owed list.
+lens libraries) is on the evidence-owed list. *(2026-07-10: the
+APL-family comparison (`apl-family-comparison.md`, finding 7) —
+the row's structure round, one round after it opened. BQN's
+structural Under supplies the **commuting law** ((𝔾 of the
+update) ≡ (compute after 𝔾), frame untouched), the
+**well-formedness condition** (the selection must be structural —
+loci fixed as data before the write-back; value-dependent
+selection sanctioned only by materializing the mask first — jq's
+paths-as-data rediscovered as a lawfulness requirement), the
+**lens identification made by the shipped doc itself** (the
+structural getter determines the setter), and the **derived-view
+generalization** (update under reshape/transpose/reverse:
+compute in a reversible re-presentation, write back). Dyalog's
+indexed assignment adds the multi-locus **conflict rule**
+("last-most is assigned" on repeated indices — the PUL
+compatibility question's cousin), and BQN *removed* its Expand
+primitive in favor of Under — a primitive-count dissolution
+arguing the construct is load-bearing. I 5 / W 3 held: nothing
+worked in our vocabulary, but the remaining list is now a
+worked-round agenda.)*
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
@@ -558,7 +616,22 @@ product (operand-walk rules), registers over products (a fold
 demands an order a product doesn't have), and the provenance
 product segment against the walk-and-classify algorithm
 (questions 3–5, 8). Spec entry and textual spelling are owed
-bookkeeping.
+bookkeeping. *(2026-07-10: the APL-family comparison
+(`apl-family-comparison.md`, finding 2) promoted **the aligned
+product (zip)** from the translation exercise's "note, not a
+demand" to a named demand on this row: the family's ground floor
+is lockstep pairing (pervasion, blend, mesh, inner product), and
+the showpiece audit localized the record's only real
+representation struggle to it — Life needs Cross to enumerate the
+neighborhood and zip to overlay it, at rank 2. The aligned
+product is Cross's positional sibling (same extent paired by
+position vs independent extents paired exhaustively); the compile
+already owns a stream-level zip primitive, so the gap is
+authoring vocabulary. The family's rank-2 evidence (2D windows,
+transpose-heavy idioms) attaches to questions 3–5. Scalar
+extension recorded as Incorporate's implicit costume — capability
+confirmed, implicitness clashed. Scores unchanged — a demand
+grew, nothing got worked.)*
 
 ## Tier 4 — presentation and polish (≤ 7)
 
@@ -779,3 +852,25 @@ the reason.
   (the tuple stream as barriers-not-bottlenecks; implicit
   flattening as the anti-lesson for explicit join). Scores
   unchanged everywhere except the new row.
+- **2026-07-10** (later still) — fifth learning-from-other-languages
+  round (`apl-family-comparison.md`: FinnAPL's 707 idioms, Dyalog
+  reference pages and notebooks, BQN's argued docs and BQNcrate,
+  J fragments — read under a stated brief: no higher-order
+  surface; the round hunts example programs the drawn vocabulary
+  struggles with). No new row; no score movement. The
+  operator-catalog audit maps the family's second-order layer
+  item-for-item onto the record's first-order constructs
+  (validating the brief), with the higher-order residue filed on
+  the functions row. Products row: **aligned product (zip)**
+  promoted from note to demand — the round's one localized
+  representation struggle (Life needs Cross and zip at once, at
+  rank 2). Focused update: the structure round (Under's commuting
+  law, the structural-selection condition, the lens
+  identification, derived-view updates, the conflict rule, the
+  Expand dissolution). Variable-rate: window(k)'s shipped design
+  space (step, edge handling, 2D) and the segmented-scan
+  assembly-language exhibit. Loop-carried state: the identity
+  catalog and the empty-collect framing; keyed collect's order/
+  decomposition/partiality round. Idiom-library epistemology
+  recorded: 707 maintained phrases prove the demands and price
+  the encoding.
