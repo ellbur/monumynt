@@ -12,6 +12,9 @@
 // and joining visible at a glance — a "shared" version typically emits
 // fewer outer stmts than its "unshared" counterpart, and a joined nested
 // loop emits fewer than its non-joined sibling.
+//
+// Tests build programs through the smart-constructor handles: `x.value`
+// wires a node's value port, `NodeFlow(x.node)` its flow port.
 
 open JsBuild
 open Expr
@@ -24,11 +27,11 @@ let evalExpression = (code: string): 'a => evalJs("(" ++ code ++ ")")
 let passCount = ref(0)
 let failCount = ref(0)
 
-let runTest = (~name: string, ~expr: Expr.expr, ~expected: JsAst.expr) => {
-  let (stmts, _) = Compile.compileToBody(expr)
+let runTest = (~name: string, ~expr: Expr.handle, ~expected: JsAst.expr) => {
+  let (stmts, _) = Compile.compileToBody(expr.node)
   let stmtCount = Array.length(stmts)
-  let exprRendering = ExprPrint.render(expr)
-  let iife = Compile.compileToIIFE(expr)
+  let exprRendering = ExprPrint.render(expr.node)
+  let iife = Compile.compileToIIFE(expr.node)
   let jsCode = JsPrint.printExpr(iife)
   let expectedCode = JsPrint.printExpr(expected)
   Console.log(
@@ -56,9 +59,9 @@ let runTest = (~name: string, ~expr: Expr.expr, ~expected: JsAst.expr) => {
 
 // --- Helpers for building Expr literals ---
 
-let litI = (n: int): Expr.expr => lit(int_(n))
-let litS = (s: string): Expr.expr => lit(str(s))
-let litB = (b: bool): Expr.expr => lit(bool_(b))
+let litI = (n: int): Expr.handle => lit(int_(n))
+let litS = (s: string): Expr.handle => lit(str(s))
+let litB = (b: bool): Expr.handle => lit(bool_(b))
 
 // --- Bundling helpers used by tests to package multiple results into
 //     one named-field object via a JS arrow function. `bundle2("a", "b")`
@@ -122,78 +125,78 @@ runTest(
 
 runTest(
   ~name="add(2, 3)",
-  ~expr=app(jsAdd, [litI(2), litI(3)]),
+  ~expr=app(jsAdd, [litI(2).value, litI(3).value]),
   ~expected=int_(5),
 )
 runTest(
   ~name="Math.sqrt(16)",
-  ~expr=app(mathSqrt, [litI(16)]),
+  ~expr=app(mathSqrt, [litI(16).value]),
   ~expected=int_(4),
 )
 runTest(
   ~name="Math.max(3, 7, 2, 5)",
-  ~expr=app(mathMax, [litI(3), litI(7), litI(2), litI(5)]),
+  ~expr=app(mathMax, [litI(3).value, litI(7).value, litI(2).value, litI(5).value]),
   ~expected=int_(7),
 )
 runTest(
   ~name="Math.abs(-42)",
-  ~expr=app(mathAbs, [litI(-42)]),
+  ~expr=app(mathAbs, [litI(-42).value]),
   ~expected=int_(42),
 )
 runTest(
   ~name="string concat",
-  ~expr=app(jsConcat, [litS("hello "), litS("world")]),
+  ~expr=app(jsConcat, [litS("hello ").value, litS("world").value]),
   ~expected=str("hello world"),
 )
 runTest(
   ~name="Array.of(1, 2, 3)",
-  ~expr=app(arrayOf, [litI(1), litI(2), litI(3)]),
+  ~expr=app(arrayOf, [litI(1).value, litI(2).value, litI(3).value]),
   ~expected=array_([int_(1), int_(2), int_(3)]),
 )
 runTest(
   ~name="makePoint(3, 4)",
-  ~expr=app(makePoint, [litI(3), litI(4)]),
+  ~expr=app(makePoint, [litI(3).value, litI(4).value]),
   ~expected=obj([("x", int_(3)), ("y", int_(4))]),
 )
 runTest(
   ~name="2*3 + 4*5",
   ~expr=app(jsAdd, [
-    app(jsMul, [litI(2), litI(3)]),
-    app(jsMul, [litI(4), litI(5)]),
+    app(jsMul, [litI(2).value, litI(3).value]).value,
+    app(jsMul, [litI(4).value, litI(5).value]).value,
   ]),
   ~expected=int_(26),
 )
 runTest(
   ~name="sqrt(7 + 9)",
-  ~expr=app(mathSqrt, [app(jsAdd, [litI(7), litI(9)])]),
+  ~expr=app(mathSqrt, [app(jsAdd, [litI(7).value, litI(9).value]).value]),
   ~expected=int_(4),
 )
 runTest(
   ~name="Math.pow(2, 8)",
-  ~expr=app(mathPow, [litI(2), litI(8)]),
+  ~expr=app(mathPow, [litI(2).value, litI(8).value]),
   ~expected=int_(256),
 )
 runTest(
   ~name="sqrt(3*3 + 4*4)",
   ~expr=app(mathSqrt, [
     app(jsAdd, [
-      app(jsMul, [litI(3), litI(3)]),
-      app(jsMul, [litI(4), litI(4)]),
-    ]),
+      app(jsMul, [litI(3).value, litI(3).value]).value,
+      app(jsMul, [litI(4).value, litI(4).value]).value,
+    ]).value,
   ]),
   ~expected=int_(5),
 )
 runTest(
   ~name="minOfTwo(minOfTwo(7, 4), 10)",
   ~expr=app(jsMinOfTwo, [
-    app(jsMinOfTwo, [litI(7), litI(4)]),
-    litI(10),
+    app(jsMinOfTwo, [litI(7).value, litI(4).value]).value,
+    litI(10).value,
   ]),
   ~expected=int_(4),
 )
 runTest(
   ~name="sub(5, 8) -> -3",
-  ~expr=app(jsSub, [litI(5), litI(8)]),
+  ~expr=app(jsSub, [litI(5).value, litI(8).value]),
   ~expected=int_(-3),
 )
 
@@ -202,9 +205,9 @@ runTest(
   ~name="getX(makePoint(add(1, 2), add(3, 4)))",
   ~expr=app(getX, [
     app(makePoint, [
-      app(jsAdd, [litI(1), litI(2)]),
-      app(jsAdd, [litI(3), litI(4)]),
-    ]),
+      app(jsAdd, [litI(1).value, litI(2).value]).value,
+      app(jsAdd, [litI(3).value, litI(4).value]).value,
+    ]).value,
   ]),
   ~expected=int_(3),
 )
@@ -227,18 +230,18 @@ runTest(
 runTest(
   ~name="unshared: (2*3) + (2*3) — two independent sub-trees",
   ~expr=app(jsAdd, [
-    app(jsMul, [litI(2), litI(3)]),
-    app(jsMul, [litI(2), litI(3)]),
+    app(jsMul, [litI(2).value, litI(3).value]).value,
+    app(jsMul, [litI(2).value, litI(3).value]).value,
   ]),
   ~expected=int_(12),
 )
 
 // (1') Same expression, but 2*3 built once and shared as both args.
 {
-  let twoThree = app(jsMul, [litI(2), litI(3)])
+  let twoThree = app(jsMul, [litI(2).value, litI(3).value])
   runTest(
     ~name="shared: (2*3) + (2*3) — single 2*3 bound and reused",
-    ~expr=app(jsAdd, [twoThree, twoThree]),
+    ~expr=app(jsAdd, [twoThree.value, twoThree.value]),
     ~expected=int_(12),
   )
 }
@@ -248,7 +251,7 @@ runTest(
   let x = litI(7)
   runTest(
     ~name="diamond: add(x, x) where x = lit(7)",
-    ~expr=app(jsAdd, [x, x]),
+    ~expr=app(jsAdd, [x.value, x.value]),
     ~expected=int_(14),
   )
 }
@@ -262,7 +265,7 @@ runTest(
   )
   runTest(
     ~name="triangle: triple(x, x, x) — one literal bound, three uses",
-    ~expr=app(triple, [x, x, x]),
+    ~expr=app(triple, [x.value, x.value, x.value]),
     ~expected=int_(15),
   )
 }
@@ -272,7 +275,7 @@ runTest(
   let pi = lit(member(id("Math"), "PI"))
   runTest(
     ~name="shared Math.PI: Math.PI + Math.PI",
-    ~expr=app(jsAdd, [pi, pi]),
+    ~expr=app(jsAdd, [pi.value, pi.value]),
     ~expected=bin(Mul, int_(2), member(id("Math"), "PI")),
   )
 }
@@ -284,13 +287,13 @@ runTest(
   let pi = lit(member(id("Math"), "PI"))
   let r = litI(3)
   let two = litI(2)
-  let rsq = app(jsMul, [r, r])
-  let area = app(jsMul, [pi, rsq])
-  let twoPi = app(jsMul, [two, pi])
-  let circumference = app(jsMul, [twoPi, r])
+  let rsq = app(jsMul, [r.value, r.value])
+  let area = app(jsMul, [pi.value, rsq.value])
+  let twoPi = app(jsMul, [two.value, pi.value])
+  let circumference = app(jsMul, [twoPi.value, r.value])
   runTest(
     ~name="circle metrics: area and circumference share pi and r",
-    ~expr=app(bundle2("area", "circ"), [area, circumference]),
+    ~expr=app(bundle2("area", "circ"), [area.value, circumference.value]),
     ~expected=obj([
       ("area", bin(Mul, member(id("Math"), "PI"), int_(9))),
       (
@@ -307,7 +310,7 @@ runTest(
 
 // (6) Deep diamond: a single shared root used by a tree of consumers.
 {
-  let leaf = app(jsMul, [litI(2), litI(3)]) // = 6, computed once
+  let leaf = app(jsMul, [litI(2).value, litI(3).value]) // = 6, computed once
   let plusOne = arrowExpr([p("a")], add(id("a"), int_(1)))
   let timesTwo = arrowExpr([p("a")], mul(id("a"), int_(2)))
   let combine = arrowExpr(
@@ -317,9 +320,9 @@ runTest(
   runTest(
     ~name="deep diamond: combine(leaf, plusOne(leaf), timesTwo(leaf))",
     ~expr=app(combine, [
-      leaf,
-      app(plusOne, [leaf]),
-      app(timesTwo, [leaf]),
+      leaf.value,
+      app(plusOne, [leaf.value]).value,
+      app(timesTwo, [leaf.value]).value,
     ]),
     ~expected=int_(6 + (6 + 1) + 6 * 2), // 25
   )
@@ -336,10 +339,10 @@ runTest(
 //     right thing.
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   runTest(
     ~name="list iter: identity map of [1,2,3]",
-    ~expr=close_(NodeFlow(opened), opened),
+    ~expr=close_(NodeFlow(opened.node), opened.value),
     ~expected=array_([int_(1), int_(2), int_(3)]),
   )
 }
@@ -348,10 +351,10 @@ runTest(
 let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   runTest(
     ~name="list iter: map double over [1,2,3]",
-    ~expr=close_(NodeFlow(opened), app(double, [opened])),
+    ~expr=close_(NodeFlow(opened.node), app(double, [opened.value]).value),
     ~expected=array_([int_(2), int_(4), int_(6)]),
   )
 }
@@ -359,10 +362,10 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 // (3) Empty input — the loop body simply doesn't run.
 {
   let input = lit(array_([]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   runTest(
     ~name="list iter: map double over []",
-    ~expr=close_(NodeFlow(opened), app(double, [opened])),
+    ~expr=close_(NodeFlow(opened.node), app(double, [opened.value]).value),
     ~expected=array_([]),
   )
 }
@@ -373,11 +376,11 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 //     each use.
 {
   let input = lit(array_([int_(2), int_(3), int_(4)]))
-  let opened = open_(ListIter, input)
-  let square = app(jsMul, [opened, opened])
+  let opened = open_(ListIter, input.value)
+  let square = app(jsMul, [opened.value, opened.value])
   runTest(
     ~name="list iter: square — element shared inside body",
-    ~expr=close_(NodeFlow(opened), square),
+    ~expr=close_(NodeFlow(opened.node), square.value),
     ~expected=array_([int_(4), int_(9), int_(16)]),
   )
 }
@@ -389,11 +392,14 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 //     `v_ten`.
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let ten = lit(int_(10))
   runTest(
     ~name="list iter: loop-invariant constant hoisted out",
-    ~expr=close_(NodeFlow(opened), app(jsAdd, [ten, opened])),
+    ~expr=close_(
+      NodeFlow(opened.node),
+      app(jsAdd, [ten.value, opened.value]).value,
+    ),
     ~expected=array_([int_(11), int_(12), int_(13)]),
   )
 }
@@ -405,11 +411,14 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 {
   let k = lit(int_(100))
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
-  let mapped = close_(NodeFlow(opened), app(jsAdd, [k, opened]))
+  let opened = open_(ListIter, input.value)
+  let mapped = close_(
+    NodeFlow(opened.node),
+    app(jsAdd, [k.value, opened.value]).value,
+  )
   runTest(
     ~name="list iter: shared k=100 used both inside and outside loop",
-    ~expr=app(bundle2("base", "mapped"), [k, mapped]),
+    ~expr=app(bundle2("base", "mapped"), [k.value, mapped.value]),
     ~expected=obj([
       ("base", int_(100)),
       ("mapped", array_([int_(101), int_(102), int_(103)])),
@@ -422,11 +431,11 @@ let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
 {
   let lengthOf = arrowExpr([p("a")], member(id("a"), "length"))
   let input = lit(array_([int_(5), int_(10), int_(15), int_(20)]))
-  let opened = open_(ListIter, input)
-  let mapped = close_(NodeFlow(opened), app(double, [opened]))
+  let opened = open_(ListIter, input.value)
+  let mapped = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
   runTest(
     ~name="list iter: post-process — length of mapped result",
-    ~expr=app(lengthOf, [mapped]),
+    ~expr=app(lengthOf, [mapped.value]),
     ~expected=int_(4),
   )
 }
@@ -445,12 +454,12 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     declared at the outer level.
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
-  let doubled = close_(NodeFlow(opened), app(double, [opened]))
-  let tripled = close_(NodeFlow(opened), app(triple, [opened]))
+  let opened = open_(ListIter, input.value)
+  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
+  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
   runTest(
     ~name="multi-close: doubled and tripled, one loop two pushes",
-    ~expr=app(bundle2("doubled", "tripled"), [doubled, tripled]),
+    ~expr=app(bundle2("doubled", "tripled"), [doubled.value, tripled.value]),
     ~expected=obj([
       ("doubled", array_([int_(2), int_(4), int_(6)])),
       ("tripled", array_([int_(3), int_(6), int_(9)])),
@@ -462,13 +471,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 {
   let plusOne = arrowExpr([p("x")], add(id("x"), int_(1)))
   let input = lit(array_([int_(10), int_(20), int_(30)]))
-  let opened = open_(ListIter, input)
-  let asIs = close_(NodeFlow(opened), opened)
-  let dbl = close_(NodeFlow(opened), app(double, [opened]))
-  let inc = close_(NodeFlow(opened), app(plusOne, [opened]))
+  let opened = open_(ListIter, input.value)
+  let asIs = close_(NodeFlow(opened.node), opened.value)
+  let dbl = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
+  let inc = close_(NodeFlow(opened.node), app(plusOne, [opened.value]).value)
   runTest(
     ~name="multi-close: identity + double + +1, one loop three pushes",
-    ~expr=app(bundle3("a", "b", "c"), [asIs, dbl, inc]),
+    ~expr=app(bundle3("a", "b", "c"), [asIs.value, dbl.value, inc.value]),
     ~expected=obj([
       ("a", array_([int_(10), int_(20), int_(30)])),
       ("b", array_([int_(20), int_(40), int_(60)])),
@@ -483,15 +492,21 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     pushes).
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
-  let square = app(jsMul, [opened, opened])
+  let opened = open_(ListIter, input.value)
+  let square = app(jsMul, [opened.value, opened.value])
   let one = lit(int_(1))
   let two = lit(int_(2))
-  let close1 = close_(NodeFlow(opened), app(jsAdd, [square, one]))
-  let close2 = close_(NodeFlow(opened), app(jsMul, [square, two]))
+  let close1 = close_(
+    NodeFlow(opened.node),
+    app(jsAdd, [square.value, one.value]).value,
+  )
+  let close2 = close_(
+    NodeFlow(opened.node),
+    app(jsMul, [square.value, two.value]).value,
+  )
   runTest(
     ~name="multi-close: shared intermediate (square computed once per iter)",
-    ~expr=app(bundle2("plusOne", "timesTwo"), [close1, close2]),
+    ~expr=app(bundle2("plusOne", "timesTwo"), [close1.value, close2.value]),
     ~expected=obj([
       ("plusOne", array_([int_(2), int_(5), int_(10)])),
       ("timesTwo", array_([int_(2), int_(8), int_(18)])),
@@ -504,14 +519,20 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     used inside the loop body for each Close's body).
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let ten = lit(int_(10))
   let hundred = lit(int_(100))
-  let plus10 = close_(NodeFlow(opened), app(jsAdd, [ten, opened]))
-  let plus100 = close_(NodeFlow(opened), app(jsAdd, [hundred, opened]))
+  let plus10 = close_(
+    NodeFlow(opened.node),
+    app(jsAdd, [ten.value, opened.value]).value,
+  )
+  let plus100 = close_(
+    NodeFlow(opened.node),
+    app(jsAdd, [hundred.value, opened.value]).value,
+  )
   runTest(
     ~name="multi-close: each Close has its own loop-invariant constant",
-    ~expr=app(bundle2("p10", "p100"), [plus10, plus100]),
+    ~expr=app(bundle2("p10", "p100"), [plus10.value, plus100.value]),
     ~expected=obj([
       ("p10", array_([int_(11), int_(12), int_(13)])),
       ("p100", array_([int_(101), int_(102), int_(103)])),
@@ -524,14 +545,20 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     and output array — no interference.
 {
   let inputA = lit(array_([int_(1), int_(2), int_(3)]))
-  let openedA = open_(ListIter, inputA)
-  let resultA = close_(NodeFlow(openedA), app(double, [openedA]))
+  let openedA = open_(ListIter, inputA.value)
+  let resultA = close_(
+    NodeFlow(openedA.node),
+    app(double, [openedA.value]).value,
+  )
   let inputB = lit(array_([int_(10), int_(20)]))
-  let openedB = open_(ListIter, inputB)
-  let resultB = close_(NodeFlow(openedB), app(triple, [openedB]))
+  let openedB = open_(ListIter, inputB.value)
+  let resultB = close_(
+    NodeFlow(openedB.node),
+    app(triple, [openedB.value]).value,
+  )
   runTest(
     ~name="two independent loops in sequence",
-    ~expr=app(bundle2("first", "second"), [resultA, resultB]),
+    ~expr=app(bundle2("first", "second"), [resultA.value, resultB.value]),
     ~expected=obj([
       ("first", array_([int_(2), int_(4), int_(6)])),
       ("second", array_([int_(30), int_(60)])),
@@ -545,12 +572,16 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 //     used twice downstream.
 {
   let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input)
-  let doubled = close_(NodeFlow(opened), app(double, [opened]))
-  let tripled = close_(NodeFlow(opened), app(triple, [opened]))
+  let opened = open_(ListIter, input.value)
+  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
+  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
   runTest(
     ~name="multi-close: one Close used twice downstream + sibling Close",
-    ~expr=app(bundle3("d1", "d2", "t"), [doubled, doubled, tripled]),
+    ~expr=app(bundle3("d1", "d2", "t"), [
+      doubled.value,
+      doubled.value,
+      tripled.value,
+    ]),
     ~expected=obj([
       ("d1", array_([int_(2), int_(4), int_(6)])),
       ("d2", array_([int_(2), int_(4), int_(6)])),
@@ -571,13 +602,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3), int_(4)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   let innerClosed = close_(
-    NodeFlow(innerOpened),
-    app(double, [innerOpened]),
+    NodeFlow(innerOpened.node),
+    app(double, [innerOpened.value]).value,
   )
-  let outerClosed = close_(NodeFlow(outerOpened), innerClosed)
+  let outerClosed = close_(NodeFlow(outerOpened.node), innerClosed.value)
   runTest(
     ~name="nested list flows: double each elem of [[1,2],[3,4]]",
     ~expr=outerClosed,
@@ -597,13 +628,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([]),
     array_([int_(3)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   let innerClosed = close_(
-    NodeFlow(innerOpened),
-    app(double, [innerOpened]),
+    NodeFlow(innerOpened.node),
+    app(double, [innerOpened.value]).value,
   )
-  let outerClosed = close_(NodeFlow(outerOpened), innerClosed)
+  let outerClosed = close_(NodeFlow(outerOpened.node), innerClosed.value)
   runTest(
     ~name="nested list flows: with an empty inner list",
     ~expr=outerClosed,
@@ -625,18 +656,18 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   let innerDoubled = close_(
-    NodeFlow(innerOpened),
-    app(double, [innerOpened]),
+    NodeFlow(innerOpened.node),
+    app(double, [innerOpened.value]).value,
   )
   let innerTripled = close_(
-    NodeFlow(innerOpened),
-    app(triple, [innerOpened]),
+    NodeFlow(innerOpened.node),
+    app(triple, [innerOpened.value]).value,
   )
-  let perOuter = app(bundle2("d", "t"), [innerDoubled, innerTripled])
-  let outerClosed = close_(NodeFlow(outerOpened), perOuter)
+  let perOuter = app(bundle2("d", "t"), [innerDoubled.value, innerTripled.value])
+  let outerClosed = close_(NodeFlow(outerOpened.node), perOuter.value)
   runTest(
     ~name="nested + multi-close on inner: each outer elem -> {d, t}",
     ~expr=outerClosed,
@@ -664,13 +695,13 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3), int_(4)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   runTest(
     ~name="join: nested map flattened — [[1,2],[3,4]] -> [2,4,6,8]",
     ~expr=close_(
-        join_(NodeFlow(innerOpened)),
-      app(double, [innerOpened]),
+      join_(NodeFlow(innerOpened.node)),
+      app(double, [innerOpened.value]).value,
     ),
     ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
   )
@@ -683,11 +714,11 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([]),
     array_([int_(3)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   runTest(
     ~name="join: flatten of [[1,2],[],[3]] -> [1,2,3]",
-    ~expr=close_(join_(NodeFlow(innerOpened)), innerOpened),
+    ~expr=close_(join_(NodeFlow(innerOpened.node)), innerOpened.value),
     ~expected=array_([int_(1), int_(2), int_(3)]),
   )
 }
@@ -695,11 +726,11 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
 // (3) Empty outer — no inner iterations happen at all, result is [].
 {
   let input = lit(array_([]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   runTest(
     ~name="join: empty outer -> []",
-    ~expr=close_(join_(NodeFlow(innerOpened)), innerOpened),
+    ~expr=close_(join_(NodeFlow(innerOpened.node)), innerOpened.value),
     ~expected=array_([]),
   )
 }
@@ -712,14 +743,14 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
   ]))
-  let outerOpened = open_(ListIter, input)
-  let innerOpened = open_(ListIter, outerOpened)
+  let outerOpened = open_(ListIter, input.value)
+  let innerOpened = open_(ListIter, outerOpened.value)
   let ten = lit(int_(10))
   runTest(
     ~name="join: with hoisted constant — flat list of x+10",
     ~expr=close_(
-        join_(NodeFlow(innerOpened)),
-      app(jsAdd, [ten, innerOpened]),
+      join_(NodeFlow(innerOpened.node)),
+      app(jsAdd, [ten.value, innerOpened.value]).value,
     ),
     ~expected=array_([int_(11), int_(12), int_(13)]),
   )
@@ -732,14 +763,14 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([array_([int_(1), int_(2)]), array_([int_(3)])]),
     array_([array_([int_(4)])]),
   ]))
-  let l1 = open_(ListIter, input)
-  let l2 = open_(ListIter, l1)
-  let l3 = open_(ListIter, l2)
+  let l1 = open_(ListIter, input.value)
+  let l2 = open_(ListIter, l1.value)
+  let l3 = open_(ListIter, l2.value)
   runTest(
     ~name="join x2: flatten of [[[1,2],[3]],[[4]]] mapped *2 -> [2,4,6,8]",
     ~expr=close_(
-        join_(join_(NodeFlow(l3))),
-      app(double, [l3]),
+      join_(join_(NodeFlow(l3.node))),
+      app(double, [l3.value]).value,
     ),
     ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
   )
@@ -751,21 +782,24 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
   ]))
-  let openOuter1 = open_(ListIter, input)
-  let openInner1 = open_(ListIter, openOuter1)
+  let openOuter1 = open_(ListIter, input.value)
+  let openInner1 = open_(ListIter, openOuter1.value)
   let nested = close_(
-    NodeFlow(openOuter1),
-    close_(NodeFlow(openInner1), app(double, [openInner1])),
+    NodeFlow(openOuter1.node),
+    close_(
+      NodeFlow(openInner1.node),
+      app(double, [openInner1.value]).value,
+    ).value,
   )
-  let openOuter2 = open_(ListIter, input)
-  let openInner2 = open_(ListIter, openOuter2)
+  let openOuter2 = open_(ListIter, input.value)
+  let openInner2 = open_(ListIter, openOuter2.value)
   let flat = close_(
-    join_(NodeFlow(openInner2)),
-    app(double, [openInner2]),
+    join_(NodeFlow(openInner2.node)),
+    app(double, [openInner2.value]).value,
   )
   runTest(
     ~name="join vs nested side-by-side on the same input",
-    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
     ~expected=obj([
       (
         "nested",
@@ -796,14 +830,17 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3), int_(4)]),
   ]))
-  let outer = open_(ListIter, input)
-  let inner = open_(ListIter, outer)
-  let unjoined = close_(NodeFlow(inner), app(double, [inner]))
-  let flat = close_(join_(NodeFlow(inner)), app(double, [inner]))
-  let nested = close_(NodeFlow(outer), unjoined)
+  let outer = open_(ListIter, input.value)
+  let inner = open_(ListIter, outer.value)
+  let unjoined = close_(NodeFlow(inner.node), app(double, [inner.value]).value)
+  let flat = close_(
+    join_(NodeFlow(inner.node)),
+    app(double, [inner.value]).value,
+  )
+  let nested = close_(NodeFlow(outer.node), unjoined.value)
   runTest(
     ~name="mixed: unjoined + joined on one opener; nested wraps unjoined",
-    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
     ~expected=obj([
       ("nested", array_([
         array_([int_(2), int_(4)]),
@@ -823,15 +860,15 @@ let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
     array_([int_(1), int_(2)]),
     array_([int_(3)]),
   ]))
-  let outer = open_(ListIter, input)
-  let inner = open_(ListIter, outer)
-  let body = app(double, [inner])  // shared between both closes
-  let unjoined = close_(NodeFlow(inner), body)
-  let flat = close_(join_(NodeFlow(inner)), body)
-  let nested = close_(NodeFlow(outer), unjoined)
+  let outer = open_(ListIter, input.value)
+  let inner = open_(ListIter, outer.value)
+  let body = app(double, [inner.value]) // shared between both closes
+  let unjoined = close_(NodeFlow(inner.node), body.value)
+  let flat = close_(join_(NodeFlow(inner.node)), body.value)
+  let nested = close_(NodeFlow(outer.node), unjoined.value)
   runTest(
     ~name="mixed (shared body): one double per iter, two pushes",
-    ~expr=app(bundle2("nested", "flat"), [nested, flat]),
+    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
     ~expected=obj([
       ("nested", array_([
         array_([int_(2), int_(4)]),
@@ -856,17 +893,25 @@ let identity = arrowExpr([p("x")], id("x"))
 
 // (1) Maybe-double: if Just, double the int; if Nothing, return 0.
 //     Test both alternatives.
-let maybeDouble = (input: JsAst.expr): Expr.expr => {
+let maybeDouble = (input: JsAst.expr): Expr.handle => {
   let inputE = lit(input)
   let opened = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE,
+    inputE.value,
   )
-  let justB = branch_(NodeFlow(opened), "Just")
-  let nothingB = branch_(NodeFlow(opened), "Nothing")
+  let justB = branch_(NodeFlow(opened.node), "Just")
+  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
   caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: app(double, [justB])},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(int_(0))},
+    {
+      altName: Some("Just"),
+      flow: NodeFlow(justB.node),
+      value: app(double, [justB.value]).value,
+    },
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(int_(0)).value,
+    },
   ])
 }
 
@@ -888,16 +933,24 @@ runTest(
   let inputE = lit(obj([("tag", str("Left")), ("value", str("hello"))]))
   let opened = open_(
     CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
-    inputE,
+    inputE.value,
   )
-  let leftB = branch_(NodeFlow(opened), "Left")
-  let rightB = branch_(NodeFlow(opened), "Right")
+  let leftB = branch_(NodeFlow(opened.node), "Left")
+  let rightB = branch_(NodeFlow(opened.node), "Right")
   let lengthFn = arrowExpr([p("s")], member(id("s"), "length"))
   runTest(
     ~name="case-split: Either<string,int> — Left.length / Right * 2",
     ~expr=caseClose([
-      {altName: Some("Left"), flow: NodeFlow(leftB), value: app(lengthFn, [leftB])},
-      {altName: Some("Right"), flow: NodeFlow(rightB), value: app(double, [rightB])},
+      {
+        altName: Some("Left"),
+        flow: NodeFlow(leftB.node),
+        value: app(lengthFn, [leftB.value]).value,
+      },
+      {
+        altName: Some("Right"),
+        flow: NodeFlow(rightB.node),
+        value: app(double, [rightB.value]).value,
+      },
     ]),
     ~expected=int_(5),
   )
@@ -910,21 +963,33 @@ runTest(
   let inputE = lit(obj([("tag", str("Just")), ("value", int_(7))]))
   let opened = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE,
+    inputE.value,
   )
-  let justB = branch_(NodeFlow(opened), "Just")
-  let nothingB = branch_(NodeFlow(opened), "Nothing")
+  let justB = branch_(NodeFlow(opened.node), "Just")
+  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
   let valOrZero = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: justB},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(int_(0))},
+    {altName: Some("Just"), flow: NodeFlow(justB.node), value: justB.value},
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(int_(0)).value,
+    },
   ])
   let tagOnly = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: lit(str("present"))},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(str("absent"))},
+    {
+      altName: Some("Just"),
+      flow: NodeFlow(justB.node),
+      value: lit(str("present")).value,
+    },
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(str("absent")).value,
+    },
   ])
   runTest(
     ~name="case-split: multi-close — value-or-zero + tag",
-    ~expr=app(bundle2("v", "tag"), [valOrZero, tagOnly]),
+    ~expr=app(bundle2("v", "tag"), [valOrZero.value, tagOnly.value]),
     ~expected=obj([("v", int_(7)), ("tag", str("present"))]),
   )
 }
@@ -941,18 +1006,23 @@ runTest(
       obj([("tag", str("Neg")), ("value", neg(id("x")))]),
     ),
   )
-  let mkProg = (n: int): Expr.expr => {
+  let mkProg = (n: int): Expr.handle => {
     let inputE = lit(int_(n))
     let opened = open_(
       CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-      inputE,
+      inputE.value,
     )
-    let posB = branch_(NodeFlow(opened), "Pos")
-    let negB = branch_(NodeFlow(opened), "Neg")
+    let posB = branch_(NodeFlow(opened.node), "Pos")
+    let negB = branch_(NodeFlow(opened.node), "Neg")
     let square = arrowExpr([p("x")], mul(id("x"), id("x")))
     caseClose([
-      {altName: Some("Pos"), flow: NodeFlow(posB), value: app(square, [posB])},
-      {altName: Some("Neg"), flow: NodeFlow(negB), value: negB}, // -x is already in the value port via the disc
+      {
+        altName: Some("Pos"),
+        flow: NodeFlow(posB.node),
+        value: app(square, [posB.value]).value,
+      },
+      // -x is already in the value port via the disc
+      {altName: Some("Neg"), flow: NodeFlow(negB.node), value: negB.value},
     ])
   }
   runTest(
@@ -975,21 +1045,29 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Just")), ("value", int_(5))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   // Per element: case-split.
   let inner = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(inner), "Just")
-  let nothingB = branch_(NodeFlow(inner), "Nothing")
+  let justB = branch_(NodeFlow(inner.node), "Just")
+  let nothingB = branch_(NodeFlow(inner.node), "Nothing")
   let perElemResult = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: app(double, [justB])},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(int_(0))},
+    {
+      altName: Some("Just"),
+      flow: NodeFlow(justB.node),
+      value: app(double, [justB.value]).value,
+    },
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(int_(0)).value,
+    },
   ])
   runTest(
     ~name="case-split inside list iter: [Just(1), Nothing, Just(5)] -> [2, 0, 10]",
-    ~expr=close_(NodeFlow(opened), perElemResult),
+    ~expr=close_(NodeFlow(opened.node), perElemResult.value),
     ~expected=array_([int_(2), int_(0), int_(10)]),
   )
 }
@@ -999,18 +1077,26 @@ runTest(
 //     the parent scope.
 {
   let inputE = lit(obj([("tag", str("Just")), ("value", int_(10))]))
-  let bonus = lit(int_(100))  // shared between Just and Nothing
+  let bonus = lit(int_(100)) // shared between Just and Nothing
   let opened = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE,
+    inputE.value,
   )
-  let justB = branch_(NodeFlow(opened), "Just")
-  let nothingB = branch_(NodeFlow(opened), "Nothing")
+  let justB = branch_(NodeFlow(opened.node), "Just")
+  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
   runTest(
     ~name="case-split: shared `bonus` used in both branches",
     ~expr=caseClose([
-      {altName: Some("Just"), flow: NodeFlow(justB), value: app(jsAdd, [justB, bonus])},
-      {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: bonus},
+      {
+        altName: Some("Just"),
+        flow: NodeFlow(justB.node),
+        value: app(jsAdd, [justB.value, bonus.value]).value,
+      },
+      {
+        altName: Some("Nothing"),
+        flow: NodeFlow(nothingB.node),
+        value: bonus.value,
+      },
     ]),
     ~expected=int_(110),
   )
@@ -1025,24 +1111,40 @@ runTest(
   ]))
   let outerSplit = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE,
+    inputE.value,
   )
-  let justB = branch_(NodeFlow(outerSplit), "Just")
-  let nothingB = branch_(NodeFlow(outerSplit), "Nothing")
+  let justB = branch_(NodeFlow(outerSplit.node), "Just")
+  let nothingB = branch_(NodeFlow(outerSplit.node), "Nothing")
   // Inside Just: split again.
   let innerSplit = open_(
     CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
-    justB,
+    justB.value,
   )
-  let leftB = branch_(NodeFlow(innerSplit), "Left")
-  let rightB = branch_(NodeFlow(innerSplit), "Right")
+  let leftB = branch_(NodeFlow(innerSplit.node), "Left")
+  let rightB = branch_(NodeFlow(innerSplit.node), "Right")
   let innerResult = caseClose([
-    {altName: Some("Left"), flow: NodeFlow(leftB), value: lit(int_(-1))},
-    {altName: Some("Right"), flow: NodeFlow(rightB), value: app(double, [rightB])},
+    {
+      altName: Some("Left"),
+      flow: NodeFlow(leftB.node),
+      value: lit(int_(-1)).value,
+    },
+    {
+      altName: Some("Right"),
+      flow: NodeFlow(rightB.node),
+      value: app(double, [rightB.value]).value,
+    },
   ])
   let outerResult = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: innerResult},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(int_(0))},
+    {
+      altName: Some("Just"),
+      flow: NodeFlow(justB.node),
+      value: innerResult.value,
+    },
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(int_(0)).value,
+    },
   ])
   runTest(
     ~name="case-split: nested Maybe<Either<_, int>> — Just(Right(7)) -> 14",
@@ -1067,15 +1169,18 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Just")), ("value", int_(3))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
+  let justB = branch_(NodeFlow(split.node), "Just")
   runTest(
     ~name="filter: keep only Justs, doubled",
-    ~expr=close_(filter_(NodeFlow(justB)), app(double, [justB])),
+    ~expr=close_(
+      filter_(NodeFlow(justB.node)),
+      app(double, [justB.value]).value,
+    ),
     ~expected=array_([int_(2), int_(10), int_(6)]),
   )
 }
@@ -1087,15 +1192,15 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Just")), ("value", int_(11))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
+  let justB = branch_(NodeFlow(split.node), "Just")
   runTest(
     ~name="filter: identity — extract Just values",
-    ~expr=close_(filter_(NodeFlow(justB)), justB),
+    ~expr=close_(filter_(NodeFlow(justB.node)), justB.value),
     ~expected=array_([int_(7), int_(11)]),
   )
 }
@@ -1106,15 +1211,18 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Nothing"))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
+  let justB = branch_(NodeFlow(split.node), "Just")
   runTest(
     ~name="filter: no Justs in input -> []",
-    ~expr=close_(filter_(NodeFlow(justB)), app(double, [justB])),
+    ~expr=close_(
+      filter_(NodeFlow(justB.node)),
+      app(double, [justB.value]).value,
+    ),
     ~expected=array_([]),
   )
 }
@@ -1132,16 +1240,19 @@ runTest(
     ),
   )
   let input = lit(array_([int_(3), int_(-2), int_(5), int_(0), int_(-7), int_(4)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-    opened,
+    opened.value,
   )
-  let posB = branch_(NodeFlow(split), "Pos")
+  let posB = branch_(NodeFlow(split.node), "Pos")
   let square = arrowExpr([p("x")], mul(id("x"), id("x")))
   runTest(
     ~name="filter: positives only, squared (Pos/Neg disc, [3,-2,5,0,-7,4] -> [9,25,0,16])",
-    ~expr=close_(filter_(NodeFlow(posB)), app(square, [posB])),
+    ~expr=close_(
+      filter_(NodeFlow(posB.node)),
+      app(square, [posB.value]).value,
+    ),
     ~expected=array_([int_(9), int_(25), int_(0), int_(16)]),
   )
 }
@@ -1157,18 +1268,21 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Just")), ("value", int_(3))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
-  let nothingB = branch_(NodeFlow(split), "Nothing")
-  let justs = close_(filter_(NodeFlow(justB)), app(double, [justB]))
-  let nothings = close_(filter_(NodeFlow(nothingB)), lit(int_(99)))
+  let justB = branch_(NodeFlow(split.node), "Just")
+  let nothingB = branch_(NodeFlow(split.node), "Nothing")
+  let justs = close_(
+    filter_(NodeFlow(justB.node)),
+    app(double, [justB.value]).value,
+  )
+  let nothings = close_(filter_(NodeFlow(nothingB.node)), lit(int_(99)).value)
   runTest(
     ~name="multi-filter: partition Maybes into doubled-Justs and 99-per-Nothing",
-    ~expr=app(bundle2("justs", "nothings"), [justs, nothings]),
+    ~expr=app(bundle2("justs", "nothings"), [justs.value, nothings.value]),
     ~expected=obj([
       ("justs", array_([int_(2), int_(10), int_(6)])),
       ("nothings", array_([int_(99), int_(99)])),
@@ -1193,19 +1307,22 @@ runTest(
     ]),
     array_([]),
   ]))
-  let outer = open_(ListIter, input)
-  let inner = open_(ListIter, outer)
+  let outer = open_(ListIter, input.value)
+  let inner = open_(ListIter, outer.value)
   // The case-split sees the inner element. The filter close's flow
   // is Joined(Filtered(...)) — the Joined lifts the output one level
   // up, past the outer list.
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inner,
+    inner.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
+  let justB = branch_(NodeFlow(split.node), "Just")
   runTest(
     ~name="filter under joined nested lists: flatten + filter Justs, doubled",
-    ~expr=close_(join_(filter_(NodeFlow(justB))), app(double, [justB])),
+    ~expr=close_(
+      join_(filter_(NodeFlow(justB.node))),
+      app(double, [justB.value]).value,
+    ),
     ~expected=array_([int_(2), int_(10), int_(6)]),
   )
 }
@@ -1223,20 +1340,23 @@ runTest(
     ),
   )
   let input = lit(array_([int_(2), int_(-3), int_(4), int_(-1)]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-    opened,
+    opened.value,
   )
-  let posB = branch_(NodeFlow(split), "Pos")
-  let posDoubled = close_(filter_(NodeFlow(posB)), app(double, [posB]))
+  let posB = branch_(NodeFlow(split.node), "Pos")
+  let posDoubled = close_(
+    filter_(NodeFlow(posB.node)),
+    app(double, [posB.value]).value,
+  )
   let posSquared = close_(
-    filter_(NodeFlow(posB)),
-    app(arrowExpr([p("x")], mul(id("x"), id("x"))), [posB]),
+    filter_(NodeFlow(posB.node)),
+    app(arrowExpr([p("x")], mul(id("x"), id("x"))), [posB.value]).value,
   )
   runTest(
     ~name="multi-filter: same alt, two parallel outputs (doubled + squared)",
-    ~expr=app(bundle2("doubled", "squared"), [posDoubled, posSquared]),
+    ~expr=app(bundle2("doubled", "squared"), [posDoubled.value, posSquared.value]),
     ~expected=obj([
       ("doubled", array_([int_(4), int_(8)])),
       ("squared", array_([int_(4), int_(16)])),
@@ -1259,22 +1379,30 @@ runTest(
     obj([("tag", str("Nothing"))]),
     obj([("tag", str("Just")), ("value", int_(3))]),
   ]))
-  let opened = open_(ListIter, input)
+  let opened = open_(ListIter, input.value)
   let split = open_(
     CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened,
+    opened.value,
   )
-  let justB = branch_(NodeFlow(split), "Just")
-  let nothingB = branch_(NodeFlow(split), "Nothing")
+  let justB = branch_(NodeFlow(split.node), "Just")
+  let nothingB = branch_(NodeFlow(split.node), "Nothing")
   let perIter = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB), value: app(double, [justB])},
-    {altName: Some("Nothing"), flow: NodeFlow(nothingB), value: lit(int_(0))},
+    {
+      altName: Some("Just"),
+      flow: NodeFlow(justB.node),
+      value: app(double, [justB.value]).value,
+    },
+    {
+      altName: Some("Nothing"),
+      flow: NodeFlow(nothingB.node),
+      value: lit(int_(0)).value,
+    },
   ])
-  let doubledList = close_(NodeFlow(opened), perIter)
-  let justsList = close_(filter_(NodeFlow(justB)), justB)
+  let doubledList = close_(NodeFlow(opened.node), perIter.value)
+  let justsList = close_(filter_(NodeFlow(justB.node)), justB.value)
   runTest(
     ~name="mix: case-close + filter on same case-split (doubled vs justs)",
-    ~expr=app(bundle2("doubled", "justs"), [doubledList, justsList]),
+    ~expr=app(bundle2("doubled", "justs"), [doubledList.value, justsList.value]),
     ~expected=obj([
       ("doubled", array_([int_(2), int_(0), int_(10), int_(0), int_(6)])),
       ("justs", array_([int_(1), int_(5), int_(3)])),
@@ -1293,12 +1421,15 @@ runTest(
 {
   let optClose = (input: JsAst.expr) => {
     let inE = lit(input)
-    let opened = open_(OptionIter, inE)
-    close_(NodeFlow(opened), app(double, [opened]))
+    let opened = open_(OptionIter, inE.value)
+    close_(NodeFlow(opened.node), app(double, [opened.value]).value)
   }
   // Wrap to default undefined → "none" so jsonStringify gives a string.
-  let withDefault = (closeExpr) =>
-    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [closeExpr])
+  let withDefault = (closeExpr: Expr.handle) =>
+    app(
+      arrowExpr([p("v")], nullish(id("v"), str("none"))),
+      [closeExpr.value],
+    )
   runTest(
     ~name="option iter: Some(5) doubled",
     ~expr=withDefault(optClose(int_(5))),
@@ -1314,12 +1445,12 @@ runTest(
 // (2) Multi-close on one option: doubled and tripled in parallel.
 {
   let inE = lit(int_(7))
-  let opened = open_(OptionIter, inE)
-  let doubled = close_(NodeFlow(opened), app(double, [opened]))
-  let tripled = close_(NodeFlow(opened), app(triple, [opened]))
+  let opened = open_(OptionIter, inE.value)
+  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
+  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
   runTest(
     ~name="option iter: multi-close (doubled + tripled from Some(7))",
-    ~expr=app(bundle2("d", "t"), [doubled, tripled]),
+    ~expr=app(bundle2("d", "t"), [doubled.value, tripled.value]),
     ~expected=obj([("d", int_(14)), ("t", int_(21))]),
   )
 }
@@ -1330,10 +1461,16 @@ runTest(
 {
   let optOptDoubled = (input: JsAst.expr) => {
     let inE = lit(input)
-    let outer = open_(OptionIter, inE)
-    let inner = open_(OptionIter, outer)
-    let result = close_(join_(NodeFlow(inner)), app(double, [inner]))
-    app(arrowExpr([p("v")], nullish(id("v"), str("none"))), [result])
+    let outer = open_(OptionIter, inE.value)
+    let inner = open_(OptionIter, outer.value)
+    let result = close_(
+      join_(NodeFlow(inner.node)),
+      app(double, [inner.value]).value,
+    )
+    app(
+      arrowExpr([p("v")], nullish(id("v"), str("none"))),
+      [result.value],
+    )
   }
   runTest(
     ~name="option<option>: Some(Some(5)) joined-inner doubled → 10",
@@ -1353,9 +1490,9 @@ runTest(
 {
   let optListDoubled = (input: JsAst.expr) => {
     let inE = lit(input)
-    let outer = open_(OptionIter, inE)
-    let inner = open_(ListIter, outer)
-    close_(join_(NodeFlow(inner)), app(double, [inner]))
+    let outer = open_(OptionIter, inE.value)
+    let inner = open_(ListIter, outer.value)
+    close_(join_(NodeFlow(inner.node)), app(double, [inner.value]).value)
   }
   runTest(
     ~name="option<list>: Some([1,2,3]) joined-inner doubled → [2,4,6]",
@@ -1376,9 +1513,9 @@ runTest(
 {
   let listOptList = (input: JsAst.expr) => {
     let inE = lit(input)
-    let outer = open_(ListIter, inE)
-    let inner = open_(OptionIter, outer)
-    close_(join_(NodeFlow(inner)), app(double, [inner]))
+    let outer = open_(ListIter, inE.value)
+    let inner = open_(OptionIter, outer.value)
+    close_(join_(NodeFlow(inner.node)), app(double, [inner.value]).value)
   }
   runTest(
     ~name="list<option>: [u,3,u,7,u] joined-inner doubled → [6,14]",
@@ -1414,18 +1551,18 @@ runTest(
   let times10 = arrowExpr([p("x")], mul(id("x"), int_(10)))
 
   let inE = lit(array_([int_(1), int_(2), int_(3), int_(4), int_(5)]))
-  let outer = open_(ListIter, inE)
-  let optOnEven = app(evenDisc, [outer])
-  let inner = open_(OptionIter, optOnEven)
+  let outer = open_(ListIter, inE.value)
+  let optOnEven = app(evenDisc, [outer.value])
+  let inner = open_(OptionIter, optOnEven.value)
   // The per-iter value uses `outer` (the list elem) directly, NOT
   // `inner` (the option's some-value). Its eager scope is therefore
   // the loop body — the test of sinking is whether the compiler
   // moves the times10 call into the option's if-body, where it's
   // computed only on Some-iters.
-  let expensive = app(times10, [outer])
-  let innerClose = close_(NodeFlow(inner), expensive)
+  let expensive = app(times10, [outer.value])
+  let innerClose = close_(NodeFlow(inner.node), expensive.value)
   // Wrap each per-iter result (some-value or undefined) into a list.
-  let outerClose = close_(NodeFlow(outer), innerClose)
+  let outerClose = close_(NodeFlow(outer.node), innerClose.value)
   runTest(
     ~name="sink: per-elem App used only inside option-some sinks into if",
     ~expr=outerClose,
@@ -1444,13 +1581,13 @@ runTest(
 {
   let l1 = lit(int_(100))
   let l2 = lit(int_(50))
-  let magic = app(jsAdd, [l1, l2])
+  let magic = app(jsAdd, [l1.value, l2.value])
   let inE = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, inE)
-  let perIter = app(jsAdd, [magic, opened])
+  let opened = open_(ListIter, inE.value)
+  let perIter = app(jsAdd, [magic.value, opened.value])
   runTest(
     ~name="sink: outer-only App used inside loop stays outside (loopDepth cap)",
-    ~expr=close_(NodeFlow(opened), perIter),
+    ~expr=close_(NodeFlow(opened.node), perIter.value),
     ~expected=array_([int_(151), int_(152), int_(153)]),
   )
 }

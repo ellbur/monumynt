@@ -159,7 +159,7 @@ let walkOpenerChain = (opener: Expr.expr, depth: int): array<Expr.expr> => {
   let curr = ref(opener)
   for _ in 1 to depth {
     let next = switch (curr.contents).kind {
-    | Open({input}) => input
+    | Open({input}) => Expr.nodeOf(input)
     | _ =>
       failwith(
         "walkOpenerChain: a Joined flow expects each level's input to " ++
@@ -213,6 +213,15 @@ let rec compileExpr = (
     }
   }
 
+// Compile the node behind a value ref. All refs name their node's one
+// "value" port today, so this is just a projection; per-port dispatch
+// arrives with migration step 2.
+and compileValueRef = (
+  ctx: compileCtx,
+  r: Expr.valueRef,
+  currentBody: option<bodyRef>,
+): string => compileExpr(ctx, Expr.nodeOf(r), currentBody)
+
 // --- Per-kind emitters ---
 
 and emitLit = (ctx: compileCtx, id: int, js: JsAst.expr): string => {
@@ -228,14 +237,14 @@ and emitApp = (
   ctx: compileCtx,
   id: int,
   fn: JsAst.expr,
-  args: array<Expr.expr>,
+  args: array<Expr.valueRef>,
   currentBody: option<bodyRef>,
 ): string => {
   // Compile every arg first to know each arg's body.
-  let argNames = args->Array.map(a => compileExpr(ctx, a, currentBody))
+  let argNames = args->Array.map(a => compileValueRef(ctx, a, currentBody))
   // Each arg's body = the body its memo entry lives in.
   let argBodies = args->Array.map(a =>
-    switch ctx.memo->Map.get(a.id) {
+    switch ctx.memo->Map.get(Expr.nodeOf(a).id) {
     | Some(entries) =>
       entries
       ->Array.find(((body, _)) => isAncestor(body, currentBody))
@@ -339,7 +348,7 @@ and emitIterClose = (
   | Open({input}) => input
   | _ => failwith("Internal: outermost is not an Open.")
   }
-  let inputName = compileExpr(ctx, outermostInput, currentBody)
+  let inputName = compileValueRef(ctx, outermostInput, currentBody)
 
   let outName = ctx.fresh()
   let thunkBody =
@@ -434,7 +443,7 @@ and emitInnerPushOrAssign = (
   innerBodyRef: bodyRef,
   innerBuf: array<JsAst.stmt>,
 ): unit => {
-  let valueName = compileExpr(ctx, branch.value, Some(innerBodyRef))
+  let valueName = compileValueRef(ctx, branch.value, Some(innerBodyRef))
   let pushOrAssign = if anyList {
     JsBuild.call(
       JsBuild.member(JsBuild.id(outName), "push"),
@@ -529,7 +538,7 @@ and emitCaseClose = (
     }
   })
 
-  let inputName = compileExpr(ctx, caseSplitInput, currentBody)
+  let inputName = compileValueRef(ctx, caseSplitInput, currentBody)
 
   let thunkBody: array<JsAst.stmt> = []
   let splitName = ctx.fresh()
@@ -593,7 +602,7 @@ and emitCaseClose = (
       collected->Array.forEach((branchNode: Expr.expr) =>
         recordMemo(ctx, branchNode.id, Some(altBodyRef), vAltValName)
       )
-      let valueName = compileExpr(ctx, b.value, Some(altBodyRef))
+      let valueName = compileValueRef(ctx, b.value, Some(altBodyRef))
       altBodyRef.buffer->Array.push(
         JsBuild.exprStmt(
           JsBuild.assign(
@@ -636,7 +645,7 @@ and emitCaseClose = (
 // alt's shared `v = split.value` binding.
 and collectBranchesByAlt = (
   flowRef: Expr.flowRef,
-  value: Expr.expr,
+  value: Expr.valueRef,
   caseSplitId: int,
   alt: string,
   acc: array<Expr.expr>,
@@ -647,12 +656,12 @@ and collectBranchesByAlt = (
       visited->Map.set(e.id, true)
       switch e.kind {
       | Lit(_) => ()
-      | App({args}) => args->Array.forEach(visitExpr)
-      | Open({input}) => visitExpr(input)
+      | App({args}) => args->Array.forEach(visitValueRef)
+      | Open({input}) => visitValueRef(input)
       | Close({branches}) =>
         branches->Array.forEach(b => {
           visitFlowRef(b.flow)
-          visitExpr(b.value)
+          visitValueRef(b.value)
         })
       | Branch({source, alt: a}) =>
         // Is this Branch's (source, alt) the one we're after?
@@ -670,8 +679,9 @@ and collectBranchesByAlt = (
     | Joined(inner) => visitFlowRef(inner)
     | Filtered(inner) => visitFlowRef(inner)
     }
+  and visitValueRef = (r: Expr.valueRef) => visitExpr(Expr.nodeOf(r))
   let _ = flowRef
-  visitExpr(value)
+  visitValueRef(value)
 }
 
 // Filter close. Compiles to a list-style accumulator inside a
@@ -724,7 +734,7 @@ and emitFilterClose = (
   // The CaseSplit's input must be an Open ListIter (so the filter has
   // a containing list to iterate); the join depth lifts the output
   // up across that many ancestor list iters.
-  let innerListOpener = caseSplitInput
+  let innerListOpener = Expr.nodeOf(caseSplitInput)
   switch innerListOpener.kind {
   | Open({flow: ListIter}) => ()
   | _ =>
@@ -738,7 +748,7 @@ and emitFilterClose = (
   | Open({input}) => input
   | _ => failwith("Internal")
   }
-  let inputName = compileExpr(ctx, outermostInput, currentBody)
+  let inputName = compileValueRef(ctx, outermostInput, currentBody)
 
   let outName = ctx.fresh()
   let thunkBody = [JsBuild.const(outName, JsBuild.array_([]))]
@@ -792,7 +802,7 @@ and emitFilterClose = (
       collected->Array.forEach((bn: Expr.expr) =>
         recordMemo(ctx, bn.id, Some(altBodyRef), vAltValName)
       )
-      let valueName = compileExpr(ctx, branch.value, Some(altBodyRef))
+      let valueName = compileValueRef(ctx, branch.value, Some(altBodyRef))
       altBodyRef.buffer->Array.push(
         JsBuild.exprStmt(
           JsBuild.call(
