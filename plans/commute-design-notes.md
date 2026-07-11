@@ -1,355 +1,347 @@
 # Commuting Option Out of List: Design Notes
 
-> **Status (2026-07-05).** The near-term recommendation below — Option 6,
-> non-short-circuiting commute on the existing eager list flow — was never
-> implemented and has been overtaken: the stream-flow conversation this
-> document deferred to happened (see `lazy-stream-placement-design.md`,
-> `lazy-stream-join-design.md`, `lazy-stream-commute-design.md`), and
-> commute landed there as a per-close output annotation on stream flows —
-> exactly the "honest split" this document recommends (the deferred half of
-> Option 3). The `Commuted(flowRef)` constructor shape proposed here
-> survived; its host flow moved from list to stream. What is specifically
-> discarded is Option 6 as a stopgap: with streams designed, there is no
-> longer a reason to add a commute that cannot short-circuit. The options
-> analysis (1–9) and the list-flow linearity critique remain the design
-> record and are still what the stream docs build on. A formerly-open
-> divergence — the spec's `Commute` node vs the per-close packaging — was
-> reconciled 2026-07-05: the node (flow wires only, no value ports) is the
-> representation; the per-close construction is the compilation.
-> "Swap-and-continue" turned out not to be expressible at all. See
-> `visual-language-spec.md` under "Commute".
+> **Status: superseded stopgap — kept for its options analysis.** This
+> document worked out what `commute` should mean and where it could live,
+> and recommended a near-term stopgap (Option 6, a non-short-circuiting
+> commute bolted onto the existing eager list flow). That stopgap was
+> never built. The stream-flow conversation it deferred to happened
+> instead, and commute landed there as a per-close output annotation on
+> *stream* flows — the "honest split" this document recommends as the real
+> answer (the deferred half of Option 3). See `lazy-stream-placement-design.md`,
+> `lazy-stream-join-design.md`, and `lazy-stream-commute-design.md`.
 >
-> Terminology: this document predates the 2026-07-07
-> uncollect/collect correction (`lazy-stream-join-design.md`) and
-> says open/close throughout; the code still says `Open`/`Close`.
+> What survives, and why this file is kept: the nine-option survey (below)
+> and the list-flow linearity critique are the reasoning that led to
+> streams, and the stream docs build on them directly. The `Commuted(flowRef)`
+> constructor proposed here survived too — only its host flow moved from
+> list to stream. What is specifically discarded is Option 6 as a stopgap:
+> once streams are designed, there is no reason to add a commute that
+> cannot short-circuit.
+>
+> One reconciliation carries forward. The spec's `Commute` *node* (flow
+> wires only, no value ports) is the representation; the per-close
+> construction here is the compilation. "Swap-and-continue" turned out not
+> to be expressible at all. See `visual-language-spec.md` under "Commute".
+>
+> Terminology: this document says open/close (the older names for
+> uncollect/collect); the code still says `Open`/`Close`.
 
 ## What "commute" means here
 
-We have a list iter with an option iter inside it — a `List<Option<X>>`.
-Today, joining the inner option close to the outer list level produces a
-`List<X>` of just the defined values (push when Some, skip when None).
-That's a useful operation, but it's not the *commute* we're after now.
+Start with a list iteration that has an option iteration nested inside it
+— a `List<Option<X>>`. There are two distinct things you might want.
 
-Commute swaps the nesting: `List<Option<X>>` → `Option<List<X>>`. The
-outer is now an option whose Some-case carries the list of all values,
-and whose None-case fires if *any* iteration's option was None. In
-Haskell terms this is `sequence :: [Maybe a] -> Maybe [a]`.
+*Join* (already available): merge the inner option level into the outer
+list. Push a value when the option is Some, skip when None. The result is
+a `List<X>` of just the defined values — the filter reading.
 
-The two operations are genuinely different — the output containers
-differ — so commute is a new primitive, not a variant of join.
+*Commute* (what this document is about): swap the nesting.
+`List<Option<X>>` becomes `Option<List<X>>`. The outer container is now an
+option: Some carries the list of all values, and None fires if *any*
+iteration's option was None. In Haskell terms this is
+`sequence :: [Maybe a] -> Maybe [a]`.
+
+The two operations produce different output containers, so commute is a
+new primitive, not a variant of join.
 
 ## Why this is harder than join
 
-Join has no runtime effect of its own. It's a *layout* annotation: it
-tells the compiler "put this close's output binding one scope higher."
-The JS emitted is otherwise identical to a non-joined close. Whatever
-the loop was doing, it still does.
+Join has no runtime effect of its own. It is a *layout* annotation: it
+tells the compiler "put this close's output binding one scope higher." The
+emitted JS is otherwise identical to a non-joined close — whatever the
+loop was doing, it still does.
 
-Commute has runtime effect. Its meaning *is* "stop accumulating and
-report None the moment you see a None." If we implement that literally,
-we have to actually stop the loop early — and that "stopping" interacts
-badly with everything else the loop might be doing.
+Commute has runtime effect. Its meaning *is* "stop accumulating and report
+None the moment you see a None." Implemented literally, that requires
+actually stopping the loop early — and that stopping interacts badly with
+everything else the loop might be doing.
 
-## The deeper conflict
+## The deeper conflict: two roles for one flow type
 
-Lists, as the compiler currently models them, are *eager* and *reusable*.
-An Open ListIter compiles to a `for…of` over a JS array; consumers attach
-to it freely (multi-close just works); the same list expression can feed
-multiple loops, each running to completion, each producing whatever
-outputs it wants. That model is a good fit for "transform/filter/zip
-data already in hand" — which is most of what the language does today.
+Lists, as the compiler models them, are *eager* and *reusable*. An `Open
+ListIter` compiles to a `for…of` over a JS array. Consumers attach freely
+(multi-close just works); the same list expression can feed several loops,
+each running to completion, each producing its own outputs. This is a good
+fit for "transform / filter / zip data already in hand," which is most of
+what the language does today.
 
-Commute wants a different shape. To respect the "stop on first None"
-semantics, the list-as-data-structure has to behave like a stream
-consumed once-through, where the consumer can say "I'm done" and the
-producer doesn't compute more elements. That's a *linear, one-shot*
-data structure. Linearity is what makes "stop" meaningful: if nobody
+Commute wants a different shape. To respect "stop on first None," the list
+has to behave like a stream consumed once through, where the consumer can
+say "I'm done" and the producer stops computing. That is a *linear,
+one-shot* structure. Linearity is what makes "stop" meaningful: if nobody
 else is reading, stopping is just stopping; if other readers are still
 pulling, stopping is incoherent.
 
-Trying to bolt commute onto today's list flow forces us to choose
-between:
+Bolting commute onto today's list flow forces a choice among three bad
+options:
 
-- Pretending the list is linear (break out of the for-of), which
-  truncates *all other consumers'* output. They get fewer elements than
-  the input list had, and the language never warned them this could
-  happen.
-- Pretending the commute consumer is allowed to peek without affecting
-  others (no short-circuit), which gives correct semantics for commute
-  itself but burns CPU on iterations whose results commute won't use,
-  and forces us to compute intermediate values nobody on the
-  short-circuit path needed.
-- Forbidding multi-output once a commute is present, which is a hidden
-  linearity rule the user can't see in the diagram.
+- **Pretend the list is linear** (break out of the `for…of`). This
+  truncates *every other consumer's* output — they get fewer elements than
+  the input had, unwarned.
+- **Pretend commute can peek without affecting others** (no short-circuit).
+  This is correct for commute but burns CPU on iterations commute won't
+  use, and computes intermediate values nobody on the short-circuit path
+  needed.
+- **Forbid multi-output once a commute is present.** That is a hidden
+  linearity rule the user cannot see in the diagram.
 
-None of these is great, and all three exist because we're asking one
-flow type to play two roles.
+All three exist because one flow type is being asked to play two roles.
 
 ## The wasted-intermediate-values question
 
-Even with one perfectly linear consumer, commute has a second-order
-problem. Suppose the loop body is
+Even with a single perfectly linear consumer, commute has a second-order
+problem. Suppose the loop body is:
 
-    elem -> expensive(elem) -> isValid -> Option<X>
-                            \-> someStat              (only consumer is a list close)
+```
+elem -> expensive(elem) -> isValid -> Option<X>
+                        \-> someStat              (only consumer is a list close)
+```
 
-If commute terminates at iter K, iters K+1..N should not compute
-`expensive`. But `someStat`'s consumer needs them. So `expensive` has
-to be either:
+If commute terminates at iteration K, iterations K+1..N should not compute
+`expensive`. But `someStat`'s consumer needs them. So `expensive` must be
+either:
 
-- Computed lazily and forced only when needed (then we need a "force"
-  mechanism and a memo so the two consumers share work when both want
-  the value).
-- Computed eagerly always (then the iteration cost is the same whether
-  we short-circuit commute or not — and short-circuiting commute saves
-  almost nothing).
+- **Computed lazily** and forced only when needed — which requires a force
+  mechanism and a memo so the two consumers share work when both want the
+  value.
+- **Computed eagerly always** — in which case the iteration cost is the
+  same whether commute short-circuits or not, so short-circuiting saves
+  almost nothing.
 
-Lazy values inside the loop body would be a significant extension to
-the language. Eager-always defeats most of the point of short-circuit.
+Lazy values inside the loop body would be a significant extension.
+Eager-always defeats most of the point of short-circuit.
 
 ## Options considered
 
+Nine ways to reconcile commute with the flow model, each with its cost.
+
 ### 1. Lazy streams replacing loops
 
-Compile lists as pull-based iterators rather than for-of loops. Each
-consumer holds its own cursor and pulls; if a consumer stops pulling,
-no more work is done for it. Shared intermediate values get a memo so
-the second consumer doesn't recompute.
+Compile lists as pull-based iterators rather than `for…of`. Each consumer
+holds its own cursor and pulls; a consumer that stops pulling causes no
+more work for itself. Shared intermediate values get a memo so a second
+consumer doesn't recompute.
 
-Pros: single uniform model that handles commute, multi-consumer, and
-wasted-intermediate all at once.
-Cons: a much heavier runtime than `for…of` — generator/iterator
-protocol per element, allocation per yield, plus a memo per shared
-value. Loses the "compiles to a tight loop" property that makes today's
-output readable JS.
+- **Pros:** one uniform model handles commute, multi-consumer, and
+  wasted-intermediate at once.
+- **Cons:** a much heavier runtime than `for…of` — generator/iterator
+  protocol per element, allocation per yield, a memo per shared value.
+  Loses the "compiles to a tight loop" property that makes today's output
+  readable.
 
 ### 2. Make the list flow linear
 
-Restrict every list flow to at most one Close. Multiple outputs require
-an explicit `tee` (or `dup`) operation that takes a list flow and
-produces two list flows. The two branches are then independently
-linear.
+Restrict every list flow to at most one close. Multiple outputs require an
+explicit `tee` (or `dup`) that takes a list flow and produces two,
+independently linear.
 
-Pros: principled. The visual language acquires a real linearity rule,
-and commute (and other one-shot operations) fit naturally.
-Cons: every existing multi-close diagram breaks until rewritten with
-`tee`. The compile target for `tee` is also nontrivial: either you
-buffer everything (loses any short-circuit benefit) or you actually
-run two independent loops (which means re-computing whatever the
-shared computations were, with no memo).
+- **Pros:** principled — the language acquires a real linearity rule, and
+  commute (and other one-shot operations) fit naturally.
+- **Cons:** every existing multi-close diagram breaks until rewritten with
+  `tee`. The compile target for `tee` is nontrivial: either buffer
+  everything (loses short-circuit) or run two independent loops
+  (recomputing the shared work, with no memo).
 
 ### 3. Linear list flow + separate stream flow
 
-Keep lists linear (per Option 2), but add a stream flow as a separate
-primitive. Streams are lazy and pull-based; their consumers can stop
-independently. Commute is a stream-level operation, never a list one.
+Keep lists linear (per Option 2) but add a stream flow as a separate
+primitive. Streams are lazy and pull-based; their consumers stop
+independently. Commute is a stream operation, never a list one.
 
-Pros: each flow type plays one role cleanly. Lists stay tight loops.
-Streams handle the cases that need linearity-with-stoppage.
-Cons: still breaks existing multi-close. Two flow types to learn. The
-wasted-intermediate-values problem in streams still wants lazy values,
-which is a further extension.
+- **Pros:** each flow type plays one role cleanly. Lists stay tight loops;
+  streams handle linearity-with-stoppage.
+- **Cons:** still breaks existing multi-close. Two flow types to learn. The
+  wasted-intermediate problem in streams still wants lazy values, a further
+  extension.
 
 ### 4. Hybrid: loops when safe, streams when commute is in play
 
-Same data type at the language level; the compiler picks the backend.
-A list flow with no commute consumers compiles to a for-of; one with
-commute compiles to a stream.
+One data type at the language level; the compiler picks the backend. A
+list flow with no commute consumers compiles to `for…of`; one with commute
+compiles to a stream.
 
-Pros: invisible to the user; no breaking change.
-Cons: invisible to the user — performance characteristics depend on
-nonlocal properties of the diagram. "I added a commute over here and
-everything got 10× slower" is a bad failure mode. Also doesn't solve
-the multi-consumer-of-a-commuted-list problem; it just relocates it
-into the stream compile, where Option 3's caveats apply.
+- **Pros:** invisible to the user; no breaking change.
+- **Cons:** invisible to the user — performance depends on nonlocal
+  properties of the diagram. "I added a commute over here and everything
+  got 10× slower" is a bad failure mode. Also doesn't solve
+  multi-consumer-of-a-commuted-list; it just relocates the problem into the
+  stream compile, where Option 3's caveats apply.
 
 ### 5. Loops that cut short in multiple alternative ways
 
-Add a "break vote" mechanism: each commute close registers an
-intent-to-stop; the loop continues until every consumer either
-finishes naturally or votes to stop. In the multi-consumer case
-where only one consumer wants to stop, the loop keeps going.
+A "break vote" mechanism: each commute close registers intent-to-stop; the
+loop continues until every consumer either finishes naturally or votes to
+stop. When only one consumer wants to stop, the loop keeps going.
 
-Pros: stays in the loop model.
-Cons: in the very case that motivates the design — commute alongside
-other consumers — there's still no short-circuit, so the wasted-CPU
-problem isn't solved. We've just paid for the vote protocol with
-nothing to show for it.
+- **Pros:** stays in the loop model.
+- **Cons:** in the very case that motivates the design — commute alongside
+  other consumers — there is still no short-circuit, so the wasted-CPU
+  problem is unsolved. The vote protocol is paid for with nothing to show.
 
 ### 6. Non-short-circuiting commute (the easy half)
 
-Implement commute *without* the cut-the-loop-short part. The loop runs
-to completion. The commute close accumulates into a list and tracks
-whether any iter was None; after the loop, it emits Some(list) or
-None.
+Implement commute *without* cutting the loop short. The loop runs to
+completion; the commute close accumulates into a list and tracks whether
+any iteration was None; afterward it emits `Some(list)` or `None`.
 
-Pros: zero conflict with multi-consumer; zero changes to the existing
-flow model. Drop-in addition. Semantically correct.
-Cons: misses the "stop early" property the user named as the
-interesting one. Wasted CPU after the first None — bounded but real.
-For pure code, fine; for side-effecting code (which the language
-doesn't yet have), wrong.
+- **Pros:** zero conflict with multi-consumer; zero changes to the flow
+  model; a drop-in, semantically correct addition.
+- **Cons:** misses the "stop early" property the user named as the
+  interesting one. Wastes CPU after the first None — bounded but real. Fine
+  for pure code; wrong for side-effecting code (which the language doesn't
+  yet have).
 
 ### 7. Commute as the sole consumer of its list
 
-Allow commute only when it's the *only* close on its list. Single
-consumer ⇒ no conflict; the loop can break freely. Reject the diagram
-at compile time if any other close shares the underlying ListLoop.
+Allow commute only when it is the *only* close on its list. Single consumer
+means no conflict, so the loop can break freely. Reject the diagram at
+compile time if any other close shares the underlying list loop.
 
-Pros: short-circuit works; nobody else is affected because there is
-nobody else.
-Cons: a context-sensitive linearity rule the user has to discover by
-hitting the error. Doesn't generalize. Awkward to explain.
+- **Pros:** short-circuit works; nobody else is affected because there is
+  nobody else.
+- **Cons:** a context-sensitive linearity rule the user discovers only by
+  hitting the error. Doesn't generalize. Awkward to explain.
 
 ### 8. Side-band break with truncated other consumers
 
-Implement commute as a real `break`. Document that other consumers of
-the same list also stop at that point. So a list-close sibling gets the
-elements up to iter K, not all of them.
+Implement commute as a real `break`, and document that other consumers of
+the same list also stop at that point — a sibling list-close gets the
+elements up to iteration K, not all of them.
 
-Pros: simple to implement.
-Cons: a footgun. The truncation is invisible from the diagram. A
-beginner adds a commute and silently changes what their other outputs
-contain.
+- **Pros:** simple to implement.
+- **Cons:** a footgun. The truncation is invisible from the diagram; a
+  beginner adds a commute and silently changes what their other outputs
+  contain.
 
 ### 9. Commute as a JS-level function on lists, not a flow operation
 
-Don't add commute to the flow language at all. Produce a `List<Option
-<X>>` with the existing tools (multi-close on an outer list pushing
-inner-option outputs), then App a `sequence` JS function over it.
+Don't add commute to the flow language at all. Produce a `List<Option<X>>`
+with existing tools (multi-close on an outer list pushing inner-option
+outputs), then App a `sequence` JS function over it.
 
-Pros: no language changes; no semantic puzzles.
-Cons: the data flow's structural commute isn't visible in the diagram
-— it's hidden inside a JS function. The motivation for adding commute
-as a flow op is presumably that we want it to be a first-class
-diagrammatic rearrangement, not a post-hoc function call.
+- **Pros:** no language changes, no semantic puzzles.
+- **Cons:** the structural commute is invisible in the diagram — hidden
+  inside a JS function. The whole point of adding commute as a flow op is
+  to make it a first-class diagrammatic rearrangement, not a post-hoc
+  function call.
 
 ## Recommendation
 
-The deeper observation behind the user's framing is that **list flow,
-as currently modeled, conflates two distinct things**: a passive data
-structure (an array you can iterate over multiple times) and an active
-process (an iteration that's happening once). Most of what we use list
-flow for is the former; commute wants the latter.
+The observation behind all of the above: **list flow, as currently
+modeled, conflates two distinct things** — a passive data structure (an
+array you can iterate many times) and an active process (an iteration
+happening once). Most uses of list flow want the former; commute wants the
+latter. Making one flow type do both is what produces every awkward
+tradeoff.
 
-Trying to make list flow do both is what produces all the awkward
-tradeoffs above. The honest split is:
+The honest split:
 
-- Keep the **list flow** as it is: eager, reusable, multi-consumer,
+- Keep the **list flow** as it is — eager, reusable, multi-consumer,
   compiles to `for…of`. Commute is *not* available on it.
-- Add a **stream flow** later: lazy, single-consumer, supports
-  commute and other early-termination operations. Compiles to either
-  generators or hand-rolled iterators.
+- Add a **stream flow** later — lazy, single-consumer, supporting commute
+  and other early-termination operations. Compiles to generators or
+  hand-rolled iterators.
 
-This is essentially Option 3, but consciously deferred: stream flow is
-a real extension worth designing on its own terms (lazy intermediate
-values, linearity rules, what visual cue distinguishes a stream from
-a list, what the join/filter/case-split analogs look like for streams,
-etc.), and the right time to take it on isn't while bolting an
-ill-fitting commute onto list flow.
+This is Option 3, consciously deferred. Stream flow is a real extension
+worth designing on its own terms (lazy intermediate values, linearity
+rules, the visual cue distinguishing a stream from a list, the
+join/filter/case-split analogs for streams), and the time to take it on is
+not while bolting an ill-fitting commute onto list flow.
 
-> **Superseded (2026-07-05).** From here through "Concretely, what Option 6
-> looks like" describes the stopgap that was never taken up. The stream-flow
-> design happened first, so the stopgap lost its purpose. Kept for the
-> record.
+### The stopgap that was on the table (superseded)
 
-In the meantime, if there's a near-term need for the operation, **the
-right step is Option 6 — non-short-circuiting commute on the existing
-list flow.** It's the only option in the list that adds the feature
-without committing to any of the design tensions that would have to be
-relitigated when stream flow arrives. Specifically:
+If a near-term need for the operation had arisen before stream flow, the
+right step would have been **Option 6 — non-short-circuiting commute on the
+existing list flow.** It is the only option that adds the feature without
+committing to any of the design tensions that stream flow would have to
+relitigate:
 
 - It works with multi-consumer.
 - It produces correct results.
-- It does *not* claim to do early termination, so users (and the
-  visual language) aren't promised something it can't honor.
-- It introduces a single new flowRef constructor (something like
-  `Commuted(flowRef)`) and a single new consumer path. Removing it
-  later, or generalizing it for stream flow, is local work.
+- It does *not* claim early termination, so neither users nor the language
+  are promised something it can't honor.
+- It introduces one new flowRef constructor (`Commuted(flowRef)`) and one
+  new consumer path. Removing it later, or generalizing it for stream flow,
+  is local work.
 
-The wasted-CPU cost is bounded by the size of the list and is purely
-a performance concern in the absence of side effects. For typical
-"validate this list of inputs" or "parse this list of tokens" use
-cases on lists of modest size, it's a non-issue. If the cost ever
-matters, that's the signal to start the stream-flow conversation, not
-the signal to retrofit linearity onto list flow.
+The wasted-CPU cost is bounded by the list size and is purely a
+performance concern absent side effects. For "validate this list of inputs"
+or "parse this list of tokens" over modest lists, it's a non-issue. If the
+cost ever mattered, that was the signal to start the stream-flow
+conversation — not to retrofit linearity onto list flow. In the event,
+stream flow was taken up directly and the stopgap was never needed.
 
-### Concretely, what Option 6 looks like (superseded)
+### Concretely, what Option 6 would have looked like
 
 A new flowRef constructor, parallel to `Joined` / `Filtered`:
 
-    | Commuted(flowRef)
+```
+| Commuted(flowRef)
+```
 
-Valid wrap: an option iter, possibly with Joineds on top of it (for
+Valid wrap: an option iter, possibly with `Joined`s on top of it (for
 deeper nesting). The compile target for a single commute close on
 `List<Option<X>>`:
 
-    const v_acc = [];
-    let v_ok = true;
-    for (const elem of input) {
-      if (elem !== undefined) {
-        v_acc.push(value);
-      } else {
-        v_ok = false;
-      }
-    }
-    const v_out = v_ok ? v_acc : undefined;
+```js
+const v_acc = [];
+let v_ok = true;
+for (const elem of input) {
+  if (elem !== undefined) {
+    v_acc.push(value);
+  } else {
+    v_ok = false;
+  }
+}
+const v_out = v_ok ? v_acc : undefined;
+```
 
-Output is at the list's parent. Multi-consumer works as before — a
-sibling list close pushing into its own array is unaffected.
+The output binding lands at the list's parent. Multi-consumer works as
+before — a sibling list close pushing into its own array is unaffected. The
+loop runs to completion either way; whether the test is written
+`if (elem !== undefined) … else …` or its inverse is a cosmetic choice.
 
-Whether the `if (elem !== undefined) … else { v_ok = false; }` form is
-better than `if (elem === undefined) v_ok = false; else …` or a single
-short-circuit pattern is a small choice; the structural point is that
-the loop runs to completion either way.
+## Open questions (their stream analogs are live)
 
-## Open questions to settle when implementing
+These were posed for the Option-6 list-flow implementation that isn't
+happening. Their stream counterparts — layering with `Joined`, deeper
+commutes, generalising past option — are the open questions of
+`lazy-stream-commute-design.md`. The empty-input answer carries over
+unchanged: `Some([])` (or `Some` of the empty stream).
 
-> **Note (2026-07-05).** These were posed for the Option-6 list-flow
-> implementation, which isn't happening. Their stream analogs — layering
-> with Joined, deeper commutes, generalising past option — live in the open
-> questions of `lazy-stream-commute-design.md`. The empty-input answer
-> (`Some([])`, or `Some` of the empty stream) carries over unchanged.
+- **Commute over deeper nestings.** For `List<List<Option<X>>>`, does
+  commute lift over one level or all the way out? Likely "one level per
+  `Commuted` wrapper," parallel to `Joined`.
+- **Commute through joined chains.** Can `Commuted(Joined(...))` appear,
+  and what does it mean? Most likely "commute *and* lift one list level,"
+  giving `Option<List<X>>` two levels up. Worth either supporting uniformly
+  or rejecting cleanly until there is a concrete use case.
+- **Empty list.** An empty input should give `Some([])`. The accumulator
+  pattern produces this correctly: `v_ok` stays true, `v_acc` stays empty,
+  `v_out` becomes `[]`.
+- **Multiple commute closes on one list.** Two commute closes with
+  different per-iter values: each gets its own `v_acc`. Do they share the
+  `v_ok` flag (both fail on the same None) or get their own (different
+  commutes over different sub-options)? Worth working through on a concrete
+  example.
 
-- **Commute over deeper nestings.** `List<List<Option<X>>>` — does
-  commute lift over one level or all the way out? Likely "one level
-  per Commuted wrapper," parallel to how Joined behaves.
-- **Commute through joined chains.** Can `Commuted(Joined(...))`
-  appear, and what does it mean? Most likely: "commute *and* lift one
-  list level," giving `Option<List<X>>` at two levels up. Probably
-  worth either supporting uniformly or rejecting cleanly until
-  there's a concrete use case.
-- **Empty list.** If the input list is empty, the result should be
-  `Some([])`. The accumulator pattern above produces this correctly
-  (v_ok stays true, v_acc stays empty, v_out becomes `[]`).
-- **Multiple commute closes on one list.** Two commute closes on the
-  same `List<Option<X>>` with different per-iter values. Each gets
-  its own `v_acc` and shares the `v_ok` flag (since both fail on the
-  same None). Or each gets its own v_ok — slightly more flexible
-  (different commutes could be over different sub-options). Worth
-  thinking through with a concrete example.
+## What this leaves unsolved (answered by stream flow, not list flow)
 
-## What this leaves unsolved
+Both threads below were resolved by the stream-flow design rather than
+within list flow:
 
-> **Resolved since (2026-07-05).** Both open threads below were answered by
-> the stream-flow design rather than within list flow. Wasted intermediates:
-> `Delayed`-cell memoisation makes per-element work lazy and shared across
-> consumers, so a short-circuiting consumer forces only what it needs
-> (`lazy-stream-placement-design.md`). Linearity: streams are multi-consumer
-> via per-consumer cursors over memoised cells, so stoppage never truncates
-> siblings — the linearity restriction turned out unnecessary in the lazy
-> model (`lazy-stream-commute-design.md`, "Multi-output independence").
-
-The "wasted intermediate values" question never gets answered by
-Option 6. Within the loop body, intermediate Apps are still computed
-every iteration, even when only the commute consumer would use them
-and even when the commute has effectively already failed. That's the
-cost we pay for not having short-circuit; it stays on the table for
-the stream-flow discussion.
-
-The linearity question also stays open. As long as list flow is
-multi-consumer, no operation that requires real linearity can be added
-to it. Commute is the first such operation we've thought through;
-others will appear (anything that involves stoppage, anything
-side-effecting, anything that consumes a generator). Stream flow is
-where those should live.
+- **Wasted intermediates.** `Delayed`-cell memoisation makes per-element
+  work lazy and shared across consumers, so a short-circuiting consumer
+  forces only what it needs (`lazy-stream-placement-design.md`). Option 6
+  never answered this — its loop body still computes every intermediate App
+  each iteration, even when only the commute consumer would use it and even
+  after the commute has effectively failed.
+- **Linearity.** Streams are multi-consumer via per-consumer cursors over
+  memoised cells, so stoppage never truncates siblings — the linearity
+  restriction turned out unnecessary in the lazy model
+  (`lazy-stream-commute-design.md`, "Multi-output independence"). As long
+  as list flow stays multi-consumer, no operation requiring real linearity
+  can be added to it; commute was the first such operation thought through,
+  and stream flow is where those belong.
+</content>
+</invoke>

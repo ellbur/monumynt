@@ -1,11 +1,11 @@
 # Graph Representation for Visual Layout
 
-> **Status (2026-07-09).** Layout side — out of scope in this repo, kept
-> because the layout algorithm should survive. Predates the newer design
-> rounds; where its examples use retired vocabulary (iteration rails,
-> tap-outs), the current construct is Delay — see
-> `iteration-rails-design-notes.md` and the spec. The layout machinery itself is
-> unaffected: it deliberately carries no semantic concepts.
+> **Status: retained layout design — out of scope for code work in this
+> repo.** The vocabulary predates newer design rounds: where the examples
+> use retired terms (iteration rails, tap-outs), the current construct is
+> Delay (see `iteration-rails-design-notes.md` and the spec). The layout
+> machinery itself is unaffected, because it deliberately carries no
+> semantic concepts.
 
 ## Overview
 

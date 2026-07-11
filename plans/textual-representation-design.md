@@ -1,19 +1,17 @@
-# Textual Representation Design
+# Textual representation
 
-Status: draft, revised after design discussion (2026-07-08). This
-document proposes a textual form for programs — something that can
-be parsed and generated, sitting beside the visual form. Nothing
-here changes the representation
-(`visual-language-spec.md`,
-`first-class-ports-design.md`): the text is a serialization of the
-same nodes, ports, and wires, not a new semantic layer.
+Status: draft. This document proposes a textual form for programs —
+something that can be parsed and generated, sitting beside the visual
+form. Nothing here changes the representation (`visual-language-spec.md`,
+`first-class-ports-design.md`): the text is a serialization of the same
+nodes, ports, and wires, not a new semantic layer.
 
-Revision note: the first draft used conventional name-first,
-head-first syntax (`b = double(a)`). Discussion identified that as
-inconsistent about reading direction (see "Reading direction") and
-it was replaced by the forward canonical form described here; the
-conventional spellings survive as accepted input. The first draft's
-brace-delimited fan-out was rejected outright (see "Alternatives").
+The canonical form is **forward** — postfix application, chains,
+right-hand naming (`double(a)` is written `a -> double`). The reasons are
+in "Reading direction." Conventional name-first, head-first spellings
+(`b = double(a)`) are accepted as input but are not what the printer
+emits; brace-delimited fan-out was considered and rejected (see
+"Alternatives").
 
 ## Why a textual form
 
@@ -681,15 +679,13 @@ s -~> collect ~A => inner
 inner -~> collect ~B => out
 ```
 
-> *Correction (2026-07-09).* The inserted operator shown above
-> follows the pre-Cross completion. Per `product-flows-design.md`
-> (which revised the sibling-opens completion the same day this
-> draft was written), sibling opens complete with a single inserted
-> **Cross** — orientation from the authored close order — not an
-> incorporate, which would erase their mutual independence.
-> Incorporate remains the completion for bringing a *value* into a
-> flow context. A textual spelling for Cross is owed when that
-> design lands.
+> *Note.* The inserted `incorporate` shown above is the pre-Cross
+> completion. Sibling opens actually complete with a single inserted
+> **Cross** (orientation from the authored close order), not an
+> incorporate — an incorporate would erase their mutual independence
+> (`product-flows-design.md`). Incorporate remains the completion for
+> bringing a *value* into a flow context. A textual spelling for Cross
+> is owed when that design lands.
 
 `+` lines are derived, deterministic, and not stored: parse
 discards them and re-derivation reproduces them (conservativity,

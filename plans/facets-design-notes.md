@@ -1,252 +1,257 @@
 # Facets — recorded intuitions
 
-*Recorded 2026-07-10 from a design conversation, prompted by the
-Effekt comparison round's test-double finding
-(`effekt-comparison.md`, finding 2: "how do you run a diagram that
-does IO against fake IO?"). **Intuitions and guiding principles,
-deliberately undeveloped** — recorded in the author's own framing
-for future development; no round has been run and nothing here is
-adopted. This doc extends, and does not supersede, the earlier
-facets note (`tough-use-cases-design.md`, addendum "Facets: partial
-views against crowding"); the relationship is worked out at the
-end. The demand side lives on the functions/reuse/facets row of
-`open-problems.md`. Annotations connecting these intuitions to the
-rest of the record are bracketed and marked, so the recorded
-intuitions stay distinguishable from commentary.*
+Status: recorded intuitions, deliberately undeveloped — guiding
+principles for future development, nothing adopted, no design round run.
+The framing is the author's own. This doc extends, and does not
+supersede, the earlier facets note (`tough-use-cases-design.md`,
+addendum "Facets: partial views against crowding"); the relationship is
+worked out at the end. The demand for it sits on the
+functions/reuse/facets row of `open-problems.md`. Annotations that
+connect these intuitions to the rest of the record are bracketed and
+marked, so the raw intuitions stay distinguishable from the commentary.
+
+The prompt was a concrete gap the Effekt comparison exposed
+(`effekt-comparison.md`, finding 2): how do you run a diagram that does
+IO against fake IO? Answering that turns out to need a general capacity
+the language lacks, which these notes name.
 
 ## The gap this names: concrete vs schematic
 
 The language is very good at the concrete. It is not good at
-**schematics** — separating the shape of data, the shape of a
-computation, the sequence of steps, the states of a state machine,
-from the other details of the program.
+**schematics** — separating the *shape* of a thing from its details:
+the shape of data, the shape of a computation, the sequence of steps,
+the states of a state machine.
 
-The running example: a program that does a bunch of file
-operations. One facet is just *the sequence of operations* — not
-what they do, but which functions it calls and in what order. Step
-back and get more general: it has the facet that *every file that
-is opened is closed*.
+Take a program that does a bunch of file operations. One facet of it is
+just *the sequence of operations* — not what each does, but which
+functions it calls and in what order. Step back for a more general
+facet: *every file that is opened is closed*. Neither facet is the
+program; each is one honest angle on it.
 
-*[Annotation: this is the same territory the Effekt round hit from
-the outside — findings 1–2, late-bound operations and the test
-double. Their examples demonstrated the capability; this
-conversation names what the capability is an instance of.]*
+*[Annotation: this is the territory the Effekt round hit from the
+outside (findings 1–2, late-bound operations and the test double).
+Those examples demonstrated the capability; this names what the
+capability is an instance of.]*
 
 ## Not one carving
 
-Since this is a visual language with (presumably) an interactive
-editor, there is a freedom a fully textual language like Effekt
-does not have: the code does **not** have to be carved up into
-facets in just one way. The user picks which facet it makes sense
-to view in the moment.
+Because this is a visual language with an interactive editor, it has a
+freedom a fully textual language like Effekt does not: the code does
+**not** have to be carved into facets one fixed way. The user picks
+whichever facet is worth viewing in the moment. A facet is a chosen
+view, not a commitment baked into the source.
 
 ## A facet can be authored alone
 
 First guiding principle: the user should be able to **write just a
-facet**, with nothing concrete.
+facet**, with nothing concrete attached to it yet.
 
 ## The ladder: struct → interface → facet
 
-The worked example is from data, because existing languages are
-better at data — but it sets the bar for what "abstract" means
+The clearest example comes from data, because existing languages are
+better at data — but it sets the bar for what "abstract" should mean
 here.
 
-A **struct** is a kind of facet: one facet of this variable is
+A **struct** is already a kind of facet: one facet of a variable is
 that it has fields `x` and `y`.
 
-At some point people realized "has fields x and y" was a little
-more general than a struct — what if the fields are computed? So
-they created the **interface** and said: `x` and `y` are functions
-now. But while an interface applies to things the struct couldn't,
-**it is not actually more abstract**. It is, concretely, a pair of
-functions, and you adapt it to new situations by writing bodies
-for those functions.
+People noticed "has fields `x` and `y`" was slightly more general than a
+struct — what if the fields are computed? So they built the
+**interface** and said `x` and `y` are functions now. But an interface,
+though it reaches cases a struct can't, **is not actually more
+abstract**. It is concretely a pair of functions; you adapt it by
+writing bodies for those functions.
 
-A real **facet** would be the abstract concept of *having an `x`
-and a `y`*. What are they — variables, fields, database columns?
-None of these. It is not something concrete you can build. You
-can't say "pass me an x-y-haver" — out of context that doesn't
-mean anything.
+A real **facet** is the abstract concept of *having an `x` and a `y`*.
+What are they — variables, fields, database columns? None of these. It
+is not something concrete you can build or hand around: "pass me an
+x-y-haver" means nothing out of context.
 
-But you *can* say: when you build this database table, give it a
-facet saying what the columns are; and when you build this struct,
-give it a facet saying what the fields are. And since we know we
-used **the same facet** for both, we know we'll be able to store a
-database row in the struct.
+What you *can* do is attach the one facet in two places:
 
-*[Annotation: note the mechanism — the knowledge arrives from a
-drawn identity (both attachments reference one facet), not from
-structural matching of two independently-written shapes. That is
-exactly the shape `types-design.md`'s no-search stance wants:
-identity is checkable by looking; inference over "things that
-happen to have an x and a y" would be search. It is also the
-visible-wire spirit: the compatibility fact has a place you can
-point at.]*
+```
+-- spelling entirely provisional
+facet XY has x, y             -- a facet: names two slots, nothing concrete
+
+Point  struct { x, y } with XY    -- attach XY when building the struct
+users  table  { x, y } with XY    -- attach XY when building the db table
+```
+
+Because both attachments reference the *same* facet `XY`, the editor
+knows a `users` row can be stored in a `Point` — the compatibility is a
+fact you can point at, not a coincidence to be discovered.
+
+*[Annotation: note the mechanism. The knowledge comes from a drawn
+identity — both attachments reference one facet — not from structurally
+matching two independently-written shapes. That is exactly what
+`types-design.md`'s no-search stance wants: identity is checkable by
+looking; inferring over "things that happen to have an x and a y" would
+be search. It is also the visible-wire spirit — the compatibility fact
+has a place on the diagram you can point at.]*
 
 ## Facets of code: algebras and state machines
 
-The example was data, but it works for code too:
+Facets work for code, not just data:
 
-- You can make an **algebra** out of a set of functions and say
-  this code has the facet of *being built out of this algebra*.
-- You can design a **state machine** and say this code has the
-  facet of *using these states and transitioning on these
-  events*.
+- Make an **algebra** out of a set of functions and say a piece of code
+  has the facet of *being built out of this algebra*.
+- Design a **state machine** and say some code has the facet of *using
+  these states and transitioning on these events*.
 
-And then: if you know your production code and your test code use
-the same facet, **you learn something about your production code
-by testing your test code**.
+The payoff for code: if your production code and your test code carry
+the *same* facet, **you learn something about your production code by
+exercising your test code**.
 
-*[Annotation: this is the inside-out reading of what the Effekt
-corpus kept doing. Their `AD[Num]` interface is literally "an
-algebra out of a set of functions" with three bindings (forwards,
-backwards, symbolic); their from-list lexer and real lexer are two
-bindings of one facet, and the shared facet is what makes the test
-double informative. The comparison round derived the port-pair
-leaning for *binding* (finding 1); this conversation supplies what
-the bound thing is.]*
+```
+-- spelling entirely provisional
+facet FileOps = algebra { open, read, close }
+
+realFiles  binds FileOps      -- production: open/read/close hit the disk
+fakeFiles  binds FileOps      -- test double: same three, backed by a map
+```
+
+The test double and the real thing are two bindings of one facet;
+sharing the facet is what makes exercising the double informative about
+the production path.
+
+*[Annotation: this is the inside-out reading of what the Effekt corpus
+kept doing. Their `AD[Num]` interface is literally "an algebra out of a
+set of functions" with three bindings (forwards, backwards, symbolic);
+their from-list lexer and real lexer are two bindings of one facet, and
+the shared facet is what makes the test double informative. The
+comparison round derived the port-pair leaning for *binding* (finding
+1); this names what the bound thing is.]*
 
 ## Holes without breaking
 
-It's trickier with code than with data, because in code you so
-often need to **break a clean facet to get real work done**.
-You've designed a perfect algebra of file operations, and then
-someone says "oh, could you also log how many open files you
-have" — and this algebra doesn't have counters; you have to break
-the whole thing.
+Code is trickier than data, because in code you constantly need to
+**break a clean facet to get real work done**. You design a perfect
+algebra of file operations, and then someone says "could you also log
+how many files are open" — and the algebra has no counter, so you'd have
+to break the whole thing.
 
-So with code, facets have to **allow for holes without breaking**:
-it calls these functions, but it also does other stuff in the
-gaps. What other stuff? Well —
+So a code facet has to **allow holes without breaking**: the code calls
+these functions, and it also does other stuff in the gaps. The hole is
+not decorative residue — it is the *licensed difference* between the
+facet and the code that carries it. What licenses the gap? That is the
+next section.
 
-*[Annotation: the record has two precedents for showing "there is
-more here" without showing it: the function interface's data holes
-(`functions-design.md`) and the earlier facets note's marked
-escapes (projection route). The demand here is stronger than
-either: the hole is not just displayed residue, it's the licensed
-difference between the facet and the code that carries it.]*
+*[Annotation: the record has two precedents for showing "there is more
+here" without showing it — the function interface's data holes
+(`functions-design.md`) and the earlier facets note's marked escapes
+(the projection route). The demand here is stronger than either: the
+hole is not just displayed residue, it is what the facet permits the
+code to do beyond the facet.]*
 
 ## Negative constraints
 
-Maybe that's where **negative constraints** come in. I can't tell
-you what the code does besides use this algebra of file
-operations — but I *can* tell you it will **not** touch the files
-in that same directory. Then we can be confident the files in that
-directory are accessed according to this algebra; everything else
-is a mystery.
+Maybe the gap is licensed by **negative constraints**. I can't tell you
+what the code does besides use this algebra of file operations — but I
+*can* tell you it will **not** touch the files in that same directory.
+Then we can be confident those files are accessed only through this
+algebra; everything else stays a mystery, and that is fine.
 
-Negative constraints like that are rare — possibly never seen in
-the wild — and that may be because they are actually useless,
-because they are too weak. But it's a thought to keep in mind.
-*(Recorded with its stated direction of doubt.)*
+Negative constraints of this form are rare — possibly never seen in the
+wild — and that may be because they are too weak to be useful. Recorded
+with that direction of doubt, as a thought to keep in mind.
 
-*(Clarified 2026-07-10, follow-up: a capture-set type like
-Effekt's `() => Unit at {}` — offered in an earlier draft of this
-note as a sighting — is **not** a negative constraint. It is a
-positive constraint that hasn't been handed anything: an
-enumeration of what the code may touch, with the enumeration
-empty. A negative constraint is "do anything except X" — one
-exclusion asserted over code that is otherwise a complete
-mystery. That form remains unsighted, and may be unsighted
-because it is useless.)*
+A capture-set type like Effekt's `() => Unit at {}` is **not** a
+negative constraint, despite looking like one. It is a *positive*
+constraint that hasn't been handed anything: an enumeration of what the
+code may touch, with the enumeration empty. A negative constraint is "do
+anything except X" — one exclusion asserted over code that is otherwise
+a complete mystery. That form remains unsighted.
 
-*[Annotation, corrected accordingly: the whitelist form and the
-single-exclusion form differ in exactly the dimension this doc
-cares about. A whitelist must enumerate everything the code does
-touch — which re-creates the counter problem (add one logging
-call and the enumeration breaks). The single-exclusion form
-coexists with the mystery, which is why it fits the
-holes-without-breaking story if anything does. The one drawable
-candidate spotted so far: a connectivity absence — "no wire from
-resource R reaches this region" — asserts a single exclusion
-without enumerating anything else, and is provenance-checkable
-(`bundle-provenance-design.md`). Whether even that is useful
-inherits the stated doubt above.]*
+*[Annotation: the whitelist form and the single-exclusion form differ in
+exactly the dimension this doc cares about. A whitelist must enumerate
+everything the code *does* touch, which re-creates the counter problem —
+add one logging call and the enumeration breaks. The single-exclusion
+form coexists with the mystery, which is why it, if anything, fits the
+holes-without-breaking story. One drawable candidate spotted so far: a
+connectivity absence — "no wire from resource R reaches this region" —
+asserts a single exclusion without enumerating anything else, and is
+provenance-checkable (`bundle-provenance-design.md`). Whether even that
+is useful inherits the doubt above.]*
 
 ## What facets are NOT: verification
 
-The goal is **not** formal verification. We are not building Agda.
-The compiler is not proving the code sound.
+The goal is **not** formal verification. We are not building Agda. The
+compiler is not proving the code sound.
 
-What facets do is create **views**, so the user can look at the
-code and see whether it *looks right*. It's a way of simplifying
-and summarizing — a better angle on the code that might suppress
-some of the noise and make it easier to spot a mistake. Whether
-the code is actually correct must still be confirmed the
-old-fashioned way (tests, etc.).
+What facets create is **views** — so the user can look at the code and
+see whether it *looks right*. A facet simplifies and summarizes: a
+better angle that suppresses some of the noise and makes a mistake
+easier to spot. Whether the code is actually correct must still be
+confirmed the old-fashioned way, with tests.
 
-*[Annotation: this bounds the checking question before it is ever
-asked: whatever "same facet" checking exists should be at the
-level `types-design.md` already operates at — properties and
-drawable witnesses, no search, no proof obligations. A facet is a
-lens for a human, with just enough machinery that the lens isn't
-lying about identity.]*
+*[Annotation: this bounds the checking question before it is asked.
+Whatever "same facet" checking exists should stay at the level
+`types-design.md` already operates at — properties and drawable
+witnesses, no search, no proof obligations. A facet is a lens for a
+human, with just enough machinery that the lens isn't lying about
+identity.]*
 
 ## How this extends the earlier facets note
 
-The addendum in `tough-use-cases-design.md` treats facets as
-partial **views** of an existing program, and works the viewing
-side: recognition (partial, fragile, "abstraction is earned")
-versus projection of authored structure (free, total, the
-philosophy's preferred route). This conversation adds a third leg
-that the viewing side presupposed but never named: the facet as an
-**authorable artifact in its own right** — something that can
-exist before and independently of any concrete program, and that
-gets **attached** to concrete structure rather than derived from
-it or recognized in it. The three legs compose in the obvious
-order: author a facet alone; attach it to concrete things (one
-facet, many attachments); view a concrete thing through any facet
-attached to it. Attachment — what it is representationally, what
-identity it creates, what its holes license — is the genuinely new
-piece, and the viewing machinery of the addendum applies
-downstream of it.
+The addendum in `tough-use-cases-design.md` treats facets as partial
+**views** of an existing program and works the viewing side:
+recognition (partial, fragile — "abstraction is earned") versus
+projection of authored structure (free, total, the philosophy's
+preferred route). This note adds a third leg the viewing side
+presupposed but never named: the facet as an **authorable artifact in
+its own right** — something that can exist before and independently of
+any concrete program, and that gets **attached** to concrete structure
+rather than derived from it or recognized in it.
+
+The three legs compose in the obvious order:
+
+1. author a facet alone;
+2. attach it to concrete things (one facet, many attachments);
+3. view a concrete thing through any facet attached to it.
+
+Attachment — what it is representationally, what identity it creates,
+what its holes license — is the genuinely new piece; the addendum's
+viewing machinery applies downstream of it.
 
 ## Open edges (stated, not worked)
 
-1. **Facet-first vs example-first — resolved in follow-up
-   (2026-07-10).** The apparent tension dissolved on two points
-   from the follow-up conversation. First: **extraction** —
-   pulling a facet out of concrete code after the fact — is the
-   correct example-first path to a facet. Second: writing
-   abstract facets first is nonetheless legitimate, as
-   **planning** — the way an OCaml programmer writes type
-   definitions first because they're a good way of documenting
-   what the actual code is hoped to do. The principle itself was
-   sharpened in the process (clarification recorded in
-   `language-design-philosophy.md`): example-then-generalise
-   constrains *obligation, not option* — it doesn't forbid
-   writing general schemas; it means you shouldn't *have* to.
-   Everything doable with general schemas should be doable by a
-   concrete-first authoring path — a direction the language works
-   toward, not an absolute to be honored at all conceivable costs
-   (softened in the same follow-up). Design consequence for the
-   facets round: both authoring directions (author-then-attach;
-   extract-from-concrete) are wanted, and extraction is the one
-   the principle points at.
-2. **No single theory.** Explicitly recorded: this is a huge,
-   open-ended idea that likely manifests in several unrelated
-   ways; "you can't just say 'this is what a facet is' and be
-   done with it." The methodological consequence (annotation): a
-   future round should work *one* manifestation against a real
-   program — the algebra facet with the test double is the one
-   with a waiting demand — rather than attempt a general theory.
-   That is example-first applied at the meta level. *(2026-07-11:
-   the algebra facet gains a second waiting client, from inside
-   the record — the collect family's round
-   (`collect-family-design.md`) consumes it as the authoring
-   surface by which a user operator mints its monoid catalog row,
-   with the joint constraint that the facet carry a *value*
-   witness (the identity itself), not just a named law; the offer
-   is consumed by checking, the claim's truth trusted like a
-   JS-boundary assertion.)*
-3. **What attachment is, representationally.** A relationship
-   between a facet and a program version — plausibly
-   transformation-levels territory (a level-1 relationship that
-   survives edits that don't touch the faceted structure, and is
-   re-earned by ones that do). Unworked.
-4. **Holes and negative constraints against demands/offers.**
-   Whether `types-design.md`'s property substrate can already
-   express "everything in this region touches resource R only via
-   algebra A" (an offer of absence), and whether
-   possession-by-wiring makes most negative constraints
-   structural rather than asserted. Unworked.
+1. **Facet-first vs example-first.** The apparent tension with the
+   example-then-generalise principle dissolves on two points.
+   **Extraction** — pulling a facet out of concrete code after the fact
+   — is the proper example-first path to a facet. And writing an
+   abstract facet first is legitimate as **planning**, the way an OCaml
+   programmer writes type definitions first to document what the code is
+   hoped to do. The principle itself sharpens here (recorded in
+   `language-design-philosophy.md`): example-then-generalise constrains
+   *obligation, not option* — it doesn't forbid general schemas; it
+   means you shouldn't *have* to write them. Everything doable with
+   general schemas should also be doable by a concrete-first path — a
+   direction the language works toward, not an absolute honored at all
+   costs. Consequence for facets: both authoring directions are wanted
+   (author-then-attach; extract-from-concrete), and extraction is the
+   one the principle points at.
+2. **No single theory.** This is a huge, open-ended idea that likely
+   manifests in several unrelated ways; you can't just say "this is what
+   a facet is" and be done. Methodological consequence: a future round
+   should work *one* manifestation against a real program — the algebra
+   facet with the test double is the one with a waiting demand — rather
+   than attempt a general theory. That is example-first applied at the
+   meta level. The algebra facet has a second waiting client from inside
+   the record: the collect family (`collect-family-design.md`) consumes
+   it as the authoring surface by which a user operator mints its monoid
+   catalog row, with the added constraint that the facet carry a *value*
+   witness (the identity element itself), not just a named law; the
+   offer is consumed by checking, and the claim's truth is trusted like
+   a JS-boundary assertion.
+3. **What attachment is, representationally.** A relationship between a
+   facet and a program version — plausibly transformation-levels
+   territory (a level-1 relationship that survives edits which don't
+   touch the faceted structure and is re-earned by ones that do).
+   Unworked.
+4. **Holes and negative constraints against demands/offers.** Whether
+   `types-design.md`'s property substrate can already express
+   "everything in this region touches resource R only via algebra A" (an
+   offer of absence), and whether possession-by-wiring makes most
+   negative constraints structural rather than asserted. Unworked.
+</content>
+</invoke>
