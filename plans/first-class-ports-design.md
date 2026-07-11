@@ -13,6 +13,16 @@
 > out the port-level shape, and stages a migration. Nothing here
 > is implemented.
 >
+> *(2026-07-10: migration step 1 is implemented — `valueRef` as
+> `ValuePort(node, "value")` in every value input position, smart
+> constructors returning `{node, value}` handles, `compileValueRef`
+> as the projection, all 80 tests green with byte-identical
+> emitted JS. The handle layer resolved one small step-1-scale
+> question: a single shared `handle` record type, defined outside
+> the `type rec` group so its `value` label and `closeBranch`'s
+> don't trip Warning 30 — the fuller per-construct handle shapes
+> of open question 5 stay open for step 2. Steps 2–4 remain.)*
+>
 > Terminology note (2026-07-09): written the day of the
 > uncollect/collect renaming, this document uses Open/Uncollect
 > and Close/Collect interchangeably — each pair names one node
@@ -363,7 +373,7 @@ the smart constructors, so most churn is mechanical.
    position. No node dissolves, no behavior changes; `lit`/`app`
    etc. return handles whose `.value` is the ref. Pure
    plumbing — the point is to make step 2 and 3 diffs about
-   their subject.
+   their subject. *(Done, 2026-07-10 — see the status header.)*
 2. **Per-alt ports; Branch dissolves.** Case-split Opens get
    per-alt value and flow ports; `branch_` becomes sugar
    returning the `{value, flow}` handle for an alt (constructing

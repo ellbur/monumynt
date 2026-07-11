@@ -51,12 +51,15 @@ visual-language Expr   →   JsAst   →   JavaScript source string
   the JS it produces.
 - `src/Expr.res` — the visual-language expressions: `Lit`, `App`,
   `Open` (list iter / case split / option iter), `Close`, `Branch`,
+  value-port references (`ValuePort` — every value input position
+  takes one; smart constructors return `{node, value}` handles),
   and flow references (`NodeFlow`, `Joined`, `Filtered`). Sharing is
   opt-in via node identity: bind once in ReScript, reference twice.
   The file's header comment is the reference for how the pieces fit.
-  (The design-level names are uncollect/collect, and the wrapper
-  flow references are slated to become binary Join nodes under the
-  first-class-ports migration; the code predates both.)
+  (The design-level names are uncollect/collect. Step 1 of the
+  first-class-ports migration is in; under its later steps the
+  wrapper flow references become binary Join nodes and Branch
+  dissolves into per-alt ports.)
 - `src/Compile.res` — compiles an Expr to JS. Every node becomes a
   lazy binding; every reference forces; runtime laziness handles
   "compute only when needed" and "compute only once". Design
@@ -84,11 +87,13 @@ npm start           # node lib/es6/src/Main.res.mjs — runs the test suite
 
 None committed to.
 
-- **First-class ports.** `compileExpr` conflates a node with its
-  single value output port; Join and Branch already strain this.
-  Design now worked out in `plans/first-class-ports-design.md`
-  (pressure inventory, `ValuePort`/`FlowPort` refs, staged
-  migration); implementing it would enable compile-time
+- **First-class ports, steps 2–4.** Step 1 (`ValuePort` refs in
+  every value input position, `{node, value}` handles) landed
+  2026-07-10. Remaining, per the staged migration in
+  `plans/first-class-ports-design.md`: per-alt ports dissolving
+  Branch (step 2), binary Join nodes dissolving the
+  `Joined`/`Filtered` wrappers (step 3), and the cheap validity /
+  join-adjacency checks (step 4) — the enablers for compile-time
   well-formedness checks and cleaner case-split flows.
 - **Well-formedness checks.** Time-travel detection (`deeper` on
   unrelated scopes) and closed-scope leakage are currently trusted,

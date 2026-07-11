@@ -92,7 +92,9 @@ round-trip tests become worth their cost.
 The most implementation-ready document in the record: staged
 migration (valueRef → alt ports dissolving Branch → binary Join
 dissolving the wrappers → opportunistic checks), each step keeping
-the 80 tests green. What code must settle: the port-name scheme
+the 80 tests green. *(2026-07-10: step 1 landed — valueRef in
+every value input position, `{node, value}` handles, 80 tests
+green with byte-identical emitted JS.)* What code must settle: the port-name scheme
 (bare alt names vs `(alt, Value)` pairs — must match the spec's
 `outputName`), and the handle-layer ReScript shape (records vs
 modules; Warning 30 discipline). Nearly everything else queues

@@ -41,12 +41,12 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
       visited->Map.set(e.id, true)
       switch e.kind {
       | Lit(_) => ()
-      | App({args}) => args->Array.forEach(visit)
-      | Open({input}) => visit(input)
+      | App({args}) => args->Array.forEach(r => visit(Expr.nodeOf(r)))
+      | Open({input}) => visit(Expr.nodeOf(input))
       | Close({branches}) =>
         branches->Array.forEach(b => {
           flowRefExprs(b.flow)->Array.forEach(visit)
-          visit(b.value)
+          visit(Expr.nodeOf(b.value))
         })
       | Branch({source}) => flowRefExprs(source)->Array.forEach(visit)
       }
@@ -63,11 +63,11 @@ let topoSort = (root: Expr.expr): array<Expr.expr> => {
 let inputsOf = (e: Expr.expr): array<Expr.expr> =>
   switch e.kind {
   | Lit(_) => []
-  | App({args}) => args
-  | Open({input}) => [input]
+  | App({args}) => args->Array.map(Expr.nodeOf)
+  | Open({input}) => [Expr.nodeOf(input)]
   | Close({branches}) =>
     branches->Array.flatMap(b =>
-      Array.concat(flowRefExprs(b.flow), [b.value])
+      Array.concat(flowRefExprs(b.flow), [Expr.nodeOf(b.value)])
     )
   | Branch({source}) => flowRefExprs(source)
   }
@@ -236,12 +236,18 @@ let render = (root: Expr.expr): string => {
         | Some(name) => name
         | None => "?"
         }
-        altLabel ++ ": " ++ renderFlowRef(b.flow) ++ "/" ++ referenceTo(b.value)
+        altLabel ++
+        ": " ++
+        renderFlowRef(b.flow) ++
+        "/" ++
+        referenceTo(Expr.nodeOf(b.value))
       })
       ->Array.join(", ")
     | Close({branches}) =>
       branches
-      ->Array.map(b => renderFlowRef(b.flow) ++ ", " ++ referenceTo(b.value))
+      ->Array.map(b =>
+        renderFlowRef(b.flow) ++ ", " ++ referenceTo(Expr.nodeOf(b.value))
+      )
       ->Array.join(", ")
     | Branch({source}) => renderFlowRef(source)
     | _ => inputsOf(head)->Array.map(referenceTo)->Array.join(", ")
