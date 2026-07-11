@@ -567,6 +567,14 @@ cursors, history behind the earliest cursor is GC-able — which the
 chain structure already gives us if nobody keeps the head) or an
 explicit windowing operation. Recorded as an open question.
 
+*(2026-07-11: push sources now have their pull sibling —
+`source-openers-design.md` works the external pull source as a
+catalog block minting a failable stream, presented as this
+adapter's pair (same boundary, opposite driver), along with the
+self-driven opener and pacing. The retention question above
+applies to pull sources verbatim and is referenced there, not
+moved.)*
+
 ## Effects, abandonment, cancellation
 
 The language has no side effects yet; the IO marker flow is

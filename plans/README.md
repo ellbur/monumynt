@@ -116,6 +116,20 @@ first-implementation convenience, rejected long-term.
   state port of the collect's derived augment form. **An exploration
   round with leanings, not an adopted design** — prepared for the
   design conversation; three dead ends recorded.
+- [`source-openers-design.md`](source-openers-design.md) — the
+  record's most-witnessed unowned item worked (2026-07-11): the
+  self-driven flow's opener (a bare flow-minting node — the node the
+  iteration-state equivalence round said the port form must borrow),
+  its kind answered as the sourceless stream (no new kind), counted
+  repetition split off as range data, **pacing** worked as a binary
+  flow operation (`paced` — sibling of end-when and interrupt,
+  gating the next firing on a per-firing async value's settlement),
+  and the external pull source as a catalog block minting a failable
+  stream, its block boundary a deliberate fence around the Tier-1
+  effect hole. The corecursion boundary stated (repetition as
+  meaning vs corecursion as encoding). **An exploration round with
+  leanings, not an adopted design** — prepared for the design
+  conversation; four dead ends recorded.
 
 ## Flow kinds beyond lists
 

@@ -2077,7 +2077,11 @@ referencing it — and the borrow is something the port form needs
 anyway for the corner to be authorable at all. (`final` on a
 self-driven flow is never available; that residue is shared by
 both forms and stays with the async/stream rounds, per
-`first-class-ports-design.md`.)
+`first-class-ports-design.md`.) *(2026-07-11: the borrowed node
+now has its own round — `source-openers-design.md`: a bare
+flow-minting opener exactly as pinned here (no value ports, no
+new flow kind — the sourceless stream), with pacing and the
+external pull source worked beside it. Leanings, not adopted.)*
 
 **The standing caveat.** The quotient holds because nothing
 sequences state updates within a firing — every crossing is a
