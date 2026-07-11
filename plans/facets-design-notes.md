@@ -230,7 +230,15 @@ downstream of it.
    future round should work *one* manifestation against a real
    program — the algebra facet with the test double is the one
    with a waiting demand — rather than attempt a general theory.
-   That is example-first applied at the meta level.
+   That is example-first applied at the meta level. *(2026-07-11:
+   the algebra facet gains a second waiting client, from inside
+   the record — the collect family's round
+   (`collect-family-design.md`) consumes it as the authoring
+   surface by which a user operator mints its monoid catalog row,
+   with the joint constraint that the facet carry a *value*
+   witness (the identity itself), not just a named law; the offer
+   is consumed by checking, the claim's truth trusted like a
+   JS-boundary assertion.)*
 3. **What attachment is, representationally.** A relationship
    between a facet and a program version — plausibly
    transformation-levels territory (a level-1 relationship that

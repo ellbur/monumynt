@@ -1296,7 +1296,12 @@ shape.
 Boundary: reduce-close is available exactly when the operator is a known
 associative monoid. No identity / non-associative → no reduce-close, fall
 back to augment (explicit seed). The degradation is structural: no
-monoid, no node.
+monoid, no node. *(2026-07-11: the boundary is refined, not reversed, by
+the collect family's round (`collect-family-design.md`) — associative
+operators *without* an identity (last, min) get the reduce-close with an
+option-shaped output (fires iff the flow fired), so only
+non-associativity falls back to augment; the empty-collect question is
+the identity question, and structure carries the "no answer" case.)*
 
 ### A second accumulator on a sum, via derived-port reference
 
@@ -2293,7 +2298,16 @@ here.
 carry an identity (`+`→0, `*`→1, `max`→−∞) for the empty-list value. How
 identities attach to operators — a registry, a property on the operator
 node, something the user can extend for custom monoids — is not yet
-designed.
+designed. *(2026-07-11: worked, with leanings —
+`collect-family-design.md`: the question reframed as the empty-collect
+question; identities attach as catalog rows carrying the identity value
+as witness (the types-design property table's row made concrete), user
+monoids minting rows via the algebra facet, trusted like the JS edge;
+and the flat "no monoid, no node" boundary refined to a three-tier
+ladder — monoid → total, associative-without-identity → option-shaped
+output (so `max`'s −∞ is deliberately *not* a catalog identity there;
+the float seed is an explicit augment), non-associative → augment.
+Awaiting the design conversation.)*
 
 **Which derived ports a reduce-close (or augment) exposes.** Building a
 second accumulator references the derived combined flow. The exact set of

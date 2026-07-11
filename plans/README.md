@@ -130,6 +130,25 @@ first-implementation convenience, rejected long-term.
   meaning vs corecursion as encoding). **An exploration round with
   leanings, not an adopted design** — prepared for the design
   conversation; four dead ends recorded.
+- [`collect-family-design.md`](collect-family-design.md) — the
+  joint spelling-and-identity round three docs requested
+  (2026-07-11): the operator-identity question reframed as the
+  **empty-collect question**, answered with a three-tier
+  availability ladder (monoid → total; associative-without-identity
+  → option-shaped; neither → augment) and identities as **catalog
+  rows carrying the identity value as witness** (user monoids
+  minted via the algebra facet, trusted like the JS edge); the
+  named collects (set/any/last/…) dissolved into catalog rows on
+  the one reduce-close node; and the **keyed collect** worked as a
+  keyed partition (group-as-flows primary, uniform wiring over
+  data-determined lanes) with the four readouts
+  (collapse/pass-through/flatMap/whole-lane) as consumption,
+  operator-merge as the fused special case, first-appearance
+  order, `from`-seeding for initial contents, and the
+  lanes-are-non-empty observation making semigroup operators total
+  in keyed position. **An exploration round with leanings, not an
+  adopted design** — prepared for the design conversation; eight
+  dead ends recorded.
 
 ## Flow kinds beyond lists
 
