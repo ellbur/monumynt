@@ -11,6 +11,11 @@ that the **mutual-constant** relationship. Cross supersedes part of
 `time-travel-programs-design.md`'s disposition 4 and closes its open
 question 4; correction notes are placed there.
 
+It also works Cross's positional sibling, the **aligned product (zip)** —
+pairing two flows of the *same* extent by position rather than every firing
+with every firing — together with its value form, the multi-wire collect
+(the table). See "The aligned product (zip)" below.
+
 Terminology: **uncollect/collect** for open/close (the code still says
 Open/Close). Working name for the new construct: **Cross** (candidates
 under Naming).
@@ -494,6 +499,248 @@ Two residues, both minor, filed to their owners rather than worked here:
   chosen at the consumer, as with two axes, but the operand-walk and
   productivity details are those rounds', not this one's.
 
+## The aligned product (zip): Cross's positional sibling
+
+Cross is one of two ways two flows combine, and until now the doc has only
+worked the one. Cross pairs *every* firing of one flow with *every* firing
+of the other — independent extents, an n×m table, mutual invariance. Its
+sibling pairs firing *i* with firing *i* — one shared extent, paired by
+position. That is the **aligned product**, working name **zip**. The two
+are the products row's pair: Cross multiplies firings, zip identifies them.
+
+The demand is not speculative. Three comparison studies converged on it
+independently: APL's pervasion (`1 2 + 3 4`) is the array family's single
+most-used operation and its ground floor — blend, interleave, weighted
+average, inner product, and sort-one-by-another are all instances
+(`apl-family-comparison.md`, finding 2); Zig makes multi-object `for (a, b)
+|x, y|` the *primary* loop construct, arriving at aligned pairing from the
+imperative side (`zig-comparison.md`, finding 3); and the tidyverse's data
+frame is k equal-length columns whose row view and column view are one
+value (`tidyverse-comparison.md`, finding 1). Until this round the only zip
+in the record was a *compile-level* stream primitive (the multi-parent zip
+of `lazy-stream-placement-design.md`) — mechanism without authoring
+vocabulary. Conway's Life is the record's one localized representation
+struggle precisely because it needs *both* products at once — Cross to
+enumerate the 3×3 neighborhood, zip to overlay nine same-shape grids
+pointwise (`apl-family-comparison.md`, §9).
+
+### The program that demands it
+
+A pointwise combine of two lists the author means to walk together:
+
+```
+xs -> open list => x, ~x
+ys -> open list => y, ~y     -- meant as the same walk as xs, by position
+x, y -> add => s
+s -~> collect => out
+```
+
+Nothing drawn says the two walks *are* the same walk. Read as it stands,
+the two uncollects are independent, and their only lawful product is Cross
+— an n×m table, when the author meant the length-n diagonal. The gap is
+that the language has no way to say "these two walks advance together,"
+just as (before Cross) it had no way to say "these two walks are
+independent." Same missing vocabulary, opposite fact.
+
+### The construct
+
+The aligned product is a flow operation in the Cross / Commute / binary
+Join species: a node with flow ports and **no value ports**. Its shape is
+the mirror of Cross's:
+
+- **Inputs:** two (or more) flows of the **same extent**.
+- **Output:** **one** flow — *not* nested. Both lanes ride the same
+  firings; the barrier *widens* the walk with the second lane's value wire
+  rather than multiplying its firings. (This is the visible contrast with
+  Cross, whose output is nesting.)
+- **Demand:** the operands are **co-extent** — the same firing structure.
+- **The law:** *the aligned flow fires once per shared firing; each lane's
+  element rides that firing.*
+
+Consequences of the law, as short theorems mirroring Cross's:
+
+1. **No new firings.** The output has exactly the shared extent; a collect
+   over it is length-n, never n×m. This is what tells zip and Cross apart
+   at the site of use — same two operands, different barrier, different
+   extent. (Cross's theorem 1 was rectangularity; zip's is that it adds no
+   rows at all.)
+2. **Values ride, they don't pack.** Both lanes' elements are readable at
+   the shared firings by the ordinary invariance rule; no tuple is built to
+   carry them across. The wires stay separate wires — the no-bottleneck
+   shape, a barrier with corresponding inputs and one widened output.
+3. **Kinds unchanged downstream.** The widened flow presents as an ordinary
+   flow; a collect, join, or register consumes it with no zip special case
+   — exactly as a crossed pair presents as ordinary nesting.
+
+### The witness of co-extent — the one real asymmetry with Cross
+
+Cross and zip are not quite symmetric, and the asymmetry is this round's
+central finding. **Cross's demand (mutual invariance) is always
+structurally checkable** — the flow-variable set is the annotate pass's
+per-node fact, and siblinghood-at-authoring-time witnesses independence.
+**Zip's demand (co-extent) is structurally checkable only sometimes.** Two
+regimes fall out, distinguished by the same provenance the invariance
+demand already computes:
+
+- **Same-provenance zip — structural, and free.** When both lanes trace
+  back to *one* uncollect through extent-preserving operations (value-only
+  maps, per-firing work — anything that neither opens nor collects nor
+  filters), they fire in lockstep *by construction*. Their co-extent is not
+  a claim to be checked; it is one walk carrying two wires. Here zip is
+  degenerate: it re-bundles wires that already share firings. This is the
+  common case and it costs nothing — the analog of Cross reading
+  independence off siblinghood, run the other way. In particular, **k
+  sibling collects of one walk are aligned by this rule** — which is why
+  the value form below is the same construct, not a new one.
+
+- **Distinct-provenance zip — a barrier assertion.** When the lanes come
+  from *different* uncollects (two independently sourced lists claimed to
+  be equal-length), co-extent is not structural; it is a runtime
+  coincidence. The node then carries a **co-extent precondition asserted at
+  the barrier** — checked once, at the walk's start, not per firing — with
+  a **terminator/witness when it fails** (the shorter lane runs out).
+  Raggedness here is a *failure*, the exact opposite of Cross's per-point
+  regime where absence is a hole in the table and both readings survive.
+
+The honest one-liner: **Cross's independence is always static; zip's
+co-extent is static under shared provenance and a runtime precondition
+otherwise.** Two shipped languages put the check exactly at the barrier and
+not per element — Zig asserts length-equality "at the start of the loop"
+and APL raises a conformance error before the pervasion runs. So the
+co-extent demand is a property in `types-design.md`'s sense where
+provenance discharges it, and a checked precondition with a failure witness
+where it does not — one construct, two discharge paths, chosen by whether
+the annotate pass already proves the extents equal.
+
+### The value form — the multi-wire collect and the table
+
+The aligned product has a rest state, and it is the missing half the
+tidyverse study named. A **multi-wire collect** takes several wires of one
+flow at one barrier and produces a value that keeps their correspondence: a
+**table** — k value wires become k columns, n firings become n rows, cell
+*i* of every column belonging to firing *i*. Its **uncollect gives the
+wires back**, already aligned (a same-provenance zip of the columns,
+aligned because they were collected together). The flow-level pairing and
+the value-level table are one construct seen from both sides: *a table is k
+lists that remember they were collected from the same walk.*
+
+The value opens into k **wires, not one row-struct**, and the tidyverse
+corpus argues the point three times over:
+
+- **The row-splat wart.** `pmap(df, f)` splats every column into `f`'s
+  arguments, so a consumer of two of three columns errors on the unused
+  third. On wires, an unused column is simply an unconnected port.
+- **The arity matrix.** map / map2 / pmap × typed suffixes is a
+  combinatorial family that exists only because aligned inputs arrive as
+  loose values; dplyr documents retreating from it and re-adding
+  `rowwise()` so the table itself carries the alignment. The whole matrix
+  collapses to one uncollect when the aligned wires are a drawn fact.
+- **Suffix collisions.** Joins auto-rename colliding columns `.x` / `.y` —
+  the one-namespace cost of packing wires into a single field set. Wires
+  don't collide; names label wires, they don't key a lookup.
+
+The column axis is the *wire* axis (drawn structure — names, types, one per
+variable); the row axis is the *firing* axis (runtime extent); their
+non-independence is rectangularity — every firing carries every wire. k
+sibling collects that *forget* they shared a walk are the record's current
+state; the table is those k lists *remembering* it, and remembering is the
+whole content.
+
+### Scalar extension is Incorporate, not zip
+
+APL's scalar-extension rule — a lone value silently lifted to pair with a
+vector — reads in our vocabulary as **Incorporate's implicit costume**: a
+value made available at every firing. That is auto-capture, already silent,
+and it is emphatically *not* the aligned product. Zip pairs two flows;
+Incorporate lifts a value into one. Keep them distinct. For the clash
+record: APL's implicitness is a hazard — a rank mismatch that happens to
+conform silently computes the wrong program — so the value-into-flow lift
+stays a drawn Incorporate, and the co-extent assertion above is what
+catches a genuine two-flow mismatch, never an inferred rank rule that
+papers over it.
+
+### Indices as an aligned lane
+
+Zig's `for (items, 0..) |item, i|` derives the index's extent from its
+sibling: the index is not a loop mode, it is one more aligned lane. In our
+vocabulary an **index is a counted source opener** (`source-openers-design.md`)
+with no independent extent, zipped against the data flow, which fixes its
+length — the aligned product's degenerate lane where one operand borrows
+the other's extent. Same-provenance keeps it free: the index lane is
+aligned with the walk it counts by construction. This answers the
+translation exercise's open note on whether iteration-by-index deserves
+better than `range(len(a))` plus two index applications (finding 10) — it
+does, and the better form is a zip lane, not a new construct.
+
+### Rank-2 and n-ary — the Life residue, filed forward
+
+Conway's Life needs Cross (enumerate the 3×3 neighborhood) and zip (overlay
+nine same-shape grids pointwise) at once, at rank 2 — the grids are 2D. The
+aligned product makes Life *drawable*; it stays clumsy until the
+n-ary/axis-handling questions land. But those are the same open questions
+the Cross side already carries: n-ary products are worked above; a zip over
+a 2D grid is a rank-2 aligned product (nine lanes of one grid-shaped walk)
+whose axis handling rides the products row's residue, not this section's.
+Filed forward, not worked here — the round establishes the construct and
+its co-extent story; rank-2 structure is the products row's standing debt.
+
+### Per-edge alignment (a second target, filed)
+
+purrr's `reduce2` aligns its second input with the **gaps between** firings
+— one element shorter, used for separators
+(`reduce2(letters[1:4], c("-", ".", "-"), …)`). Not every aligned lane is
+firing-to-firing: the edge between consecutive firings is a distinct,
+shippable alignment target, adjacent to the register's previous-firing
+machinery. Noted as a residue for the iteration-state round rather than
+worked here — the aligned product's primary case is firing-aligned, and
+edge-alignment is one added lane offset, not a different construct.
+
+### Against the philosophy
+
+- **Example first, then generalise.** The pointwise-combine program is the
+  concrete gesture; the aligned product is the identified relationship
+  (co-extent), read off shared provenance where present — never declared
+  upfront.
+- **No bottlenecks.** A barrier with corresponding flow inputs and one
+  widened output, no value packing — the principle's own shape, the
+  positional twin of Cross.
+- **Building blocks at the programmer's abstraction level.** "Walk these
+  two lists together" is a programmer-level concept (every zip, every data
+  frame holds it); the index-plus-lookup encoding was the plumbing-level
+  costume.
+- **Graceful expansion.** The simple case (two same-provenance wires) is
+  free; adding a distinct-provenance lane *adds* the co-extent assertion —
+  structure added, never a rewrite into a different construct. The table is
+  the same construct at rest; opening it adds no construct.
+- **Abstraction is the source of truth.** The table is k lists that
+  remember one walk; the loose k lists are the derived, forgetful view.
+  Provenance is the truth; alignment is the fact retained from it, free and
+  downward, exactly as with Cross's independence.
+
+### Building it: smallest first step
+
+Ordered so each piece is testable in `Main.res` style; assumes the
+first-class-ports migration.
+
+1. **Same-provenance recognition.** The provenance/flow-variable fact
+   already needed for Cross's invariance demand, run the other way: two
+   wires are co-extent iff they trace to one uncollect through
+   extent-preserving ops. Free zip is then a re-bundle, no node emitted.
+2. **The aligned-product node** (flow-only, co-extent demand), with the
+   barrier assertion plus failure witness for the distinct-provenance case.
+   Compile: the stream-level multi-parent zip primitive already exists
+   (`lazy-stream-placement-design.md`) — the gap was authoring vocabulary,
+   now supplied. Tests: pointwise-combine of two lists, same-provenance
+   (free) and distinct-provenance (asserted); the distinct-ragged case
+   fails at the barrier with the shorter lane as witness.
+3. **The multi-wire collect / table** as the value form: k wires in at one
+   barrier → a k-column value; uncollect → k aligned wires. Tests: a table
+   round-tripped through collect/uncollect preserving alignment; a
+   two-of-three-column consumer leaves the third an unconnected port (no
+   row-splat error).
+4. **Index-as-lane and per-edge alignment** ride source openers and the
+   register round respectively — not built here.
+
 ## Open questions
 
 1. **A vs B storage.** The lean above (represent oriented, read symmetric)
@@ -536,3 +783,15 @@ Two residues, both minor, filed to their owners rather than worked here:
    (axis sets, poset comparability) is sketched above but should be worked
    against `bundle-provenance-design.md`'s walk-and-classify algorithm
    before the checks land.
+9. **The aligned product (zip) — worked** ("The aligned product (zip)").
+   Cross's positional sibling: same extent paired by position, output a
+   single widened flow (not nesting), demand = co-extent. The central
+   finding is the asymmetry with Cross — co-extent is structural under
+   shared provenance (free, a re-bundle) but a runtime precondition
+   asserted at the barrier otherwise (Zig/APL's shipped shape). Its value
+   form is the multi-wire collect (the table). Residue, filed to owners:
+   the exact form of the co-extent assertion at the property/precondition
+   boundary (`types-design.md`); the table's textual and at-rest spelling
+   (the textual-form row); rank-2 zip's axis handling, the Life exhibit
+   (this row's n-ary/axis residue, not the zip section's); and per-edge
+   alignment's home (the iteration-state/register round).
