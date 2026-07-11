@@ -323,6 +323,75 @@ poll-until, and the framing cases all want the match out-of-band (in
 the terminator), not appended to the prefix. Exclusive-with-payload is
 the shape most guises already are.
 
+## The bit's home: node or wire (open question 1, worked)
+
+Option B fixes that the inclusive/exclusive choice is one bit; it
+leaves open *where* that bit lives — on the end-when node, or on the
+stop operand ("the stop wire"). The two homes look like they should
+differ in expressiveness, because a stop operand is often a *merge* of
+several conditions, and a per-wire bit sounds like it could give each
+merged condition its own boundary disposition. Worked against how the
+stop operand is actually shaped, the homes coincide everywhere a
+program can reach; the apparent extra reach is available only by
+turning the bit into data — a move with its own cost and no witnessed
+client.
+
+**The stop operand is one wire, even when it is many conditions.**
+"Which condition stopped you is free" is realised by a *partial
+collect over the stop alts*, whose output is a single option-kind flow
+(`partial-collect-design.md`'s kind theorem). The end-when consumes
+one stop wire whether the stop is one alt or a k-way merge. A bit "on
+the wire" is therefore one bit for the whole cut — exactly what a bit
+"on the node" is. In the un-stacked, possibly-merged case the two
+homes are notational variants of the same single bit; there is nothing
+to decide between them.
+
+**In the stacked form they are literally the same placement.**
+Regime 2's genuine ties live only in the stacked form — independent
+splits admit no merged node (the validity gate). A stack is end-when
+nodes each consuming exactly one stop wire, so node-bit and wire-bit
+stand in bijection level by level: the inner node's bit *is* the inner
+stop wire's bit. The tie-break theorem — inner-exclusive, inner wins;
+inner-inclusive, the tied firing survives into the outer's subject and
+the outer wins — is stated identically under both homes. The
+regime-2 worry that "the priority reading would need restating" under
+wire placement dissolves: wire placement restates nothing, because per
+level there is exactly one wire.
+
+**The only true divergence demands the bit below the partial
+collect — as data.** To give two *merged* conditions different
+boundary dispositions in one end-when, the bit must ride each alt
+*before* the partial collect fuses them — i.e. travel as part of the
+merged flow's value. That is no longer a cut configuration but a datum
+on the value channel: an option flow of (payload, keep-bit) pairs. It
+reintroduces a small product into the very channel end-when kept clean
+(the stop payload rides the *terminator*, unpacked), and it has no
+witnessed client. Whether the boundary element is kept is a property
+of *the collected prefix as a list* — "does this list include its
+sentinel" — one fact about one list, not a fact that varies by which
+sentinel ended it. A list that keeps its terminator after reason a but
+drops it after reason b is heterogeneous for no reason a sampled
+program showed.
+
+**Leaning: the bit is on the node.** It configures one cut — the
+boundary of one shortened flow — which is one bit about one prefix.
+Wire placement buys nothing over node placement wherever a stack can
+tie (they coincide there), and buys per-alt bits only by demoting the
+bit to data (a bottleneck, unwitnessed). This resolves open question
+1's node-vs-wire half toward the node; the bit's *drawing* — a cut
+line before vs after the element mark — remains layout, out of scope
+here.
+
+**Rejected: per-alt boundary bits as the primitive.** Making the bit
+a lane on each stop alt, so one merged end-when can keep the boundary
+element for some reasons and drop it for others, was rejected as the
+node's form: it packs a keep-bit product onto the stop value channel,
+and no sampled program wants a prefix whose sentinel-inclusion depends
+on which sentinel fired. The descent stays *available* — if a concrete
+program ever wants per-reason boundary disposition in a single cut, the
+bit graduates to a lane on the merged stop flow, gracefully — but it is
+not where the primitive lives.
+
 ## Sibling or same node: end-when and interrupt
 
 With end-when drawn, the difference from interrupt is exactly one
@@ -482,9 +551,13 @@ different verb) — but not before adoption.
 ## Open questions
 
 1. **The inclusive/exclusive bit's final form.** Option B is the
-   leaning (one bit on the node, exclusive the default reading); what
-   its drawing is, and whether the bit belongs on the node or on the
-   stop wire, is open. Both survey shapes must stay one gesture.
+   leaning (one bit, exclusive the default reading). The node-vs-wire
+   half is now worked ("The bit's home", above): the two homes coincide
+   wherever a stack can tie and diverge only by demoting the bit to
+   data, so the leaning is the node. What remains open is the bit's
+   *drawing* (a cut line before vs after the element mark — layout, out
+   of scope here) and confirmation that both survey shapes stay one
+   gesture.
 2. **Unification with interrupt.** One terminator-writing node with
    aligned/unaligned stop operands, or two rhyming siblings.
    Deliberately unforced; the deciding argument is in the sibling
@@ -625,10 +698,12 @@ into the outer's subject, so the **outer** stop wins. Both are
 theorems of the law — deterministic, no ambiguity. But the flip is a
 genuine surprise: the inclusive bit, introduced as a local one-bit
 variation on the cut position, also selects stacking priority when
-stops can tie. That interaction is an input open question 1 should
-weigh (e.g. if the bit moved onto the stop *wire* rather than the
-node, each stop of a stack could carry its own bit, and the priority
-reading would need restating).
+stops can tie. That interaction is an input open question 1
+weighs; it is now worked under "The bit's home". In a stack each level
+has exactly one stop wire, so wire and node placement coincide there
+and the priority reading is unchanged either way — the interaction is a
+property of the node bit alone, and moving the bit onto the wire does
+not multiply it.
 
 ### The authoring reading
 
@@ -658,8 +733,10 @@ counterexample program is concrete and drawn from the sampled
 evidence.
 
 Left open: the restriction rule's home in the provenance inventory
-(this section states it; adoption would move it), and the bit/priority
-interaction as an input to open question 1. Deliberately *not*
+(this section states it; adoption would move it). The bit/priority
+interaction, once flagged here as an input to open question 1, is now
+worked under "The bit's home" — it belongs to the node bit and survives
+wire placement unchanged. Deliberately *not*
 proposed: a warning when stacked stops are not provably exclusive —
 the stacked form is deterministic and lawful; whether ties were
 *meant* is a question for the elaboration/completion story
