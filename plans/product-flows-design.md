@@ -373,6 +373,127 @@ first-class-ports migration (Cross is a flow node with ports, like Join).
    option absorbed per-orientation; test both readings of one filtered
    table.
 
+## N-ary products: the three-list example (open question 3, worked)
+
+Two axes never forced the poset to do any work: two axes have exactly one
+product and one transpose, so every question the context model raises is
+answered trivially. Three lists are where the machinery first has to earn
+its shape — which is why open question 3 asked for a concrete three-list
+example before committing to "flat axis sets." Worked below: the
+presumption holds, and the example exercises three things the two-axis case
+could not.
+
+The program — three lists uncollected side by side, none derived from the
+others, elements combined:
+
+```
+listX -> open list => x, ~x
+listY -> open list => y, ~y
+listZ -> open list => z, ~z
+x, y, z -> f => s
+```
+
+`s` is one value per (x, y, z) triple — a 3-axis product, an n×m×p cube. A
+consuming collect chain nests the three terminations in *some* order; there
+are 3! = 6 orders, and they read the cube along its six axis permutations
+(the two-axis pair of transposes, generalised).
+
+**Associativity: the nesting tree is representational, the axis set is the
+denotation.** Cross is binary, so a three-axis product is authored by
+nesting — `cross(x, cross(y, z))`, or `cross(cross(x, y), z)`, or a flat
+three-way cross if the surface offers one. By the law (fire once per tuple
+of operand firings, each axis rides unchanged) and mutual invariance, all
+three build the *same* cube: the same point set and the same top context
+{X, Y, Z}. So the denotation is the **flat, order-free axis set** — exactly
+the presumption, and exactly the move partial-collect made for cell sets.
+Many authoring paths converge to one product; the reading is the product,
+not the tree that built it ("one obvious reading per program, however many
+authoring paths converge to it").
+
+Where the nestings *do* differ is which **intermediate** products they
+construct. `cross(x, cross(y, z))` builds a {Y, Z} context on the way to
+{X, Y, Z}; `cross(cross(x, y), z)` builds {X, Y}; a flat three-way cross
+builds neither. This is not a wart — it is the author naming a sub-product.
+If they wrote `cross(y, z)` as a sub-expression and a consumer collects over
+just y and z (holding x), the {Y, Z} context is a real, wanted thing; if
+they wrote a flat cross, they did not ask for it and it is absent. This is
+the graceful-expansion shape: the flat product is the simple case, and
+naming a sub-product is *adding structure* to reach a sub-product consumer,
+never a rewrite into a different construct.
+
+**The poset is the subset lattice of the axis sets actually constructed** —
+the cell-set refinement's shape (`bundle-provenance-design.md`, "subset
+lattice of constructed sets, not a tree"), confirmed a second time and now
+by a different construct. Not a tree, and not the full powerset of
+{X, Y, Z}: only the axis sets some Cross built. Comparability is
+containment; a combining node demands its operands lie on one chain, and
+`deeper` is "the least upper bound among constructed sets, if one exists" —
+the two-axis rule verbatim.
+
+The three-list example is the first place that "if one exists" bites.
+Suppose someone builds `cross(x, y)` = {X, Y} and, separately,
+`cross(y, z)` = {Y, Z}, and never a common super-product. A value at {X, Y}
+and a value at {Y, Z} share axis Y but are incomparable, and there is **no
+constructed common superset** — {X, Y, Z} was never built. Combining them
+would demand a value per (x, y, z), i.e. it *demands the full product
+exist*; because it does not, the combine is ill-formed until a Cross
+supplies {X, Y, Z}. This is the right answer, and it is delivered by the
+existing rule (no lub ⇒ no context to combine at) and the existing remedy
+(insert a Cross, gated by the invariance demand, witnessed if it fails).
+Two axes could never show this — two axes have one product and always a
+lub. The concrete three-list example is what makes the poset's partiality
+visible, and it lands on machinery already written.
+
+**The table indexing generalises verbatim.** A node whose flow-variable set
+spans the three axes memoises at the product context as a point-indexed
+cube — one entry per (x, y, z) point, `f` run **once per point** regardless
+of how many of the six consumers traverse in how many orders. Whole-table-
+first still suffices for the eager fragment: one lazy builds the full cube
+in the stored orientation, the other five consumers index it. The honest
+cost — retention — amplifies with rank (the cube stays live until the
+slowest consumer finishes), exactly as the two-axis note predicted; under
+stream kinds the cube refines to per-cell `Delayed` cells, a 3D grid. No
+new mechanism, more indices.
+
+**The three theorems survive at rank 3.** *Rectangularity:* per any-axis
+firing the remaining sub-product traversal is the same sequence (mutual
+invariance across all axes), so nested collects over the cube are never
+ragged. *Commute totality:* every adjacent pair in any nesting of the
+product is *itself* a product — any subset of a product's axes is a
+sub-product by invariance — so an adjacent Commute is always defined, and
+the six orders are reached by chains of adjacent Commutes (adjacent
+transpositions generate S₃). *Kinds unchanged:* a triple-nested crossed
+flow presents as ordinary triple nesting downstream. The "represent one
+orientation, read the rest" lean carries: the stored form is one of the six
+permutations, and each other reading is a faint Commute-chain away — and the
+reading is the *permutation*, not the chain, because the naturality quotient
+identifies any two adjacent-Commute chains realising the same permutation
+(the symmetry of a Cartesian product is coherent).
+
+**Lean.** Represent n-ary products as flat axis sets — the denotation is
+the set; the binary-Cross nesting tree is authoring detail that
+additionally names whichever sub-products the author bound. Keep the poset
+as the subset lattice of constructed axis sets, with `deeper` =
+lub-if-it-exists and no-lub routing to "insert a Cross," both already in the
+two-axis rules. Nothing new is needed at rank n that rank 2 did not already
+carry; rank 3 is where the *partiality* of the poset and the S₃ orbit of
+orientations first become observable, and both were caught by existing
+machinery — the sign that "flat axis sets" was the right presumption to
+commit to.
+
+Two residues, both minor, filed to their owners rather than worked here:
+
+- **Which orientation is canonical for a flat n-ary cross** (which of the
+  six the stored form picks, and how completion chooses it) is the n-ary
+  face of open question 1 and the textual form's Cross-spelling question —
+  does the text name a full permutation? Two axes name at most a single
+  swap; n axes name a permutation.
+- **A fold or a join over the cube** still demands a single traversal order
+  that the order-free product does not supply. That is open questions 4 and
+  5 (join on a product; registers over products), unchanged — the order is
+  chosen at the consumer, as with two axes, but the operand-walk and
+  productivity details are those rounds', not this one's.
+
 ## Open questions
 
 1. **A vs B storage.** The lean above (represent oriented, read symmetric)
@@ -383,11 +504,15 @@ first-class-ports migration (Cross is a flow node with ports, like Join).
    Interacts with the user-facing vocabulary rounds (`types-design.md`
    open question 1); also whether commute-on-product deserves the name
    *transpose* in user-facing text.
-3. **N-ary products and associativity.** `cross(x, cross(y, z))` vs a flat
-   three-axis product — presumably flat axis sets, the same move
-   partial-collect made for cell sets, but the poset and the table
-   indexing should be worked against a three-list example before
-   committing.
+3. **N-ary products and associativity — worked** ("N-ary products: the
+   three-list example"). Flat axis sets confirmed as the denotation; the
+   binary-Cross nesting tree is authoring detail that additionally names any
+   bound sub-products; the poset is the subset lattice of constructed axis
+   sets (the cell-set shape), with the lub-may-not-exist behaviour first
+   visible at three axes and caught by the existing "insert a Cross" remedy.
+   Residue: the canonical orientation of a flat n-ary cross (the n-ary face
+   of question 1 and the textual Cross-spelling), and fold/join order over
+   the cube (questions 5 and 4).
 4. **Join on a product.** Flattening commits an orientation via Join's
    operand order — fine — but the interaction with multi-level joins (a
    join *chain* over a product's axes plus an enclosing flow) needs the

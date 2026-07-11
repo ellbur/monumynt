@@ -448,12 +448,17 @@ agree across three ecosystems. See `xquery-jq-comparison.md`,
 
 **Products: the table, zip, and the unexamined interactions —
 I 3, W 4.**
-Cross itself is worked (`product-flows-design.md`). Unexamined: n-ary
-products against a concrete three-list example; join on a product
-(operand-walk rules); registers over products (a fold demands an order
-a product doesn't have); the provenance product segment against the
-walk-and-classify algorithm (questions 3–5, 8). Spec entry and textual
-spelling are owed bookkeeping.
+Cross itself is worked (`product-flows-design.md`); n-ary products are
+now worked too, against a concrete three-list example (question 3:
+flat axis sets confirmed as the denotation, the poset as the subset
+lattice of constructed axis sets, the point-indexed table and the three
+theorems generalising verbatim — the three-list example is where the
+poset's partiality and the S₃ orbit of orientations first become
+visible, both caught by existing machinery). Unexamined: join on a
+product (operand-walk rules); registers over products (a fold demands
+an order a product doesn't have); the provenance product segment against
+the walk-and-classify algorithm (questions 4, 5, 8). Spec entry and
+textual spelling are owed bookkeeping.
 
 The **aligned product (zip)** is a named demand on this row: Cross's
 positional sibling — same extent paired by position vs independent
