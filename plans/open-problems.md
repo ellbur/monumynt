@@ -428,6 +428,29 @@ question, and pacing's per-consumer/per-source bit under
 multi-close (joint with end-when's coexistence question).
 Scores unchanged — two items of the remaining list gained
 leanings; the row's central rounds are still owed.)*
+*(2026-07-11, later: the concurrent collect's round is worked —
+`concurrent-collect-design.md`, an exploration round with
+leanings: the species menu finishes dissolving (serial = the
+nested drawing; keyed = the keyed partition instantiated, the
+replug race dissolving in the lane; unbounded = the one
+remaining node), and that node is derived as a primitive binary
+flow operation ("settle") minting the **completions flow** in
+settlement order — input-firing values crossing by
+availability, the settled result a per-firing discharged sum
+(failures as data), no main-result port (output ordering
+dissolves into downstream drawings: a collect for completion
+order, a commute-family reassembly for input order), a drain
+termination law making graceful shutdown a +1 ladder, starts as
+availability rather than a port, and registers ill-formed
+across bodies but ordinary on the completions flow.
+`bounded(n)` splits into a width (node configuration,
+expressible now) and shared permits (bracket-shaped, failable
+per Zig's `ConcurrencyUnavailable`, fenced to Tier 1);
+exhaustMap files to the source-boundary buffer/latest/drop
+family, not to a collect species; six dead ends recorded.
+Remaining in the row: the served flow, the chooser family, the
+server-program question, and pacing's multi-close bit. Scores
+unchanged — the row's other central rounds are still owed.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -1316,3 +1339,18 @@ the reason.
   functions/facets rows: dated notes (algebraic footing for
   keyed-merge; catalog rows as properties-with-witnesses; the
   algebra facet's first client). No score movement anywhere.
+- **2026-07-11** (later still) — the concurrent collect's round
+  worked (`concurrent-collect-design.md`, an exploration round
+  with leanings: the species menu fully dissolved — serial as
+  the nested drawing, keyed as the keyed partition instantiated,
+  unbounded as one primitive settle node minting the completions
+  flow in settlement order, with the settled result a per-firing
+  discharged sum; the drain termination law; registers ill-formed
+  across bodies, ordinary on completions; `bounded(n)` split into
+  width-now and permits-at-Tier-1; exhaustMap filed to the
+  source-boundary family; the tough doc's open questions 1–2
+  answered by dissolution; six dead ends). Concurrency row:
+  scores unchanged at I 3 / W 4 — the served flow, the chooser
+  family, and the server-program question are still owed, and
+  nothing is adopted. The race round's borrowed completions
+  stream now has a designed owner.
