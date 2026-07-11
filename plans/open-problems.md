@@ -208,6 +208,21 @@ step pulled out of the body and attached to the loop precisely so
 `continue` cannot skip it; C's skip-the-increment bug class is
 the negative witness for making the step structural. Scores
 unchanged.)*
+*(2026-07-11: the operator-identities / keyed-collect item is
+worked — `collect-family-design.md`, the joint
+spelling-and-identity round: the identity question reframed as
+the empty-collect question with a three-tier availability ladder
+(monoid → total; semigroup → option-shaped; neither → augment),
+identities as catalog rows carrying the identity value as
+witness, user monoids minted via the algebra facet (trusted, not
+verified), the named collects (set/any/last/…) dissolved into
+catalog rows, and the keyed partition worked as the primary
+construct (group-as-flows) with the four readouts as consumption,
+operator-merge as the fused special case, first-appearance order,
+initial contents as per-lane seeding, and the lanes-are-non-empty
+observation making semigroup operators total in keyed position.
+Eight dead ends recorded. Scores unchanged — the row's center,
+the surface decision, is untouched.)*
 *(2026-07-10, later: the tidyverse comparison
 (`tidyverse-comparison.md`, findings 2, 3, 6) — the keyed
 collect's fourth consecutive round, this time supplying its
@@ -453,6 +468,12 @@ algebra supporting the drawable-witnesses stance over imported
 Boolean indices; "this hole demands a pure filler" added as
 demands/offers vocabulary; `@Terminates` noted as prior art for
 declared, checked termination. Scores unchanged.)*
+*(2026-07-11: the catalog question (question 4) gains its first
+concrete content demand from the collect family's round
+(`collect-family-design.md`) — catalog rows are properties
+carrying value witnesses (the identity value itself), and the
+algebra facet is the authoring surface that mints rows for user
+operators, trusted like the JS edge. Scores unchanged.)*
 
 **Recursion: the divide flow and trees — I 4, W 3.**
 `trees-and-recursion.md` is narrative-stage (no starting-point
@@ -562,7 +583,12 @@ sub-diagram instantiated per wire; the many-authoring-paths /
 one-reading stance), not a runtime construct. Over data-keyed
 tables it is the keyed uncollect, already owned. `cur_column()`
 recorded as a magic-name clash whose legitimate content is the
-lane-key wire. Scores unchanged.)*
+lane-key wire. Scores unchanged.)* *(2026-07-11: the algebra
+facet gains its first in-record client — the collect family's
+round (`collect-family-design.md`) consumes it as the authoring
+surface for user monoids, with the joint constraint recorded
+that the facet must carry a value witness (the identity), not
+just a named law. Scores unchanged — a client, not a design.)*
 
 **Speculation: ordered alternatives with rollback — I 4, W 3.**
 *(New row, 2026-07-10, from the Effekt comparison round —
@@ -636,7 +662,13 @@ fourth costume. I 5: a name and a demand, nothing worked. W 3 as
 a breadth obligation: absent from all three random surveys;
 everyday clients are domain-concentrated (package/build/import
 tooling, analysis, graph features); frequency question handed to
-the evidence-owed list.
+the evidence-owed list. *(2026-07-11: the keyed-merge scope item
+gains its algebraic footing from the collect family's round
+(`collect-family-design.md`) — the keyed collect by ⊕ is itself a
+monoid fold with identity ∅ (empty seed set needs nothing of ⊕),
+and lanes being non-empty by construction makes semigroup
+operators (min without an identity) total per-lane, which is what
+keyed-min-collect needs. Scores unchanged.)*
 
 **Focused update: transform selected loci of a nested value —
 I 5, W 3.**
@@ -917,7 +949,14 @@ useful notation finding, jointly owned with
 convention and terminator-only form; the collect family's
 spellings (keyed/set/last/any) jointly with the operator-identity
 question; entry opens' two value ports; identity lanes. Scores
-unchanged — the list is sharper, not shorter.)*
+unchanged — the list is sharper, not shorter.)* *(2026-07-11: the
+collect-family item moves from "owed" to "drafted, awaiting the
+textual round's revision" — `collect-family-design.md`'s
+consolidated strawman table (named reduce-closes, `collect by
+<op>`, the keyed forms with `from` seeding and an explicit
+collision operator, a partition strawman); the late-wired
+`value of` collect appears in a second worked program. Scores
+unchanged.)*
 
 **Naming rounds — I 4, W 1.**
 Deferred everywhere by tradition, correctly: they gate user-facing
@@ -1258,3 +1297,22 @@ the reason.
   Loop-carried state row: scores unchanged at I 3 / W 5 — the
   borrowed-node item clears; the surface decision (which now also
   owns the counted↔conditional seam) remains the row's center.
+- **2026-07-11** (later) — the collect family's joint
+  spelling-and-identity round worked (`collect-family-design.md`,
+  an exploration round with leanings: the identity question
+  reframed as the empty-collect question; the three-tier
+  availability ladder — monoid total, semigroup option-shaped,
+  neither → augment; identities as catalog rows with value
+  witnesses, minted for user operators by the algebra facet; named
+  collects dissolved into catalog rows; the keyed partition as the
+  primary construct with the four readouts as consumption,
+  operator-merge fused, first-appearance order, `from`-seeding;
+  lanes-non-empty making semigroup operators total per-lane; eight
+  dead ends). Loop-carried state row: scores unchanged at
+  I 3 / W 5 — the operator-identities/keyed-collect remnant is
+  worked; the surface decision remains the center. Textual
+  catch-up (Tier 4): the collect-family spelling item moves to
+  drafted; scores unchanged. Saturation, checking, and
+  functions/facets rows: dated notes (algebraic footing for
+  keyed-merge; catalog rows as properties-with-witnesses; the
+  algebra facet's first client). No score movement anywhere.
