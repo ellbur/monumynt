@@ -159,7 +159,12 @@ semantics" to "which drawings exist and which is primary" — the
 beginner bar and the RTL/ST gestalt critiques attach to renderings,
 and the thread's rendering questions live here; the self-driven
 source opener the port form must borrow (shared with the
-concurrency row's source-opener item); operator identities for
+concurrency row's source-opener item) *(2026-07-11: worked — the
+borrowed node now has its round, `source-openers-design.md`: a
+bare flow-minting opener, no value ports, kind answered as the
+sourceless stream; the counted↔conditional seam it opens is filed
+back to this row's surface conversation as that round's open
+question 3)*; operator identities for
 reduce-close, unattached (three hand-rolled monoid folds in the
 surveys press on this; jointly with the collect family's spelling
 round, Tier 4). *(2026-07-10: the Flix comparison
@@ -393,7 +398,21 @@ beside `bounded(n)`-as-resource). The race round gains the
 select-union note: `io.select` packs a tagged union to cross the
 race (the sum bottleneck), but discriminated by contender name —
 discrimination-must-be-structural confirmed, the packing what the
-barrier form dissolves. Scores unchanged.)*
+barrier form dissolves. Scores unchanged.)* *(2026-07-11: the
+source-opener and pacing items are worked —
+`source-openers-design.md`, an exploration round with leanings:
+the self-driven opener as a bare flow-minting node (no value
+ports, no new flow kind — the sourceless stream), the external
+pull source as a catalog block minting a failable stream (its
+block boundary a fence around the Tier-1 effect hole), and
+pacing as a binary flow operation (`paced`, sibling of end-when
+and interrupt — the retry composite's floor is in place on
+paper). Remaining in this row: the concurrent collect's own
+round, the served flow, the chooser family, the server-program
+question, and pacing's per-consumer/per-source bit under
+multi-close (joint with end-when's coexistence question).
+Scores unchanged — two items of the remaining list gained
+leanings; the row's central rounds are still owed.)*
 
 **Failability's residue — I 3, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
@@ -1222,3 +1241,20 @@ the reason.
   grouping as a mode bit, with purrr's recycling/typed-suffix
   tightenings recorded as a shipped correction toward the barrier
   law and wire sorts.
+- **2026-07-11** — source openers and pacing worked
+  (`source-openers-design.md`, an exploration round with leanings:
+  the self-driven opener as a bare flow-minting node — the node
+  the iteration-state equivalence round said the port form must
+  borrow — with its kind answered as the sourceless stream and no
+  new kind added; counted repetition split off as range data with
+  the counted↔conditional seam stated; pacing as a binary flow
+  operation, sibling of end-when/interrupt, unblocking the retry
+  composite on paper; the external pull source as a catalog block
+  minting a failable stream, block boundary fencing the Tier-1
+  effect hole; the corecursion boundary stated; four dead ends).
+  Concurrency row: scores unchanged at I 3 / W 4 — two remaining
+  items gained leanings but the concurrent collect, served flow,
+  chooser family, and server-program rounds are still owed.
+  Loop-carried state row: scores unchanged at I 3 / W 5 — the
+  borrowed-node item clears; the surface decision (which now also
+  owns the counted↔conditional seam) remains the row's center.
