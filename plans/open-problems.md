@@ -486,8 +486,9 @@ lane (`for (items, 0..)`). See `apl-family-comparison.md`,
 **End-when: adoption and its open questions — I 2, W 5.**
 The exploration round exists with leanings (`end-when-design.md`;
 question 5 worked in place). Remaining: the adoption conversation
-itself; the inclusive/exclusive bit's final form (now with the
-tie-break interaction as an input); interrupt unification; the register
+itself; the inclusive/exclusive bit's final form (node-vs-wire now
+worked toward the node; the drawing and the tie-break interaction
+resolved with it); interrupt unification; the register
 final-readout anchor (touches the iteration-state round); the textual
 spelling. Low I is recent work; W = 5 (the surveys' biggest unserved
 everyday demand) is why the remaining distance is worth closing soon.
