@@ -632,8 +632,14 @@ the scores above rather than carrying its own. The named next rounds
   custom-protocol-flows probation's category-strength documentation
   into a field sighting (Zig's labeled switch is a systems-language
   sighting, not the UI-population one).
-- **A combinator census**, and larger n where a proportion becomes
-  load-bearing.
+- **A combinator census** — *done* (`real-loop-survey.md`, "Combinator
+  census"): counting every loop and combinator across the survey-1
+  corpora, combinators are ~1/3 of iteration constructs (statement
+  loops outnumber them ~2:1 even in Ruby/JS), split collect 76% /
+  search 18% / fold 6%; finding 1's "well above half needs no state"
+  holds as a ~60% majority, carried mostly by stateless statement
+  loops rather than the excluded combinators. Larger n where a
+  proportion becomes load-bearing still owed.
 - **The saturation frequency question.** Closure-shaped computation was
   absent from all three random surveys; a domain sample (package/build/
   import tooling, program-analysis code, graph features inside

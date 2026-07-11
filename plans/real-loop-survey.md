@@ -568,7 +568,12 @@ covers: collects (list, keyed, flattened), filters, per-element
 effects, one async collect in exactly the designed shape (js 9). The
 protocol *excluded* comprehensions and map/filter/reduce combinators,
 which are this class by construction — so in the corpora's code as a
-whole, the fraction needing no state machinery is well above half. The
+whole, the fraction needing no state machinery is well above half.
+*(Now quantified — see "Combinator census" below. It holds, as a clear
+~60% majority in infrastructure code, but modestly: statement loops
+outnumber combinators ~2:1 even in Ruby and JS, so the no-state
+majority is carried mostly by stateless statement loops, not by the
+excluded combinators, which add only ~7 points.)* The
 foundation bet (uncollect/collect as the center) is confirmed against
 random real code, for whatever this corpus family is worth.
 
@@ -2316,4 +2321,227 @@ does not update the loop-shape proportions of surveys 1–2.
   measure how often application code reaches for gather vs race vs
   pool, complementing this survey's machinery view.
 - **UI/browser event-handling in JS** — still owed from survey 2.
-- **Larger n / combinator census** — as before.
+- **Larger n / combinator census** — the census is now done (see
+  "Combinator census" below); larger n as before.
+
+---
+
+# Combinator census
+
+A whole-corpus count, not a thirty-item sample. Surveys 1–3 excluded
+expression-level combinators (comprehensions, `map`/`filter`/`reduce`)
+by construction, on the argument that they are collect-shaped and
+would only inflate the "already served" bucket; survey 1's finding 1
+then rested a claim on that exclusion — "in the corpora's code as a
+whole, the fraction needing no state machinery is well above half" —
+and flagged it as resting "on the exclusion bias's direction alone,
+which is sound but unquantified." This census quantifies it. It counts
+*every* statement loop and *every* combinator use across the three
+survey-1 corpora and reports the ratio, so the exclusion's size stops
+being a guess. It decides nothing.
+
+## Why count, not sample
+
+The loop surveys measured *which shapes* real loops take, at a sample
+size (n = 30) that resolves "which patterns occur and dominate" but not
+second-digit proportions. The exclusion-bias question is different: it
+asks *how much* code was removed from view by excluding combinators —
+a magnitude, one number per corpus, best answered by counting all of
+it rather than sampling. So the unit here is the syntactic occurrence,
+and the coverage is exhaustive.
+
+## Protocol (census)
+
+Same three corpora as survey 1, on this machine (paths and post-
+exclusion file counts as measured here; the npm and Ruby trees match
+survey 1's counts, the Python tree is the same 3.10 stdlib at a
+slightly smaller install — 548 vs survey 1's stated 621, noted so the
+per-file figures are read against the right denominator):
+
+| Corpus | Path | Files |
+|---|---|---|
+| Python 3.10 stdlib | `/usr/lib/python3.10` (excl. `test`, `idlelib`, `lib2to3`, `__pycache__`) | 548 |
+| Ruby 3.3 stdlib incl. bundled gems | `/opt/ruby-3.3.6/lib/ruby/3.3.0` | 996 |
+| npm (own JS + vendored deps) | `/opt/node22/lib/node_modules/npm` (excl. `*.min.js`) | 1046 |
+
+**What is counted.** Two populations, plus a three-way split of the
+second:
+
+- **Statement loops** — the survey-1 unit: `for`/`while`/`do`/
+  `foreach`-style explicit iteration. This is the denominator the
+  loop surveys already classified.
+- **Combinators** — expression-level bulk operations the language's
+  collect vocabulary already covers, split by what they produce:
+  - **collect** (element-wise / keyed / reorder, no accumulator):
+    comprehensions and generator expressions; `map`/`filter`/
+    `flat_map`/`select`/`reject`/`grep`/`group_by`/`partition`/
+    `tally`/`sort_by` and kin.
+  - **fold** (true reduction to an accumulator): `reduce`/`inject`/
+    `each_with_object`/`sum`/`min_by`/`max_by`; Python `sum(...)` and
+    single-iterable `min`/`max` (scalar `min(a, b)` clamps excluded);
+    JS `.reduce`/`.reduceRight`.
+  - **search** (first-match / boolean short-circuit — early exit):
+    `find`/`detect`/`any`/`all`/`none`/`some`/`every`/`findIndex`;
+    Python `next(genexp, …)`. Grouped with search, not fold, because
+    they terminate early — the split matters for reading these against
+    finding 4 rather than 2.3.
+
+**Identification.** Parser- or token-level wherever the language
+allows, matching survey 2's amendment:
+
+- **Python** — `ast`: loops are `For`/`AsyncFor`/`While`;
+  comprehensions are the four comp nodes; builtin combinators are
+  matched by callee name (over-counts under shadowing — direction
+  stated below).
+- **Ruby** — `Ripper.lex`: comments (`:on_comment`) and string
+  contents (`:on_tstring_content`) are distinct token types, so prose
+  never counts. Loop keywords are `:on_kw for`/`while`/`until`;
+  method combinators are exact idents following a `.`/`&.`. *This
+  correction matters:* a naive `\bfor\b` regex over the same tree
+  reported 574 Ruby `for`s (English "for" in comments and strings);
+  the token count is 64. The `.method` combinator counts were
+  unaffected by the switch, which is why the surveys' regex sightings
+  stand.
+- **JS** — regex over comment-stripped source (survey 1's method),
+  requiring the loop's `(`/`{` and excluding `.for(`-style method
+  calls (e.g. `Symbol.for(`) via lookbehind; verified by reading.
+
+## The counts
+
+| Corpus | Stmt loops | collect | fold | search | Combinators | comb : loops |
+|---|---|---|---|---|---|---|
+| Python 3.10 | 3048 | 885 | 71 | 77 | 1033 | 0.34 |
+| Ruby 3.3 | 3468 | 1365 | 93 | 509 | 1967 | 0.57 |
+| npm JS | 1991 | 856 | 99 | 145 | 1100 | 0.55 |
+| **Combined** | **8507** | **3106** | **263** | **731** | **4100** | **0.48** |
+
+Derived:
+
+- **Combinators are ~1/3 of all iteration constructs** (4100 of 12607
+  = 32.5%); statement loops are ~2/3.
+- **Combinator split: collect 76%, search 18%, fold 6%.**
+- **No-state fraction of the whole population** (combinators +
+  statement loops), using the loop surveys' stateless-statement-loop
+  rate (32/60 ≈ 53%): collect combinators + ~half of statement loops
+  ≈ **60%**; adding search/early-exit constructs (no accumulator) ≈
+  **66%**.
+
+Notable per-corpus detail: Python's combinator surface is
+comprehensions (737 of its 885 collect); Ruby's iteration is blocks
+(`.each` 1928) with a large search family (`.any?` 214, `.find` 204);
+JS splits between C-style `for` (1515) and `.map`/`.filter` (856).
+
+## Findings (census)
+
+### C.1 The exclusion is real but modest — statement loops dominate, even in Ruby and JS
+
+Finding 1's "well above half needs no state" survives, quantified as a
+clear **~60% majority** in infrastructure code — but the census
+corrects the natural misreading of *why*. It is not that most code is
+comprehensions: combinators are a minority third, and the explicit
+statement loop outnumbers the expression combinator about two to one
+in every corpus, including block-idiomatic Ruby (0.57) and
+`.map`-idiomatic JS (0.55). The no-state majority is carried
+predominantly by *stateless statement loops*; excluding combinators
+lifts the figure only about seven points (loop-level ~53% →
+population-level ~60%). The exclusion bias's direction was right; its
+magnitude is a nudge, not the main effect. "Well above half" is
+honest for infrastructure code as "a ~60% majority," not as an
+overwhelming supermajority.
+
+### C.2 Collect dominates the combinators; fold is rare here
+
+Three-quarters of all combinator uses are pure collect (map / filter /
+comprehension) — the uncollect/collect center holds at the expression
+level as it did at the loop level (survey 1, finding 1). True
+accumulating folds are genuinely uncommon in this corpus family: 263
+across 2590 files, ~2% of all iteration constructs. That is the same
+result surveys 1–2 reached from the loop side — the scan is absent in
+infrastructure, concentrated in numerics — now confirmed from the
+combinator side. Read under the 80/20 counterweight: fold's rarity
+ranks it as *not needing effortlessness in infrastructure code*, not
+as unimportant. Survey 2 showed the ratio inverts in numerics, and the
+reduce-close operator-identity question keeps its breadth weight
+regardless of this count.
+
+### C.3 Search/early-exit is prominent at the expression level too
+
+Search combinators are 18% of all combinator uses (731), and the loop
+surveys independently found ~30% of statement loops terminate early.
+Both levels point the same way: data-driven termination and
+first-match readout is the highest-frequency everyday gap — end-when
+plus its readout composition (survey 1, finding 4), now sighted at a
+second syntactic level. Ruby carries it hardest (509 search
+combinators, where the language ships `.any?`/`.find`/`.detect`);
+Python spells the same intent as explicit loops or `any(genexp)`, and
+its membership tests (`x in c`, uncounted here) hide still more of it —
+so the search share is if anything undercounted.
+
+### C.4 The trichotomy is a property of the work, not the language
+
+Ruby spells iteration as blocks, JS splits `for` against `.map`,
+Python leans on explicit loops with comprehensions as its combinator
+surface — yet the collect/fold/search decomposition holds in all three
+despite the surface differences, and the collect≫search>fold ordering
+is the same in each. That the split survives three different library
+idioms is evidence it carves the work, not one ecosystem's method
+menu — the same "carving reality at its joints" check survey 2 applied
+to Cross and window.
+
+## Biases (census), with direction
+
+- **Same infrastructure corpora as survey 1** — parsing, IO, tooling;
+  no numerics, simulation, or UI. This is where fold is undercounted:
+  survey 2 showed folds concentrate in numerics, so a census over the
+  survey-2 domains would raise the fold share and could move the
+  no-state fraction. *Direction: undercounts fold; the ~60% figure is
+  an infrastructure figure only.*
+- **Uncounted collect/search forms.** Python `sorted()`, dict/set/list
+  constructors over genexps, and membership `in`; JS `.sort()`; Ruby
+  `.min`/`.max`/`.count`-with-block are not counted. *Direction:
+  undercounts combinators — so "loops dominate 2:1" is conservative;
+  the true combinator share is somewhat above 32.5%, not enough to
+  overturn the loop majority.*
+- **Name-based builtin detection (Python).** `map`/`filter`/`sum`/
+  `any`/`all`/`reduce` matched by callee name; a shadowed local or a
+  same-named method over-counts. *Direction: slight over-count of
+  Python combinators* — partially offsetting the previous bias.
+  Comprehensions (the bulk of Python collect) are `ast`-exact.
+- **JS residual string contamination.** Comment-stripped and
+  paren/brace-anchored, but a `for (` inside a string literal could
+  still count; it affects numerator and denominator alike and is
+  small.
+- **Occurrence-weighted, not size- or runtime-weighted.** One
+  syntactic occurrence = one count; nested comprehensions counted per
+  node. A census of what is written, not of what runs.
+- **Exhaustive, not sampled** — unlike surveys 1–3 the proportions are
+  not n = 30 coarse, but they inherit the corpus-family skew above.
+  Read them as "infrastructure code," not "all code."
+
+## What this changes, and what it doesn't
+
+For **survey 1's finding 1**: quantified. The claim holds as a ~60%
+majority and is annotated in place; the previously-unquantified
+"exclusion bias's direction alone" now has a magnitude (~7 points) and
+a corrected reading (the majority is stateless statement loops, not
+excluded combinators).
+
+For the **foundations** (uncollect/collect as the center): reconfirmed
+at the expression level (76% of combinators are pure collect),
+independently of the loop-level confirmation.
+
+For **end-when** (finding 4): reinforced — early-exit is prominent at
+the combinator level as well as the loop level.
+
+For **reduce-close and operator identities** (finding 2.3): fold's
+infrastructure rarity is now measured (~2% of iteration constructs),
+consistent with the scan's loop-level absence here and its numerics
+concentration in survey 2; the identity question's urgency is
+domain-shaped, and its *breadth* weight is unaffected by frequency
+(the 80/20 rule).
+
+Not changed: this census counts occurrences, so it does not classify
+which statement loops carry state (that is the loop surveys' job) and
+does not update their state/stateless proportions; the iteration-state
+candidates, the commute taxonomy, and the incremental flow are
+untouched.
