@@ -95,7 +95,9 @@ Everything else hinges on these two:
   only some branches of a case split; one k-ary partial-collect node.
 - [`product-flows-design.md`](product-flows-design.md) — Cross, the node
   for combining two independent (sibling) flows without nesting one in
-  the other; commute-as-transpose over products.
+  the other; commute-as-transpose over products. Also its positional
+  sibling, the aligned product (zip) — same-extent pairing by position —
+  and the multi-wire collect (the table) as zip's value form.
 - [`time-travel-programs-design.md`](time-travel-programs-design.md) —
   letting you draw under-committed programs (order left unstated) and
   having the editor complete them by published rules, shown faint.

@@ -428,31 +428,43 @@ an order a product doesn't have); the provenance product segment against
 the walk-and-classify algorithm (questions 4, 5, 8). Spec entry and
 textual spelling are owed bookkeeping.
 
-The **aligned product (zip)** is a named demand on this row: Cross's
-positional sibling — same extent paired by position vs independent
-extents paired exhaustively. The compile already owns a stream-level
-zip primitive, so the gap is authoring vocabulary; Conway's Life needs
-Cross to enumerate the neighborhood and zip to overlay it, at rank 2 —
-the record's one localized representation struggle. W = 4 (raised from
-3): the data frame is the multi-wire flow **at rest** — k columns = k
-value wires, n rows = n firings, alignment retained from common
-provenance. The row now owns tabular data as a domain, not just
-lockstep pairing as an operation, and the aligned product gains its
-**value form** as a named demand — the multi-wire collect whose product
-is a table (k lists that remember they were collected from the same
-walk) and whose uncollect returns the wires; k sibling collects today
-forget they shared a walk. The row-splat wart, dplyr's documented
-retreat from purrr's map-arity matrix to table-native `rowwise`, and
-join suffix collisions argue the open form is wires, not row-structs.
-Small data: per-edge alignment (`reduce2`'s length-(n−1) second input)
-and the observed-product vs full-product distinction (tidyr's
-`nesting()` inside `expand`). Honesty: a curated corpus; the move is
-about the row's scope, and the owed field sample (real analysis
-scripts) should confirm it. Prior art: Zig's multi-object
-`for (a, b) |x, y|` as primary loop syntax, with the length-equality
-side condition asserted at the barrier and indices as one more aligned
-lane (`for (items, 0..)`). See `apl-family-comparison.md`,
-`zig-comparison.md`, `tidyverse-comparison.md`, `product-flows-design.md`.
+The **aligned product (zip)** is now worked (`product-flows-design.md`,
+"The aligned product (zip)"): Cross's positional sibling — same extent
+paired by position vs independent extents paired exhaustively — as a
+flow-only barrier whose output is *one widened flow* (not nesting) and
+whose demand is co-extent. The central result is the asymmetry with
+Cross: Cross's independence is always structurally checkable, but zip's
+co-extent is structural only under **shared provenance** (both lanes
+downstream of one uncollect by extent-preserving ops — then zip is free,
+a re-bundle of wires that already fire together, and k sibling collects
+are aligned by this rule), and otherwise a **runtime precondition
+asserted at the barrier** with a failure witness — the pole Zig ships as
+`for`'s length-equality assertion and APL as a conformance error. The
+**value form** landed with it: the multi-wire collect whose product is a
+table (k lists that remember they were collected from the same walk) and
+whose uncollect returns the aligned wires; the row-splat wart, dplyr's
+retreat from purrr's map-arity matrix to `rowwise`, and join suffix
+collisions confirmed the open form is wires, not row-structs. Scalar
+extension separated cleanly as Incorporate's implicit costume (a clash
+note, not zip); indices are a counted source-opener lane borrowing a
+sibling's extent (answering translation-exercise finding 10). W = 4
+(raised from 3): the data frame is the multi-wire flow **at rest** — k
+columns = k value wires, n rows = n firings, alignment retained from
+common provenance; the row owns tabular data as a domain, not just
+lockstep pairing as an operation. Residue filed to owners: the co-extent
+assertion's exact property/precondition form; the table's at-rest and
+textual spelling; **rank-2 zip's axis handling — Conway's Life needs
+Cross to enumerate the neighborhood and zip to overlay it at rank 2, the
+record's one localized representation struggle**, riding this row's
+n-ary/axis debt; and per-edge alignment (`reduce2`'s length-(n−1) second
+input) to the register round. The unexamined interactions above — join
+on a product, registers over products, the provenance product segment
+(questions 4, 5, 8) — plus tidyr's observed-product vs full-product
+distinction (`nesting()` inside `expand`), remain the row's open core;
+I stays 3. Honesty: a curated corpus; the owed field sample (real
+analysis scripts) should still confirm the scope move. See
+`apl-family-comparison.md`, `zig-comparison.md`,
+`tidyverse-comparison.md`, `product-flows-design.md`.
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
