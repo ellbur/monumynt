@@ -576,6 +576,10 @@ should not be re-proposed:
   `bounded(n)`-as-resource, and the served flow are the
   concurrency area's other members; this round only borrowed
   the completions stream as the dynamic-set answer.
+  *(2026-07-11: now written — `concurrent-collect-design.md`;
+  the borrowed completions stream is designed there as the
+  settle node's one flow output, primitive at exactly the
+  dynamic-set boundary dead end 5 drew.)*
 - **End-when's adoption** — the sibling confirmation here is
   mechanics evidence for that doc's conjecture, not a move in
   its adoption question.

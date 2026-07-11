@@ -765,7 +765,20 @@ Ranked by independent demand across the five use cases:
    a fold. But the survey's headline cuts the other way: the race/
    timeout/interrupt cluster outweighed collect-species demand
    nine-to-one — see the note on the race round under finding 3.1
-   there.)*
+   there.)* *(2026-07-11: the item's own round is written —
+   `concurrent-collect-design.md`, an exploration round with
+   leanings that finishes the addendum's dissolution: `serial` is
+   the nested drawing, `keyed` is the keyed partition
+   (`collect-family-design.md`) instantiated, and what remains is
+   one primitive binary flow operation ("settle") minting the
+   completions flow in settlement order, with the body's settled
+   result as a per-firing discharged sum. Lifecycle outputs:
+   completions is the node's one flow output; starts is
+   availability, not a port. `bounded(n)` splits into a width
+   (this node's configuration) and shared permits
+   (bracket-shaped, failable, fenced to the Tier-1 round).
+   Registers: ill-formed across bodies, ordinary on the
+   completions flow. Leanings, nothing adopted.)*
 2. **The served flow** — an external flow kind whose firings are
    exchanges; the collect's per-firing value is delivered back to
    the source. Demanded by: server (responses), websocket
@@ -879,13 +892,28 @@ document's motivating programs actually had their bugs.
    configuration); whether `keyed`'s key is a port or a
    configured scope. Also the register interaction: forbid off
    `serial`, or define arrival-order stepping?
+   *(2026-07-11: worked in `concurrent-collect-design.md`. The
+   dimension dissolves entirely — no mode survives; the key is
+   the keyed partition's ordinary key wire; `bounded(n)`'s n
+   splits (width as configuration now, permits as a Tier-1
+   resource later); and the register question resolves into
+   both halves: ill-formed across concurrent bodies (structural
+   check) and arrival-order stepping delivered as an ordinary
+   register on the completions flow, where the serialisation is
+   drawn. Leanings, not adopted.)*
 2. **Concurrent collect output ordering.** The main output: is
    it completion-ordered (a merge) or input-ordered (a
    commute-like reassembly, buffering completions)? Both are
    real programs (log lines vs HTTP/1.1 pipelining). Two collect
    readings or an annotation? Interacts with the served flow,
    where the "output" is per-firing delivery and ordering is
-   moot.
+   moot. *(2026-07-11: dissolved in
+   `concurrent-collect-design.md` — the node has no main result
+   port at all (the co-location criterion); completion-ordered
+   results are an ordinary collect over the completions flow,
+   input-ordered results are a commute-family reassembly block
+   (filed to the commute taxonomy with its head-of-line cost
+   stated). Neither is a mode. A leaning, not adopted.)*
 3. **Served-flow failure legs.** The requester vanishes
    mid-exchange (client disconnect): the firing's flow is
    already open, the collect's delivery has nowhere to go. Is

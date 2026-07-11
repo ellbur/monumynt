@@ -176,6 +176,27 @@ first-implementation convenience, rejected long-term.
   derived vocabulary. **An exploration round with leanings, not
   an adopted design** — prepared for the design conversation;
   five dead ends recorded.
+- [`concurrent-collect-design.md`](concurrent-collect-design.md)
+  — the concurrent collect's own round (2026-07-11), which
+  dissolves the name along with the species menu: `serial` is
+  the ordinary nested drawing, `keyed` is the keyed partition
+  instantiated (lane-serial by nesting, cross-lane overlap by
+  siblinghood — the replug race dissolves), and what remains is
+  one primitive binary flow operation (**settle**, placeholder
+  name) minting the **completions flow** — one firing per body
+  settlement, in settlement order, the input firing's values
+  crossing by availability and the settled result minted as a
+  per-firing discharged sum (failures as data for supervisors).
+  The drain termination law makes graceful shutdown a +1 ladder;
+  output ordering dissolves (no main-result port; completion
+  order is a downstream collect, input order a commute-family
+  reassembly); registers are ill-formed across bodies and
+  ordinary on the completions flow; `bounded(n)` splits into a
+  width (configuration, now) and shared permits (bracket-shaped,
+  failable, Tier-1); exhaustMap files to the source-boundary
+  family (buffer/latest/drop), not to a collect species. **An
+  exploration round with leanings, not an adopted design** —
+  prepared for the design conversation; six dead ends recorded.
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (vars): hold/changes, cutoff, push-with-values
   inside a necessity frontier as the destination.
