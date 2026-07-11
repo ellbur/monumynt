@@ -115,6 +115,10 @@ Everything else hinges on these two:
 - [`collect-family-design.md`](collect-family-design.md) — the empty
   collect (what does an empty sum/max return?), identities as catalog
   rows, and the keyed collect (group-by as flows). *Exploration.*
+- [`speculation-design.md`](speculation-design.md) — ordered alternatives
+  with rollback (try-in-order choice for parsers and search): race's
+  *sequential* sibling, where restoration is structural (the shared input
+  wire, not a save/restore operation). *Exploration.*
 
 ## Flow kinds beyond lists
 

@@ -339,38 +339,6 @@ configuration on the test double. See `effekt-comparison.md`,
 `flix-comparison.md`, `apl-family-comparison.md`, `reactive-comparison.md`,
 `zig-comparison.md`, `tidyverse-comparison.md`, `collect-family-design.md`.
 
-**Speculation: ordered alternatives with rollback — I 4, W 3.**
-Try alternatives in drawn order; an attempt can fail; the world is
-restored between attempts. Field demand predates any round (breadth
-item 6, the backtracking parser: "wants the save/restore pairing
-visible"; `real-loop-survey.md`), and comparison rounds found the shape
-independently — parser, pretty-printer-as-search, Raku grammars, jq.
-Pieces exist — race's drawn-order ties (`race-barrier-design.md`),
-failability's fail, the chooser family (`tough-use-cases-design.md`
-item 4), registers (express save/restore but illegibly) — but nothing
-owns the construct.
-
-The recorded leaning for its round: a sequential, ordered race-sibling
-with failable contenders, consumed input threaded as positional values
-so restoration is structural (the contrast with Effekt's
-allocation-position rollback is the argument); check the +1 ladder
-first-success → all-results → bounded → heuristic order. W = 3 as a
-breadth obligation: parsing and search are rare-but-breaking. Prior
-art: Raku distinguishes ordered try-in-order choice (`||`) from
-best-match-under-a-tie-law choice (`|`, longest-token — race's
-structural sibling) as distinct constructs, not to be conflated;
-commitment (ratcheting) is its everyday mode, supporting the
-threaded-values leaning; a failed parse must say what it expected
-(FAILGOAL — error diagnosis belongs to the construct). jq is the
-shipped *positive* witness for threaded values: a nondeterministic
-language with zero state-restoration machinery, because an abandoned
-alternative is just an unconsumed value stream (caveat: jq owns no
-consumed-input notion, so restoration-free abandonment comes free
-there; the parsing case still has to thread positions). Clash note:
-jq's `//` conflates flow-level absence with value-level falsiness —
-unwritable under the value/flow wire sort. See `effekt-comparison.md`,
-`raku-grammars-comparison.md`, `xquery-jq-comparison.md`.
-
 **Saturation: closure under rules — I 5, W 3.**
 Compute the closure of a seed set under derivation rules until nothing
 new appears — graph reachability/cycles/ordering, dependency
@@ -582,6 +550,49 @@ five dead ends recorded. Remaining: the adoption conversation, the
 spec-side reconciliation (its Join's value ports re-read as drawn
 availability), and the concurrent join × Cross unification question it
 strengthened.
+
+**Speculation: ordered alternatives with rollback — I 3, W 3.**
+Try alternatives in drawn order; an attempt can fail; the world is
+restored between attempts. Now worked in `speculation-design.md`: the
+sum-side barrier that is race's *sequential* sibling (winner by
+success-in-drawn-order, not settlement-in-time), with the load-bearing
+result that **restoration is not an operation** — it is an emergent
+property of immutable values + ordinary sharing + ordered fallback, so
+the shared input wire fanning into the contenders *is* the save/restore
+pairing breadth item 6 wanted visible. Contenders are failable by
+construction; a soft-fail is discharged into "try the next," and the
+whole barrier decomposes into a right-nested chain of discharges over
+failability. Commitment is worked as the two terminator lanes (soft →
+try next, hard → propagate) with a `commit` marker upgrading soft to
+hard (Raku's tilde/FAILGOAL); diagnosis is a terminator payload;
+concatenation falls out as ordinary position-threading chaining;
+recursion is deferred to the divide flow. The +1 ladder (first-success
+→ all-results → bounded → heuristic order) holds, heuristic order
+bridging to the chooser family. Five dead ends recorded (backtracking
+substrate everywhere; rollback-by-allocation-position; continuation/
+`alt` as a value; conflating with best-match `|`; `//`'s empty/falsy
+conflation).
+
+Remaining: the adoption conversation; primitive-barrier-vs-catalog-block
+(shared with race); commit's exact form and its nesting behavior;
+diagnosis payload composition (joint with failability's residue and
+end-when's discharge); the heuristic-order rung's membership in the
+chooser family; release-of-effectful-attempts (waits on the Tier-1 IO
+round — only the trigger is named). W = 3 as a breadth obligation:
+parsing and search are rare-but-breaking; the evidence-owed domain
+sample would re-weight W, never demote on rarity. Field demand predates
+the round (breadth item 6, the backtracking parser's save/restore
+cursor; `real-loop-survey.md`, ruby 7's PEG `# choice` block). Prior
+art: Raku distinguishes ordered try-in-order choice (`||`) from
+best-match-under-a-tie-law choice (`|`, longest-token — race's
+structural sibling), not to be conflated; commitment (ratcheting) is
+its everyday mode, supporting the threaded-values-as-substrate leaning;
+FAILGOAL puts error diagnosis inside the construct. jq is the shipped
+*positive* witness for threaded values (zero state-restoration
+machinery, because an abandoned alternative is an unconsumed value
+stream — caveat: jq owns no consumed-input notion, so parsing still
+threads positions). See `speculation-design.md`, `effekt-comparison.md`,
+`raku-grammars-comparison.md`, `xquery-jq-comparison.md`.
 
 ## Tier 4 — presentation and polish (≤ 7)
 
