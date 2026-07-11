@@ -1,74 +1,63 @@
 # Real-Loop Survey: Random Loops Against the Block Inventory
 
-> **Status update (2026-07-10).** This document now holds **three**
-> surveys. Survey 1 (below, unchanged): thirty loops from
-> infrastructure corpora (Python/Ruby stdlib, npm's JS). Survey 2
-> ("Survey 2: the missing domains"): thirty loops from six domain
-> corpora targeting survey 1's stated gap — numerics, algorithms,
-> simulation, UI/event handling, games, graphics. The single most
-> consequential correction of survey 2: **the scan occurred,
-> concentrated exactly where survey 1 predicted** (numerics), so
-> survey 1's "scan absent" finding is confirmed as corpus skew, not a
-> fact about real code. Survey 3 ("Survey 3: concurrency
-> orchestration", appended 2026-07-10): thirty **concurrency
-> orchestration sites** — a different unit than loops — from six
-> server/async-heavy corpora, giving the candidate-block inventory's
-> items 1–3 the frequency treatment items 4–5 got from the loop
-> surveys. Its headline: the sum-shaped barriers (race / timeout /
-> interrupt / cancellation) dominate the sample nine-to-one over the
-> all-of join, and every hand-rolled race reconstructs "who won" from
-> side flags rather than receiving it structurally.
->
-> **How to read the tallies.** Frequency is not importance (the 80/20
-> counterweight — "Reading the frequencies", near the end, now also a
-> standing rule of the method): high frequency ranks what must be
-> effortless; a shape drawn once is a breadth obligation, not a
-> deprioritization candidate. The singleton hard draws are collected
-> there as **the breadth set** — nine loops the language must handle
-> without too much pain.
+This is an evidence document, not a design proposal. It classifies
+seeded random samples of real code against the language's designed and
+candidate constructs, and reports what the frequencies say. It decides
+nothing.
 
-> **Status (2026-07-09).** First execution of the sampling plan that
-> `iteration-rails-design-notes.md` set out ("sample real loops
-> randomly from real code... don't filter for interesting cases") and
-> that `iteration-with-state-design.md` names as the test for the
-> state thread's one-writeback rule. This is an evidence document,
-> not a design round: it classifies a seeded random sample of thirty
-> loops from three real codebases against the language's designed and
-> candidate constructs, and reports what the frequencies say. It
-> decides nothing. Its known biases are stated in "Protocol" and its
-> corpus gap (no numerics, simulation, or UI code) is the stated next
-> round. Findings feed three places: the iteration-state decision bar
-> (`iteration-with-state-design.md`), the thread's one-writeback
-> question (same doc, "Open questions for the thread"), and the
-> ranked candidate-block inventory (`tough-use-cases-design.md`).
->
-> **Adopted as a standing method (2026-07-09).** On review of this
-> first run, sampling reality this way was adopted as a recurring
-> practice, to be used frequently — not a one-off. The method's
-> statement, its rules (seeded, unfiltered, biases stated, evidence
-> separated from decision), and when to reach for it live in
-> `language-design-philosophy.md`, "A standing method: sample
-> reality." Future surveys should reuse the protocol shape below,
-> varying the corpus or the unit sampled, and extend this record
-> rather than replace it.
+The doc holds three surveys:
 
-## Why this document exists
+- **Survey 1** — thirty loops from infrastructure corpora (Python and
+  Ruby standard libraries, npm's JavaScript).
+- **Survey 2: the missing domains** — thirty loops from six domain
+  corpora chosen to fill Survey 1's stated gap: numerics, graph
+  algorithms, simulation, terminal UI, game logic, 3D graphics. Its
+  headline correction: the running-sum scan, which never appeared in
+  Survey 1, *does* occur — concentrated exactly where Survey 1
+  predicted (numerics). So Survey 1's "scan absent" result is corpus
+  skew, not a fact about real code.
+- **Survey 3: concurrency orchestration** — thirty concurrency *sites*
+  (a different unit than a loop) from six server/async-heavy corpora,
+  giving the candidate-block inventory's items 1–3 the frequency
+  treatment the loop surveys gave items 4–5. Its headline: sum-shaped
+  barriers (race / timeout / interrupt / cancellation) dominate
+  nine-to-one over the all-of join, and every hand-rolled race
+  reconstructs "who won" from side flags rather than receiving it
+  structurally.
 
-The rail notes ended with a warning and a plan. The warning: designing
-iteration-state constructs from first principles "risks designing to
-the theory's existing categories rather than to what real iterative
-code actually looks like." The plan: sample whole loops randomly from
-real code across domains, don't filter for interesting cases, and
-study the shape — what state is carried, how it updates, what's read
-after, what's set up before. The iteration-state document then made
-the plan load-bearing twice over: the fourth option's one-writeback
-rule ("conditional carry expressed as a conditional value wired into
-the single writeback") is explicitly to be tested against that sample,
-and the rail-notes question — what proportion of real loops the simple
-rail pattern actually fits — bears directly on whether a loop-carried
-register deserves to be the *central* construct or a tail construct.
+**How to read the tallies.** Frequency is not importance. This is the
+80/20 counterweight, stated in full under "Reading the frequencies"
+near the end and now a standing rule of the method: high frequency
+ranks what must be *effortless*; a shape drawn only once is a *breadth
+obligation*, not a candidate for deprioritization. The singleton hard
+draws are collected there as **the breadth set** — nine loops the
+language must handle without too much pain.
 
-Nobody had run the sample. This document runs it.
+## Why sample real loops
+
+Designing iteration constructs from first principles "risks designing
+to the theory's existing categories rather than to what real iterative
+code actually looks like" (`iteration-rails-design-notes.md`). The
+remedy is to sample whole loops at random from real code across
+domains, without filtering for interesting cases, and study the shape:
+what state is carried, how it updates, what is read afterward, what is
+set up before.
+
+Two questions make this load-bearing. First, the one-writeback rule of
+`iteration-with-state-design.md` — "conditional carry expressed as a
+conditional value wired into the single writeback" — is to be tested
+against exactly this sample. Second, the rail-notes question of what
+proportion of real loops the simple rail pattern actually fits bears
+directly on whether a loop-carried register deserves to be the
+*central* construct or a tail one.
+
+Sampling reality this way is now a standing practice, to be used
+frequently, not a one-off. Its statement and rules (seeded, unfiltered,
+biases stated, evidence kept separate from decision) live in
+`language-design-philosophy.md`, "A standing method: sample reality."
+Findings feed three places: the iteration-state decision bar
+(`iteration-with-state-design.md`), that doc's one-writeback question,
+and the ranked candidate-block inventory (`tough-use-cases-design.md`).
 
 ## Protocol
 
@@ -585,11 +574,10 @@ random real code, for whatever this corpus family is worth.
 
 ### 2. The running-sum scan did not occur
 
-*(2026-07-09, later: survey 2 sampled the missing domains and the
-scan occurred immediately and repeatedly in the numerics corpus —
-see survey 2, finding 2.1. This finding's caveat paragraph was right:
-it was corpus skew. The finding stands for infrastructure code
-specifically.)*
+*(Survey 2 sampled the missing domains and the scan occurred
+immediately and repeatedly in the numerics corpus — see Survey 2,
+finding 2.1. The caveat below was right: it was corpus skew. This
+finding stands for infrastructure code specifically.)*
 
 The case that anchors the entire iteration-state design conversation —
 `sum = sum + element`, the concrete example behind the link, Delay,
@@ -761,8 +749,8 @@ result in the sample.
   UI/event handling (e.g. a scientific-computing library, a game or
   physics engine, a GUI toolkit) — to test whether the scan's absence
   is real or corpus skew. This is the one finding above that could
-  flip. *(Done, same day — "Survey 2" below. It flipped, exactly as
-  anticipated: the scan lives in numerics.)*
+  flip. *(Done — "Survey 2" below. It flipped, exactly as anticipated:
+  the scan lives in numerics.)*
 - **Larger n** if any proportion needs to be load-bearing rather than
   indicative.
 - **A combinator census** (comprehensions, map/filter/reduce counts per
@@ -774,9 +762,8 @@ result in the sample.
 
 # Survey 2: the missing domains
 
-*(2026-07-09, later the same day. Thirty more loops, six domain
-corpora chosen to fill survey 1's stated gap. Same method; protocol
-amendments below.)*
+Thirty more loops from six domain corpora chosen to fill Survey 1's
+stated gap. Same method; protocol amendments below.
 
 ## Protocol (survey 2)
 
@@ -1381,9 +1368,9 @@ in five languages:
 
 ## Reading the frequencies: the 80/20 counterweight
 
-*(Recorded position, 2026-07-09, on review of both surveys. Now also
-a standing rule of the method — `language-design-philosophy.md`, "A
-standing method: sample reality".)*
+*(Now also a standing rule of the method —
+`language-design-philosophy.md`, "A standing method: sample
+reality".)*
 
 The tables above must not be read as "optimize for the fat rows and
 deprioritize the thin ones." A sample measures how often a shape
@@ -1437,17 +1424,16 @@ Six of nine have at least a designed owner to be tested against;
 items 1, 2, and 4 — all three faces of variable-rate consumption and
 the running view — have none. By the 80/20 reading, that cluster is
 where the language's breadth risk currently concentrates, whatever
-the frequency tables say about scans and searches. *(2026-07-09,
-later: the cluster now has a worked exploration round to be tested
-against — `variable-rate-consumption-design.md` (split-when; the
-running view as the collect's derived state port), which works items
-1, 2, and 4 end-to-end, including their +1 ladders. Nothing adopted;
-the "no owner" statements above describe the record as sampled.)*
+the frequency tables say about scans and searches. *(The cluster now
+has a worked exploration round to be tested against —
+`variable-rate-consumption-design.md` (split-when; the running view as
+the collect's derived state port), which works items 1, 2, and 4
+end-to-end, including their +1 ladders. Nothing adopted; the "no owner"
+statements above describe the record as sampled.)*
 
-*(Companion criterion, adopted the same day as the seventh principle —
-"Building blocks must build", `language-design-philosophy.md`: each
-breadth-set member is also an **expansion test**, not just an
-expressibility test. The question is not only "can this be written
+*(Companion criterion, from the seventh principle — "Building blocks
+must build", `language-design-philosophy.md`: each breadth-set member
+is also an **expansion test**, not just an expressibility test. The question is not only "can this be written
 without pain" but "is it reachable from the simple form of the same
 program by +1 steps" — the theta kernel from a beginner's running
 sum by adding links; the wrap loop from a plain list collect by
@@ -1465,21 +1451,21 @@ same constructs the hard case is built from.)*
   and GPU plumbing, not its event/render loop).
 - **A concurrency-focused sample** (server codebases, async-heavy
   projects) to give the tough-use-cases inventory items 1–3 the same
-  frequency treatment items 4–5 got here. *(Done, 2026-07-10 —
-  "Survey 3" below, with a protocol variation: the unit sampled is
-  the orchestration site, not the loop.)*
+  frequency treatment items 4–5 got here. *(Done — "Survey 3" below,
+  with a protocol variation: the unit sampled is the orchestration
+  site, not the loop.)*
 - **Larger n / combinator census**: as before.
 
 ---
 
 # Survey 3: concurrency orchestration
 
-*(2026-07-10. Thirty concurrency orchestration sites from six
-server/async-heavy corpora. Same method, different unit: surveys 1–2
-sampled loops; this survey samples the places where code creates,
-coordinates, or guards concurrency, because that is where inventory
-items 1–3 — the concurrent collect, the served flow, bracket — and
-the async doc's barriers live. Protocol below.)*
+Thirty concurrency orchestration sites from six server/async-heavy
+corpora. Same method, different unit: Surveys 1–2 sampled loops; this
+survey samples the places where code creates, coordinates, or guards
+concurrency, because that is where inventory items 1–3 — the concurrent
+collect, the served flow, bracket — and the async doc's barriers live.
+Protocol below.
 
 ## Why a different unit
 
@@ -2322,7 +2308,7 @@ commute taxonomy, or the incremental flow — as expected from the
 corpus family; and this survey, sampling sites rather than loops,
 does not update the loop-shape proportions of surveys 1–2.
 
-## Next round (updated, 2026-07-10)
+## Next round (updated)
 
 - **Application-level concurrency** — these corpora *implement*
   concurrency infrastructure; a sample of applications that *use*

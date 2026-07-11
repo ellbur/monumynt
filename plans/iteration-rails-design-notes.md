@@ -1,78 +1,132 @@
 # Iteration Rails: Design Notes
 
-> **Status (2026-07-09).** The rail *mechanisms* recorded here died — the
-> diagonal wire, TapIn/TapOut, `ById` references (the reasons are in
-> this document and under Delay in `visual-language-spec.md`) — and
-> the spec's construct is now Delay. But this doc is
-> deliberately kept: the rail is not looking promising, yet not totally
-> out, and some of its ideas — the one-visible-column constraint, the
-> state-thread depiction, the split between how a value is *carried* and
-> how it is *named* — may need resurrecting to harmonize Delay and state
-> flows. Read alongside `iteration-with-state-design.md`, which holds
-> the two live candidates and remains the biggest open design area.
+> **Status: kept exploration.** The rail *mechanisms* here are rejected — the
+> diagonal wire, TapIn/TapOut, and `ById` references (reasons below, and under
+> Delay in `visual-language-spec.md`). The spec's construct is now **Delay**.
+> The document is deliberately kept anyway: the rail is not promising as drawn,
+> but not fully out either, and three of its ideas may need resurrecting to
+> harmonize Delay with state flows — the *one-visible-column* constraint, the
+> *state-thread* depiction, and the split between how a value is *carried* and
+> how it is *named*. Read alongside `iteration-with-state-design.md`, which
+> holds the two live candidates for the semantic form and remains the biggest
+> open design area.
 
-## Background and Problem
+This is the visual companion to the loop-carried-state question. The semantic
+work lives in `iteration-with-state-design.md`; this doc asks how the same
+construct should be *drawn*, and records why the obvious drawing failed.
 
-The visual flow language uses a 2D spread model for list iteration: horizontal position represents position in the iteration, vertical position represents computational steps. To carry a value from one iteration to the next, the original design used a **diagonal wire** — a line from a value at position *i*, step *n* down to a tap at position *i+1*, step *n+1*. This is the "iteration rail."
+## The problem: carrying a value between iterations
 
-Two problems with the diagonal rail motivated this redesign:
+The visual flow language uses a 2D spread for list iteration: horizontal
+position is position in the iteration, vertical position is computational
+step. To carry a value from one iteration into the next, the first design ran
+a **diagonal wire** — from a value at position *i*, step *n*, down to a tap at
+position *i+1*, step *n+1*. That diagonal is the "iteration rail."
 
-1. **Legibility.** A diagonal introduces a third semantic axis on top of the existing two (horizontal = position, vertical = computation). The reader has to mentally translate the diagonal as "same logical value, one iteration later" — a meaning that nothing else in the language uses. The picture in the original document is hard to parse even for a single carried value.
+Concretely, the pattern the rail must draw is a running accumulator. In the
+textual form (`textual-representation-design.md`), that is a register:
 
-2. **Rigidity.** Only the simplest case — single-step `prev` — renders cleanly. Two carried values produce crossing diagonals. Lookback by more than one iteration produces steeper or stacked diagonals. Conditional updates have no natural diagonal form. Anything beyond the trivial case is a mess.
+```
+xs -> open list => a, ~L
+~L ~> delay init 0 => sum
+sum, a -> add -> step of sum => total    -- running sum: each step adds the element
+```
 
-A deeper diagnosis: the diagonal was conflating two distinct things — *how a value is physically carried between iterations* and *how the user names a previous value*. These don't need to share a mechanism.
+The diagonal drawing of this fails in two ways.
 
-## Constraints That Shaped the Design
+**Legibility.** The diagonal is a third semantic axis stacked on the two the
+spread already uses (horizontal = position, vertical = computation). The reader
+has to translate it as "the same logical value, one iteration later" — a
+meaning nothing else in the language carries. Even for a single carried value
+the picture is hard to parse.
 
-Several constraints emerged during the design conversation, in order of importance:
+**Rigidity.** Only the simplest case — single-step `prev` — renders cleanly.
+Two carried values give crossing diagonals. Lookback past one iteration gives
+steeper or stacked diagonals. Conditional updates have no natural diagonal form
+at all. Everything beyond the trivial case tangles.
 
-### Stay visual
+The root diagnosis: the diagonal conflated two separate things — *how a value
+is physically carried between iterations* and *how the user names a previous
+value*. These need not share a mechanism, and forcing them together is what
+made the drawing overload.
 
-The language is visual; carrying state across iterations should be too. An "elegant" mechanism that requires the reader to mentally simulate hidden semantics — for example, a generic register with read/write ports — fails this test. Two registers next to each other look identical regardless of what they hold; meaning lives entirely in what's wired to them. That collapses into the imperative paradigm wearing visual clothing, which is precisely what the language is trying to avoid.
+## Constraints that shaped the redesign
 
-The picture has to *show* what's being carried, not just provide a slot for it.
+Four constraints, in order of weight.
 
-### Don't introduce semantic dimensions you can't sustain
+**Stay visual.** Carrying state across iterations must be visible, not a hidden
+semantics the reader simulates. A generic read/write register fails this: two
+registers side by side look identical no matter what they hold, so meaning
+lives entirely in what is wired to them. That is the imperative paradigm in
+visual clothing — exactly what the language avoids. The picture must *show*
+what is carried, not just offer a slot for it.
 
-The 2D model already uses horizontal and vertical for clear, distinct things. A diagonal is a third axis with its own meaning, and that meaning ("one iteration later") only renders cleanly for the trivial case. Adding load-bearing semantic axes that degenerate under generalization is the failure mode to avoid.
+**Do not introduce a semantic dimension you can't sustain.** The 2D model
+already spends horizontal and vertical on distinct, clear meanings. A diagonal
+is a third load-bearing axis that renders cleanly only for the trivial case.
+An axis that degenerates under generalization is the failure mode to avoid.
 
-### The user only sees one iteration
+**The user only ever sees one iteration.** This is the constraint that changed
+the picture most. When a spread is opened, the diagram shows **one column** —
+the generic iteration. The wire labeled `elem` means "the element at the
+current position," not element 0 or element 5. There is no row of concrete
+columns at design time, because the data isn't known when the program is
+written. So a cross-iteration construct can never *span multiple known
+positions*; its horizontal extent must be schematic, standing for the *idea* of
+adjacent iterations, never for concrete instances.
 
-This is the most important constraint and the one that changed the picture most. When a spread is opened, the diagram shows **one column** — the generic iteration. The wire labeled `elem` is "the element at the current position," not element 0 or element 5. There is no row of real columns at design time, because the data isn't known when the program is being written.
+**Limit ambition to keep the picture stable.** The original rail tried to be
+everything at once — loop variable, arbitrary cross-iteration reference, scan
+accumulator, sliding state. That reach is what made it tangle. Restricting the
+rail's job tightly keeps its shape predictable, at the cost of needing other
+constructs for the patterns it drops.
 
-This rules out drawing the rail as something that visibly spans multiple known positions. The horizontal extent of any cross-iteration construct must be schematic — it can only represent the *idea* of adjacent iterations, not concrete instances.
+## The rail as redesigned
 
-### Limit ambition to keep the picture stable
+Scope is narrowed to one purpose: **depict a single loop-carried variable.** It
+compiles directly to one mutable register in the generated loop — no dependency
+analysis, no soundness check, no lazy fallback.
 
-The original rail tried to be everything: loop variable, arbitrary cross-iteration reference, scan accumulator, sliding state. Trying to generalize is what made it tangle. Restricting the rail's job tightly keeps its visual shape predictable, at the cost of needing other constructs for the patterns it no longer covers.
+**Supported:**
 
-## The Rail as Currently Designed
+- **Single-step `prev`** — the carried value from the immediately previous
+  iteration.
+- **One carried value per rail.** Several loop variables = several parallel
+  rails.
+- **An explicit initial value**, joined to the rail by a dotted line.
 
-The rail is now restricted to a single, narrow purpose: **the visual depiction of a loop-carried variable.** It compiles directly to a single mutable register in the generated loop. No dependency analysis, no soundness check, no lazy fallback.
+**Deliberately unsupported:**
 
-### What the rail supports
+- **`prev(prev(...))` — multi-step lookback.** To get it, draw two rails, one
+  feeding the other, so the chain of carried values is visually explicit.
+  Provisionally, in text:
 
-- **Single-step `prev`.** The value of the carried variable from the immediately previous iteration.
-- **Single carried value per rail.** Multiple loop variables = multiple parallel rails.
-- **An explicit initial value**, connected to the rail by a dotted line.
+  ```
+  ~L ~> delay init 0 => a        -- provisional spelling
+  ~L ~> delay init 0 => b
+  a -> step of b                 -- b holds a's previous value: two-step lookback, made explicit
+  ```
 
-### What the rail explicitly does not support
+- **`next` — forward reference.** Not expressible as a loop variable.
+- **Cross-iteration references to arbitrary computed values.** The rail is for
+  state, not for arbitrary peeking into other iterations.
 
-- **`prev(prev(...))`** — multi-step lookback. If you want it, draw two rails, one feeding the other. This forces the chain of carried values to be visually explicit, which is correct.
-- **`next`** — forward reference. Not expressible as a loop variable.
-- **Cross-iteration references to arbitrary computed values.** The rail is for state, not for arbitrary peeking.
-
-These omissions are intentional. They keep the rail's visual shape stable: enter from the left, get tapped, get written back, exit to the right.
+These omissions are intentional: they keep the rail's shape fixed — enter from
+the left, get tapped, get written back, exit to the right.
 
 ### Visual shape
 
-The user only sees the single generic iteration column. The rail enters from off-screen-left, crosses the column, and exits to off-screen-right. No ghost columns or schematic neighborhoods are needed, because the rail only reaches into abstract previous/next space — it never visualizes another iteration.
+The user sees only the single generic column. The rail enters from
+off-screen-left, crosses the column, and exits off-screen-right. No ghost
+columns or schematic neighborhoods are needed, because the rail reaches only
+into abstract previous/next space — it never draws another iteration.
 
-Within the column, the rail makes two connections:
+Within the column the rail makes two connections:
 
-- **Read (tap down):** On the left side of the column, the rail's value is tapped into a wire that feeds a node in the iteration body. This is `prev`.
-- **Write (writeback up):** On the right side of the column, the result of the iteration's computation is wired back up onto the rail. This becomes the next iteration's `prev`.
+- **Read (tap down):** on the left of the column, the rail's value is tapped
+  into a wire feeding a node in the body. This is `prev`.
+- **Write (writeback up):** on the right, the body's result is wired back up
+  onto the rail, becoming the next iteration's `prev`.
 
 ```
        ┌─────┐
@@ -92,73 +146,152 @@ Within the column, the rail makes two connections:
                   (running sum)
 ```
 
-The body of the iteration sits between the read and the writeback. The `⊕` node has two inputs (`prev` from the rail, `elem` from the column) and one output (back up to the rail). The rail's shape is fixed: one read, one write, with the body between them.
+The body sits between read and writeback. The `⊕` node takes two inputs
+(`prev` from the rail, `elem` from the column) and produces one output (back up
+to the rail). This is the same program as the `delay`/`step` register above:
+`prev` is the read half, the writeback is `step of sum`, the dotted `0` is
+`init`.
 
-### Initial value and final value
+### Initial and final value
 
-The **initial value** sits outside the rail's loop region, connected by a dotted line. The dotted line signals that the connection is structural — it's part of how the rail is set up — rather than per-iteration data flow. Solid wires inside the column represent computation that happens every iteration; the dotted line represents one-time wiring.
+The **initial value** sits outside the loop region, joined by a dotted line.
+The dotted line signals a *structural* connection — part of how the rail is set
+up — as opposed to per-iteration data flow. Solid wires inside the column are
+computation that runs every iteration; the dotted line is one-time wiring. This
+keeps `init` syntactically apart from per-iteration inputs, the same separation
+the textual `delay init 0` makes.
 
-The **final value** of the rail (after the last iteration) is available as a normal solid wire emerging from the right end of the rail, outside the spread region. No dotted line needed there — the connection from "rail's final value" to "value available after the loop" is itself a normal data dependency.
+The **final value** (after the last iteration) emerges as a normal solid wire
+from the right end of the rail, outside the spread. No dotted line is needed:
+"rail's final value → value available after the loop" is an ordinary data
+dependency.
 
-### Why this works
+### Why this shape works
 
-- **Direct correspondence to implementation.** The rail compiles to a single mutable register. The picture and the generated code line up exactly.
-- **Visually unambiguous.** With only `prev` and only single-step lookback, there is one shape the rail can take. It can't degenerate.
-- **No schematic context needed.** No ghost columns, no representational adjacent iterations. The diagram remains a single column.
-- **Honest about its limits.** A user who wants two-step lookback has to draw two rails. The chain of state is visible in the picture, not hidden behind a more powerful operator.
+- **Direct correspondence to implementation.** The rail compiles to one mutable
+  register; picture and generated code line up exactly.
+- **Visually unambiguous.** With only `prev` and only single-step lookback,
+  there is exactly one shape the rail can take — it cannot degenerate.
+- **No schematic context needed.** No ghost columns, no represented adjacent
+  iterations; the diagram stays a single column.
+- **Honest about its limits.** Wanting two-step lookback forces two rails, so
+  the chain of state is visible rather than hidden behind a more powerful
+  operator.
 
-## Convergence with the Delay Node
+## Convergence with the Delay node
 
-The non-visual design thread (`plans/iteration-with-state-design.md`) arrived at the same construct from the semantic side: the Delay node expressed as ports — an `init` input, a `prev` output port, and a `step` input port. The correspondence is exact:
+The semantic thread (`iteration-with-state-design.md`) reached the same
+construct from the other side: the **Delay** node expressed as ports — an
+`init` input, a `prev` output port, a `step` input port. The correspondence is
+exact:
 
 - tap-down read = the `prev` output port
 - writeback-up = the `step` input port
 - dotted initial value = the `init` input
 
-The rail is the Delay node's visual depiction; `visual-language-spec.md` records Delay as a candidate node schema (superseding the old IterationRail / TapIn / TapOut trio). Delay is one of two live candidates for the semantic form — the other, the latent-flow representation (an augmented uncollect: seed input and state output added to the flow's opener, feedback collect producing the modified flow), realizes the same rail picture with the read tapped off the opener's state port. See "Two live candidates, kept side-by-side" in the iteration-with-state document. That document also settles two things this one left implicit: cross-rail references (one rail's writeback computed from another rail's tap) are ordinary, well-formed wiring, and — at least in the port form — the "every cycle must pass through a Delay" productivity check is the structural rule that keeps arbitrary rail wiring sound.
+`visual-language-spec.md` records Delay as the candidate node schema,
+superseding the old IterationRail / TapIn / TapOut trio. The rail is Delay's
+visual depiction.
 
-A later proposal goes further: the "visible state thread" (see "A fourth option: the visible state thread" in the iteration-with-state document) promotes the rail from *depiction* of the construct to the construct itself — a first-class path whose geometry carries the timing, with the Delay node as its point projection (the thread contracted to its endpoints) and the augmented flow as its flow projection (the thread absorbed into the opener). Under that proposal this document's rail shape — enter from initial, tap, writeback, exit as final — is the primary surface for iteration state, and the two node-level forms are what it degrades into for tangled cases.
+Delay is one of **two live candidates** for the semantic form. The other is the
+**latent-flow representation**: an augmented uncollect — a seed input and a
+state output added to the flow's opener, with a feedback collect producing the
+modified flow — which realizes the same rail picture with the read tapped off
+the opener's state port. Both are kept side by side; see "Two live candidates,
+kept side-by-side" in the iteration-with-state document.
 
-## What This Leaves Uncovered
+That document also settles two things this one left implicit:
 
-The rail now covers exactly the pattern "one loop-carried variable updated each iteration." This is a small slice of how state is actually used in iterative code. The patterns that fall outside the rail's scope include, roughly:
+- **Cross-rail references are ordinary wiring.** One rail's writeback computed
+  from another rail's tap is well-formed. Fibonacci is two Delays reading each
+  other's `prev`:
 
-- **Read-only history.** Looking back at recent values without maintaining a carried variable. (The existing `window` operation partially covers this.)
-- **Multi-variable loop state with cross-references.** Several rails interacting — one feeding another, or two rails referencing each other's values from the previous iteration. *(Since resolved: under the Delay port form, cross-references are ordinary wires — Fibonacci is two Delays reading each other's `prev` — and the productivity check rules out the ill-formed configurations. See `plans/iteration-with-state-design.md`.)*
-- **Conditional carry.** A loop variable that updates only on some iterations and passes through unchanged on others.
-- **State that doesn't fit the read-compute-write rhythm.** State machines inside loops, accumulators that reset under certain conditions, state with multiple update sites.
+  ```
+  steps -> open list => n, ~L
+  ~L ~> delay init 1 => fa
+  ~L ~> delay init 1 => fb
+  fb -> step of fa => lastA
+  fa, fb -> add -> step of fb => lastB    -- each register's next value from the other's prev
+  ```
 
-The right abstractions for these are not yet designed. The intended next step is **not** to invent constructs from first principles — that risks designing to the theory's existing categories rather than to what real iterative code actually looks like. Instead:
+- **The productivity check keeps rail wiring sound.** At least in the port
+  form, "every cycle must pass through a Delay" is the structural rule that
+  admits arbitrary rail wiring without an ill-formed configuration.
 
-**Sample real loops randomly from real code.** Across different domains (parsing, simulation, UI handling, data pipelines, numerical routines, etc.), pull whole loops with surrounding context, don't filter for "interesting" cases, and study the shape — what state is carried, how it updates, what's read after the loop, what's set up before.
+A further proposal — the **visible state thread** ("A fourth option: the
+visible state thread" in the iteration-with-state document) — promotes the rail
+from *depiction of* the construct to the construct *itself*: a first-class path
+whose geometry carries the timing, with the Delay node as its point projection
+(the thread contracted to its endpoints) and the augmented flow as its flow
+projection (the thread absorbed into the opener). Under that proposal, this
+document's rail shape — enter from initial, tap, writeback, exit as final — is
+the primary surface for iteration state, and the two node-level forms are what
+it degrades into for tangled cases. This is where the retained ideas above
+(one-visible-column, state-thread depiction, carry-vs-name split) would come
+back into force.
 
-The abstractions should emerge from what's actually there, including the proportion of loops that fit the simple rail pattern cleanly. If most short loops are one-rail patterns, the rail is the right central construct and additional vocabulary handles the tail. If even most short loops break the pattern, the rail is in trouble as a foundation and that's worth knowing early.
+## What the rail leaves uncovered
 
-*(2026-07-09: two executions of this plan exist —
-`real-loop-survey.md`, sixty seeded-random loops: thirty from
-Python/Ruby/JS infrastructure code, thirty from domain corpora
-(numerics, graph algorithms, simulation, terminal UI, game logic, 3D
-graphics). Headline answers: half of everything needs no state at
-all; in infrastructure code the carried-state tail is cursors,
-worklists, a resettable buffer, and conditional carries — not
-one-rail scans — while in numerics the scan is the dominant loop
-shape (multi-register recurrence kernels, cross-referencing register
-pairs, take-while termination fused to the carried state). So the
-question above gets a split answer: the rail is tail vocabulary for
-everyday code and central vocabulary for numeric code, every register
-drawn is one-writeback, and the biggest unserved demand across both
-corpus families is data-driven termination, not carried arithmetic.)*
+The rail covers exactly "one loop-carried variable updated each iteration" — a
+small slice of how state appears in real iterative code. Outside its scope,
+roughly:
 
-## Summary of the Reframe
+- **Read-only history.** Looking back at recent values without a carried
+  variable. (The existing `window` operation partially covers this.)
+- **Multi-variable loop state with cross-references.** Several interacting
+  rails — one feeding another, or two referencing each other's previous values.
+  *Resolved:* under the Delay port form these are ordinary wires (Fibonacci
+  above), and the productivity check rules out the ill-formed configurations.
+- **Conditional carry.** A loop variable that updates on some iterations and
+  passes through unchanged on others.
+- **State that doesn't fit read-compute-write.** State machines inside loops,
+  accumulators that reset under conditions, state with multiple update sites.
 
-The original rail tried to be a general cross-iteration reference mechanism, encoded as a diagonal wire with implicit semantics about "value one iteration later." It was visually overloaded and broke down beyond the trivial case.
+The right abstractions for these are not yet designed. The intended next step is
+**not** to invent constructs from first principles — that risks designing to the
+theory's existing categories rather than to what real iterative code looks like.
+Instead: **sample real loops randomly from real code.** Across domains (parsing,
+simulation, UI handling, data pipelines, numerics), pull whole loops with
+surrounding context, don't filter for "interesting" cases, and study the shape —
+what state is carried, how it updates, what's read after the loop, what's set up
+before. The abstractions should emerge from what's there, including the
+proportion of loops that fit the rail cleanly. If most short loops are one-rail
+patterns, the rail is the right central construct and extra vocabulary handles
+the tail. If even most short loops break it, the rail is in trouble as a
+foundation — worth knowing early.
 
-The redesigned rail is narrower in scope but stable in shape:
+That survey has been run (`real-loop-survey.md`): sixty seeded-random loops,
+thirty from Python/Ruby/JS infrastructure code and thirty from domain corpora
+(numerics, graph algorithms, simulation, terminal UI, game logic, 3D graphics).
+Headline findings:
+
+- Half of everything needs no carried state at all.
+- In infrastructure code the carried-state tail is cursors, worklists, a
+  resettable buffer, and conditional carries — *not* one-rail scans.
+- In numerics the scan is the dominant loop shape: multi-register recurrence
+  kernels, cross-referencing register pairs, take-while termination fused to the
+  carried state.
+
+So the central question gets a split answer. The rail is **tail vocabulary for
+everyday code and central vocabulary for numeric code**; every register drawn in
+the sample is one-writeback; and the biggest unserved demand across both corpus
+families is **data-driven termination**, not carried arithmetic.
+
+## Summary of the reframe
+
+The original rail tried to be a general cross-iteration reference mechanism,
+encoded as a diagonal wire with implicit "one iteration later" semantics. It was
+visually overloaded and broke down past the trivial case.
+
+The redesigned rail is narrower but stable:
 
 - **One purpose:** depict a loop-carried variable.
 - **One operation:** `prev`, single-step.
-- **One shape:** horizontal line crossing the iteration column, with a tap-down read on the left and a writeback-up on the right.
-- **Explicit initial value** connected by a dotted line.
-- **No schematic neighborhood** required, because the rail only references abstract previous/next space — it never visualizes other iterations.
+- **One shape:** a horizontal line crossing the iteration column — tap-down read
+  on the left, writeback-up on the right.
+- **Explicit initial value** joined by a dotted line.
+- **No schematic neighborhood**, because the rail references only abstract
+  previous/next space and never draws another iteration.
 
-Everything the old rail was overreaching for is deferred to future constructs, to be designed against real code samples rather than theoretical categories.
+Everything the old rail overreached for is deferred to future constructs,
+designed against real code samples rather than theoretical categories.
