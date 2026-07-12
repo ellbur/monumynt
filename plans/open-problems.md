@@ -422,11 +422,19 @@ flat axis sets confirmed as the denotation, the poset as the subset
 lattice of constructed axis sets, the point-indexed table and the three
 theorems generalising verbatim — the three-list example is where the
 poset's partiality and the S₃ orbit of orientations first become
-visible, both caught by existing machinery). Unexamined: join on a
-product (operand-walk rules); registers over products (a fold demands
-an order a product doesn't have); the provenance product segment against
-the walk-and-classify algorithm (questions 4, 5, 8). Spec entry and
-textual spelling are owed bookkeeping.
+visible, both caught by existing machinery). **Registers over products
+are now worked too** (question 5): a register folds *along a named axis*,
+fibered over the rest (the APL reduce-along-an-axis shape), not over the
+whole order-free cube — `final` drops the reduced axis, the running view
+keeps full shape, productivity transfers verbatim, a full cube reduction
+is the S₃ axis-permutation with a register hat, and a commutative monoid
+discharges the order demand entirely (a reduce-close over a whole product
+is order-free iff its operator commutes — the A/B confluence at the
+register level). The linearized whole-cube fold is a *different* program
+(Join then an ordinary register), which keeps question 5 clear of question
+4. Unexamined: join on a product (operand-walk rules, question 4); the
+provenance product segment against the walk-and-classify algorithm
+(question 8). Spec entry and textual spelling are owed bookkeeping.
 
 The **aligned product (zip)** is now worked (`product-flows-design.md`,
 "The aligned product (zip)"): Cross's positional sibling — same extent
