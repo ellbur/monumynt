@@ -158,7 +158,19 @@ the flow the Delay is on** (resolving nesting but not the product's
 one-flow/many-collects case), and surfaces the live obstacle:
 disambiguation wants an *explicit* flow reference, which the textual form
 has for free (`~L ~> delay`) but every visual attempt makes a mess of wires.
-The row's center, the surface decision, is untouched by all of these.
+Consideration (2) is now itself **worked with leanings**
+(`iteration-with-state-design.md`, "The value-in-context model, examined"):
+modelling an uncollected value as a **cursor into its wire's firing-indexed
+sequence** relocates the whole fork — the flow is fixed by provenance, not
+chosen, so collect-vs-ancestor *coincide on sequences* and are *silent on
+grids*, leaving a product's **linearization** (which axis) as the sole live
+residue. It factors the register into raw-previous + seed + feedback
+(dissolving the four `prev(x)` rejections), explains backward-only Delay by
+causality (`next` legal only on materialized flows), and *predicts* the
+product's axis gap and the transpose cost (any context-read, not just a
+register, is non-transpose-invariant). Not adopted — it reshapes uncollect
+language-wide and owes an everyday-`prev` frequency check. The row's center,
+the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
