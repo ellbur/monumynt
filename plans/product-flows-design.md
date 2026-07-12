@@ -14,7 +14,11 @@ question 4; correction notes are placed there.
 It also works Cross's positional sibling, the **aligned product (zip)** —
 pairing two flows of the *same* extent by position rather than every firing
 with every firing — together with its value form, the multi-wire collect
-(the table). See "The aligned product (zip)" below.
+(the table). See "The aligned product (zip)" below. And it works how a
+**register folds over a product** (open question 5): along one axis, fibered
+over the rest — the reduce-along-an-axis shape — not over the whole
+order-free cube. (Which flow fixes that axis reopened an ontological
+question about Delay itself.) See "Registers over products" below.
 
 Terminology: **uncollect/collect** for open/close (the code still says
 Open/Close). Working name for the new construct: **Cross** (candidates
@@ -493,11 +497,13 @@ Two residues, both minor, filed to their owners rather than worked here:
   face of open question 1 and the textual form's Cross-spelling question —
   does the text name a full permutation? Two axes name at most a single
   swap; n axes name a permutation.
-- **A fold or a join over the cube** still demands a single traversal order
-  that the order-free product does not supply. That is open questions 4 and
-  5 (join on a product; registers over products), unchanged — the order is
-  chosen at the consumer, as with two axes, but the operand-walk and
-  productivity details are those rounds', not this one's.
+- **A fold or a join over the cube** demands a single traversal order that
+  the order-free product does not supply. The register half is now worked
+  ("Registers over products", question 5): a register folds *along a named
+  axis*, and a full cube reduction is the S₃ axis-permutation this section
+  identified, wearing its register hat — the order chosen at the consumer,
+  as with two axes. The join half (question 4, operand-walk over the cube)
+  is unchanged and stays that round's.
 
 ## The aligned product (zip): Cross's positional sibling
 
@@ -741,6 +747,295 @@ first-class-ports migration.
 4. **Index-as-lane and per-edge alignment** ride source openers and the
    register round respectively — not built here.
 
+## Registers over products (open question 5, worked)
+
+A product is order-free by construction — its points carry a poset, not a
+sequence, and that order-freedom is the whole content of Cross (each
+consumer traverses in its own order, `time-travel-programs-design.md`). A
+register (`iteration-with-state-design.md`) is the opposite: it threads a
+carried value from one firing to the next, so it *demands* a sequence.
+Open question 5 asked what a register over a product means when the
+product supplies no order. Worked below: the register does not fold **over
+the product**; it folds **along one of its axes**, fibered over the rest —
+the APL reduce-along-an-axis shape — and once that is seen, everything else
+(the orientation it pins, its result's rank, productivity, the running
+view) is the ordinary register semantics already worked, applied per fiber.
+Nothing product-specific remains except the choice of *which* axis — and
+that choice turns out to expose an **open ontological question about Delay
+itself**, which is the round's real lesson. Which flow fixes the register's
+axis? Two candidates (`iteration-with-state-design.md`, "What a Delay is,
+and which flow binds it"): the **collect** that binds the register (so the
+axis is a consumer's choice), or the **ancestor uncollect** the carried
+value descends from (so the axis is fixed at the Delay, independent of
+consumer). The results in this section — reduce along *one* axis, fibered
+over the rest — hold under both; only the attribution of *who names the
+axis* differs. And the product is where the sharpest evidence lives: the
+shared-grid implementation (iterate once, store the n×m table, transpose for
+the other consumer) **breaks** if a register's axis depends on which
+consuming collect reads it (the two consumers would need two different
+grids), which argues the axis must be *fixed at the Delay* — i.e. toward the
+ancestor-uncollect candidate, against the collect-binding lean the first
+pass took. Recorded there as open; below, "the register's axis" means
+whichever flow that question settles on.
+
+### The program that demands it
+
+A running sum over a crossed pair — two lists, their pairwise sums, and now
+an accumulator:
+
+```
+xs -> open list => x, ~x
+ys -> open list => y, ~y      -- sibling of xs; cross, not zip
+x, y -> add => s              -- one value per (x, y) point: an n×m table
+```
+
+`s` is a value at the product context {X, Y}. Now put a register on it. The
+question the order-free table forces immediately: **a running sum in which
+direction?** Down each column (accumulate over x, one running total per y)?
+Along each row (over y, per x)? Over the whole thing (one grand total)?
+Three different programs, and the product — deliberately — names none of
+them. The register has to say which, and *saying which is the entire design
+question*.
+
+### The finding: reduce along an axis, fibered over the rest
+
+The answer is the array family's, item for item (`apl-family-comparison.md`,
+finding 1: `/` reduce and `\` scan *fold or accumulate along an axis*). A
+register over the product {X, Y} folds **along one axis** — call it its
+axis, say X (which flow fixes it is the open question above) — meaning:
+
+> for each fixed y, run an ordinary register along the X-fiber; state does
+> not cross between different y's.
+
+That is `+/[X]` (Dyalog `⌿`, BQN `˝˘`): reduce the matrix along the X axis,
+producing one result per y. The register's `final` output is therefore not
+a scalar but a **Y-flow** — rank n−1, the reduced axis gone, the surviving
+axes still a flow. A register along Y instead fibers the other way and
+yields an X-flow. The order it pins is only the **within-axis** order of its
+axis — which every list axis already carries — and the product's
+**cross-axis** order-freedom is never touched, *because state never crosses
+axes*. Rectangularity (theorem 1) is what makes this well-formed: every
+X-fiber is the same sequence of firings for every y, so "run a register
+along the X-fiber" is defined identically at each y.
+
+**A register over a product is just an ordinary register whose surrounding
+context is the other axes.** The product context is deeper than each axis
+("The context model"); a register-along-X is a register whose iterated flow
+is the X axis and whose seed lives in the Y context — exactly the shape of a
+register nested inside an outer list loop, which the register design already
+covers. The only thing the product adds over a plain list is that the flow
+has more than one axis, so *which* axis the register threads along is no
+longer forced. A register that reduces "the whole product" as one sequence
+is ill-formed for the ordinary reason (no order exists), with the remedy
+being "fold one axis, or Join first" (below). No new register machinery —
+the product just made the axis a live choice, whose resolution is the open
+Delay-ontology question.
+
+### The orientation is minimal
+
+The oriented traversal question 5 flagged is real, but it pins **less** than
+a linearization. In a symmetric product {X, Y} neither axis is outer; to run
+a register along X *fibered over* Y you must read the product
+Y-outer/X-inner. The register along X induces exactly that orientation and
+no more: it puts the reduced axis innermost and leaves the fibering axes
+outer, still a product, still order-free among themselves. This is "orders
+live at terminations; the order is chosen at the consumer" (Option B) with
+the register as one more consumer — it orients the product only to the depth
+it folds and hands the rest onward unoriented. For an n-cube, folding X
+leaves an (n−1)-subcube outer, which the next consumer orients (or reduces)
+in its turn. (Whether the orientation "lives at" the binding collect or is
+fixed at the ancestor uncollect is the open question above; either way it is
+this-minimal.)
+
+### The inner-axis vs outer-axis cost
+
+Reduce along *which* axis is not cost-neutral, and the asymmetry is where an
+outer-loop accumulator hides. Take the product traversed X-inner, Y-outer:
+
+- **Register along the inner axis (X).** Consecutive firings of the X-fiber
+  are adjacent in the traversal, so the register *streams*: accumulate
+  across the inner sweep, reset the seed at each new y. One live
+  accumulator, no retention — the cheap, obvious case.
+- **Register along the outer axis (Y).** "Previous" now means the previous
+  *outer* iteration's element at the same inner position — the value at
+  (x, y−1), which the traversal visited a whole inner sweep ago. Realizing
+  it means **storing the entire previous inner list (the previous X-fiber)
+  and zipping it positionally with the current one.** The Y-register is
+  fibered over X, but because X is traversed *inside* Y, its |X| parallel
+  fibers all advance once per outer step, so the whole fiber must be
+  retained across the inner sweep.
+
+The store-and-zip is not a wart — it is exactly what an **accumulator over
+an outer loop** *is* (compare this row to the previous row; carry a
+per-column running total across rows), and wanting that is not infrequent.
+So a register over a product carries a real cost gradient — the inner axis
+streams, any outer axis retains a fiber — and choosing the axis is also
+choosing the cost.
+
+This is also the mechanical fact behind a point in the Delay-ontology
+debate (`iteration-with-state-design.md`, "What a Delay is, and which flow
+binds it"): the two
+orientations of a register are not two readings of *one* grid, they are two
+*different computations*. The base value grid (`s = x + y`) transposes for
+free, but a **scan** along X (`sum over x′≤x at fixed y`) and a scan along Y
+(`sum over y′≤y at fixed x`) are different grids — not transposes of each
+other — and a **reduce** along X (a Y-flow) and along Y (an X-flow) are
+different outputs. So there is no single grid a register can build once and
+serve both orientations from (outside the commutative case below); a
+consumer that wants the other orientation drives a genuinely different
+computation, which is why "re-run the register per collect" is a legitimate
+implementation and not merely a failure to share.
+
+Reducing a rank-n product **all the way to a scalar** is *n* nested
+registers — one per axis — not one register over the cube. Register-along-X
+gives a Y-flow; a register-along-Y over *that* gives a scalar. The nesting
+order is an **axis permutation**, and — the point — it is a genuine choice
+with genuine consequences: the register is not assumed commutative, so
+reduce-along-X-then-Y and reduce-along-Y-then-X are different computations
+(as `+/+/M` and a non-commutative `⍤/⍤/M` differ in the array world). This
+is the S₃ orbit of the n-ary section wearing its register hat: the six
+orientations of the cube are the six axis-permutations a full reduction can
+pick, and the author picks one exactly as they pick a collect chain's
+nesting order. No orientation is canonical; each is a different, legitimate
+fold, and the product kept all six available precisely so the register could
+choose.
+
+### The one order-free exception: a commutative monoid
+
+There is exactly one case where a register *may* reduce over the whole
+product with no axis named, and it is the register-level twin of the A-vs-B
+confluence argument. When the operator is a **commutative** associative
+operator (a commutative monoid — `+`, `×`, `min`, `max`, count, set-union),
+every axis order and even every linearization give the same result: `+/,M`
+(ravel then sum) equals `+/+/M`, and the pick is unobservable. So a
+**reduce-close** (`iteration-with-state-design.md`'s monoid fold, the "just
+sum the table" operation) over a product is well-defined and order-free
+*iff its operator commutes* — the operator's own law discharges the order
+demand the way shared provenance discharges zip's co-extent demand and the
+way the invariance demand makes Cross's non-pick meaningless. The letter of
+"a fold needs an order" is relaxed exactly where it is provably
+meaningless. A **non-commutative** register (or a reduce-close on a
+non-commutative operator — string concatenation folded over a table) must
+name the axis or the axis permutation; commutativity is the property in
+`types-design.md`'s sense that, when present, lets the whole-product
+reduction stand. This lands the collect family's identity/algebra machinery
+(`collect-family-design.md`) a second job: the catalog row that carries a
+monoid's identity can carry its commutativity too, and commutativity is the
+witness that "reduce over the product" needs no orientation.
+
+### Productivity transfers verbatim
+
+The register's productivity check — *every cycle passes through a Delay
+crossing; delete each crossing and the graph is acyclic*
+(`iteration-with-state-design.md`) — carries over with **no new machinery**.
+Within each fiber the register is an ordinary along-one-axis register, and
+the Delay crossing (`step → prev`) is still the only iteration-boundary
+edge. Fibering does not add edges; it instantiates the *same* structural
+crossing once per point of the reduced-away axis's complement, each fiber's
+run grounded by its own seed (`init`, one value per outer point, evaluated
+in the outer context — it may vary with the fibering coordinate but never
+with the iterated axis, the ordinary "no time travel" rule). In the stored
+form the check stays a **theorem**: the pairing (write → read) is still the
+only edge running with an object pointer, so every computation cycle still
+passes through one, and the fibering is a runtime multiplicity of that one
+crossing, not a new edge. Non-productive register-over-product programs are
+unrepresentable for the same reason plain non-productive registers are.
+
+### The running view keeps the shape
+
+The register's running view — the state port of its derived augment form
+(`variable-rate-consumption-design.md`) — over a product is `+\[X]` (scan
+along an axis): it keeps the **full product shape** (rank unchanged), the
+value at each point being the accumulation so far along X *within that
+point's fiber*. This is the ordinary running view applied fiberwise, and it
+inherits BQN's observation that a scan never needs an identity (finding 8) —
+here it also never needs a cross-axis order, because the running value at a
+point depends only on that point's own fiber up to that point. So the two
+readouts of a register over a product are: `final` (reduce, rank n−1) and
+the running view (scan, rank n) — the same pair a register over a list
+gives, one rank higher.
+
+### Boundary with question 4: the linearized fold is Join-then-register
+
+The reading the product *does not* give — thread state through **all** the
+points in one linear walk, state carrying from the end of one fiber into the
+start of the next — is not lost; it is a **different program**, and a
+composed one. It is exactly the list-monad linearization the doc already
+declined for Cross ("Not the list monad"): flatten the product to a single
+sequence, committing row- or column-major, then fold. In our vocabulary that
+is **Join the product** (which commits an orientation via Join's (outer,
+inner) operands — question 4) **then an ordinary register** on the resulting
+single-axis flow. Two constructs, a composition, no new semantics — and the
+clean separation of questions 5 and 4: the register over a product folds
+*along an axis* and needs no linearization; the register over a *joined*
+product folds a linear walk and gets its order from the Join. Question 5
+never has to re-derive linearization, and question 4's operand-walk rules
+are where the row/column-major choice is spelled.
+
+### The state thread over a product (the drawing)
+
+Question 5 also asked what this means for the state thread's drawing (the
+fourth-option surface, `iteration-with-state-design.md`). A thread crosses
+"the single generic iteration column"; over a product there are several
+axes, and the thread crosses **only its axis's column**, replicated
+(fibered) across the others. Reducing a matrix along X is a *family of
+parallel threads*, one per y — the APL `+/` picture exactly (sum each column
+→ a row of totals): each thread enters at its fiber's seed (which may vary
+with y), taps and writes back down its own column, and exits into the
+`final` Y-flow. Iteration already draws 2D (position across, computation
+down), so a register along one axis of a product is naturally a plane's
+worth of parallel threads tiled along the fibering axis — the visual side's
+question, but the representation is: n−1 axes of independent thread copies
+over the register's one iterated axis. Dense cross-referencing across
+threads (Fibonacci's shape) is orthogonal — it lives *within* a fiber and
+contracts to Delay points there, as on a plain list.
+
+### Against the philosophy
+
+- **Example first, then generalise.** The running sum over a table is the
+  concrete gesture; "along which axis" is the identified relationship, read
+  off the register's named iteration axis — never a fold-shape declared
+  upfront.
+- **No bottlenecks.** The register folds one axis and leaves the rest as
+  flow; nothing is packed into a tuple to carry the un-reduced axes across
+  the fold. The result is a lower-rank flow, corresponding axes riding
+  through — the principle's own shape at the register.
+- **Building blocks at the programmer's level.** "Running total down each
+  column" is a spreadsheet-level concept; the linearized-then-folded
+  encoding was the plumbing costume, and it is still reachable (Join first)
+  when actually wanted.
+- **Foundations before features.** The construct is the ordinary register
+  plus one obligation (name the axis), admitted by a forcing program (the
+  three-direction ambiguity), with the commutative exception recorded as
+  the one place the obligation lifts.
+- **Abstraction is the source of truth.** The order-free product is the
+  truer description; the register's axis is a minimal induced orientation
+  (innermost only) and downward — the same lens shape as Cross's stored
+  orientation, now at the fold.
+
+### Smallest first step
+
+Rides the register round and the Cross node; testable in `Main.res` style
+once first-class ports and Cross land.
+
+1. **A register over a product folds along exactly one axis.** The check
+   rejects a whole-product register with the "no order" witness, the remedy
+   being "fold one axis or Join." (For a commutative-monoid reduce-close,
+   the requirement lifts — the catalog row's commutativity flag discharges
+   it.) Which flow fixes that axis — the binding collect or the ancestor
+   uncollect — is the open Delay-ontology question and must be settled
+   before this is built; the shared-grid argument (intro) leans it toward a
+   fixed ancestor axis.
+2. **Reduce along an axis.** Compile a register-along-X over a crossed pair
+   to a per-fiber accumulator (one register run per y), `final` a Y-flow;
+   test against a hand-built table of per-column sums, and against a
+   non-commutative fold to pin that axis order is observable.
+3. **The running view** (scan along an axis) keeping full product shape;
+   test the point-indexed running values against a hand-built scan.
+4. **Full reduction as an axis permutation** — two nested registers over a
+   cube in both orders, values compared to confirm the orders differ for a
+   non-commutative operator and agree for a commutative one.
+
 ## Open questions
 
 1. **A vs B storage.** The lean above (represent oriented, read symmetric)
@@ -764,10 +1059,31 @@ first-class-ports migration.
    operand order — fine — but the interaction with multi-level joins (a
    join *chain* over a product's axes plus an enclosing flow) needs the
    operand-walk rules extended.
-5. **Registers over products.** A fold demands an order, so a Delay whose
-   flow operand is a product axis must be pinned to an oriented traversal.
-   What that means for the state thread's drawing and for productivity is
-   unexamined.
+5. **Registers over products — worked, and it reopened a Delay question**
+   ("Registers over products"). A register folds *along one axis*, fibered
+   over the rest (the APL reduce-along-an-axis shape), not over the whole
+   product: `final` drops the reduced axis (rank n−1), the running view keeps
+   full shape, the axis is a minimal induced orientation (innermost only),
+   and productivity and the stored-form theorem transfer verbatim (the Delay
+   crossing instantiated per fiber) — all independent of *which flow* fixes
+   the axis. That last point is the round's deeper yield: **which flow binds
+   a Delay** is an open ontological question (`iteration-with-state-design.md`,
+   "What a Delay is, and which flow binds it"), and this section carries its
+   sharpest evidence — the shared-grid implementation of products breaks
+   under consumer-order-dependent binding, arguing the axis is fixed at the
+   Delay (the ancestor uncollect), against the first pass's collect-binding
+   lean.
+   Two findings: a full reduction is an axis *permutation* (the S₃ orbit
+   with a register hat; non-commutative folds observe the order); and a
+   commutative monoid discharges the order demand entirely, so a
+   reduce-close over a whole product is order-free iff its operator commutes
+   (the A/B confluence at the register level; the collect-family catalog row
+   carries the commutativity witness). The linearized whole-cube fold is a
+   *different* program — Join the product (question 4, committing an
+   orientation) then an ordinary register — so question 5 needs no
+   linearization of its own. Residue: the state thread's *visual* tiling
+   over a product (the layout repo's), and the axis-naming's textual
+   spelling (the textual-form row).
 6. **Mixed-kind axes.** `cross(list, option)` is a table with a 0-or-1
    axis — is that a construct anyone wants directly, or just a degenerate
    case the theorems cover? Cross over stream axes gives a

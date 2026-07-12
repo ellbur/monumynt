@@ -233,3 +233,35 @@ first survey's most striking finding (the scan, absent in infrastructure
 code, is the dominant loop shape in numerics), exactly along the bias the
 first survey had flagged. Corpora need not be preinstalled; pip/npm
 fetches of real projects work and keep the domain choice deliberate.
+
+## A standing lens: what does it mean?
+
+Also a method, not a principle. Where "sample reality" keeps the design in
+contact with real *code*, this keeps it in contact with *meaning*.
+Designing a construct is not only assembling rules that compute the right
+results; a construct also has to **mean** something — an ontology a person
+can hold — and two constructs that compute identically can still differ in
+what they *are*. Figuring out what a thing means is design work, not
+philosophy layered on top of it.
+
+The worked instance is Delay (`iteration-with-state-design.md`, "What a
+Delay is, and which flow binds it"). The register pair's *results* were
+fully pinned by the equivalence round, yet a prior question survived: what
+is a Delay, and which flow does its "next iteration" refer to — the collect
+that binds it, the uncollect its value descends from, or something else?
+This is answerable only by ontology, and it stays **open** — a first pass
+leaned one way and three arguments pulled it back — which is exactly the
+lens earning its place: the ontological choice **selects the behaviour**
+(it changes what the construct does wherever more than one flow is in reach
+— a commute, a product's axes), so it is a real decision the results did not
+force, not a naming afterthought. Meaning is not decoration on the rules; it
+decides them, and here it is still being decided.
+
+Reach for the lens when a construct is fully pinned at the level of results
+but you still cannot say, in one sentence, what it *is* — that gap is
+usually hiding a decision the results did not force but a second context
+will. The tell that it catches what result-level rules miss: the Delay
+candidates are argued and rejected on ontological grounds (an uncollect's
+value wire "secretly carrying flow" — or perhaps honestly carrying context;
+a shared grid that a consumer-dependent meaning would break), never on a
+wrong output.

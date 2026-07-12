@@ -147,6 +147,18 @@ most annoying loop to write can break the language even when the
 common cases are trivial. Use the method frequently — reach for it
 proactively when design discussion is running ahead of evidence.
 
+A companion lens sits beside it — **what does it mean?** (ontology).
+Where sampling keeps the design in contact with real code, this keeps
+it in contact with *meaning*: two constructs can compute identically
+and still differ in what they *are*, and the ontological choice can
+select the behaviour where the results did not force it. Reach for it
+when a construct is fully pinned at the level of results but you still
+cannot say in one sentence what it is (worked instance: what a Delay
+is, and which flow its "next iteration" binds to — the collect that
+binds it or the uncollect its value descends from — an open problem in
+`plans/iteration-with-state-design.md`, where the choice changes
+behaviour under a commute or a product).
+
 ## Working with the user
 
 The user designs incrementally and likes to think out loud about a step before any code is written. Rough pattern from past sessions:

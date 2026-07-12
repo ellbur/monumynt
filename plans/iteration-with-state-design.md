@@ -1078,6 +1078,326 @@ guaranteeing no choice of drawing forecloses any semantics.
    does not dissolve; the counting check transfers unchanged (one feedback
    collect per augmentation) and stays a quotient constraint in both forms.
 
+## What a Delay is, and which flow binds it — an open problem
+
+Status: **an open problem.** A first pass leaned toward one answer
+(collect-binding, below); on reflection three arguments cut the other way,
+so the ontology is genuinely unsettled and recorded here as a live
+question, not a resolved one. Prompted by the registers-over-products round
+(`product-flows-design.md`), which turned out to probe Delay more than the
+product.
+
+The equivalence pinned the *structure* — one register pair, two drawings —
+but left a prior question implicit: what *is* a Delay, and to which flow
+does its "next iteration" refer? It stays invisible while only one flow is
+in reach, and becomes sharp the moment more than one is (a product's
+several axes; a commute between where a carried value originates and where
+the register is collected). It is a question about **meaning**, not wiring,
+and — the point of recording it — the meaning *selects* the behaviour, so
+it cannot be deferred as mere naming.
+
+Some ground is firm across every candidate; some is the open fork. Firm:
+Delay is a feature of the flow, and it does not thread the flow wire (both
+below). Open: *which* flow supplies its "next iteration" — the collect that
+binds it, the uncollect its value descends from, or something else — and,
+under the third argument below, whether Delay is even the right abstraction.
+
+**A Delay is a feature of the flow.** "Carry this value to the next
+iteration" presupposes that there *is* a next iteration, so a Delay is only
+meaningful where a flow supplies one:
+
+- over a list iteration or a self-driven / stream flow — a "next" exists;
+- **not** over an async or IO flow (a value that arrives later, an effect
+  sequenced in time) — there is no within-collection "next iteration" to
+  carry to;
+- **not** outside any flow — nothing to be "next" of.
+
+(Which kinds actually supply a "next iteration" — list and stream clearly;
+async/IO apparently not; incremental unexamined — wants the kinds table's
+attention, since it bounds where Delay is even meaningful.) Though a Delay
+is *drawn* as a computation step (`prev + element`), it is not one: `prev`
+is not computed, it is *accessed from the flow*, the way a list-open's
+element is. This is why the read is a port, not an expression (Candidate A):
+the carried value is provided by the flow, not conjured.
+
+### Why Delay does not thread the flow wire
+
+If a Delay is a feature of the flow, the tempting move is to make it
+*interact with the flow wire* — take the flow wire in and out, and say
+"this Delay uses the next-iteration of *that* flow" by tapping the wire.
+That is exactly how IO works: its operations (open a file, …) take the flow
+wire as input and output, threaded along it.
+
+But the reason IO threads the flow wire is specific: **IO operations must
+be sequenced in time, and their order along the wire is that sequence.**
+The wire-threading exists to *encode a sequence*. Delay has none to encode
+— **Delays have no order with respect to each other** (the inert stack
+order the equivalence already established as meaningless). Forcing them onto
+a shared flow wire would make the user choose that meaningless order — which
+Delay is "first" on the wire — and clutter the diagram with wires that say
+nothing. So the very property that *justifies* wire-threading for IO (a real
+inter-operation sequence) is precisely what Delay lacks, and its absence is
+the argument against wire-threading Delay.
+
+This sharpens the "stack order is inert" finding into a reusable
+distinction: **flow-wire-threading is for constructs with a mutual temporal
+sequence; a construct with no mutual sequence must not thread the wire.** IO
+threads; Delay does not.
+
+### Candidate 1: a delayed computation, bound at the collect
+
+If a Delay does not get its flow by tapping a wire, where does its "next
+iteration" come from? One answer: **a Delay builds a *delayed computation* —
+a value paired with its own one-step-delayed self — not yet bound to any
+concrete flow. Collecting the flow collects that delayed computation and
+binds it: the collect is what supplies the "next iteration" the delayed
+computation was waiting for.** On its own a Delay is a sequential
+computation in the abstract; the collect grounds it in a specific
+iteration, and the register's meaning completes there — at its collect, not
+at the Delay glyph. This reframes the write half
+(`first-class-ports-design.md`): the feedback collect is not merely where
+the step is deposited, it is the *act of binding* the delayed computation to
+a flow. Its appeal: it keeps "orders live at terminations" true for the
+register too, and it treats the value wire an uncollect produces as strictly
+ordinary — the flow enters only at the collect, visibly, with nothing
+smuggled inside the wire (the inside-out instinct in ontological dress).
+
+### Candidate 2: reference to the ancestor uncollect
+
+The other answer — which the first pass recorded as *rejected* and which is
+now **restored as live** — is that a Delay gets its flow by *implicitly
+referencing the uncollect its value wire descends from*: walk back from
+`prev + element` to the list-open `element` came from, and take *that*
+flow's next iteration. The first pass rejected it for treating the value
+wire as if it "secretly remembered its flow," clashing with the fiction that
+an uncollect hands you an ordinary value wire. Argument 2 below dissolves
+that objection — perhaps the fiction is simply wrong, and a per-iteration
+value is honestly a *value wire in context*, one that has a previous and a
+next the way it has, well, a value. On that reading the ancestor reference
+smuggles nothing; it reads context the wire genuinely carries. Its own
+residue: **which** ancestor. The worked example below shows a value whose
+*innermost* ancestor uncollect (an option) is the wrong flow to thread — you
+mean an outer one — so this candidate owes a rule for picking among the
+uncollects a value descends from, and "the nearest" is demonstrably not it.
+
+### The discriminating case: a commute between origin and collection
+
+The two candidates are not always distinguishable — they diverge exactly
+when the **uncollect flow differs from the collect flow**, i.e. a commute
+sits between where the carried value originates and where the register is
+collected. Then:
+
+- *ancestor-reference:* the Delay threads along the origin uncollect's
+  iteration;
+- *collect-binding:* the Delay threads along the collect's iteration.
+
+Different programs — so this case *forces* the ontology to choose rather
+than merely illustrating it. The registers-over-products round is where the
+choice bites hardest: under collect-binding a register over an order-free
+product folds along the axis its binding collect gathers; under
+ancestor-reference it folds along a fixed axis its value descends from,
+regardless of consumer. Argument 1 below is why that difference is not
+cosmetic.
+
+**"Commute" here is two operations, and the distinction matters.** The word
+covers two genuinely different flow-order swaps (`lazy-stream-commute-design.md`,
+"The commute-variant taxonomy"; the naming is flagged open there), and the
+discriminating case wears a different face under each:
+
+- **Grid transpose** — reversible, value-preserving, defined only over a
+  *product* (independent flows), the two orientations confluent. A Delay
+  across a transpose is exactly the registers-over-products case: both
+  orientations coexist, and the question is which axis.
+- **Monadic sequence** (traverse) — directed, *not* reversible, defined over
+  a *dependent* nesting, with real semantic content (short-circuit). This is
+  the one the option example uses, and it is why "a per-element option can't
+  be commuted out" is wrong: it cannot be *transposed* out (no product), but
+  it can be *sequenced* out (`List<Option> → Option<List>`,
+  `lazy-stream-commute-design.md`). Across a sequence the flow is genuinely
+  *restructured*, not re-read, so "origin flow vs collect flow" is a sharper
+  divergence than under a transpose.
+
+Both swap flow order, so both were loosely called "commute" — but a Delay's
+"next iteration" relates to a *reversible re-reading* and to a *directed
+restructuring* differently, so the ontology question has to be asked against
+each. Below, the optional-readings example is the sequence face; the
+registers-over-products round is the transpose face.
+
+### Why this reopened: three considerations
+
+The first pass leaned collect-binding. Three considerations complicate it —
+the first a cost that turns out to be survivable (and even sometimes
+wanted), the second and third pulling toward the ancestor uncollect or past
+both:
+
+1. **The multiple-collect / shared-grid problem (the concrete one).** Two
+   independent uncollects (x, y) crossed into a product, then collected
+   *twice in opposite orders*, are implemented by iterating once, storing
+   the n×m grid, and transposing for the second consumer — one computation,
+   two readings (`product-flows-design.md`; `compile-strategy-design.md`).
+   Put a register in the middle. Under collect-binding its axis depends on
+   *which* consuming collect reads it, so the two consumers want two
+   *different* grids (running-sum-down-X vs running-sum-along-Y) — a single
+   shared Delay cannot be both, and the compute-once-transpose implementation
+   that makes Cross cheap breaks. Under ancestor-reference the register's
+   axis is fixed at the Delay, "running sum along X" is one point-indexed
+   grid, and it transposes like any other product value — the shared-grid
+   implementation is preserved.
+
+   **But the rebuttal cuts back toward candidate 1.** This treats
+   compute-once-transpose as a property a register must *not* break — and
+   that premise is contestable. A delayed computation collected two ways is,
+   arguably, honestly *two different computations*, and **re-running it once
+   per collect is a legitimate implementation, not a defect** — sometimes
+   exactly what you want. The cost is not even hidden: a register along any
+   axis *other than the innermost* already cannot stream — it must store a
+   whole previous fiber and zip it against the current one
+   (`product-flows-design.md`, "The inner-axis vs outer-axis cost"), and an
+   accumulator over an *outer* loop, which wants precisely that, is not
+   infrequent. So argument 1 lands as a real **cost** on candidate 1
+   (products stop being free to transpose across a register, and some
+   registers recompute per consumer), not as a knockout. Whether that cost
+   is acceptable — versus fixing the axis at the Delay and paying candidate
+   2's price instead — is the open weighing, and it is genuinely balanced.
+
+2. **"Previous element" is honest context, not smuggled state.** It is not
+   linguistically strange to say: if I have the current element of a list, I
+   can have the previous one. That suggests the uncollect fiction ("ordinary
+   value wire") is too strong — a per-iteration value may be better modelled
+   as a **value wire in context**, where the context is precisely that it
+   has a previous and a next. If that is what an uncollected value *is*, then
+   the ancestor reference is not an ontology clash at all; it reads context
+   the wire carries by its nature. This needs more thinking out — it would
+   reshape what an uncollect produces everywhere, not only under Delay — but
+   it removes the sole ground on which candidate 2 was rejected.
+
+3. **Delay may be the wrong abstraction.** Both candidates assume the
+   register/Delay framing is right and only its flow-binding is in question.
+   The third possibility is that the framing itself is off, and the right
+   construct for loop-carried state binds "next iteration" in some way
+   neither candidate captures. Held open, not developed.
+
+### Working an example: successive differences over optional readings
+
+The vote and its complication both fit in one small program — a list of
+readings, each possibly an error:
+
+```
+readings -> open list => r, ~L      -- r : option<number>
+r -> open option => v, ~O           -- v : the reading, present iff Some
+```
+
+Goal: successive differences of the readings, a Delay holding the previous
+one. Which flow does it thread?
+
+**The vote (for the collect, against the *innermost* ancestor).** The value
+`v`'s innermost ancestor uncollect is the **option** (`open option`), and
+threading the option is meaningless — an option flow fires at most once, so
+it has no "previous." The difference is plainly meant along the **list**, an
+*outer* flow. So the innermost-ancestor reading is simply wrong here, which
+is a real strike against candidate 2 *if* "ancestor" is read as the nearest
+one: the flow you mean is the one a difference gets **collected** along — the
+list — not the value's birthplace. (Candidate 2 survives only if "ancestor"
+can mean an *outer* uncollect, which reopens "*which* ancestor?" — itself
+underdetermined.)
+
+**Sharpening "which collect."** "Handle the error inside the loop" then
+raises the message's worry: now two collects are in scope — an option-collect
+(inner, dealing with the error) and the list-collect (outer) — and a rule of
+"the *nearest* collect binds" would bind the option collect, the wrong one.
+The fix is to bind not the nearest collect in scope but **the collect that
+gathers the flow the Delay is actually on.** The option-collect gathers the
+*option* flow (consumed upstream to produce a per-element value); the Delay's
+flow is the list-level flow that survives, gathered by the *list* collect. On
+that reading the ambiguity dissolves — there is a unique
+collect-of-the-Delay's-flow, and it is the list collect.
+
+**Three ways to handle the option, and the commute is a sequence.** The
+original framing was "commute the option out to deal with it later," and it
+is well-formed — but via *monadic sequence*, not transpose (the distinction
+above). A per-element option cannot be *transposed* out (it is not
+independent of the list, so there is no product), but it can be *sequenced*
+out — `List<Option> → Option<List>`, short-circuiting to None on the first
+error (`lazy-stream-commute-design.md`). That gives option-outer, list-inner;
+the differences then thread the inner list in the Some branch. So there are
+three handlings, each a different program: **(a) sequence out** (whole list
+is None on any error, else differences over all readings); **(b) filter
+inside** (drop errors, differences over the Some-subsequence); **(c) keep
+positions** (Delay on the full `~L` with a stated hold-or-skip at each None).
+
+**The well-formedness wrinkle, as predicted.** Route (b) makes the Delay's
+flow the **Some-subsequence**, so the register "only updates when the option
+is Some" — exactly the message's guess. That is well-defined ("differences of
+present readings, skipping errors"), but it is a *different program* from
+route (c). So "reference the list" names different flows depending on how the
+option was handled upstream — the handling has already changed what "the list
+flow" *is* at the Delay's location. That is the example worth keeping: the
+same phrase denotes several flows, and only the drawn structure (which
+handling, sequence vs filter vs keep) says which.
+
+**What it settles, and what it doesn't.** The "collect of the Delay's own
+flow" rule cleanly disambiguates *nesting* (option inside list) and votes
+collect-binding there. It does **not** touch the case where *one* flow is
+gathered by *several* collects in different orders — the product /
+multiple-collect fork (argument 1), still balanced, still the hard open
+case. Two distinct ambiguities, then: nesting (resolved here, toward the
+collect) and multi-collect-of-one-flow (the product, open) — and only the
+second carries the recompute cost.
+
+### The disambiguation-vs-wire-mess tension
+
+Underneath the vote is a general pull. Because more than one flow is
+routinely in scope, a flow-feature like Delay should make *which flow it
+means* unambiguous, and the surest way is to have it **reference the flow
+explicitly** — which is a vote for every feature-of-a-flow carrying such a
+reference. (This is a *read* reference — "which flow do I mean" — not the
+in-and-out wire-threading rejected above; that was rejected for imposing a
+meaningless *order among Delays*, which a one-way reference does not.) The
+provisional *textual* syntax already carries it: `~L ~> delay init 0 => sum`
+names `~L`, and text pays nothing for it. The **visual** form does pay:
+every attempt so far to draw the reference as a wire from the flow to the
+Delay comes out a mess of wires, defeating the clarity the reference was
+for. So the examples expose a sharp, unresolved sub-problem: **can the flow
+be fixed implicitly and reliably** — the "collect of the Delay's own flow"
+rule is the current best candidate, and it handles nesting — **so no explicit
+visual reference is needed; or is a lightweight visual flow-reference
+unavoidable, and if so can it be drawn without the mess?** This tension, not
+the collect-vs-ancestor label alone, is the live obstacle, and it is where
+more worked examples would pay off next.
+
+### Open
+
+- **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
+  (candidate 2), or a specified third flow — is the live fork, and it is
+  genuinely balanced: argument 1 is a real cost on candidate 1 (products
+  stop transposing freely across a register) but *not* a knockout, since
+  re-running a register per collect is a legitimate implementation and an
+  outer-axis accumulator wants the store-and-zip cost anyway; argument 2 is
+  the deepest pull toward candidate 2 (it questions the uncollect fiction
+  the whole record leans on). The optional-readings example adds a vote for
+  the collect on the *nesting* axis (a value's innermost ancestor can be the
+  wrong flow), leaving candidate 2 owing a "which ancestor" rule.
+- **Which collect, precisely.** Sharpened by the worked example to **the
+  collect that gathers the flow the Delay is on** (not "the nearest collect
+  in scope"), which disambiguates nesting cleanly. It does not resolve the
+  product case (one flow, several collects), which stays the balanced
+  argument-1 fork.
+- **Disambiguation vs the wire-mess.** The pull toward an *explicit* flow
+  reference (so which flow is meant is unambiguous) is a vote for
+  feature-of-a-flow nodes carrying one; the textual form has it for free
+  (`~L ~> delay`), but every visual attempt is a mess of wires. Open: fix
+  the flow implicitly (the "collect of the Delay's own flow" rule) well
+  enough to need no visual reference, or find a lightweight visual reference
+  that is not a mess. More worked examples would help here.
+- **Is "value wire in context" the right model of an uncollected value?**
+  Argument 2's reframing — every per-iteration value carries a previous and
+  a next — reaches beyond Delay into what uncollect *means*; unexamined, and
+  consequential if true.
+- **Is Delay the right abstraction at all?** Argument 3, held open.
+- **Per-kind "next iteration."** Which flow kinds supply one (list and
+  stream yes; async/IO apparently not; incremental unexamined) wants the
+  kinds table, since it bounds where Delay means anything at all.
+
 ## The surface question: point, cell, or thread
 
 At the result level there is one construct. The open decision is which
@@ -1232,6 +1552,21 @@ on a proven two-way equivalence:
   external source is a self-driven stream (Fibonacci), not an error. What
   remains open is the concrete surface for the attachment (naming a flow vs
   choosing the `src`).
+- **What a Delay *is*, and which flow binds it — an open problem.**
+  Distinct from the surface question above. Firm: a Delay is a feature of
+  the flow ("carry to the next iteration" is meaningless without one), and
+  it does not thread the flow wire the way IO does (IO's wire-threading
+  encodes a temporal sequence Delay lacks). Open: *which* flow supplies the
+  "next iteration" — the **collect** that binds it (candidate 1) or the
+  **ancestor uncollect** its value descends from (candidate 2). A first
+  pass leaned collect-binding; three arguments reopened it — the
+  multiple-collect/shared-grid problem (consumer-order-dependent binding
+  breaks the compute-once-transpose implementation of products), the
+  "value wire in context" reframing (a per-iteration value may honestly
+  have a previous and a next, dissolving candidate 2's rejection and
+  reaching into what uncollect *means*), and the possibility that Delay is
+  the wrong abstraction. Worked in "What a Delay is, and which flow binds
+  it."
 - **Self-reference and cycles — resolved.** The iteration-boundary crossing
   is the only back-edge, so productivity is the structural condition "every
   cycle passes through a crossing" — a decidable whole-graph quotient

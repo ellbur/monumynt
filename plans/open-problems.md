@@ -131,8 +131,34 @@ availability ladder — monoid → total, semigroup → option-shaped,
 neither → augment — identities as catalog rows carrying the identity
 value as witness, user monoids minted via the algebra facet, the named
 collects dissolved into catalog rows, the keyed partition worked as the
-primary construct with its four readouts as consumption). The row's
-center, the surface decision, is untouched by both.
+primary construct with its four readouts as consumption). New **open
+problem**: the **Delay ontology** — what a Delay *is* and which flow its
+"next iteration" binds to (`iteration-with-state-design.md`, "What a Delay
+is, and which flow binds it"). Firm: a Delay is a feature of the flow and
+does not thread the flow wire (IO's wire-threading encodes a temporal
+sequence Delay lacks). Open fork — two live candidates: the **collect**
+that binds the register, or the **ancestor uncollect** its value descends
+from. A first pass leaned collect-binding; three considerations reopened it,
+and the fork is now genuinely balanced: (1) the multiple-collect/shared-grid
+problem (a consumer-order-dependent axis breaks products' compute-once-
+transpose implementation) — but this is a *cost, not a knockout*, since
+re-running a register per collect is a legitimate implementation and an
+outer-axis accumulator wants the store-and-zip cost anyway (a register along
+an outer axis must retain the previous fiber and zip — exactly an
+outer-loop accumulator, and not infrequent); (2) the "value wire in context"
+reframing (a per-iteration value may honestly carry a previous and a next,
+dissolving candidate 2's rejection and reaching into what uncollect
+*means*); (3) the possibility that Delay is the wrong abstraction. The
+choice selects behaviour wherever a commute or a product's axes puts more
+than one flow in reach. A worked optional-readings example
+(`iteration-with-state-design.md`, "Working an example") adds a vote for the
+collect on the *nesting* axis (a value's innermost ancestor uncollect can be
+the wrong flow to thread), sharpens the rule to **the collect that gathers
+the flow the Delay is on** (resolving nesting but not the product's
+one-flow/many-collects case), and surfaces the live obstacle:
+disambiguation wants an *explicit* flow reference, which the textual form
+has for free (`~L ~> delay`) but every visual attempt makes a mess of wires.
+The row's center, the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -422,11 +448,23 @@ flat axis sets confirmed as the denotation, the poset as the subset
 lattice of constructed axis sets, the point-indexed table and the three
 theorems generalising verbatim — the three-list example is where the
 poset's partiality and the S₃ orbit of orientations first become
-visible, both caught by existing machinery). Unexamined: join on a
-product (operand-walk rules); registers over products (a fold demands
-an order a product doesn't have); the provenance product segment against
-the walk-and-classify algorithm (questions 4, 5, 8). Spec entry and
-textual spelling are owed bookkeeping.
+visible, both caught by existing machinery). **Registers over products
+are now worked too** (question 5): a register folds *along the axis its
+binding collect gathers*, fibered over the rest (the APL reduce-along-an-axis
+shape), not over the whole order-free cube — `final` drops the reduced axis,
+the running view keeps full shape, productivity transfers verbatim, a full
+cube reduction is the S₃ axis-permutation with a register hat, and a
+commutative monoid discharges the order demand entirely (a reduce-close over
+a whole product is order-free iff its operator commutes — the A/B confluence
+at the register level). The linearized whole-cube fold is a *different*
+program (Join then an ordinary register), keeping question 5 clear of
+question 4. The round's real lesson was about **Delay**, not the product:
+*which flow* fixes the register's axis is an open ontological question, and
+the product carries its sharpest evidence (the shared-grid implementation
+breaks under a consumer-dependent axis) — feeding the loop-carried-state
+row's new Delay-ontology open problem. Unexamined: join on a product (operand-walk rules, question 4); the
+provenance product segment against the walk-and-classify algorithm
+(question 8). Spec entry and textual spelling are owed bookkeeping.
 
 The **aligned product (zip)** is now worked (`product-flows-design.md`,
 "The aligned product (zip)"): Cross's positional sibling — same extent
