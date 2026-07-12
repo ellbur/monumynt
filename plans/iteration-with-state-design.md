@@ -1365,6 +1365,80 @@ unavoidable, and if so can it be drawn without the mess?** This tension, not
 the collect-vs-ancestor label alone, is the live obstacle, and it is where
 more worked examples would pay off next.
 
+### The product sharpens both: a symmetric flow forces the reference
+
+The optional-readings example is a *nesting*, and nesting is asymmetric: of
+the two flows the value descends from (the list and the option) one is
+consumed away upstream and one survives to the Delay, so "the flow the Delay
+is on" has a unique answer and the implicit rule reads it off the surviving
+flow. A **product** removes that asymmetry, and removing it is what forces the
+reference. Take the running sum over a cross — the second-simplest example
+after the plain scan:
+
+```
+xs -> open list => x, ~x
+ys -> open list => y, ~y      -- sibling: cross, not zip
+x, y -> add => s              -- one value per (x, y): the product flow {X, Y}
+~? ~> delay init 0 => run
+run, s -> add -> step of run => total
+```
+
+Where the plain scan wrote `~L ~> delay` with `~L` the only flow in scope,
+the product leaves `~?` genuinely open: `s` lives on the product flow {X, Y},
+and `~x`, `~y` are two *sibling* candidate axes — neither consumed, neither
+surviving over the other. Two consequences, one for each candidate:
+
+- **Candidate 2's "which ancestor" gets a second, harder failure mode.** In
+  the nesting example the wrong ancestor was the *innermost* one (the option),
+  and "an outer one" pointed at the fix. Here the two ancestors `~x` and `~y`
+  are **incomparable** — the product's axis contexts are incomparable by
+  construction (`product-flows-design.md`, "The poset") — so "nearest" does
+  not even apply: there is no nearest, and no local asymmetry to break the
+  tie. Nesting shows the nearest ancestor can be wrong; the product shows
+  there need not be a nearest at all.
+
+- **The implicit rule has a flow but no axis.** "The collect that gathers the
+  flow the Delay is on" disambiguated nesting because one flow survived to
+  *be* that flow. Over a product the Delay's flow is the multi-axis {X, Y},
+  and folding it needs *an axis*, which the local wiring does not distinguish
+  — `x, y -> add` is symmetric in its two inputs. The rule can name the flow
+  but not the axis, and the axis is the whole content (running sum down
+  columns vs along rows are different programs — "Registers over products",
+  `product-flows-design.md`).
+
+So the product is exactly where the two open items meet, and meeting there
+shows they are **one trade, not two puzzles**:
+
+- **Collect-binding pays no reference and buys the recompute cost.** A
+  collect reading the register's flow must orient the product to gather it at
+  all ("orders live at terminations"), so it *already* names an inner axis;
+  the register folds along it and nothing new is drawn. The price is argument
+  1's: two consumers in opposite orders name two axes, want two grids, and
+  compute-once-transpose breaks. (Residue to check: the pure-`final` corner,
+  where no collect reads the running values, has no such consumer to supply
+  the axis, so collect-binding there must fall back to the feedback collect's
+  own orientation — a thread the mechanism owes.)
+
+- **Ancestor-reference pays the reference and buys the stable grid.** Fixing
+  the axis at the Delay keeps "running sum along X" one point-indexed grid
+  that transposes like any product value — but the Delay must *say* X, and a
+  symmetric product cannot infer it. That is the wire-mess, and here it is
+  unavoidable in **both** surfaces: even the textual form must write
+  `~x ~> delay` or `~y ~> delay` — the free `~L` inference is gone. The visual
+  form does not merely pay the reference, it pays it *ugly*.
+
+The disambiguation-vs-wire-mess tension is therefore not a separate obstacle
+beside the collect-vs-ancestor fork; it is the same fork read from the
+reference side. Collect-binding *is* the "no explicit reference" branch (the
+consumer's unavoidable orientation supplies the axis); ancestor-reference *is*
+the "explicit reference" branch (the axis fixed at the Delay, which a
+symmetric product cannot supply implicitly). Paying recompute and paying the
+reference are one choice. And the boundary is sharp: the reference is forced
+**exactly** on flows symmetric under their axes — products — and is needed
+nowhere a single flow survives (plain scans, nested handlings). That localizes
+the wire-mess to one construct's interaction, which is the most the examples
+have narrowed it to.
+
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
@@ -1376,7 +1450,10 @@ more worked examples would pay off next.
   the deepest pull toward candidate 2 (it questions the uncollect fiction
   the whole record leans on). The optional-readings example adds a vote for
   the collect on the *nesting* axis (a value's innermost ancestor can be the
-  wrong flow), leaving candidate 2 owing a "which ancestor" rule.
+  wrong flow), leaving candidate 2 owing a "which ancestor" rule — a debt the
+  running-sum-over-a-cross example then deepens: over a product the ancestors
+  are *incomparable*, so "nearest" has no referent at all (two failure modes
+  for candidate 2 — the nearest is wrong, or there is no nearest).
 - **Which collect, precisely.** Sharpened by the worked example to **the
   collect that gathers the flow the Delay is on** (not "the nearest collect
   in scope"), which disambiguates nesting cleanly. It does not resolve the
@@ -1388,7 +1465,14 @@ more worked examples would pay off next.
   (`~L ~> delay`), but every visual attempt is a mess of wires. Open: fix
   the flow implicitly (the "collect of the Delay's own flow" rule) well
   enough to need no visual reference, or find a lightweight visual reference
-  that is not a mess. More worked examples would help here.
+  that is not a mess. Sharpened by the running-sum-over-a-cross example ("The
+  product sharpens both"): the reference is forced **exactly** on flows
+  symmetric under their axes (products) and nowhere a single flow survives,
+  and it is not an obstacle *beside* the collect-vs-ancestor fork but the
+  same fork from the reference side — collect-binding is the no-reference
+  branch (the consumer's orientation names the axis, at the recompute cost),
+  ancestor-reference the explicit-reference branch (the axis fixed at the
+  Delay, at the wire-mess cost). One trade.
 - **Is "value wire in context" the right model of an uncollected value?**
   Argument 2's reframing — every per-iteration value carries a previous and
   a next — reaches beyond Delay into what uncollect *means*; unexamined, and
