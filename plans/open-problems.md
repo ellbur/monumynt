@@ -395,51 +395,6 @@ domain-concentrated (package/build/import tooling, analysis, graph
 features); the frequency question is on the evidence-owed list. See
 `flix-comparison.md`, `collect-family-design.md`.
 
-**Focused update: transform selected loci of a nested value —
-I 5, W 3.**
-Change part of a large nested value, preserving everything else. In
-drawn vocabulary: uncollect down to the loci, transform there,
-re-collect upward with untouched siblings passing through. The
-hand-written form — an identity-transform recursion rebuilding every
-node to change the few that match — is the standing assembly-language
-diagnosis in another costume.
-
-Both shipped relatives built major machinery for exactly this: half of
-jq is paths as first-class values (every filter in path context
-denotes the loci it selects; every assignment is defined by
-LHS-selected paths; `walk`-family deep rewrites), and XQuery grew an
-entire separate W3C facility (Update; `copy … modify … return`). Scope
-items: selection and update sharing one vocabulary (jq's deepest design
-win — the filter that reads a locus is the filter that writes it);
-paths as drawable witnesses of loci; multi-locus as the primary case,
-not an extension; the tree-rewrite connection to the trees row (jq's
-`walk`).
-
-The structure round is done (APL/BQN Under): the **commuting law**
-((𝔾 of the update) ≡ compute-after-𝔾, frame untouched), the
-**well-formedness condition** (the selection must be structural — loci
-fixed as data before write-back; value-dependent selection sanctioned
-only by materializing the mask first, jq's paths-as-data rediscovered
-as a lawfulness requirement), the **lens identification** (the
-structural getter determines the setter), the **derived-view
-generalization** (update under reshape/transpose/reverse), and the
-multi-locus **conflict rule** (Dyalog's "last-most is assigned").
-BQN *removed* its Expand primitive in favor of Under — a
-primitive-count dissolution arguing the construct is load-bearing.
-I = 5: nothing worked in our vocabulary, but the remaining list is a
-worked-round agenda. W = 3, any move conditioned on evidence: the shape
-is invisible to loop sampling by construction and this round's corpora
-are domain-biased toward it; the frequency question (spread pyramids,
-builder copies, `setIn`/lens libraries) is on the evidence-owed list.
-Reactive costume: Redux's spread-pyramid docs (the imperative costume
-institutionalized), Immer's patches-as-data (the update's natural
-output is a delta stream), Solid's path setters — and the coupling that
-update loci are invalidation keys, making this row and the incremental
-collections layer two ends of one pipe. purrr's `modify` family states
-the functor laws outright — jq's paths, BQN's Under, and purrr's modify
-agree across three ecosystems. See `xquery-jq-comparison.md`,
-`apl-family-comparison.md`, `reactive-comparison.md`, `tidyverse-comparison.md`.
-
 **Products: the table, zip, and the unexamined interactions —
 I 3, W 4.**
 Cross itself is worked (`product-flows-design.md`); n-ary products are
@@ -643,6 +598,47 @@ machinery, because an abandoned alternative is an unconsumed value
 stream — caveat: jq owns no consumed-input notion, so parsing still
 threads positions). See `speculation-design.md`, `effekt-comparison.md`,
 `raku-grammars-comparison.md`, `xquery-jq-comparison.md`.
+
+**Focused update: transform selected loci of a nested value —
+I 3, W 3.**
+Change part of a large nested value, preserving everything else. Now
+worked in `focused-update-design.md`: the construct is **a structural
+selection read as a round trip** — the path `.users[].posts[].likes` is
+the same chain that *reads* the loci, and the write-back is its
+**derived mirror** (`open list` ↔ exhaustive list collect, `.field` ↔
+spread, case open ↔ exhaustive case collect), so selection and update
+are one drawing read two ways (the lens identification; jq's deepest
+win preserved rather than re-invented). Load-bearing result:
+**value-selected focused update is a case split with an identity branch,
+never a filter** — filter discharges the provenance naming the
+unselected positions, so BQN's structural condition (materialize the
+mask first) *is* our value/flow discipline (the materialized mask is the
+retained case bundle). Multi-locus is the base (paths cross opens →
+flows of loci), single-locus the once-firing degenerate; the deep
+(`walk`-style) rewrite is named as the divide flow's lift of this
+fixed-depth base; the delta output couples to incremental collections
+(touched loci = invalidation keys). Five dead ends recorded.
+
+Remaining: the adoption conversation; the path's first-classness
+(drawable/computed witness vs chain-shape only); the write-back
+spelling; scatter and the conflict rule (index-as-value write, Dyalog's
+last-most adopted for the multi-path fan, scatter's membership open);
+the derived-view catalog (transpose/reverse/reshape); and the trees-row
+seam (deep rewrite = the divide flow's unfold). I = 3: a round exists
+with leanings, adoption and major pieces open. W = 3, any move
+conditioned on evidence: the shape is invisible to loop sampling by
+construction and this round's corpora are domain-biased toward it; the
+frequency question (spread pyramids, builder copies, `setIn`/lens
+libraries) is on the evidence-owed list. Prior art: jq's
+paths-as-one-vocabulary (the positive lens witness) against XQuery's
+separate Update facility (the negative); BQN's structural Under supplies
+the law, the structural condition, the lens identification, and the
+derived-view generalization — BQN *removed* Expand in favour of Under;
+purrr's `modify` states the functor laws — three ecosystems agree;
+Redux's spread-pyramid and Immer's patches-as-data supply the imperative
+costume and the delta output. See `focused-update-design.md`,
+`xquery-jq-comparison.md`, `apl-family-comparison.md`,
+`reactive-comparison.md`, `tidyverse-comparison.md`.
 
 ## Tier 4 — presentation and polish (≤ 7)
 
