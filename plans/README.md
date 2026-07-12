@@ -127,6 +127,12 @@ Everything else hinges on these two:
   trip, its write-back the derived mirror of the path (the lens); value-
   selected update is a case split with an identity branch, never a filter.
   *Exploration.*
+- [`saturation-design.md`](saturation-design.md) — closure under rules
+  (graph reachability, transitive closure, dataflow analysis): the
+  register's dual one level up — a back-edge on a *flow* wire (a set
+  collect re-opened) where the register is a back-edge on a *value* wire (a
+  Delay). Naive vs semi-naive are lowerings; the lattice variant is the
+  keyed collect under feedback. *Exploration.*
 
 ## Flow kinds beyond lists
 
