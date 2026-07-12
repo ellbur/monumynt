@@ -40,8 +40,11 @@ different construct (the "building blocks must build" principle,
 `language-design-philosophy.md`).
 
 **A standing caution.** Delay has drawn much of the recent work — the
-port/latent equivalence, the productivity check, the ontology fork — and
-that concentration is not itself evidence that Delay is the answer. The
+port/latent equivalence, the productivity check, the ontology fork (now
+reframed by the value-in-context model, §"The value-in-context model,
+examined", which factors the register into raw-previous + seed + feedback
+and relocates the fork to a product's linearization) — and that
+concentration is not itself evidence that Delay is the answer. The
 live worry is the beginner bar: a surface built from Delay nodes asks the
 programmer to write register-transfer logic (the RTL critique in "The
 surface question" below), and requiring that of a beginner is exactly the
@@ -1452,6 +1455,205 @@ nowhere a single flow survives (plain scans, nested handlings). That localizes
 the wire-mess to one construct's interaction, which is the most the examples
 have narrowed it to.
 
+### The value-in-context model, examined
+
+Status: **worked with leanings, not adopted.** This takes up the Open list's
+fourth item — argument 2's reframing, flagged *unexamined and consequential
+if true* — because on examination it does not merely dissolve candidate 2's
+rejection; it **reframes the whole collect-vs-ancestor fork** and predicts,
+rather than being surprised by, both the product's axis problem and the
+transpose cost. The examination reaches into what an uncollect produces, so
+it is carried carefully and its global cost stated at the end.
+
+**The model, precisely.** An uncollected value is not a scalar. It is a
+**cursor into the sequence of values its wire takes across the flow's
+firings.** At firing *n* the cursor is at position *n*; the plain value is
+the cursor's *current-position projection*; `prev` steps the cursor back one
+firing, `next` steps it forward. The sequence a wire is a cursor into is not
+the source list — it is the sequence *this wire* takes: for the source
+element, the list; for `x * 2`, the doubled elements; for a register's read
+port, the accumulated values. "The flow a value is on" (the notion the
+sharpened rule already leans on) is precisely "the sequence its cursor
+ranges over." Every value on a linearly-ordered flow has this structure;
+ignoring it recovers the plain value, so the model burdens no one until they
+reach for `prev`/`next` — the scalar reading *is* the model with the context
+projected away. That is the answer to the beginner-bar worry the reframing
+raised: value-in-context is a conservative extension, invisible in the common
+case.
+
+**It decomposes iteration state into two independent moves.** Once a value is
+a cursor, the register is not primitive — it factors:
+
+- **Raw previous** — read the wire's own predecessor. On a wire whose
+  firing-0 value is supplied by the flow (a source element, any function of
+  source elements), the sequence has nothing before position 0, so `prev` at
+  firing 0 is **None**: raw previous is *option-typed*. This is the rejected
+  `prev(x)` candidate — resurrected honestly, as a readout on the wire's
+  context rather than a name lookup (see below). Successive differences of
+  raw readings, `x - prev(x)`, need no seed and no register; they need the
+  option handled at the boundary.
+- **The seed** — insert an initial value *before* position 0. The wire's
+  sequence becomes `[init, v0, v1, …]`, `prev` at every firing (including the
+  first) reads a defined value, and the option vanishes. This is exactly
+  "the link splits the initial value" and "access-previous is never
+  option-typed," now stated as *what the seed does to the cursor's domain*:
+  it extends the sequence one position to the left.
+
+A **register is the composite**: a seed (fills the None) *plus*
+self-reference (the wire's next value is computed from its own `prev` — the
+feedback). Drop the self-reference and you have a seeded shift-register (raw
+`prev` with a default); drop the seed and you have option-typed raw previous.
+So `Delay = raw-prev + seed + feedback`, and the three-way coupling
+(assign-initial / access-previous / assign-iterated) is read off the
+factorization: the seed is assign-initial, the cursor's `prev` is
+access-previous, the feedback is assign-iterated.
+
+**This dissolves the `prev(x)` rejection without re-proposing it.** The four
+reasons that sank `prev(x)`:
+
+1. *"The argument is a label, not a value."* Under the model `prev` is a
+   readout **on a wire** (like `.field` or a projection), not a function
+   taking the identifier `x` to look up "the node one iteration ago." It
+   reads structure the wire carries. Reason dissolved — *provided* the
+   surface spells `prev` as an operation on the cursor, not `prev(name)`.
+2. *"A flow-level feature written as a value expression."* Dissolved
+   wholesale: **every** per-iteration value is flow-level in exactly this
+   sense — a cursor into a flow-indexed sequence. The objection singled out
+   `prev` for a property all uncollected values share. There is nothing left
+   to single out.
+3. *"Many `prev` uses are one case split written many times."* The None is
+   not per-variable; it is the flow's own "position 0 has no predecessor,"
+   shared by construction. You discharge it once per wire either by seeding
+   (register) or by handling the option (raw prev). No duplicated
+   discrimination.
+4. *"The None case belongs outside the flow."* Yes — and that is the seed,
+   evaluated outside, extending the sequence leftward. Consistent, not
+   contradicted.
+
+So the reframing keeps `prev(x)`'s correct instinct (intrinsic previous is
+real) and pays off its debts (the surface is a wire-readout; the boundary is
+the seed or an option), landing candidate 2's "reads context the wire
+genuinely carries" as a worked account rather than an assertion.
+
+**`prev` vs `next`, and why Delay is backward.** The cursor offers both
+directions, and the productivity/causality check is exactly what says which
+is legal on which flow:
+
+- `prev` is always causal — position *n−1* is already computed when firing
+  *n* runs (productive corecursion, §"Within one iteration there is no
+  cycle"). Legal on every flow.
+- `next` reads position *n+1* — a value not yet produced in iteration order.
+  On a **materialized, random-access flow** (a stored list) the data exists,
+  so `next` is fine — the neighbour-pairing and windowing idioms are `next`
+  on a stored list. On a **live stream or a self-referential register**
+  `next` reads across the iteration boundary *forward*, reversing the delay;
+  the productivity check rejects it (a cycle that avoids the crossing, or a
+  read of the uncomputed).
+
+This is a clean account of a fact the record stated but did not explain:
+Delay is specifically a *delay* (backward) and not a *lead* (forward)
+because backward reference is causal on any flow while forward reference is
+causal only where the flow is already materialized. The same check that
+rules out `x = x + 1` rules out `next` on a live register — one condition,
+now covering both directions.
+
+**Products: the cursor becomes a grid-point, and that is the axis problem.**
+On a linearly-ordered flow "previous" is a step back along the one order. On
+a **product** flow `{X, Y}` the cursor is a **point in a grid**, and a grid
+point has no intrinsic predecessor — stepping back along X and stepping back
+along Y are both "previous," and neither is privileged (the product's axis
+contexts are incomparable, "The poset"). So the value-in-context model does
+not *stumble* on products; it **predicts** the axis problem: a product
+value's context is a grid coordinate, and `prev` on a coordinate is
+underdetermined until an axis names the linearization. The reference the
+symmetric product forces ("The product sharpens both") is, in this model,
+exactly the datum the cursor is missing — *which axis to walk* — and the
+model says why it is missing rather than treating it as an unexplained
+defect. The dividing line the examples found (reference forced exactly on
+products, needed nowhere a single flow survives) is restated as: **a flow is
+a sequence iff its cursor has a unique predecessor; a product is a grid iff
+it does not.**
+
+**The commute criterion this hands us.** A plain scalar value is
+commute-invariant — transpose a product and the base grid `s = x + y`
+transposes for free ("The inner-axis vs outer-axis cost"). A value that
+reads its cursor's context is **not** commute-invariant: transpose permutes
+which axis is "previous," so a scan-along-X and a scan-along-Y are different
+grids, not transposes of each other (the mechanical fact `product-flows-
+design.md` records). The model sharpens *why*, and generalizes the boundary:
+the thing that breaks compute-once-transpose is not "a register" but **any
+read of `prev`/`next` context**, register or raw. So the checkable criterion
+for "free to transpose" vs "drives a genuinely different computation per
+orientation" is precisely **"does this value read flow-context."** That is a
+refinement of argument 1: the cost attaches to context-reads in general, of
+which the register is the common instance, and a raw `prev(x)` under a
+transpose carries it too.
+
+**What it reframes in the fork.** Candidates 1 and 2 were a fork about
+*which flow* supplies the Delay's next iteration — the collect that gathers
+it, or the ancestor it descends from. The value-in-context model says the
+flow is neither *chosen* — it is just **the flow the wire is on**, the
+sequence its cursor ranges over, fixed by provenance (the barrier-crossing
+round's "availability by provenance"). There is no flow to pick. What is
+left is not *which flow* but **which linear order on that flow**:
+
+- On a **sequence** (list, stream, any nesting where one flow survives) the
+  order is unique, so the two candidates *coincide* and both agree with the
+  sharpened collect-binding vote — the cursor's predecessor is the previous
+  firing of the surviving flow, which is what the collect gathers.
+- On a **grid** (product) the order is *not* unique, so both candidates
+  underdetermine identically — neither "the collect" nor "the ancestor" names
+  an axis, because the flow itself does not distinguish one. The residue is
+  the linearization, and it is a real added datum no flow-choice supplies.
+
+So the collect-vs-ancestor label is, on this reading, **not the axis of the
+disagreement** — it dissolves on sequences and is silent on grids. The live
+content of the open problem is relocated: *is a product-crossing register's
+axis supplied by the consumer's orientation (collect-binding's no-reference
+branch, paying recompute) or fixed at the Delay (an explicit
+axis-reference, paying the wire-mess)* — which is the one trade "The product
+sharpens both" already isolated. Value-in-context did not decide that trade;
+it removed the *other* question (which flow) so the trade stands alone.
+
+**The cost of adopting it, stated honestly.** The model reshapes what an
+uncollect *produces* everywhere: an uncollected value is a cursor, not a
+scalar, so `prev`/`next` become available on ordinary per-iteration values,
+option-typed at the boundary, and commute stops being a free transpose for
+any wire that reads context. Three consequences to weigh before adoption:
+
+- **Raw `prev` is a new everyday surface.** Successive differences,
+  neighbour comparison, run-boundary detection all become "read the cursor's
+  predecessor and handle the None" — no register, no seed. This is either a
+  welcome simplification (the register is now the *seeded* special case, not
+  the only door to previous-value) or a second way to do a near-thing that
+  the beginner must be steered through. It wants the survey's attention:
+  how often is the wanted previous the *raw* element vs a *seeded*
+  accumulator (`real-loop-survey.md`)?
+- **Commute's invariant weakens.** "Values pass through combining
+  constructs as themselves" (the no-bottleneck principle) still holds for
+  scalars, but a context-reading value's identity now includes its cursor
+  order, so the transpose that is free for scalars permutes it. This is
+  consistent with what products already do to registers; the cost is making
+  the criterion — context-read ⇒ not transpose-invariant — a thing the
+  checker and the user must know.
+- **It does not, by itself, resolve the product.** It explains the axis
+  gap; it does not fill it. The one trade above survives intact.
+
+**Leaning.** The model is attractive because it *earns* three things the fork
+was carrying as brute facts — candidate 2's "honest context" claim, the
+product's forced reference, and the transpose cost — from a single idea (a
+cursor into a firing-indexed sequence), and it collapses the collect-vs-
+ancestor question into "sequence vs grid," which is decidable structurally.
+It is **not** adopted, on two reservations: the everyday-`prev` surface
+needs the frequency check before a second previous-value door is blessed,
+and "an uncollected value is a cursor" is a claim about the *whole* language,
+not this construct, so it should be adopted (if at all) at the core-model
+level with the kinds table and the barrier-crossing availability rule in the
+room, not from inside the iteration-state round. What this examination
+settles is narrower and firmer: **the collect-vs-ancestor fork is not the
+real axis** — it is empty on sequences and silent on grids — and the live
+residue is the product's linearization trade, alone.
+
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
@@ -1467,6 +1669,13 @@ have narrowed it to.
   running-sum-over-a-cross example then deepens: over a product the ancestors
   are *incomparable*, so "nearest" has no referent at all (two failure modes
   for candidate 2 — the nearest is wrong, or there is no nearest).
+  **Reframed by the value-in-context examination:** if an uncollected value
+  is a cursor into its wire's firing-indexed sequence, the flow is not
+  *chosen* at all — it is the flow the wire is on, fixed by provenance — and
+  the collect-vs-ancestor labels *coincide* on sequences (both agree with the
+  collect-binding vote) and are *silent* on grids (neither names an axis). So
+  the fork's real content is not which flow but the product's linearization,
+  isolated below.
 - **Which collect, precisely.** Sharpened by the worked example to **the
   collect that gathers the flow the Delay is on** (not "the nearest collect
   in scope"), which disambiguates nesting cleanly. It does not resolve the
@@ -1488,8 +1697,20 @@ have narrowed it to.
   Delay, at the wire-mess cost). One trade.
 - **Is "value wire in context" the right model of an uncollected value?**
   Argument 2's reframing — every per-iteration value carries a previous and
-  a next — reaches beyond Delay into what uncollect *means*; unexamined, and
-  consequential if true.
+  a next — reaches beyond Delay into what uncollect *means*. Now **worked
+  with leanings** (§"The value-in-context model, examined"): the model
+  factors the register into *raw previous* (option-typed, unseeded) + *seed*
+  (fills the None) + *feedback*, dissolves the four `prev(x)` rejections by
+  making `prev` a wire-readout rather than a name lookup, explains
+  backward-only Delay via causality (`next` is legal only on materialized
+  flows), and — the payoff — reframes the fork above (flow is fixed by
+  provenance; collect-vs-ancestor coincide on sequences, silent on grids)
+  and predicts the product's axis gap (a product cursor is a grid-point with
+  no unique predecessor) and the transpose cost (context-reads, not just
+  registers, are non-transpose-invariant). Not adopted: the everyday-`prev`
+  surface owes a frequency check, and "an uncollected value is a cursor" is
+  a whole-language claim to be weighed at the core-model level, not from
+  inside this round.
 - **Is Delay the right abstraction at all?** Argument 3, held open.
 - **Per-kind "next iteration."** Which flow kinds supply one (list and
   stream yes; async/IO apparently not; incremental unexamined) wants the
@@ -1663,7 +1884,14 @@ on a proven two-way equivalence:
   have a previous and a next, dissolving candidate 2's rejection and
   reaching into what uncollect *means*), and the possibility that Delay is
   the wrong abstraction. Worked in "What a Delay is, and which flow binds
-  it."
+  it." The value-in-context reframing is now worked in turn (§"The
+  value-in-context model, examined"): modelling an uncollected value as a
+  cursor into its wire's firing-indexed sequence **relocates the fork** —
+  the flow is fixed by provenance (not chosen), collect-vs-ancestor coincide
+  on sequences and are silent on grids, so the live residue is a product's
+  *linearization* (which axis), not *which flow*. The register factors as
+  raw-previous + seed + feedback; the model is attractive but unadopted (it
+  reshapes uncollect language-wide).
 - **Self-reference and cycles — resolved.** The iteration-boundary crossing
   is the only back-edge, so productivity is the structural condition "every
   cycle passes through a crossing" — a decidable whole-graph quotient
