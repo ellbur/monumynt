@@ -847,7 +847,44 @@ in its turn. (Whether the orientation "lives at" the binding collect or is
 fixed at the ancestor uncollect is the open question above; either way it is
 this-minimal.)
 
-### Rank drop, and the full reduction as an axis permutation
+### The inner-axis vs outer-axis cost
+
+Reduce along *which* axis is not cost-neutral, and the asymmetry is where an
+outer-loop accumulator hides. Take the product traversed X-inner, Y-outer:
+
+- **Register along the inner axis (X).** Consecutive firings of the X-fiber
+  are adjacent in the traversal, so the register *streams*: accumulate
+  across the inner sweep, reset the seed at each new y. One live
+  accumulator, no retention — the cheap, obvious case.
+- **Register along the outer axis (Y).** "Previous" now means the previous
+  *outer* iteration's element at the same inner position — the value at
+  (x, y−1), which the traversal visited a whole inner sweep ago. Realizing
+  it means **storing the entire previous inner list (the previous X-fiber)
+  and zipping it positionally with the current one.** The Y-register is
+  fibered over X, but because X is traversed *inside* Y, its |X| parallel
+  fibers all advance once per outer step, so the whole fiber must be
+  retained across the inner sweep.
+
+The store-and-zip is not a wart — it is exactly what an **accumulator over
+an outer loop** *is* (compare this row to the previous row; carry a
+per-column running total across rows), and wanting that is not infrequent.
+So a register over a product carries a real cost gradient — the inner axis
+streams, any outer axis retains a fiber — and choosing the axis is also
+choosing the cost.
+
+This is also the mechanical fact behind a point in the Delay-ontology
+debate (`iteration-with-state-design.md`, "What a Delay is, and which flow
+binds it"): the two
+orientations of a register are not two readings of *one* grid, they are two
+*different computations*. The base value grid (`s = x + y`) transposes for
+free, but a **scan** along X (`sum over x′≤x at fixed y`) and a scan along Y
+(`sum over y′≤y at fixed x`) are different grids — not transposes of each
+other — and a **reduce** along X (a Y-flow) and along Y (an X-flow) are
+different outputs. So there is no single grid a register can build once and
+serve both orientations from (outside the commutative case below); a
+consumer that wants the other orientation drives a genuinely different
+computation, which is why "re-run the register per collect" is a legitimate
+implementation and not merely a failure to share.
 
 Reducing a rank-n product **all the way to a scalar** is *n* nested
 registers — one per axis — not one register over the cube. Register-along-X

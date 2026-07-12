@@ -138,15 +138,20 @@ is, and which flow binds it"). Firm: a Delay is a feature of the flow and
 does not thread the flow wire (IO's wire-threading encodes a temporal
 sequence Delay lacks). Open fork — two live candidates: the **collect**
 that binds the register, or the **ancestor uncollect** its value descends
-from. A first pass leaned collect-binding; three arguments reopened it —
-the multiple-collect/shared-grid problem (a consumer-order-dependent axis
-breaks products' compute-once-transpose implementation, arguing the axis is
-fixed at the Delay), the "value wire in context" reframing (a per-iteration
-value may honestly carry a previous and a next, dissolving candidate 2's
-rejection and reaching into what uncollect *means*), and the possibility
-that Delay is the wrong abstraction. The choice selects behaviour wherever
-a commute or a product's axes puts more than one flow in reach. The row's
-center, the surface decision, is untouched by all of these.
+from. A first pass leaned collect-binding; three considerations reopened it,
+and the fork is now genuinely balanced: (1) the multiple-collect/shared-grid
+problem (a consumer-order-dependent axis breaks products' compute-once-
+transpose implementation) — but this is a *cost, not a knockout*, since
+re-running a register per collect is a legitimate implementation and an
+outer-axis accumulator wants the store-and-zip cost anyway (a register along
+an outer axis must retain the previous fiber and zip — exactly an
+outer-loop accumulator, and not infrequent); (2) the "value wire in context"
+reframing (a per-iteration value may honestly carry a previous and a next,
+dissolving candidate 2's rejection and reaching into what uncollect
+*means*); (3) the possibility that Delay is the wrong abstraction. The
+choice selects behaviour wherever a commute or a product's axes puts more
+than one flow in reach. The row's center, the surface decision, is untouched
+by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but

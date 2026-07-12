@@ -1195,12 +1195,14 @@ ancestor-reference it folds along a fixed axis its value descends from,
 regardless of consumer. Argument 1 below is why that difference is not
 cosmetic.
 
-### Why this reopened: three arguments against collect-binding
+### Why this reopened: three considerations
 
-The first pass leaned collect-binding. Three considerations pull back toward
-the ancestor uncollect — or past both:
+The first pass leaned collect-binding. Three considerations complicate it —
+the first a cost that turns out to be survivable (and even sometimes
+wanted), the second and third pulling toward the ancestor uncollect or past
+both:
 
-1. **The multiple-collect / shared-grid problem (the hard one).** Two
+1. **The multiple-collect / shared-grid problem (the concrete one).** Two
    independent uncollects (x, y) crossed into a product, then collected
    *twice in opposite orders*, are implemented by iterating once, storing
    the n×m grid, and transposing for the second consumer — one computation,
@@ -1212,8 +1214,23 @@ the ancestor uncollect — or past both:
    that makes Cross cheap breaks. Under ancestor-reference the register's
    axis is fixed at the Delay, "running sum along X" is one point-indexed
    grid, and it transposes like any other product value — the shared-grid
-   implementation is preserved. This is a concrete, mechanical argument that
-   consumer-order-dependent binding is incompatible with how products run.
+   implementation is preserved.
+
+   **But the rebuttal cuts back toward candidate 1.** This treats
+   compute-once-transpose as a property a register must *not* break — and
+   that premise is contestable. A delayed computation collected two ways is,
+   arguably, honestly *two different computations*, and **re-running it once
+   per collect is a legitimate implementation, not a defect** — sometimes
+   exactly what you want. The cost is not even hidden: a register along any
+   axis *other than the innermost* already cannot stream — it must store a
+   whole previous fiber and zip it against the current one
+   (`product-flows-design.md`, "The inner-axis vs outer-axis cost"), and an
+   accumulator over an *outer* loop, which wants precisely that, is not
+   infrequent. So argument 1 lands as a real **cost** on candidate 1
+   (products stop being free to transpose across a register, and some
+   registers recompute per consumer), not as a knockout. Whether that cost
+   is acceptable — versus fixing the axis at the Delay and paying candidate
+   2's price instead — is the open weighing, and it is genuinely balanced.
 
 2. **"Previous element" is honest context, not smuggled state.** It is not
    linguistically strange to say: if I have the current element of a list, I
@@ -1235,10 +1252,13 @@ the ancestor uncollect — or past both:
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
-  (candidate 2), or a specified third flow — is the live fork, with
-  argument 1 currently the sharpest evidence (against consumer-order-
-  dependent binding) and argument 2 the deepest (it questions the uncollect
-  fiction the whole record leans on).
+  (candidate 2), or a specified third flow — is the live fork, and it is
+  genuinely balanced: argument 1 is a real cost on candidate 1 (products
+  stop transposing freely across a register) but *not* a knockout, since
+  re-running a register per collect is a legitimate implementation and an
+  outer-axis accumulator wants the store-and-zip cost anyway; argument 2 is
+  the deepest pull toward candidate 2 (it questions the uncollect fiction
+  the whole record leans on).
 - **Is "value wire in context" the right model of an uncollected value?**
   Argument 2's reframing — every per-iteration value carries a previous and
   a next — reaches beyond Delay into what uncollect *means*; unexamined, and
