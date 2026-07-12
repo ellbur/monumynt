@@ -365,36 +365,6 @@ configuration on the test double. See `effekt-comparison.md`,
 `flix-comparison.md`, `apl-family-comparison.md`, `reactive-comparison.md`,
 `zig-comparison.md`, `tidyverse-comparison.md`, `collect-family-design.md`.
 
-**Saturation: closure under rules — I 5, W 3.**
-Compute the closure of a seed set under derivation rules until nothing
-new appears — graph reachability/cycles/ordering, dependency
-resolution, dataflow and program analysis. One round of rule
-application is drawable today (uncollects over fact sets, the
-shared-variable constraint as a wire, a set collect); what nothing owns
-is the **feedback at the flow level** — firings minting future firings,
-termination when the set stops growing. Distinct from the register
-(value feedback along a fixed walk) and the divide flow (recursion over
-virtual nested structure); dual to the served flow's recursive provider
-(demand-driven top-down vs saturation bottom-up), to be worked aware of
-each other.
-
-Two scope items: the keyed-merge variant (lattice semantics = keyed
-collect merging by a lawful operator; shortest-distance is
-keyed-min-collect plus feedback — its algebraic footing is in
-`collect-family-design.md`: the keyed collect by ⊕ is a monoid fold
-with identity ∅, and lanes being non-empty by construction make
-semigroup operators like min total per-lane, which is what
-keyed-min-collect needs); and **explanation as an output** (Flix's
-provenance queries: why is this member in the closure — witness
-firings, drawable; the record's drawable-witnesses instinct surfacing
-at runtime). The imperative encoding — frontier queue plus seen-set —
-is the standing assembly-language diagnosis in another costume. I = 5:
-a name and a demand, nothing worked. W = 3 as a breadth obligation:
-absent from all three random surveys; everyday clients are
-domain-concentrated (package/build/import tooling, analysis, graph
-features); the frequency question is on the evidence-owed list. See
-`flix-comparison.md`, `collect-family-design.md`.
-
 **Products: the table, zip, and the unexamined interactions —
 I 3, W 4.**
 Cross itself is worked (`product-flows-design.md`); n-ary products are
@@ -541,6 +511,42 @@ shapes: keyed var families minted on demand, per-key subscriptions,
 hierarchical keys with prefix invalidation (provenance's prefix rule in
 runtime clothes), update deltas as data, and the identity-vs-position
 fork.
+
+**Saturation: closure under rules — I 3, W 3.**
+Compute the closure of a seed set under derivation rules until nothing
+new appears — graph reachability/cycles/ordering, dependency
+resolution, dataflow and program analysis. Now worked in
+`saturation-design.md`: the load-bearing result is that **saturation is
+the register's dual one level up** — a back-edge on a *flow* wire
+crossing a *set collect re-opened*, where the register is a back-edge on
+a *value* wire crossing a Delay. The dedup collect does double duty
+(monotonicity + convergence), and "the set stopped growing" is the
+flow-level analogue of productivity. One round of rules is already
+drawable (two uncollects over fact sets, the shared variable as a
+Cross-plus-equality-filter equijoin, a set-collect target); **naive vs
+semi-naive** (whole-set vs frontier/delta) are lowerings, not two
+constructs (decide in code), which keeps the worklist in
+assembly-language territory. The **lattice-merge variant** is the keyed
+collect by ⊕ under the same feedback (shortest-distance =
+keyed-min-collect + back-edge, its algebraic footing in
+`collect-family-design.md`); the whole-set register (`f⍣≡`) is the
+degenerate scalar-fixpoint neighbour, kept distinct because it carries
+no members (no semi-naive, no provenance). Four dead ends recorded.
+
+Remaining: the adoption conversation; **termination is not structural**
+(Datalog's finiteness/bounded-height condition — the dedup-collect
+discipline is necessary, not sufficient; leaning is nothing static,
+divergence flagged); **provenance/explanation as a derived view** (a
+highlighted sub-DAG of the deriving firings — the most novel residue, a
+leaning only); **stratified negation** as a fixed nesting of saturations
+under no-time-travel (sketched); and the **served-flow duality**
+(top-down demand-driven vs bottom-up saturation, the seen-set/memo hinge
+named — to be worked jointly once the served flow is worked). W = 3 as a
+breadth obligation: absent from all three random surveys, everyday
+clients domain-concentrated (package/build/import tooling, analysis,
+graph features); the frequency question stays on the evidence-owed list.
+See `saturation-design.md`, `flix-comparison.md`,
+`collect-family-design.md`, `effekt-comparison.md`.
 
 **How values cross a barrier — I 2, W 4.**
 Worked (`barrier-value-crossing-design.md`): crossing split into
