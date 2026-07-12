@@ -169,8 +169,18 @@ residue. It factors the register into raw-previous + seed + feedback
 causality (`next` legal only on materialized flows), and *predicts* the
 product's axis gap and the transpose cost (any context-read, not just a
 register, is non-transpose-invariant). Not adopted — it reshapes uncollect
-language-wide and owes an everyday-`prev` frequency check. The row's center,
-the surface decision, is untouched by all of these.
+language-wide and owes an everyday-`prev` frequency check. The product
+linearization residue has since **narrowed**
+(`iteration-with-state-design.md`, "The product, re-read through
+update-cadence and read-range"): reading the product through the
+update-cadence/read-range split locates the whole residue in the *update*
+half (a missing order on the one grid, not a flow ambiguity; the read half
+stays ordinary) and **closes the pure-`final` corner** collect-binding was
+owed — over a product `final` is a reduced-rank flow, so its consumer names
+the axis. The sole hard case left is *several running-view consumers of one
+non-commutative register reading in different orders* — argument 1's
+recompute-vs-reference trade, isolated. The row's center, the surface
+decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but

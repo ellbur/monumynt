@@ -1430,10 +1430,14 @@ shows they are **one trade, not two puzzles**:
   all ("orders live at terminations"), so it *already* names an inner axis;
   the register folds along it and nothing new is drawn. The price is argument
   1's: two consumers in opposite orders name two axes, want two grids, and
-  compute-once-transpose breaks. (Residue to check: the pure-`final` corner,
-  where no collect reads the running values, has no such consumer to supply
-  the axis, so collect-binding there must fall back to the feedback collect's
-  own orientation — a thread the mechanism owes.)
+  compute-once-transpose breaks. (Residue, since **closed** in §"The product,
+  re-read through update-cadence and read-range": the pure-`final` corner,
+  where no collect reads the running values, seemed to have no consumer to
+  supply the axis — but over a product `final` is a reduced-rank flow, so
+  "final along which axis" is the choice its consumer makes, and
+  collect-binding needs no fall-back. The recompute cost is therefore borne
+  only by the corner's complement — several running-view consumers reading a
+  non-commutative register in different orders.)
 
 - **Ancestor-reference pays the reference and buys the stable grid.** Fixing
   the axis at the Delay keeps "running sum along X" one point-indexed grid
@@ -1811,6 +1815,74 @@ the surface must *state* the read-range crossing (`hold ... over ~L`) or can
 *infer* it from the collect sitting on an outer flow is the same
 implicit-vs-explicit question, now for observation rather than update.
 
+### The product, re-read through update-cadence and read-range
+
+Status: **worked; closes the pure-`final` residue.** The straddle section
+split a register into an **update cadence** (the flow whose firing advances
+it, provenance-fixed) and a **read range** (the flows it can be read on,
+consumer-chosen), worked it on a *nesting*, and left the *product* explicitly
+untouched. Applied to the product the split does two things: it locates the
+linearization difficulty in one half of the register, and it closes the
+pure-`final` corner "The product sharpens both" left owed.
+
+**The product keeps one flow for both halves, but makes it a grid.** On the
+nested-filter register the halves lived on two *different* flows — update on
+`~O`, read on `~L` — and the only question was which half reads which
+(resolved: provenance for the update, the consumer for the read). A product
+adds no second flow. The running-sum-over-a-cross register updates on `s`,
+which lives on the single product flow {X, Y}, and reads on {X, Y} or any
+flow it nests within — both halves name the *same* flow. So the product's
+difficulty is not a flow ambiguity at all: the one flow both halves point at
+is a **grid, not a sequence**, and only the update half needs a sequence.
+
+**The difficulty is an order in the update half; the read half is ordinary.**
+This is the sharpening the lens buys. On the nest the update cadence was the
+*easy, provenance-fixed* half and the read range the consumer-chosen one; on
+the product the halves swap difficulty. The read range stays ordinary — pick
+an axis and `final` is a reduced-rank flow (register-along-X ⇒ a Y-flow,
+`product-flows-design.md`, "Registers over products"), read and held like any
+value. The update cadence is provenance-fixed to *the flow* {X, Y} but **not
+to an order on it**: provenance hands the update half a grid and asks it to
+advance one firing at a time, and the grid has no unique next firing. So the
+whole linearization residue sits in **one half** — the update cadence's
+missing order — orthogonal to the nest's flow-separation, with the read side
+carrying none of it. (Value-in-context reached the same point from the cursor
+side: a product cursor is a grid-point with no unique predecessor. The
+straddle lens adds *which half owns the missing predecessor* — the write's
+step, never the read's availability.)
+
+**The pure-`final` corner is not a gap.** "The product sharpens both" flagged
+a thread the mechanism owed: under collect-binding a register with **no
+running-view consumer** — only `final` read — has "no consumer to supply the
+axis" and must "fall back to the feedback collect's own orientation." There is
+no fall-back to owe, because over a product **`final` cannot even be named
+orientation-free.** Register-along-X folds X and outputs a *Y-flow* (rank
+n−1); register-along-Y outputs an X-flow (`product-flows-design.md`,
+"Registers over products"). So "the final value" is not a complete demand over
+a product — you must ask for *final along which axis*, and that request is
+itself the axis choice, made by whoever consumes the exit value.
+Collect-binding holds one level out: the consumer of `final` names the axis
+exactly as a running-view collect would. Two sub-cases exhaust the corner:
+
+- **Commutative step** — order-free by the confluence (`product-flows-design.md`,
+  "The one order-free exception"); the whole cube reduces with no axis named,
+  nothing owed.
+- **Non-commutative step** — a scalar `final` over a product is *n* nested
+  collects whose nesting *is* the axis permutation (the S₃ choice), drawn by
+  the author; a lower-rank `final` fixes the folded axis by its own rank.
+  Either way the demanded shape pins the axis.
+
+So the feedback collect's "own orientation" is never free-floating — it is
+read off the rank at which its consumer demands `final`. The pure-`final`
+corner closes, and the open case narrows to its exact complement: **more than
+one running-view consumer of one non-commutative register, reading in
+different orders.** That, and only that, is argument 1's recompute trade (two
+consumers, two grids, compute-once-transpose broken). The product's Delay
+residue is thus not "collect-binding owes the pure-`final` axis" but the
+single sharp trade already isolated — recompute per consumer (collect-binding)
+versus fix the axis at the Delay and transpose (ancestor-reference) — one
+construct, one decision.
+
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
@@ -1847,9 +1919,13 @@ implicit-vs-explicit question, now for observation rather than update.
   (one flow), the consumer's collect picks the *read* flow (any containing
   flow, hold filling the gap) — and they only *look* like one question on a
   plain scan, where the two flows coincide. This is `hold`
-  (`incremental-flow-design.md`) reached from the iteration side. It leaves
-  the product fork untouched (a nesting is not a product) and adds a read-side
-  instance of the disambiguation-vs-wire-mess tension.
+  (`incremental-flow-design.md`) reached from the iteration side. Carried onto
+  the product in §"The product, re-read through update-cadence and read-range":
+  the product does *not* split the two halves across two flows (both name the
+  one grid {X, Y}), so the read half stays ordinary and the entire
+  linearization residue relocates into the **update** half — an order missing
+  on the one flow, not a flow ambiguity. It adds a read-side instance of the
+  disambiguation-vs-wire-mess tension.
 - **Disambiguation vs the wire-mess.** The pull toward an *explicit* flow
   reference (so which flow is meant is unambiguous) is a vote for
   feature-of-a-flow nodes carrying one; the textual form has it for free
@@ -1863,7 +1939,14 @@ implicit-vs-explicit question, now for observation rather than update.
   same fork from the reference side — collect-binding is the no-reference
   branch (the consumer's orientation names the axis, at the recompute cost),
   ancestor-reference the explicit-reference branch (the axis fixed at the
-  Delay, at the wire-mess cost). One trade.
+  Delay, at the wire-mess cost). One trade. **Narrowed** in §"The product,
+  re-read through update-cadence and read-range": the pure-`final` corner it
+  flagged as owed (no running-view consumer to supply the axis) is not a gap —
+  over a product `final` is a reduced-rank flow, so "final along which axis" is
+  the axis choice its consumer makes, and collect-binding holds one level out.
+  The one remaining open case is the corner's complement: *several
+  running-view consumers of one non-commutative register reading in different
+  orders* — exactly argument 1's recompute trade, now the sole hard residue.
 - **Is "value wire in context" the right model of an uncollected value?**
   Argument 2's reframing — every per-iteration value carries a previous and
   a next — reaches beyond Delay into what uncollect *means*. Now **worked
@@ -2068,7 +2151,17 @@ on a proven two-way equivalence:
   collect-vs-ancestor candidates answer these two different halves and only
   coincide on a plain scan; this is `hold` (`incremental-flow-design.md`)
   reached from the iteration side, and it is exactly the freedom an ordinary
-  partial value lacks.
+  partial value lacks. Carried onto the product (§"The product, re-read
+  through update-cadence and read-range"): the product keeps *one* flow for
+  both halves but makes it a grid, so the read half stays ordinary and the
+  whole linearization residue relocates into the **update** half — a missing
+  *order*, not a missing flow. This also **closes the pure-`final` corner**
+  the product left owed: over a product `final` is a reduced-rank flow, so
+  "final along which axis" is the axis choice its consumer makes, and
+  collect-binding needs no fall-back. The sole remaining hard case is that
+  corner's complement — *several running-view consumers of one
+  non-commutative register reading in different orders* — which is argument
+  1's recompute-vs-reference trade, now isolated.
 - **Self-reference and cycles — resolved.** The iteration-boundary crossing
   is the only back-edge, so productivity is the structural condition "every
   cycle passes through a crossing" — a decidable whole-graph quotient
