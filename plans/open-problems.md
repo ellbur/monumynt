@@ -131,15 +131,22 @@ availability ladder — monoid → total, semigroup → option-shaped,
 neither → augment — identities as catalog rows carrying the identity
 value as witness, user monoids minted via the algebra facet, the named
 collects dissolved into catalog rows, the keyed partition worked as the
-primary construct with its four readouts as consumption). New residue: the
-**Delay ontology** — what a Delay *is* and which flow its "next iteration"
-binds to (`iteration-with-state-design.md`, "What a Delay is": a delayed
-computation bound by its collect, not a flow-wire tap nor an
-ancestor-uncollect reference; the choice selects behaviour where a commute
-or a product's axes puts more than one flow in reach; open sub-questions —
-whether "delayed computation" is the right notion, whether a specified
-third flow can bind it, which kinds even have a "next iteration"). The
-row's center, the surface decision, is untouched by all of these.
+primary construct with its four readouts as consumption). New **open
+problem**: the **Delay ontology** — what a Delay *is* and which flow its
+"next iteration" binds to (`iteration-with-state-design.md`, "What a Delay
+is, and which flow binds it"). Firm: a Delay is a feature of the flow and
+does not thread the flow wire (IO's wire-threading encodes a temporal
+sequence Delay lacks). Open fork — two live candidates: the **collect**
+that binds the register, or the **ancestor uncollect** its value descends
+from. A first pass leaned collect-binding; three arguments reopened it —
+the multiple-collect/shared-grid problem (a consumer-order-dependent axis
+breaks products' compute-once-transpose implementation, arguing the axis is
+fixed at the Delay), the "value wire in context" reframing (a per-iteration
+value may honestly carry a previous and a next, dissolving candidate 2's
+rejection and reaching into what uncollect *means*), and the possibility
+that Delay is the wrong abstraction. The choice selects behaviour wherever
+a commute or a product's axes puts more than one flow in reach. The row's
+center, the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -439,9 +446,11 @@ commutative monoid discharges the order demand entirely (a reduce-close over
 a whole product is order-free iff its operator commutes — the A/B confluence
 at the register level). The linearized whole-cube fold is a *different*
 program (Join then an ordinary register), keeping question 5 clear of
-question 4. The round's real lesson was about **Delay**, not the product —
-the axis comes from the binding collect, not a Delay-side name — feeding the
-loop-carried-state row's new Delay-ontology residue. Unexamined: join on a product (operand-walk rules, question 4); the
+question 4. The round's real lesson was about **Delay**, not the product:
+*which flow* fixes the register's axis is an open ontological question, and
+the product carries its sharpest evidence (the shared-grid implementation
+breaks under a consumer-dependent axis) — feeding the loop-carried-state
+row's new Delay-ontology open problem. Unexamined: join on a product (operand-walk rules, question 4); the
 provenance product segment against the walk-and-classify algorithm
 (question 8). Spec entry and textual spelling are owed bookkeeping.
 
