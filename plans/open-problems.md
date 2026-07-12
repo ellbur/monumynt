@@ -150,8 +150,15 @@ reframing (a per-iteration value may honestly carry a previous and a next,
 dissolving candidate 2's rejection and reaching into what uncollect
 *means*); (3) the possibility that Delay is the wrong abstraction. The
 choice selects behaviour wherever a commute or a product's axes puts more
-than one flow in reach. The row's center, the surface decision, is untouched
-by all of these.
+than one flow in reach. A worked optional-readings example
+(`iteration-with-state-design.md`, "Working an example") adds a vote for the
+collect on the *nesting* axis (a value's innermost ancestor uncollect can be
+the wrong flow to thread), sharpens the rule to **the collect that gathers
+the flow the Delay is on** (resolving nesting but not the product's
+one-flow/many-collects case), and surfaces the live obstacle:
+disambiguation wants an *explicit* flow reference, which the textual form
+has for free (`~L ~> delay`) but every visual attempt makes a mess of wires.
+The row's center, the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but

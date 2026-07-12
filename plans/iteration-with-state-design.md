@@ -1174,7 +1174,11 @@ an uncollect hands you an ordinary value wire. Argument 2 below dissolves
 that objection — perhaps the fiction is simply wrong, and a per-iteration
 value is honestly a *value wire in context*, one that has a previous and a
 next the way it has, well, a value. On that reading the ancestor reference
-smuggles nothing; it reads context the wire genuinely carries.
+smuggles nothing; it reads context the wire genuinely carries. Its own
+residue: **which** ancestor. The worked example below shows a value whose
+*innermost* ancestor uncollect (an option) is the wrong flow to thread — you
+mean an outer one — so this candidate owes a rule for picking among the
+uncollects a value descends from, and "the nearest" is demonstrably not it.
 
 ### The discriminating case: a commute between origin and collection
 
@@ -1249,6 +1253,83 @@ both:
    construct for loop-carried state binds "next iteration" in some way
    neither candidate captures. Held open, not developed.
 
+### Working an example: successive differences over optional readings
+
+The vote and its complication both fit in one small program — a list of
+readings, each possibly an error:
+
+```
+readings -> open list => r, ~L      -- r : option<number>
+r -> open option => v, ~O           -- v : the reading, present iff Some
+```
+
+Goal: successive differences of the readings, a Delay holding the previous
+one. Which flow does it thread?
+
+**The vote (for the collect, against the *innermost* ancestor).** The value
+`v`'s innermost ancestor uncollect is the **option** (`open option`), and
+threading the option is meaningless — an option flow fires at most once, so
+it has no "previous." The difference is plainly meant along the **list**, an
+*outer* flow. So the innermost-ancestor reading is simply wrong here, which
+is a real strike against candidate 2 *if* "ancestor" is read as the nearest
+one: the flow you mean is the one a difference gets **collected** along — the
+list — not the value's birthplace. (Candidate 2 survives only if "ancestor"
+can mean an *outer* uncollect, which reopens "*which* ancestor?" — itself
+underdetermined.)
+
+**Sharpening "which collect."** "Handle the error inside the loop" then
+raises the message's worry: now two collects are in scope — an option-collect
+(inner, dealing with the error) and the list-collect (outer) — and a rule of
+"the *nearest* collect binds" would bind the option collect, the wrong one.
+The fix is to bind not the nearest collect in scope but **the collect that
+gathers the flow the Delay is actually on.** The option-collect gathers the
+*option* flow (consumed upstream to produce a per-element value); the Delay's
+flow is the list-level flow that survives, gathered by the *list* collect. On
+that reading the ambiguity dissolves — there is a unique
+collect-of-the-Delay's-flow, and it is the list collect.
+
+**The well-formedness wrinkle, as predicted.** Handling the error by
+*filtering* (keep only Some) makes the Delay's flow the **Some-subsequence**,
+so the register "only updates when the option is Some" — exactly the message's
+guess. That is well-defined ("differences of present readings, skipping
+errors"), but it is a *different program* from "differences over all
+positions, with a decision at the gaps," which needs the Delay on the full
+`~L` plus a stated hold-or-skip on None. So "reference the list" names two
+different flows depending on how the option was handled upstream — the inner
+handling has already changed what "the list flow" *is* at the Delay's
+location. That is the example worth keeping: the same phrase denotes two
+flows, and only the drawn structure says which.
+
+**What it settles, and what it doesn't.** The "collect of the Delay's own
+flow" rule cleanly disambiguates *nesting* (option inside list) and votes
+collect-binding there. It does **not** touch the case where *one* flow is
+gathered by *several* collects in different orders — the product /
+multiple-collect fork (argument 1), still balanced, still the hard open
+case. Two distinct ambiguities, then: nesting (resolved here, toward the
+collect) and multi-collect-of-one-flow (the product, open) — and only the
+second carries the recompute cost.
+
+### The disambiguation-vs-wire-mess tension
+
+Underneath the vote is a general pull. Because more than one flow is
+routinely in scope, a flow-feature like Delay should make *which flow it
+means* unambiguous, and the surest way is to have it **reference the flow
+explicitly** — which is a vote for every feature-of-a-flow carrying such a
+reference. (This is a *read* reference — "which flow do I mean" — not the
+in-and-out wire-threading rejected above; that was rejected for imposing a
+meaningless *order among Delays*, which a one-way reference does not.) The
+provisional *textual* syntax already carries it: `~L ~> delay init 0 => sum`
+names `~L`, and text pays nothing for it. The **visual** form does pay:
+every attempt so far to draw the reference as a wire from the flow to the
+Delay comes out a mess of wires, defeating the clarity the reference was
+for. So the examples expose a sharp, unresolved sub-problem: **can the flow
+be fixed implicitly and reliably** — the "collect of the Delay's own flow"
+rule is the current best candidate, and it handles nesting — **so no explicit
+visual reference is needed; or is a lightweight visual flow-reference
+unavoidable, and if so can it be drawn without the mess?** This tension, not
+the collect-vs-ancestor label alone, is the live obstacle, and it is where
+more worked examples would pay off next.
+
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
@@ -1258,7 +1339,21 @@ both:
   re-running a register per collect is a legitimate implementation and an
   outer-axis accumulator wants the store-and-zip cost anyway; argument 2 is
   the deepest pull toward candidate 2 (it questions the uncollect fiction
-  the whole record leans on).
+  the whole record leans on). The optional-readings example adds a vote for
+  the collect on the *nesting* axis (a value's innermost ancestor can be the
+  wrong flow), leaving candidate 2 owing a "which ancestor" rule.
+- **Which collect, precisely.** Sharpened by the worked example to **the
+  collect that gathers the flow the Delay is on** (not "the nearest collect
+  in scope"), which disambiguates nesting cleanly. It does not resolve the
+  product case (one flow, several collects), which stays the balanced
+  argument-1 fork.
+- **Disambiguation vs the wire-mess.** The pull toward an *explicit* flow
+  reference (so which flow is meant is unambiguous) is a vote for
+  feature-of-a-flow nodes carrying one; the textual form has it for free
+  (`~L ~> delay`), but every visual attempt is a mess of wires. Open: fix
+  the flow implicitly (the "collect of the Delay's own flow" rule) well
+  enough to need no visual reference, or find a lightweight visual reference
+  that is not a mess. More worked examples would help here.
 - **Is "value wire in context" the right model of an uncollected value?**
   Argument 2's reframing — every per-iteration value carries a previous and
   a next — reaches beyond Delay into what uncollect *means*; unexamined, and
