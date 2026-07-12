@@ -1654,6 +1654,163 @@ settles is narrower and firmer: **the collect-vs-ancestor fork is not the
 real axis** — it is empty on sequences and silent on grids — and the live
 residue is the product's linearization trade, alone.
 
+### A stateful value straddles two flows: update cadence vs read availability
+
+Status: **worked with leanings, not adopted.** Prompted by an observation
+that a stateful value updated inside a *filtered* inner flow can still be
+read and collected on the *unfiltered* outer flow — behaviour an ordinary
+per-iteration value cannot have. It sharpens the value-in-context reframing:
+on a nesting the two candidates were said to *coincide*, but a register
+straddling the nest shows they answer **two different questions about two
+different halves of the register**, both present at once.
+
+**The observation.** Uncollect a list, uncollect a per-element option, use
+the present value to step a register:
+
+```
+readings -> open list => r, ~L      -- r : option<number>
+r -> open option => v, ~O           -- v present iff Some
+~O ~> delay init 0 => prevValid     -- register steps on ~O
+v -> step of prevValid => curValid  -- step = this present reading
+```
+
+The register's `step` reads `v`, which lives on `~O` (the Some-subsequence).
+So the register **updates only when the option is present** — its update
+cadence is `~O`, a strict sub-flow of the list. Read as a *feature of a
+flow*, it is a feature of `~O`: it steps once per Some, idles otherwise.
+
+**Yet its value is available on the whole list.** Because the register is
+**total** — every read reaches back to the last update, or to the seed
+before any — its value is defined at every list position, not only the Some
+ones. So we can sample-and-hold it onto the *unfiltered* list and collect
+there:
+
+```
+curValid -> hold init 0 over ~L => held   -- sample-and-hold onto the list frame
+held -~> collect => filled                -- ordinary list collect: forward-fill
+```
+
+`filled` is the readings series with every error position replaced by the
+last good reading (or the seed `0` before the first) —
+last-observation-carried-forward, a standard data-cleaning move. It is
+exactly the user's scenario: **step on the inner filtered flow, read and
+collect on the outer unfiltered one.** (`hold ... over ~L` is a provisional
+spelling; the pre-step vs post-step reading — hold `curValid` for "the
+current present value" vs the register's `prevValid` port for "the previous
+one" — is the same within-firing fine point the plain scan already carries,
+here read onto the outer frame.)
+
+**Why only a stateful value can do this.** Try it with an ordinary value.
+`v` (the present reading) exists *only* on `~O`; at an error position there
+is no `v`, so `v -~> collect over ~L` is ill-formed — a value that does not
+exist at every firing of the flow being collected. In the state grid, the
+access-current column (`element`, `v`) is **partial** across the outer flow;
+the three coupled columns (assign-initial / assign-iterated /
+access-previous) are **total** across it, because the register's meaning is
+precisely "the value as of the last update." Statefulness *is* the
+totalisation that licenses reading across the wider flow. That is the extra
+freedom the observation names: **a stateful value can be observed on any
+flow its update cadence is nested within; an ordinary value cannot leave the
+flow it is born on.**
+
+**This is `hold`.** The reactive round already has this exact shape across
+the event/continuous boundary: `hold(initial, events)` is a var readable at
+every moment whose value steps only when an event arrives
+(`incremental-flow-design.md`, "The mutation boundary"). Map the
+correspondence: the option-Some subsequence is `changes` (the sparse update
+stream), the list is the frame the value is sampled on, and `hold ... over
+~L` is `hold`. The iteration analogue was implicit; the observation makes it
+explicit — **a register whose update flow is nested strictly inside its read
+flow is a `hold`**, and forward-fill, sample-at, and "value as of the last
+event" are one construct with the reactive one. The register-over-a-stream
+in that doc (`scan-then-hold`) is this same straddle with the stream as the
+inner flow.
+
+**So "what flow is a stateful value over" has two answers, not one:**
+
+- **Update cadence — one flow, fixed by provenance.** The flow whose firing
+  advances the register is the finest flow its `step` depends on (here `~O`,
+  because `step` reads `v`). This is candidate 2's answer (the ancestor the
+  value descends from) — *for the write*. It is not chosen; it is read off
+  the step wire.
+- **Read availability — a *range* of flows, chosen by the consumer.** The
+  value is readable on its update flow and on every flow that flow is nested
+  within (`~O`, `~L`, and any outer). A collect may be taken on any of them;
+  on an outer one it holds. This is candidate 1's answer (the binding
+  collect) — *for the read* — generalised from "the flow" to "any containing
+  flow," with hold filling the gap.
+
+On a **plain scan** (no filter, no nest between step and collect) the update
+flow *is* the collect flow, the two answers coincide, and the fork looks
+like one question — which is exactly why the value-in-context section found
+the candidates "coincide on sequences." The nested-filter register is the
+smallest case that **separates** them: `~O` for the write, `~L` for the
+read. They were never one question; they were two, made to look like one by
+every example in which the two flows happen to be the same.
+
+**The well-formedness constraint.** Reading a register on flow `F` is
+well-formed iff its update flow is **nested within** `F` — its firings a
+sub-order of `F`'s (0-or-1 Some per list element; more generally 0-or-many
+inner firings per outer). Then "the most recent update at or before this
+`F`-firing" is always defined, hold is total, and the seed covers "before
+any update" (the same empty-case double-duty the initial value carries
+everywhere in this doc). The converse direction is trivial and not hold at
+all: reading a register on a flow *inside* its update flow (an outer-list
+accumulator read within an inner-list body) is ordinary
+outer-value-in-inner availability — constant across the inner firings, no
+reach-back involved. Only **write-nested-inside-read** needs hold, and only
+statefulness makes it total.
+
+**Two more programs.** A running count of valid readings, legible on every
+row (a progress readout that advances only on real data):
+
+```
+readings -> open list => r, ~L
+r -> open option => v, ~O
+~O ~> delay init 0 => nSeen
+nSeen, 1 -> add -> step of nSeen => count
+count -> hold init 0 over ~L => held
+held -~> collect => progress          -- progress[i] = #valids at or before row i
+```
+
+Using the held state in the outer computation *before* collecting — the
+user's "still use the value in the unfiltered flow." Tag every row (error or
+not) with its gap from the running mean of valid readings:
+
+```
+readings -> open list => r, ~L
+r -> open option => v, ~O
+~O ~> delay init 0 => sumV
+sumV, v -> add -> step of sumV => sumV'
+~O ~> delay init 0 => nV
+nV, 1 -> add -> step of nV => nV'
+sumV', nV' -> safeDiv => mean          -- running mean of valids, lives on ~O
+mean -> hold init 0 over ~L => meanHeld  -- now available on every row
+r, meanHeld -> gap => tagged           -- outer computation over the full list
+tagged -~> collect => report
+```
+
+The held mean (stepped on `~O`) is consumed on `~L` alongside the raw `r`,
+then the list is collected. The held state crosses from the filtered flow
+into the unfiltered computation — precisely the freedom the observation
+identified, and impossible for the ungeneralised present value `v`.
+
+**Where this leaves the open fork.** It does not resolve the product case —
+the hard residue "The product sharpens both" isolated (a register straddling
+a *product*, where the update flow is a grid with no unique axis) is
+untouched; a nesting is not a product, and one flow still survives at each
+of the two roles. What it *does* is retire the framing "pick the one flow a
+Delay is over." A stateful value is over an **update flow**
+(provenance-fixed, one flow) and readable across a **read range** (its
+ancestors, consumer-chosen, held). The collect-vs-ancestor fork was a false
+dichotomy on sequences not because the two coincide but because they answer
+different halves; the genuine open question that remains is the product's
+linearisation, where the *update* flow itself is a grid. And it hands the
+disambiguation-vs-wire-mess tension a new instance on the read side: whether
+the surface must *state* the read-range crossing (`hold ... over ~L`) or can
+*infer* it from the collect sitting on an outer flow is the same
+implicit-vs-explicit question, now for observation rather than update.
+
 ### Open
 
 - **Which flow binds a Delay** — collect (candidate 1), ancestor uncollect
@@ -1681,6 +1838,18 @@ residue is the product's linearization trade, alone.
   in scope"), which disambiguates nesting cleanly. It does not resolve the
   product case (one flow, several collects), which stays the balanced
   argument-1 fork.
+- **Update cadence vs read availability — two flows, not one.** Worked in
+  §"A stateful value straddles two flows": a register updated inside a
+  filtered inner flow (`~O`) is still readable/collectable, held, on the
+  unfiltered outer flow (`~L`), because statefulness totalises the value
+  where an ordinary per-iteration value is partial. So the collect-vs-ancestor
+  fork answers two different halves — provenance fixes the *update* cadence
+  (one flow), the consumer's collect picks the *read* flow (any containing
+  flow, hold filling the gap) — and they only *look* like one question on a
+  plain scan, where the two flows coincide. This is `hold`
+  (`incremental-flow-design.md`) reached from the iteration side. It leaves
+  the product fork untouched (a nesting is not a product) and adds a read-side
+  instance of the disambiguation-vs-wire-mess tension.
 - **Disambiguation vs the wire-mess.** The pull toward an *explicit* flow
   reference (so which flow is meant is unambiguous) is a vote for
   feature-of-a-flow nodes carrying one; the textual form has it for free
@@ -1891,7 +2060,15 @@ on a proven two-way equivalence:
   on sequences and are silent on grids, so the live residue is a product's
   *linearization* (which axis), not *which flow*. The register factors as
   raw-previous + seed + feedback; the model is attractive but unadopted (it
-  reshapes uncollect language-wide).
+  reshapes uncollect language-wide). Sharpened once more by §"A stateful
+  value straddles two flows": a register updated inside a *filtered* inner
+  flow is still readable, held, on the *unfiltered* outer flow — so the
+  register is over *two* flows, an **update cadence** (provenance-fixed) and
+  a **read range** (its containing flows, consumer-chosen). The
+  collect-vs-ancestor candidates answer these two different halves and only
+  coincide on a plain scan; this is `hold` (`incremental-flow-design.md`)
+  reached from the iteration side, and it is exactly the freedom an ordinary
+  partial value lacks.
 - **Self-reference and cycles — resolved.** The iteration-boundary crossing
   is the only back-edge, so productivity is the structural condition "every
   cycle passes through a crossing" — a decidable whole-graph quotient
