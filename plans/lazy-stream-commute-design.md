@@ -552,8 +552,25 @@ variant or note a no-op.
   re-open of the still-open layer — internal bookkeeping only. See the
   spec's Commute section for the node shape and the defer-the-error idiom.
 
-- **Whether "commute" is the right name.** "Commute" describes the swap
-  (`stream<option>` ↔ `option<stream>`); "sequence" describes the operation
-  (collapse a stream of effects into an effect of a stream). Both are
-  accurate; pick one for the language. Deferred.
+- **Whether "commute" is the right name — and that it currently names two
+  operations.** For the option-out-of-stream case, "commute" describes the
+  swap (`stream<option>` ↔ `option<stream>`) and "sequence" describes the
+  operation (collapse a stream of effects into an effect of a stream); both
+  are accurate for that one operation, pick one. But the word is stretched
+  further: it also labels **grid transpose** (the taxonomy's "Transpose" row
+  and the Cross product's transpose in `product-flows-design.md`), which is a
+  *genuinely different operation* — reversible and value-preserving, gated on
+  rectangularity/independence, the two orientations confluent — whereas
+  monadic sequence is directed, works on *dependent* nestings, carries
+  semantic content (short-circuit), and restructures rather than re-reads.
+  Both "swap flow order," which is why one word covers both, but they are not
+  one operation with two names; they are two operations. This is not merely
+  cosmetic: the Delay-binding ontology (`iteration-with-state-design.md`,
+  "What a Delay is, and which flow binds it") is the second client — a
+  register's "next iteration" relates to a reversible re-reading (transpose)
+  and to a directed restructuring (sequence) *differently*, so conflating
+  them under "commute" hides a real fork. The vocabulary should name the two
+  operations distinctly, not just choose between "commute" and "sequence" for
+  one of them. Deferred, but upgraded from a naming nicety to a
+  two-operations distinction with downstream consequences.
 </content>

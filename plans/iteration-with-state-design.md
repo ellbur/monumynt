@@ -1199,6 +1199,30 @@ ancestor-reference it folds along a fixed axis its value descends from,
 regardless of consumer. Argument 1 below is why that difference is not
 cosmetic.
 
+**"Commute" here is two operations, and the distinction matters.** The word
+covers two genuinely different flow-order swaps (`lazy-stream-commute-design.md`,
+"The commute-variant taxonomy"; the naming is flagged open there), and the
+discriminating case wears a different face under each:
+
+- **Grid transpose** — reversible, value-preserving, defined only over a
+  *product* (independent flows), the two orientations confluent. A Delay
+  across a transpose is exactly the registers-over-products case: both
+  orientations coexist, and the question is which axis.
+- **Monadic sequence** (traverse) — directed, *not* reversible, defined over
+  a *dependent* nesting, with real semantic content (short-circuit). This is
+  the one the option example uses, and it is why "a per-element option can't
+  be commuted out" is wrong: it cannot be *transposed* out (no product), but
+  it can be *sequenced* out (`List<Option> → Option<List>`,
+  `lazy-stream-commute-design.md`). Across a sequence the flow is genuinely
+  *restructured*, not re-read, so "origin flow vs collect flow" is a sharper
+  divergence than under a transpose.
+
+Both swap flow order, so both were loosely called "commute" — but a Delay's
+"next iteration" relates to a *reversible re-reading* and to a *directed
+restructuring* differently, so the ontology question has to be asked against
+each. Below, the optional-readings example is the sequence face; the
+registers-over-products round is the transpose face.
+
 ### Why this reopened: three considerations
 
 The first pass leaned collect-binding. Three considerations complicate it —
@@ -1288,17 +1312,28 @@ flow is the list-level flow that survives, gathered by the *list* collect. On
 that reading the ambiguity dissolves — there is a unique
 collect-of-the-Delay's-flow, and it is the list collect.
 
-**The well-formedness wrinkle, as predicted.** Handling the error by
-*filtering* (keep only Some) makes the Delay's flow the **Some-subsequence**,
-so the register "only updates when the option is Some" — exactly the message's
-guess. That is well-defined ("differences of present readings, skipping
-errors"), but it is a *different program* from "differences over all
-positions, with a decision at the gaps," which needs the Delay on the full
-`~L` plus a stated hold-or-skip on None. So "reference the list" names two
-different flows depending on how the option was handled upstream — the inner
-handling has already changed what "the list flow" *is* at the Delay's
-location. That is the example worth keeping: the same phrase denotes two
-flows, and only the drawn structure says which.
+**Three ways to handle the option, and the commute is a sequence.** The
+original framing was "commute the option out to deal with it later," and it
+is well-formed — but via *monadic sequence*, not transpose (the distinction
+above). A per-element option cannot be *transposed* out (it is not
+independent of the list, so there is no product), but it can be *sequenced*
+out — `List<Option> → Option<List>`, short-circuiting to None on the first
+error (`lazy-stream-commute-design.md`). That gives option-outer, list-inner;
+the differences then thread the inner list in the Some branch. So there are
+three handlings, each a different program: **(a) sequence out** (whole list
+is None on any error, else differences over all readings); **(b) filter
+inside** (drop errors, differences over the Some-subsequence); **(c) keep
+positions** (Delay on the full `~L` with a stated hold-or-skip at each None).
+
+**The well-formedness wrinkle, as predicted.** Route (b) makes the Delay's
+flow the **Some-subsequence**, so the register "only updates when the option
+is Some" — exactly the message's guess. That is well-defined ("differences of
+present readings, skipping errors"), but it is a *different program* from
+route (c). So "reference the list" names different flows depending on how the
+option was handled upstream — the handling has already changed what "the list
+flow" *is* at the Delay's location. That is the example worth keeping: the
+same phrase denotes several flows, and only the drawn structure (which
+handling, sequence vs filter vs keep) says which.
 
 **What it settles, and what it doesn't.** The "collect of the Delay's own
 flow" rule cleanly disambiguates *nesting* (option inside list) and votes
