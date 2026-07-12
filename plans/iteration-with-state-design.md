@@ -39,6 +39,19 @@ early-termination) by *adding structure*, never by switching to a
 different construct (the "building blocks must build" principle,
 `language-design-philosophy.md`).
 
+**A standing caution.** Delay has drawn much of the recent work — the
+port/latent equivalence, the productivity check, the ontology fork — and
+that concentration is not itself evidence that Delay is the answer. The
+live worry is the beginner bar: a surface built from Delay nodes asks the
+programmer to write register-transfer logic (the RTL critique in "The
+surface question" below), and requiring that of a beginner is exactly the
+cost this area exists to avoid. So the register pair is the worked
+*result-level* construct, not a committed surface, and the search stays
+open to other ways of approaching iteration with state — the visible
+state thread (§"A fourth option") is one candidate already in hand, not
+presumed the last, and a genuinely different approach may earn a place
+*alongside* Delay rather than having to replace it.
+
 The two-phase back-edge construction both candidates rest on is worked
 out in `first-class-ports-design.md` ("The Delay back-edge: the write
 half is a node"). Rejected shapes are recorded in place below with their
