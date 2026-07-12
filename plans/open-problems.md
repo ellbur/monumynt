@@ -131,8 +131,15 @@ availability ladder — monoid → total, semigroup → option-shaped,
 neither → augment — identities as catalog rows carrying the identity
 value as witness, user monoids minted via the algebra facet, the named
 collects dissolved into catalog rows, the keyed partition worked as the
-primary construct with its four readouts as consumption). The row's
-center, the surface decision, is untouched by both.
+primary construct with its four readouts as consumption). New residue: the
+**Delay ontology** — what a Delay *is* and which flow its "next iteration"
+binds to (`iteration-with-state-design.md`, "What a Delay is": a delayed
+computation bound by its collect, not a flow-wire tap nor an
+ancestor-uncollect reference; the choice selects behaviour where a commute
+or a product's axes puts more than one flow in reach; open sub-questions —
+whether "delayed computation" is the right notion, whether a specified
+third flow can bind it, which kinds even have a "next iteration"). The
+row's center, the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -423,16 +430,18 @@ lattice of constructed axis sets, the point-indexed table and the three
 theorems generalising verbatim — the three-list example is where the
 poset's partiality and the S₃ orbit of orientations first become
 visible, both caught by existing machinery). **Registers over products
-are now worked too** (question 5): a register folds *along a named axis*,
-fibered over the rest (the APL reduce-along-an-axis shape), not over the
-whole order-free cube — `final` drops the reduced axis, the running view
-keeps full shape, productivity transfers verbatim, a full cube reduction
-is the S₃ axis-permutation with a register hat, and a commutative monoid
-discharges the order demand entirely (a reduce-close over a whole product
-is order-free iff its operator commutes — the A/B confluence at the
-register level). The linearized whole-cube fold is a *different* program
-(Join then an ordinary register), which keeps question 5 clear of question
-4. Unexamined: join on a product (operand-walk rules, question 4); the
+are now worked too** (question 5): a register folds *along the axis its
+binding collect gathers*, fibered over the rest (the APL reduce-along-an-axis
+shape), not over the whole order-free cube — `final` drops the reduced axis,
+the running view keeps full shape, productivity transfers verbatim, a full
+cube reduction is the S₃ axis-permutation with a register hat, and a
+commutative monoid discharges the order demand entirely (a reduce-close over
+a whole product is order-free iff its operator commutes — the A/B confluence
+at the register level). The linearized whole-cube fold is a *different*
+program (Join then an ordinary register), keeping question 5 clear of
+question 4. The round's real lesson was about **Delay**, not the product —
+the axis comes from the binding collect, not a Delay-side name — feeding the
+loop-carried-state row's new Delay-ontology residue. Unexamined: join on a product (operand-walk rules, question 4); the
 provenance product segment against the walk-and-classify algorithm
 (question 8). Spec entry and textual spelling are owed bookkeeping.
 

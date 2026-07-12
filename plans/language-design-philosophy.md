@@ -233,3 +233,32 @@ first survey's most striking finding (the scan, absent in infrastructure
 code, is the dominant loop shape in numerics), exactly along the bias the
 first survey had flagged. Corpora need not be preinstalled; pip/npm
 fetches of real projects work and keep the domain choice deliberate.
+
+## A standing lens: what does it mean?
+
+Also a method, not a principle. Where "sample reality" keeps the design in
+contact with real *code*, this keeps it in contact with *meaning*.
+Designing a construct is not only assembling rules that compute the right
+results; a construct also has to **mean** something — an ontology a person
+can hold — and two constructs that compute identically can still differ in
+what they *are*. Figuring out what a thing means is design work, not
+philosophy layered on top of it.
+
+The worked instance is Delay (`iteration-with-state-design.md`, "What a
+Delay is"). The register pair's *results* were fully pinned by the
+equivalence round, yet a prior question survived: what is a Delay, and which
+flow does its "next iteration" refer to? It is answerable only by ontology —
+a Delay is a *delayed computation bound by its collect*, not a computation
+that taps a flow wire (IO's shape, which is justified there by a temporal
+sequence Delay lacks) nor one that reads secret flow data off its value wire
+(which the uncollect's fiction forbids). Crucially, the ontological choice
+**selects the behaviour**: it changes what the construct does exactly where
+more than one flow is in reach (a commute; a product's axes). So meaning is
+not decoration on the rules — it decides them.
+
+Reach for the lens when a construct is fully pinned at the level of results
+but you still cannot say, in one sentence, what it *is* — that gap is
+usually hiding a decision the results did not force but a second context
+will. The two rejected Delay alternatives (wire-tapping; ancestor-uncollect
+reference) were each killed by an ontology clash, not a wrong output, which
+is the tell that this lens catches things the result-level rules do not.
