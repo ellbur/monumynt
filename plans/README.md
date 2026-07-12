@@ -121,6 +121,12 @@ Everything else hinges on these two:
   with rollback (try-in-order choice for parsers and search): race's
   *sequential* sibling, where restoration is structural (the shared input
   wire, not a save/restore operation). *Exploration.*
+- [`focused-update-design.md`](focused-update-design.md) — transform
+  selected loci of a nested value, preserving the rest (increment every
+  post's likes, redact one field): a structural selection read as a round
+  trip, its write-back the derived mirror of the path (the lens); value-
+  selected update is a case split with an identity branch, never a filter.
+  *Exploration.*
 
 ## Flow kinds beyond lists
 
