@@ -133,6 +133,15 @@ Everything else hinges on these two:
   collect re-opened) where the register is a back-edge on a *value* wire (a
   Delay). Naive vs semi-naive are lowerings; the lattice variant is the
   keyed collect under feedback. *Exploration.*
+- [`effects-design.md`](effects-design.md) — per-firing effects (cause an
+  effect once per firing of a loop — the most common loop payload, and
+  currently unwritable): the IO handle threaded through the loop *is* a
+  register on a marker wire, so "collect of an effect flow" is the
+  register's `final` (one handle out, not a list); a spanning handle
+  threads and orders, a per-firing-minted handle is independent and
+  commutes. The effects half of Tier 1; cancellation/bracket, within-firing
+  ordering, and the batched (collected-plan) pole are fenced out.
+  *Exploration.*
 
 ## Flow kinds beyond lists
 

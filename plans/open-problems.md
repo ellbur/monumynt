@@ -63,15 +63,32 @@ this repo entirely.
 ## Tier 1 — the load-bearing gaps (I × W ≈ 20)
 
 **IO, effects, and cancellation — I 4, W 5.**
-The record's most-cited hole: no IO design and no cancellation design.
-Two halves. *Effects:* per-firing effects are currently unwritable
-(you cannot transcribe `task.cancel()` in a loop); effect *ordering
-within a firing* is a breadth item (the conditional-flush buffer) with
-only raw material (`custom-flows.md`'s lifecycle pattern), not a
-design; bodies-raise / lightweight failure is the second concrete
-demand. *Cancellation:* load-bearing — bracket's
+The record's most-cited hole: no cancellation design, and the effects
+half now has its central gap worked but not adopted. Two halves.
+*Effects:* the per-firing effect — cause an effect once per firing of a
+loop, the most common loop payload — is now worked
+(`effects-design.md`): the IO handle threaded through a loop **is a
+register on a marker wire**, so "collect of an effect flow" (the
+translation-exercise gap, `~io'` outside the loop) is nothing new — it
+is the register's `final`, one handle out, never a list; a *spanning*
+handle threads and orders effects by iteration order, a
+*per-firing-minted* handle is independent and commutes (satisfying the
+per-session-IO constraint), the fork read off the drawing not a mode;
+the collected-plan pole is retained as an adjacent *batched* construct,
+not the everyday form; five dead ends recorded. Residue: the threaded
+op's spelling and its two boundaries; Delay-node reuse vs a marker
+sibling; the batched-effect construct's own round; multi-close threading
+one handle. Still genuinely open beside the worked round: effect
+*ordering within a firing* (the conditional-flush buffer, a distinct
+axis) has only raw material (`custom-flows.md`'s lifecycle pattern), not
+a design; bodies-raise / lightweight failure is owned by failability.
+One sharpening the round contributed: effects over a product make the
+loop-carried-state row's linearization residue *observable* (writes are
+non-commutative, removing the commutative-monoid escape hatch).
+*Cancellation:* untouched and load-bearing — bracket's
 release-on-abandonment, race-implies-cancel, and abandoned pending
-pulls all arrive at it.
+pulls all arrive at it; the effects round establishes the thread the
+cancel capability would ride, a prerequisite, not the design.
 
 W = 5 because ~42% of sampled loops exist to cause effects, and both
 `async-flow-design.md` (question 2) and `incremental-flow-design.md`
@@ -179,7 +196,13 @@ stays ordinary) and **closes the pure-`final` corner** collect-binding was
 owed — over a product `final` is a reduced-rank flow, so its consumer names
 the axis. The sole hard case left is *several running-view consumers of one
 non-commutative register reading in different orders* — argument 1's
-recompute-vs-reference trade, isolated. The row's center, the surface
+recompute-vs-reference trade, isolated. Effects sharpen this residue from
+the other side (`effects-design.md`): a spanning IO handle threaded
+through a nested loop is a full-cube fold on a *linear, non-commutative*
+wire, so the linearization becomes *observable* (bytes land in one order)
+and the commutative-monoid escape hatch is removed — the same order
+question, now load-bearing for any program that writes under nested
+iteration. The row's center, the surface
 decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
