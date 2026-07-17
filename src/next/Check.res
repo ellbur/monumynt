@@ -19,19 +19,19 @@
 //                     Context's prefix-rule merge. Blunt: it cannot yet
 //                     tell time travel (completable) from bundle mixing
 //                     (not) — that classification needs provenance origins.
-//
-// Stubbed with signatures (each names its design doc):
 //   - join-adjacency  Join/Commute operands must be nesting-adjacent
 //                     (lazy-stream-join-design.md).
+//   - flow-borne(v0)  a per-iteration value escaping to a program output
+//                     (types-design.md); the general interior rule is the
+//                     fill-in noted at the check.
+//
+// Stubbed with signatures (each names its design doc):
 //   - productivity    every cycle crosses a register pairing
 //                     (first-class-ports-design.md, the pair section).
 //   - provenance      cell-level disjointness / mixing-vs-time-travel
 //                     classification (bundle-provenance-design.md).
 //   - coverage        collect branches: cells of one bundle, pairwise
 //                     disjoint (partial-collect-design.md).
-//   - flow-borne      a per-iteration value port referenced from a body
-//                     not inside its flow (types-design.md; subsumes the
-//                     legacy honoured-limitations list).
 
 open Program
 
@@ -172,10 +172,38 @@ let checkAlignment = (p: program): array<witness> => {
 
 // --- stubs -------------------------------------------------------------------
 
-let checkJoinAdjacency = (_p: program): array<witness> => {
-  // TODO(lazy-stream-join-design.md): for each Join/Commute, inner's
-  // exterior must end exactly at outer — read off Context.flowContext.
-  []
+// Join/Commute operands must be nesting-adjacent: the inner flow's exterior
+// must end exactly at the outer flow (lazy-stream-join-design.md). This is
+// the structural fact Codegen's spine walk asserts; checking it here keeps
+// that an assert, not a user-facing crash.
+let checkJoinAdjacency = (p: program): array<witness> => {
+  let out: array<witness> = []
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Join({outer, inner}) | Commute({outer, inner}) =>
+      try {
+        let innerExterior = Context.flowContext(inner)
+        let expected = Array.concat(Context.flowContext(outer), [outer])
+        if Context.contextToString(innerExterior) !== Context.contextToString(expected) {
+          Array.push(
+            out,
+            {
+              nodeId: n.id,
+              rule: "join-adjacency",
+              message: "operands are not nesting-adjacent: inner opens in " ++
+              Context.contextToString(innerExterior) ++
+              " but the outer flow's interior is " ++
+              Context.contextToString(expected),
+            },
+          )
+        }
+      } catch {
+      | Context.Incomparable(_) => () // alignment reports that clash
+      }
+    | _ => ()
+    }
+  )
+  out
 }
 
 let checkProductivity = (_p: program): array<witness> => {
@@ -194,11 +222,40 @@ let checkProvenance = (_p: program): array<witness> => {
   []
 }
 
-let checkFlowBorne = (_p: program): array<witness> => {
-  // TODO(types-design.md): a flow-borne value port (Program.flowBorne)
-  // referenced from a consumer whose context does not contain that flow.
-  // Replaces the legacy compiler's memo-ancestor guard as a stated check.
-  []
+// A per-iteration (flow-borne) value referenced from outside its flow
+// (types-design.md; replaces the legacy compiler's memo-ancestor guard as a
+// stated check). v0 checks the program boundary: a distinguished output is
+// read outside every flow, so its context must be empty.
+//
+// TODO(types-design.md) for the general rule: every reference's context
+// must be contained in its consumer's — for each collect branch, the
+// value's context must sit within the branch's iterated chain. Today the
+// interior cases are covered indirectly (alignment raises on incomparable
+// merges; Codegen's memo-miss failwith backstops the rest); stating them
+// here as witnesses is the fill-in.
+let checkFlowBorne = (p: program): array<witness> => {
+  let out: array<witness> = []
+  p.outputs->Array.forEach(o =>
+    try {
+      let ctx = Context.valueContext(o.source)
+      if Array.length(ctx) > 0 {
+        Array.push(
+          out,
+          {
+            nodeId: nodeOfValue(o.source).id,
+            rule: "flow-borne",
+            message: "output \"" ++
+            o.name ++
+            "\" reads a per-iteration value (context " ++
+            Context.contextToString(ctx) ++ "); collect its flows first",
+          },
+        )
+      }
+    } catch {
+    | Context.Incomparable(_) => () // alignment reports that clash
+    }
+  )
+  out
 }
 
 let check = (p: program): array<witness> =>

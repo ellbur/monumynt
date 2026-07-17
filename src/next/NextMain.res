@@ -29,6 +29,41 @@ let fail = (msg: string) => {
 
 let header = (name: string) => Console.log("\n=== " ++ name ++ " ===")
 
+let engineLabel = (e: Pipeline.engine): string =>
+  switch e {
+  | NextCodegen => "next codegen"
+  | Bridge => "legacy bridge"
+  }
+
+// The differential check: whenever the new codegen compiled an output, the
+// bridge (the legacy compiler, i.e. the rebuild's spec) must agree on the
+// eval'd value — if the bridge can compile the program at all. This runs
+// automatically from expectOutput, so every emitter that lands in
+// Codegen.res is verified against the legacy shapes without new tests.
+let differential = (p: Program.program, name: string, codegenValue: string): unit =>
+  switch Pipeline.compileVia(Bridge, p) {
+  | exception Failure(_) => () // the bridge can't express it; nothing to compare
+  | Error(_) => ()
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === name) {
+    | None => ()
+    | Some(bo) => {
+        let bridgeValue = jsonStringify(evalExpression(bo.js))
+        if bridgeValue === codegenValue {
+          pass("differential: codegen ≡ bridge for " ++ name)
+        } else {
+          fail(
+            "differential: engines disagree on " ++
+            name ++
+            ": codegen " ++
+            codegenValue ++
+            ", bridge " ++ bridgeValue,
+          )
+        }
+      }
+    }
+  }
+
 // Compile one named output and compare its eval'd value against expected JS.
 let expectOutput = (p: Program.program, name: string, expected: JsAst.expr): unit =>
   switch Pipeline.compile(p) {
@@ -39,18 +74,27 @@ let expectOutput = (p: Program.program, name: string, expected: JsAst.expr): uni
       "' but check failed:\n  " ++
       ws->Array.map(Check.witnessToString)->Array.join("\n  "),
     )
-  | Ok({outputs}) =>
-    switch outputs->Array.find(o => o.outputName === name) {
-    | None => fail("no output named " ++ name)
-    | Some(o) => {
-        Console.log("JS (" ++ name ++ "):")
-        Console.log(o.js)
-        let actual = jsonStringify(evalExpression(o.js))
-        let want = jsonStringify(evalExpression(JsPrint.printExpr(expected)))
-        if actual === want {
-          pass(name ++ " = " ++ actual)
-        } else {
-          fail(name ++ ": expected " ++ want ++ ", got " ++ actual)
+  | Ok({outputs, codegenGap}) => {
+      switch codegenGap {
+      | Some(gap) => Console.log("codegen gap (bridge stood in): " ++ gap)
+      | None => ()
+      }
+      switch outputs->Array.find(o => o.outputName === name) {
+      | None => fail("no output named " ++ name)
+      | Some(o) => {
+          Console.log("JS (" ++ name ++ ", via " ++ engineLabel(o.engine) ++ "):")
+          Console.log(o.js)
+          let actual = jsonStringify(evalExpression(o.js))
+          let want = jsonStringify(evalExpression(JsPrint.printExpr(expected)))
+          if actual === want {
+            pass(name ++ " = " ++ actual)
+          } else {
+            fail(name ++ ": expected " ++ want ++ ", got " ++ actual)
+          }
+          switch o.engine {
+          | NextCodegen => differential(p, name, actual)
+          | Bridge => ()
+          }
         }
       }
     }
@@ -174,6 +218,25 @@ five -> open option -> double -~> collect => out
   let p = TextResolve.parseProgram(src)
   expectOutput(p, "out", int_(10))
   expectRoundTrip(p)
+}
+
+// ============================================================================
+// 5b. A computed function — the new codegen exceeding the bridge
+// ============================================================================
+// App's fn is a wire; here it is another App's output, which the legacy
+// representation cannot express (it embeds fn as a JsAst payload). No
+// differential is possible — this output exists only via the new codegen.
+
+header("computed function: fn is a wire, beyond the bridge")
+{
+  let b = Build.make()
+  let makeAdder = Build.raw(b, "a => b => a + b")
+  let three = Build.lit(b, int_(3))
+  let ten = Build.lit(b, int_(10))
+  let add3 = Build.app(b, makeAdder.value, [three.value])
+  let out = Build.app(b, add3.value, [ten.value])
+  let p = Build.finish(b, ~outputs=[("thirteen", out.value)])
+  expectOutput(p, "thirteen", int_(13))
 }
 
 // ============================================================================
