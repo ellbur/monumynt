@@ -20,6 +20,8 @@ recurring status words:
   with the reason they must not be tried again. Check those before
   re-proposing a construct.
 
+OH Comment: The following are too detailed to be listed up front here. The reader won't even know what they mean. They only need to be listed in the specific docs where they are relevant.
+
 Four statuses are easy to misread, so, stated once: the compile-time
 placement pass and the stream consumer-set lattice are **deferred
 optimisations, not rejections**; the two iteration-state candidates are
@@ -31,6 +33,8 @@ term**.
 ## Start here — the fundamentals
 
 Everything else hinges on these two:
+
+OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to reflect that time travel is now very much part of the language the user will program in, while being always transformed to no time travel to show the user what will actually happen.
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)** —
   the seven principles every new construct is judged against, and the
