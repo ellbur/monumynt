@@ -157,7 +157,11 @@ mark. Between the two steps the program is unchanged — the mark is
 session state, not program content — so atomicity is trivial. The mark
 is the wire-level yank register, and one is enough: no surveyed edit
 needs three endpoints (the register write's second endpoint is a node
-reference, which the mark also covers).
+reference, which the mark also covers). The textual form has this
+same gesture as a pronoun: the value mark `^`
+(`textual-representation-design.md`) is remember-then-use at the
+notation's timescale, the session mark at the gesture's — and the two
+meet in the display, below.
 
 **Node-adds complete with holes (3b).** `add` needs two inputs but the
 cursor supplies one. Instead of a modal "now pick the second operand"
@@ -271,7 +275,8 @@ workingRecord = {
   program: Program.program,
   cursor: position,
   mark: option<ref>,         -- pending source for two-endpoint edits
-}
+}                            -- (the session-timescale value mark; see
+                             --  "Rendering" for the display kinship)
 ```
 
 Slots need names; the inventory mirrors the port inventory, per-kind
@@ -442,22 +447,57 @@ a program-only file loads with `cursor top`.
 
 Display is a separate concern from serialization. The TUI marks the
 anchor in place — the examples below use `‸` before the anchored
-token — and the mark's port similarly. In-place display glyphs are
-renderer output, never parsed; the trailing statements are the
-parseable truth. (Rendering both would be redundant on screen; a
-saved file needs only the statements.)
+token. In-place display glyphs are renderer output, never parsed;
+the trailing statements are the parseable truth. (Rendering both
+would be redundant on screen; a saved file needs only the
+statements.)
+
+**Where positions render** is the definition/use distinction itself:
+
+- An **output port** renders at its *definition site* — its binder
+  name in a `=>` list, its tap `|`, its value mark `^`, or, for an
+  anonymous chain value, the gap immediately after the producing
+  stage's token.
+- An **input slot** renders at its *use site* — the arrow that feeds
+  it, a comma-list item, a `^` use, a stage argument, a leading `|`
+  on a resume line.
+- A **node** renders at its stage keyword or token.
+
+Reading a chain left to right, the positions therefore interleave
+with no collisions — `[node] [port] [slot] [node] …` falls on
+`token, post-token gap, arrow, token` — and fan-out does not break
+the scheme, because a port has exactly one definition site no matter
+how many use sites its wire has. The pronoun tier is what makes this
+work for anonymous structure: before the fan-in round, a computed
+operand of a multi-input node had no textual site short of a minted
+name — the notation's flattening problem and the cursor's anchor
+problem were the same problem, and value marks solved both at once.
+
+The **session mark displays as a `^` at the marked port's definition
+site** (styled so it cannot be confused with an authored one). That
+is not a pun: the session mark *is* a pending value awaiting its use
+site, which is exactly what the glyph means in the notation — and
+when a connect consumes it, the wire it creates is short-range
+fan-in, which the canonical printer spells with the very same `^`.
+The pending gesture solidifies into the pronoun. Serialization still
+uses the trailing `mark` statement, never a dangling `^`, because an
+unconsumed text-mark desugars to nothing and would not round-trip
+(the note in `textual-representation-design.md`).
 
 One printer obligation falls out, and it is the second face of the
 line-end lesson: **every cursor position must have a textual anchor,
 and the printer must materialize one when prettiness would elide it.**
 The pretty form drops binders for unused ports, inlines single-use
 literals, compresses chains; if the cursor (or a witness, or the mark)
-references an elided element, the printer locally de-sugars — emits
-the binder, breaks the chain at that stage — so the position is
-visible. Cursor presence changing the print is acceptable; a cursor
-with nowhere to render is not. (This also keeps `print(parse(t)) = t`
-honest: canonical-form stability is defined over program + session,
-and materialization is deterministic given both.)
+references an elided element, the printer locally de-sugars so the
+position is visible — reaching for the *lightest* sufficient anchor
+first: break a chain at the stage, mint a tap or a mark, and only
+past the pronouns' adjacency range mint a name ("pronouns for
+adjacency, names for distance" governs materialization too). Cursor
+presence changing the print is acceptable; a cursor with nowhere to
+render is not. (This also keeps `print(parse(t)) = t` honest:
+canonical-form stability is defined over program + session, and
+materialization is deterministic given both.)
 
 ## Worked sessions
 
@@ -504,6 +544,34 @@ delete-splice the `add` (cursor `OnNode`): consumers rewire to
 are inverses, which is the shape the step-DAG's groupoid reading will
 want edits to have.
 
+**Fan-in** — the user makes graph gestures; the *printer* chooses the
+pronouns. Nobody types `^` or `|`; they appear in the view when the
+wiring becomes fan-out or short-range fan-in. Building
+`range = sub(max(parse(data)), min(parse(data)))` from
+`data -> parse` with the cursor at `parse`'s value port:
+
+| action | display after |
+|---|---|
+| append `min` | `data -> parse -> ‸min` |
+| set mark (at the focused port) | `data -> parse -> min ^` — the session mark, displayed with the notation's own glyph, styled |
+| move upstream to `parse`'s port; append `max` | fan-out now exists, so the printer renders a tap: `data -> parse -> \| min ^` then `\| -> ‸max` |
+| append `sub` | completes with a hole: `\| -> max -> ‸sub(?)` |
+| next hole; connect (consumes the mark) | `\| -> max -> sub(‸^)` — the pending mark solidified into the pronoun |
+| name the output `range` | `\| -> max -> sub(^) => range` |
+
+Final display, zero minted names beyond the sources — the diamond
+from the text doc's shape survey, produced gesture by gesture:
+
+```
+data -> parse -> | min ^
+| -> max -> sub(^) => range
+```
+
+Every intermediate display is the canonical print of a valid program
+plus session state; the `^` that marks pending session intent and the
+`^` the printer emits for the finished wire are deliberately the same
+symbol at two timescales.
+
 **Top-down with holes and a planned wire** — the breadth path:
 
 The user knows the end: a collected sum, but the summing chain isn't
@@ -524,7 +592,11 @@ text form already requires the explicit operand for exactly this case
 from `a` (append stages as in the forward build), and ends with
 connect: mark the chain's last port, cursor to `h`'s consumer slot —
 or just `next hole` — apply; the hole and its plan vanish, and the
-program is the ordinary collected chain.
+program is the ordinary collected chain. Note the hole is *named*,
+not value-marked: a mark is linear, parse-time, and gone on
+round-trip, while a hole that persists across a session is durable
+program content whose plan must target it by name — pronouns for the
+gesture timescale, names for anything that outlives it.
 
 ## Relation to the step-DAG (the stretch goal)
 
