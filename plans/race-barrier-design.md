@@ -430,7 +430,10 @@ Recorded in place; each with the reason it should not be re-proposed.
 4. **Cancellation interplay proper.** The lost-cell trigger is the
    recorded hook; the actual capability, delivery, and bracket ordering
    wait on the Tier-1 IO round. Race commits only to needing no new ports
-   for it.
+   for it. *The round now exists* (`cancellation-design.md`,
+   exploration): the trigger is consumed as drawn — settlement strands
+   the losers' cells, delivery rides the demand frontier, and race
+   indeed needed no new ports.
 5. **The chooser family's round.** The decision-driven merge now also owns
    merge's fairness variants; its round should treat the async merge as a
    member, not a special case.

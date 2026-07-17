@@ -752,6 +752,19 @@ shutdown's escalation ladder, check-then-subscribe abort wiring, weakref-broken
 timer retention. The graceful-shutdown backlog program (in the use-case
 backlog below) was itself drawn at random, three escalation stages of it.
 
+**Round findings** (`cancellation-design.md`, an exploration round with
+leanings). Bracket is not a region: the lifecycle segment's acquire
+vertex mints the handle (failable), and the release is a late-wired
+body on the acquiring node consuming (handle-at-cut, terminator) — one
+body ignoring the tag is `defer`, a split on it is `errdefer`;
+granularity (per-firing vs per-walk) is vertex placement. The third leg
+is supplied by the round's central move: abandonment is delivered as a
+`Cancelled` terminator over the demand frontier, so release-on-any-end
+is ordinary discharge. Kill is release's effect on the handle; release
+is infallible and uncancellable, its completion a cell the supervisor
+observes (the keyed-lane replacement consumes it). Leanings, nothing
+adopted.
+
 ### 4. The decision-driven family
 
 Ordered/decision-driven merge (two flows, per-heads chooser as a

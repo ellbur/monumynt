@@ -608,7 +608,12 @@ compile discipline:
 2. **Cancellation.** Deferred to the IO design, with the constraint recorded
    above: the async cell must be able to carry a cancellation capability later.
    What does the *diagram* show when a race implies possible cancellation of a
-   subgraph?
+   subgraph? *The IO design's cancellation round now exists*
+   (`cancellation-design.md`, exploration): the cell carries no token —
+   delivery is a `Cancelled` terminator written at yield points to cells
+   stranded by ceased demand — and the diagram question's answer there
+   is "nothing new is authored"; a derived at-risk view is the named
+   candidate.
 
 3. **Event-source retention.** Cursor-based GC of event-stream history vs
    explicit windowing vs "latest"-kind sources. Also whether multiple consumers

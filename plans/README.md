@@ -148,9 +148,17 @@ Everything else hinges on these two:
   register on a marker wire, so "collect of an effect flow" is the
   register's `final` (one handle out, not a list); a spanning handle
   threads and orders, a per-firing-minted handle is independent and
-  commutes. The effects half of Tier 1; cancellation/bracket, within-firing
-  ordering, and the batched (collected-plan) pole are fenced out.
+  commutes. The effects half of the IO row; within-firing
+  ordering and the batched (collected-plan) pole are fenced out.
   *Exploration.*
+- [`cancellation-design.md`](cancellation-design.md) — the other half of
+  the IO row: cancellation and bracket. Stopping is drawn (race,
+  interrupt, end-when); cancelling is *delivered* — the runtime writes a
+  `Cancelled` terminator to in-flight work stranded by ceased demand,
+  over the same necessity frontier the incremental flow uses, so there
+  is no cancel token in the vocabulary. Bracket is the lifecycle segment
+  plus a late-wired release half on the acquire (release on any end,
+  keyed per terminator lane). *Exploration.*
 
 ## Flow kinds beyond lists
 

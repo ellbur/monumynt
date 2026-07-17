@@ -518,7 +518,11 @@ Recorded in place; each with the reason it should not be re-proposed.
 
 - **Cancellation, bracket, permits, effects** — the Tier-1 gap is
   untouched; this contributes the drain law and the width/permits split as
-  attachment points, nothing more.
+  attachment points, nothing more. *The cancellation round now exists*
+  (`cancellation-design.md`, exploration): stage 3 of the shutdown ladder
+  is worked there (the completions-side interrupt strands in-flight
+  bodies; delivery and per-body release follow), the settled sum grows a
+  `Cancelled` case, and question 4 (width × permits) is unblocked.
 - **The served flow and the server-program question** — still the
   concurrency row's owed rounds, with their demands (recursive provider,
   keyed cache, per-firing failure legs) unmoved.
