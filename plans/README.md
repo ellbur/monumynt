@@ -98,6 +98,16 @@ Everything else hinges on these two:
   paths, and the one check that catches two kinds of clash (mixing
   mutually-exclusive case branches; time travel).
 
+## Editing
+
+- [`program-editing-design.md`](program-editing-design.md) — how
+  programs are edited (first vehicle: a curses-style TUI over the
+  textual form): the cursor as a node/port/slot position plus a mark,
+  every edit an atomic pure function preserving structural validity,
+  and holes/planned wires as the representable partiality that makes
+  that possible. Builds on the step-DAG and completion docs.
+  *Exploration.*
+
 ## Constructs
 
 - [`partial-collect-design.md`](partial-collect-design.md) — collecting
