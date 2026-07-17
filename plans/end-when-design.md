@@ -197,8 +197,8 @@ combinator.
 -- spelling provisional (open question 6)
 xs -> open list -> split find of Match, Other
   Match: -~> end-when          -- shortened flow: fires until the first Match, then terminates carrying it
--~> collect => prefix, ~term   -- whole-flow collect: folded prefix + discharged terminator
-~term -> split ended of Stopped, RanOut
+-~> collect => prefix, term    -- whole-flow collect: folded prefix + discharged terminator
+term -> split ended of Stopped, RanOut
   Stopped: found               -- the match is in hand
   RanOut:  notFound
 -~> collect => result
@@ -245,9 +245,9 @@ Take-while on the term size (a numeric convergence scan):
 -- spelling provisional
 xs -> open list => a, ~L
 ~L ~> delay init 0 => st          -- register on the flow; carries the scan state
-st, a -> term -> abs -> split of Converged, Large
+st, a -> term -> abs -> split size of Converged, Large
   Converged: -~> end-when         -- stop before the first converged firing
--~> collect => terms, ~term       -- reduce the terms over the shortened flow; final state off it too
+-~> collect => terms, ended       -- reduce the terms over the shortened flow; final state off it too
 ```
 
 Retry-until-tolerance / retry-with-escalation is the same drawing
@@ -576,7 +576,13 @@ different verb) — but not before adoption.
 6. **Textual form.** The three-arrow textual representation needs a
    spelling for the (subject, stop) operand pair and the discharge
    readout (the samples above are provisional); belongs to that
-   document's next round.
+   document's next round. Two divergences to resolve there: this doc
+   writes end-when in lane position with an implicit subject
+   (`Match: -~> end-when`) where `source-openers-design.md` writes it
+   explicit-binary (`~R, ~c.Done ~> end-when => ~W`); and this doc
+   folds the discharge into the collect (a second value output) where
+   source-openers spells it as a separate flow operation
+   (`~W ~> discharge => term`). One spelling family, decided once.
 7. **Naming.** "End-when" vs take-while/until — parked in the tough
    doc's question 8. One constraint from this round: the name should
    read as a *flow operation* (like join), not as a collect variant,

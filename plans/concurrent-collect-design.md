@@ -143,7 +143,8 @@ table.
 over corecursive lowerings that can be drawn. This node's lowering would
 carry the **in-flight set** — runtime-many cells — which race's dead end 5
 ruled undrawable. So the node is genuinely primitive, like the divide
-flow: no lowering, and *that* is why the completions stream kept surfacing
+flow (the candidate recursion primitive, `trees-and-recursion.md`): no
+lowering, and *that* is why the completions stream kept surfacing
 as "a missing output" — dynamic settlement order can be minted nowhere else
 in the vocabulary. Its compiled form is the field's callback→stream bridge
 (settlements enqueue; the stream is the queue's pull side), built by hand

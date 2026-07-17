@@ -1,7 +1,8 @@
 # Async Flows
 
 Status: exploration — the cleanly-derivable parts are worked out; racing and
-failability have adopted leanings; the rest is recorded as open questions.
+failability carry leanings (not adopted); the rest is recorded as open
+questions.
 
 ## What this is for
 
@@ -62,8 +63,9 @@ empty with a separate write half — often memoised-once and lazily created — 
 the most-reached-for primitive, while nobody used `new Promise` for its
 designed eager purpose. JS itself has since added `Promise.withResolvers`. The
 cell's timing contract also earns its keep: three surveyed sites existed solely
-to keep continuations from running re-entrantly, the "release Zalgo" discipline
-the cell provides by construction.
+to keep continuations from running re-entrantly — the "release Zalgo"
+discipline (never deliver synchronously on some paths and asynchronously on
+others) that the cell provides by construction.
 
 Two vocabulary points fall out:
 
@@ -138,8 +140,9 @@ resp -> next -> open async => body, ~B   -- ~B nested in ~A: starts only after r
 independent inputs are sibling flows with no construction-time ordering. By the
 no-time-travel rule, combining their value ports directly is ill-formed,
 exactly as for sibling list flows. The sanctioned combination is **Join with
-multiple inner flows** — the "concurrent join," the fork-join pattern in
-`visual-flow-language.md`. Joining the two async flows merges the contexts; in
+multiple inner flows** — the "concurrent join" (the product barrier of
+`core-model.md`, "Barriers, not bottlenecks"; retired `visual-flow-language.md`
+drew it as fork-join). Joining the two async flows merges the contexts; in
 the merged context both resolved values are available and combine freely.
 
 ```
@@ -163,8 +166,8 @@ const v_out = __asyncCell__(async () => {
 ```
 
 Wall time is the max, not the sum. This is `Promise.all` derived from structure
-rather than named — the applicative/monadic distinction `flow_language_design.md`
-drew for sequence operations, now with observable timing attached. To know
+rather than named — the applicative/monadic distinction the retired
+`flow_language_design.md` drew for sequence operations, now with observable timing attached. To know
 whether two async computations overlap, you look at whether one's opener hangs
 off the other's value port. There is no keyword to forget.
 
@@ -664,16 +667,20 @@ compile discipline:
 - **Visual depiction.** What an async open, a concurrent join, a race, or an
   interrupted stream look like on the canvas is the visual side's problem, out
   of scope in this repo. One note worth passing across: the fork-join and 2D-join
-  drawings in `visual-flow-language.md` were designed for exactly the
-  concurrent-join semantics used here, so the visual vocabulary may already
-  exist.
+  drawings in the retired `visual-flow-language.md` (preserved in git
+  history) were designed for exactly the concurrent-join semantics used
+  here, so the visual vocabulary may already exist.
 - **True parallelism.** Workers, shared memory, actual simultaneity. This
   document is event-loop concurrency only.
 - **Loop-carried state across async steps.** A Delay node inside an async stream
   flow — state threaded from step to step of a long-running process — is the
   reactive-systems bread and butter and probably composes without new design
   (the register lives in the walk), but it deserves its own worked examples once
-  the iteration-state candidates settle.
+  the iteration-state candidates settle. Note the unpaid check: the Delay
+  ontology holds that async flows apparently supply no "next iteration"
+  (`delay-ontology-design.md`, per-kind open item), while an async *stream*
+  is exactly the boundary case — reconciling this is that row's owed work,
+  and this doc's deferral rides on it.
 - **Scheduling and priorities.** Beyond fairness (open question 7), nothing here
   about prioritising one thread's progress over another's.
 - **Implementation.** As with the stream docs: design first, and the stream-flow

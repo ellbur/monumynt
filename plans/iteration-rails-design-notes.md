@@ -8,8 +8,10 @@
 > harmonize Delay with state flows — the *one-visible-column* constraint, the
 > *state-thread* depiction, and the split between how a value is *carried* and
 > how it is *named*. Read alongside `iteration-with-state-design.md`, which
-> holds the two live candidates for the semantic form and remains the biggest
-> open design area.
+> holds the semantic form — one register-pair construct, proven equivalent
+> under its two candidate drawings — and remains the biggest open design
+> area (the open decision is the *surface*: which drawings exist and which
+> is primary).
 
 This is the visual companion to the loop-carried-state question. The semantic
 work lives in `iteration-with-state-design.md`; this doc asks how the same
@@ -193,12 +195,15 @@ exact:
 superseding the old IterationRail / TapIn / TapOut trio. The rail is Delay's
 visual depiction.
 
-Delay is one of **two live candidates** for the semantic form. The other is the
+Delay is one of **two live drawings** of the semantic form. The other is the
 **latent-flow representation**: an augmented uncollect — a seed input and a
 state output added to the flow's opener, with a feedback collect producing the
 modified flow — which realizes the same rail picture with the read tapped off
-the opener's state port. Both are kept side by side; see "Two live candidates,
-kept side-by-side" in the iteration-with-state document.
+the opener's state port. The two have since been proven result-level
+equivalent — one register pair under two drawings — so the choice between
+them is a surface question, not a semantic one; see "The two candidates
+side by side" and "The equivalence, worked" in the iteration-with-state
+document.
 
 That document also settles two things this one left implicit:
 

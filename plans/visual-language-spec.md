@@ -711,6 +711,19 @@ Delay:
   flowOutputs: {}
 ```
 
+> *Known gap in this inventory.* The one-node shape above has no home for
+> the register's **final value** (the total after the flow completes), and
+> the two-phase `step` wiring is not constructible on immutable data. Both
+> are answered by the **register pair** — a read half and a write half,
+> the write half a node of its own with `final` as its output
+> (`first-class-ports-design.md`, "The Delay back-edge: the write half is
+> a node"). Whether the spec keeps one Delay node with the pair as its
+> Expr-level form, or adopts the pair, is open there; either way `final`
+> needs a home this section currently lacks. A second open question rides
+> on `flow`: *which* flow a Delay is tied to when more than one is in
+> reach is the Delay ontology (`delay-ontology-design.md`), not settled by
+> this field's existence.
+
 - `flow`: the iteration flow the carried variable spans. A Delay is
   always explicitly tied to a specific flow.
 - `init`: an input from outside the flow. On the first iteration, `prev`
@@ -793,9 +806,11 @@ back-edge plus the productivity check. The other candidate is the
 interposes an *augmented uncollect* — the flow's opener with a seed input
 and a per-iteration state output added — with a feedback collect
 producing the modified flow. Its node schema is not yet pinned down (the
-feedback-collect mechanic is open), so only Delay is specified here. See
-`iteration-with-state-design.md`, "Two live candidates, kept
-side-by-side," for the comparison and what would decide between them; the
+feedback-collect mechanic is open), so only Delay is specified here. The two candidates have since been proven result-level equivalent — one
+register pair under two drawings — so the open decision is the surface,
+not the semantics. See
+`iteration-with-state-design.md`, "The two candidates side by side" and
+"The equivalence, worked," for the comparison; the
 reasoning behind Delay is there (semantic side: the "link" transformation
 and the port form) and in `iteration-rails-design-notes.md` (visual side:
 the redesigned rail, which both candidates realize).

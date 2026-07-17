@@ -209,7 +209,17 @@ commute. The effects across firings are unordered, and may run concurrently
 (`tough-use-cases-design.md` break #3): mint the handle per firing and the
 sessions do not serialise on each other. Nothing crosses the loop's
 collect, because the handle never existed outside it; there is no `~io'` to
-define.
+define. In the provisional spelling — one scratch connection per request:
+
+```
+reqs -> open list => req, ~R
+req -> connect => ~s            -- handle minted inside the firing: top vertex under ~R
+~s ~> send(req) => ~s'          -- straight-line ops along the handle, no `in` clause
+~s' ~> closeConn                -- released within the same firing
+```
+
+Every handle vertex sits under `~R`; no register, no `final`, and the N
+segments commute.
 
 The distinction is not a mode the author selects; it is *read off the
 drawing* — does the handle's top vertex sit outside the loop or inside a

@@ -337,20 +337,14 @@ in the `undefined` encoding, but the design keeps them distinct, because
 the whole question was which construct converts flow-level absence into
 what — and the answer is: collecting an option flow does, join does not.
 
-Two corrections to `lazy-stream-commute-design.md` fall out and are worth
-flagging for its author. Its "Multi-output independence" and "Composing
-Commuted with Joined" sections assumed *different* spellings (J-style and
-F-style respectively) and so are mutually inconsistent under the old
-notation. And its rejection of `Joined(Commuted(…))` carries a wrong
-redirect: it says the wanted thing "is already the non-commuted close on
-the same option iter," but flattening the Some payloads of a per-group
-commute keeps only *wholly* successful groups (`[2, 4, 8]`), whereas the
-filter-style sibling keeps every firing element regardless of its group's
-fate (`[2, 4, 6, 8]`). The `6` — even, but in the group that fails at `7`
-— is the witness that the two differ. The rejection of the stack itself
-stands; only the redirect needs correcting. Both sections should be
-re-read as programs over explicit join/commute nodes once that doc is
-revised.
+Two corrections to `lazy-stream-commute-design.md` fell out of this
+round, and both have since been applied there (its "Composing Commuted
+with Joined" section now distinguishes the per-group commute's
+whole-groups-only result `[2, 4, 8]` from the filter-style sibling's
+every-firing-element result `[2, 4, 6, 8]` — the `6` is the witness).
+Kept here only as the record of where the correction came from; that
+doc's composition sections still read in the older wrapper-stack
+notation, to be re-read as programs over explicit join/commute nodes.
 
 ## Open questions
 

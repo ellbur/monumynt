@@ -11,12 +11,15 @@ semantic families), `async-flow-design.md`.
 is defined by three kinds of operation — creation, use, and destruction:
 
 ```
-open_database(io, conn_string)  -> (db, io')       -- spelling provisional
-query(db, io, sql)              -> (db', io', result)
-close_database(db, io)          -> io'
+open_database  : in io, conn_string    out db, io'      -- spelling provisional
+query          : in db, io, sql        out db', io', result
+close_database : in db, io             out io'
 ```
 -- the `db` flow threads through every operation; you cannot `query`
 after `close`, because the closed flow has no wire left to attach to.
+(The signatures list ports, not tuples — each output is its own wire,
+per the no-bottleneck principle; the earlier tuple-style spelling read
+misleadingly as packing.)
 
 The flow exists to enforce operation ordering — no querying a closed
 database. The same shape covers databases, file handles, sockets,

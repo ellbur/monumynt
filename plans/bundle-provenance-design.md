@@ -64,10 +64,11 @@ collision is latent in the current documents:
 
 - **The semantic family.** A conditional bundle: the set of mutually
   exclusive case flows created by one branching construct — sets of flows
-  that must be closed together. `visual-layout-guidelines.md` glosses it:
-  "a case split produces a bundle of case flows (one per case). These are
-  mutually exclusive execution contexts. These flows are collected (not
-  joined) when the branches reconverge."
+  that must be closed together. `core-model.md` ("Case splits and
+  bundles") owns the concept: opening a case-typed value partitions the
+  parent flow's firings into sibling case flows, exactly one firing per
+  firing of the parent, mutually exclusive, meeting again only at
+  collecting nodes."
 - **The wiring convenience.** The spec's `Bundle`/`Unbundle` nodes:
   several flows carried on one wire for organizational tidiness,
   explicitly syntactic sugar, unbundled back into the same flows they
@@ -178,7 +179,9 @@ pipeline grew on its own.
 - Structural nodes *transport*: capture stamps the captured constant with
   the flow's path; join removes the inner segment (the joined output
   lives in the outer context); commute permutes adjacent iteration
-  segments; Delay's `prev` carries the path of the flow it is tied to;
+  segments; Delay's `prev` carries the path of the flow it is tied to
+  (*which* flow that is, when several are in reach, is the open ontology —
+  `delay-ontology-design.md`);
   `Bundle`/`Unbundle` pass paths through untouched.
 - Collecting nodes are the one place sibling paths may meet; their demand
   is stated below.

@@ -329,5 +329,3 @@ its home.
 - **The two iteration-state candidates** — the substrate proposal
   above is a flagged decision, not a default; take it up explicitly
   before phase 6.
-</content>
-</invoke>

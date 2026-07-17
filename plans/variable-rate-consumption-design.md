@@ -306,7 +306,11 @@ The shape is heavily precedented, which is evidence for the reframing
 
 ### The wrap loop, end to end (breadth item 1)
 
-The sharpest standing challenge, drawn:
+The sharpest standing challenge, drawn. (A construct list rather than
+chains, deliberately: the split-when, running-view, and end-when
+spellings are each owed to the textual round, so arrow-form text here
+would be invented three times over; the list is the composition, not
+parseable syntax.)
 
     chunks:   uncollect the chunk list                  (subject)
     lineLen:  register on the inner flow — init 0,

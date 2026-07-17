@@ -373,7 +373,7 @@ The algorithm handles only the first; the second is the runtime's job.
 The consumer pre-pass carries over identically. Backwards propagation
 carries over with one structural difference: in the eager version the
 lattice of consumer scopes was a tree (scope nesting), and propagation
-was SCA-shaped — one global pass with a deepest-common-ancestor join.
+was one global pass with a deepest-common-ancestor join.
 In the stream version the per-level lattice is a powerset lattice, and
 each level's propagation is local; across-level structure is handled
 by treating inner outputs as ordinary values at the outer level.

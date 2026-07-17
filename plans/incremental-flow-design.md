@@ -161,6 +161,21 @@ switches) **or the currently-selected inner** changes. The *unselected*
 inner is not a dependency at all: mutations to it do not touch the joined
 var.
 
+In the textual form, a settings pane whose active source is picked by a
+selector var:
+
+```
+selector -> open var => sel, ~S      -- which source is active
+sel -> pick(varA, varB) -~> collect => chosen   -- inside ~S: a var<var<X>>
+chosen -~> join => ~V                -- switch-join: collapse var<var<X>>
+```
+
+`~V`'s current value is the currently-selected inner var's value; it
+recomputes when the selector changes *or* the selected inner var changes,
+and mutations to the unselected var touch nothing. (`pick` is an ordinary
+value operation returning one of the two var handles; the spelling of the
+join stage is provisional pending open question 7.)
+
 This is FRP's `switch`, Incremental's `bind`, and it is what "selecting a
 dynamically chosen dependency" means: the dependency graph's *shape* —
 which edges exist — is itself a function of a var's current value.
@@ -467,7 +482,13 @@ Three observations:
   ```
 
   Every var derived from `count` follows. The iteration-state design and
-  this document compose at exactly this point.
+  this document compose at exactly this point — with one check still to
+  cash: the Delay ontology currently lists async flows as apparently
+  supplying no "next iteration" and incremental as unexamined
+  (`delay-ontology-design.md`, per-kind open item), so the register over
+  an event stream drawn here is a client of that row, not something it
+  has established. The same goes for re-clocking the productivity check
+  to the event-loop turn (below).
 
 The productivity story carries over. A cycle in the incremental graph — a
 var whose value depends on itself — is ill-formed by the same rule as

@@ -176,7 +176,9 @@ collect moves the element wire's properties into the outgoing list's
 element-properties; aggregate/disaggregate route properties through
 fields; Delay transports its value properties around the back-edge
 (making propagation a fixpoint over cycles, which is fine — the domain is
-finite and propagation is monotone).
+finite and propagation is monotone; note the cycle set this fixpoint runs
+over depends on which flow binds the Delay, an open ontology —
+`delay-ontology-design.md`).
 
 No value "has a type." A wire has whatever properties are derivable at it
 — possibly none.
@@ -542,7 +544,9 @@ most of the inventory absent:
    this as a next step; here it is reframed as the first types feature.
 2. **Shape propagation for the existing node kinds.** Lit shapes from
    payloads; App demands/offers from a small registry keyed by the fn
-   expression; transport through Open/Close/Branch. Enough to make "plus
+   expression; transport through Open/Close/Branch
+   (Branch dissolves under ports-migration step 2; the transport role
+   moves to the alt ports). Enough to make "plus
    applied to a list" a compile-time clash with a two-anchor witness in
    test output.
 3. **A schematic source node kind** with declared offers, so

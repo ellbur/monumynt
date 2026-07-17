@@ -327,10 +327,26 @@ p -> | parseLet     -- the shared input, fanned to each contender
 
 A committed contender writes `commit` on its chain before the `fail`
 that should become hard. The advanced position rides out of the covering
-collect beside `expr` for the next stage to thread. Exact spellings —
+collect beside `expr` for the next stage to thread.
+
+The `+all-results` rung is the same bundle with a different
+reconvergence — each firing lane joined into a list collect instead of
+the stop-at-first covering collect (the ambiguous-parse case):
+
+```
+p -> | parseLet
+     | parseApp
+-> speculate => r
+~r.parseLet:  r.parseLet -> LetNode -~> join -~> collect => parses
+~r.parseApp:  r.parseApp -> AppNode -~> join      -- same collect, via the joins
+```
+
+(Sketch only; the collect-all form forces every contender where
+priority-first forces contender *i*+1 only on *i*'s failure — the
+laziness difference stated in the ladder.) Exact spellings —
 the fan-to-contenders form, `commit`, the two-output (result, position)
-collect, and the aggregate diagnosis binder — are owed to the textual
-round.
+collect, the all-results reconvergence, and the aggregate diagnosis
+binder — are owed to the textual round.
 
 ## Against the philosophy
 

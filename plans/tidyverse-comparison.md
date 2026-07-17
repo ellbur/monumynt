@@ -819,5 +819,3 @@ rOpenSci package internals) would supply the field frequencies this corpus
 cannot — in particular how often the broadcast-back, the pivot pair, and
 `across` occur in code nobody curated, which is what the products row's W move
 should eventually rest on.
-</content>
-</invoke>

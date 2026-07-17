@@ -410,7 +410,9 @@ are 3! = 6 orders, and they read the cube along its six axis permutations
 **Associativity: the nesting tree is representational, the axis set is the
 denotation.** Cross is binary, so a three-axis product is authored by
 nesting — `cross(x, cross(y, z))`, or `cross(cross(x, y), z)`, or a flat
-three-way cross if the surface offers one. By the law (fire once per tuple
+three-way cross if the surface offers one. (Prefix `cross(…)` throughout
+this section is schematic exposition, not the textual form — Cross's
+textual spelling is owed, open question 1.) By the law (fire once per tuple
 of operand firings, each axis rides unchanged) and mutual invariance, all
 three build the *same* cube: the same point set and the same top context
 {X, Y, Z}. So the denotation is the **flat, order-free axis set** — exactly
@@ -763,8 +765,7 @@ view) is the ordinary register semantics already worked, applied per fiber.
 Nothing product-specific remains except the choice of *which* axis — and
 that choice turns out to expose an **open ontological question about Delay
 itself**, which is the round's real lesson. Which flow fixes the register's
-axis? Two candidates (`iteration-with-state-design.md`, "What a Delay is,
-and which flow binds it"): the **collect** that binds the register (so the
+axis? Two candidates (`delay-ontology-design.md`): the **collect** that binds the register (so the
 axis is a consumer's choice), or the **ancestor uncollect** the carried
 value descends from (so the axis is fixed at the Delay, independent of
 consumer). The results in this section — reduce along *one* axis, fibered
@@ -773,10 +774,12 @@ axis* differs. And the product is where the sharpest evidence lives: the
 shared-grid implementation (iterate once, store the n×m table, transpose for
 the other consumer) **breaks** if a register's axis depends on which
 consuming collect reads it (the two consumers would need two different
-grids), which argues the axis must be *fixed at the Delay* — i.e. toward the
-ancestor-uncollect candidate, against the collect-binding lean the first
-pass took. Recorded there as open; below, "the register's axis" means
-whichever flow that question settles on.
+grids), which cuts toward fixing the axis *at the Delay* — the
+ancestor-uncollect candidate. The ontology round weighs this as a real
+cost on collect-binding rather than a knockout (recompute-per-consumer is
+a legitimate implementation), so the fork stays balanced. Recorded there
+as open; below, "the register's axis" means whichever flow that question
+settles on.
 
 ### The program that demands it
 
@@ -795,7 +798,18 @@ direction?** Down each column (accumulate over x, one running total per y)?
 Along each row (over y, per x)? Over the whole thing (one grand total)?
 Three different programs, and the product — deliberately — names none of
 them. The register has to say which, and *saying which is the entire design
-question*.
+question*. In the register spelling the choice is visible as which flow the
+delay names — and nothing in the symmetric wiring supplies it:
+
+```
+-- spelling provisional; the delay's flow reference is the axis choice
+~x ~> delay init 0 => run             -- along X: fold down each column…
+run, s -> add -> step of run => colTotal   -- …final = one total per y (a Y-flow)
+```
+
+versus `~y ~> delay …` (along each row, final an X-flow) versus the plain
+scan's `~L ~> delay` with no `~L` to infer — the `~?` the ontology round
+works from (`delay-ontology-design.md`, "The product sharpens both").
 
 ### The finding: reduce along an axis, fibered over the rest
 
@@ -873,8 +887,7 @@ streams, any outer axis retains a fiber — and choosing the axis is also
 choosing the cost.
 
 This is also the mechanical fact behind a point in the Delay-ontology
-debate (`iteration-with-state-design.md`, "What a Delay is, and which flow
-binds it"): the two
+debate (`delay-ontology-design.md`): the two
 orientations of a register are not two readings of *one* grid, they are two
 *different computations*. The base value grid (`s = x + y`) transposes for
 free, but a **scan** along X (`sum over x′≤x at fixed y`) and a scan along Y
@@ -1067,12 +1080,14 @@ once first-class ports and Cross land.
    and productivity and the stored-form theorem transfer verbatim (the Delay
    crossing instantiated per fiber) — all independent of *which flow* fixes
    the axis. That last point is the round's deeper yield: **which flow binds
-   a Delay** is an open ontological question (`iteration-with-state-design.md`,
-   "What a Delay is, and which flow binds it"), and this section carries its
+   a Delay** is an open ontological question (`delay-ontology-design.md`), and this section carries its
    sharpest evidence — the shared-grid implementation of products breaks
-   under consumer-order-dependent binding, arguing the axis is fixed at the
-   Delay (the ancestor uncollect), against the first pass's collect-binding
-   lean.
+   under consumer-order-dependent binding, which cuts toward fixing the
+   axis at the Delay (the ancestor uncollect). The ontology round weighs
+   this as a real *cost* on collect-binding, not a knockout (re-running a
+   register per collect is a legitimate implementation, and an outer-axis
+   accumulator wants the store-and-zip cost anyway); the fork stays
+   genuinely balanced there.
    Two findings: a full reduction is an axis *permutation* (the S₃ orbit
    with a register hat; non-commutative folds observe the order); and a
    commutative monoid discharges the order demand entirely, so a
