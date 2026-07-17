@@ -67,7 +67,10 @@ open whether the lightweight form is a user-defined flow kind or a
 catalog block with a derived lowering. **Bracket** (acquire/release
 around a region) is the related candidate with many demands, waiting on
 cancellation/IO. The lifecycle pattern here is the raw material both
-would draw on.
+would draw on. *Bracket's round now exists* (`cancellation-design.md`,
+exploration): not a region — this doc's lifecycle segment plus a
+late-wired release half on the acquiring vertex, firing on any end of
+the segment including abandonment.
 
 ## Structural flows vs effect handles: who may cross
 

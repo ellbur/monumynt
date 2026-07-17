@@ -431,7 +431,12 @@ backstops are the usual ones: tolerate the waste (bounded by the first
 genuine delivery, if one comes), or GC-based teardown (finalizers
 releasing registrations, promptness at the collector's pleasure). Recorded
 so the IO design inherits this consumer of the cancellation capability
-alongside the async doc's.
+alongside the async doc's. *The round now exists*
+(`cancellation-design.md`, exploration): it identifies the necessity
+frontier with the cancellation propagation structure outright —
+liveness, memory, and cancellation as one frontier, the stranded
+pending pull delivered a `Cancelled` terminator — and demotes GC-based
+teardown to a backstop against accounting bugs, never the semantics.
 
 ## The mutation boundary: events in, hold
 

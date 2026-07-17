@@ -62,67 +62,84 @@ this repo entirely.
 
 ## Tier 1 — the load-bearing gaps (I × W ≈ 20)
 
-**IO, effects, and cancellation — I 4, W 5.**
-The record's most-cited hole: no cancellation design, and the effects
-half now has its central gap worked but not adopted. Two halves.
-*Effects:* the per-firing effect — cause an effect once per firing of a
-loop, the most common loop payload — is now worked
-(`effects-design.md`): the IO handle threaded through a loop **is a
-register on a marker wire**, so "collect of an effect flow" (the
-translation-exercise gap, `~io'` outside the loop) is nothing new — it
-is the register's `final`, one handle out, never a list; a *spanning*
-handle threads and orders effects by iteration order, a
-*per-firing-minted* handle is independent and commutes (satisfying the
-per-session-IO constraint), the fork read off the drawing not a mode;
-the collected-plan pole is retained as an adjacent *batched* construct,
-not the everyday form; five dead ends recorded. Residue: the threaded
-op's spelling and its two boundaries; Delay-node reuse vs a marker
-sibling; the batched-effect construct's own round; multi-close threading
-one handle. Still genuinely open beside the worked round: effect
-*ordering within a firing* (the conditional-flush buffer, a distinct
-axis) has only raw material (`custom-flows.md`'s lifecycle pattern), not
-a design; bodies-raise / lightweight failure is owned by failability.
-One sharpening the round contributed: effects over a product make the
-loop-carried-state row's linearization residue *observable* (writes are
-non-commutative, removing the commutative-monoid escape hatch).
-*Cancellation:* untouched and load-bearing — bracket's
-release-on-abandonment, race-implies-cancel, and abandoned pending
-pulls all arrive at it; the effects round establishes the thread the
-cancel capability would ride, a prerequisite, not the design.
-
-W = 5 because ~42% of sampled loops exist to cause effects, and both
-`async-flow-design.md` (question 2) and `incremental-flow-design.md`
-(effect-free tracking contexts) defer constraints here that block
-their own completion. The cancellation half is measured, not only
-argued: roughly eight of thirty orchestration sites touch
-cancellation/abandonment/retention, containing the sample's most
-delicate code (`real-loop-survey.md`, survey 3).
-
-Prior art supplies structure, not a design. XQuery's Update Facility
-reifies per-firing effects as a **pending update list** — effects
-gathered by ordinary evaluation, applied atomically at a snapshot
-barrier, conflicts resolved by declared rules (the
-effects-as-collected-plan pole; its strain points — no
-read-your-writes inside the snapshot, conflict rules where
-within-firing ordering resurfaces — map onto breadth item 5). jq marks
-the same pole degenerately (effects only at pipeline edges). Elm's
-`Cmd` is a second effects-as-collected-values witness (the loop closed
-through ordinary events re-entering as `Msg`s), and the TC39 Signals
-proposal ships *no* effect construct at all, stopping exactly at this
-row. For the cancellation half, Zig's `defer`/`errdefer` supply four
-properties any bracket design should reproduce: release written
-adjacent to acquisition (a late-wired release half on the acquiring
-node, fired at the owning flow's discharge), cleanup keyed by exit
-reason (per-terminator-lane release), the infallibility asymmetry
-(allocation may fail, deallocation must succeed), and per-firing as
-well as per-flow attachment; plus `std.Io` cancellation (`Future.cancel`
-discharges a readable terminator; group wait propagates cancellation).
-Every Effekt and Flix case study interleaves effects mid-computation —
-the hole gates ordinary programs, not just effect-heavy ones. See
-`translation-exercise.md`, `effekt-comparison.md`, `flix-comparison.md`,
-`xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
+*Empty as of the cancellation round (2026-07-17). The
+IO/effects/cancellation row held this tier alone; with both of its
+halves now carrying worked exploration rounds, its incompleteness
+dropped from 4 to 3 and the row moved to the head of Tier 2, per this
+index's own maintenance rule. Nothing there is adopted — the move
+records worked-vs-unworked, not settled. Citations across the record to
+"the Tier-1 IO round" name that row, not its current tier.*
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
+
+**IO, effects, and cancellation — I 3, W 5.**
+The record's most-cited hole, now worked in two halves — both
+exploration, neither adopted. *Effects* (`effects-design.md`): the IO
+handle threaded through a loop **is a register on a marker wire**, so
+"collect of an effect flow" (the translation-exercise gap, `~io'`
+outside the loop) is the register's `final` — one handle out, never a
+list; a *spanning* handle threads and orders effects by iteration
+order, a *per-firing-minted* handle is independent and commutes
+(satisfying the per-session-IO constraint), the fork read off the
+drawing not a mode; the collected-plan pole is retained as an adjacent
+*batched* construct, not the everyday form; five dead ends recorded.
+One sharpening that round contributed: effects over a product make the
+loop-carried-state row's linearization residue *observable* (writes are
+non-commutative, removing the commutative-monoid escape hatch).
+*Cancellation and bracket* (`cancellation-design.md`): **stopping is
+drawn, cancelling is delivered** — a program only ceases demand through
+drawn constructs (a race settles, an interrupt or end-when fires, a
+prefix is taken), and cancellation is the runtime delivering that
+ceased demand as one more terminator lane (`Cancelled`) to the
+in-flight work it strands, over the demand/necessity frontier the
+incremental row already ordered (liveness, memory, and cancellation one
+structure); laziness bounds the capability to the in-flight window
+(un-started work is cancelled by never starting); there is **no cancel
+token** — AbortController dissolves into demand structure the field
+reifies by hand, surviving only as the FFI catalog blocks' cancel
+translations; the lane discharges outward only (release halves inside
+the stranded subtree, ordinary data at any live boundary — the
+websockets-4 uncancel pathology inverted); **bracket** is the lifecycle
+segment plus a late-wired release half on the acquiring node, consuming
+(handle-at-cut, terminator) per lane — Zig's four properties reproduced
+without regions, release infallible and uncancellable with its
+completion observable as data; silence exists only at the edges (root
+exit, vanished requester), converted there by the runtime/FFI; six dead
+ends recorded.
+
+Residue keeping I at 3: the adoption conversation (one conversation for
+both halves — the release half consumes the thread's `final`); effect
+*ordering within a firing* (the conditional-flush buffer, a distinct
+axis) still has only raw material (`custom-flows.md`'s lifecycle
+pattern), not a design; the batched-effect construct's own round; the
+permit-pool block (now unblocked by bracket); the threaded op's and the
+release half's spellings; the `Cancelled` payload (joint with
+failability's composition residue); multi-close — one spanning handle's
+single threading consumer, and frontier accounting at walk granularity;
+bodies-raise / lightweight failure stays owned by failability.
+
+W = 5 because ~42% of sampled loops exist to cause effects; roughly
+eight of thirty orchestration sites touch
+cancellation/abandonment/retention and contain the sample's most
+delicate code (`real-loop-survey.md`, survey 3); and both
+`async-flow-design.md` (question 2) and `incremental-flow-design.md`
+(the pending-pull hole) deferred constraints here that the rounds now
+consume. The frequency evidence is measured, not only argued.
+
+Prior art, now consumed structurally rather than pending: XQuery's
+pending update list, jq's edge-only effects, and Elm's `Cmd` mark the
+collected-plan pole the effects round retains as the batched construct;
+the TC39 Signals proposal ships *no* effect construct at all, stopping
+exactly at this row. Zig supplies both rounds' field structure —
+`defer`/`errdefer`'s four bracket properties, the
+allocation-may-fail/deallocation-must-succeed asymmetry,
+`Future.cancel`'s cancel-as-await (the cancelled computation still
+terminates, readably — the cancellation round's terminator-lane claim
+shipped), group-propagated cancellation, and the cooperative floor.
+Every Effekt and Flix case study interleaves effects mid-computation —
+the row gates ordinary programs, not just effect-heavy ones. See
+`translation-exercise.md`, `effekt-comparison.md`, `flix-comparison.md`,
+`xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
 
 **Loop-carried state: the surface decision — I 3, W 5.**
 The two live candidates — the Delay pair and the latent-flow augmented

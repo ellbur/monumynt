@@ -448,7 +448,11 @@ Recorded in place; each with the reason it should not be re-proposed.
   the divide flow's (`trees-and-recursion.md`), deferred; speculation
   supplies the choice, not the recursion.
 - **Cancellation / release of effectful attempts** — the Tier-1 IO round
-  (`open-problems.md`); only the trigger is named here.
+  (`open-problems.md`); only the trigger is named here. *The round now
+  exists* (`cancellation-design.md`, exploration): a failed contender's
+  discharge strands its demand subtree like any other cessation, and its
+  acquisitions release through the ordinary bracket lanes — nothing
+  speculation-specific was needed.
 - **The chooser family's own round** — heuristic order touches it; the
   two-flow decision-driven merge and merge fairness stay with
   `tough-use-cases-design.md`, item 4.

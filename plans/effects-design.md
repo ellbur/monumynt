@@ -287,7 +287,11 @@ recent rounds have been circling.
   The thread is the carrier a cancellation capability would later ride
   (`async-flow-design.md` records the constraint that the async cell must
   not preclude threading a cancel token); establishing the thread is a
-  prerequisite, not the cancellation design.
+  prerequisite, not the cancellation design. *That round now exists*
+  (`cancellation-design.md`, exploration): delivery over the demand
+  frontier, `Cancelled` as a terminator lane, the release half consuming
+  this round's `final` — consuming the thread, not changing it; the two
+  rounds should go to the adoption conversation together.
 
 - **Within-firing effect ordering (the conditional-flush buffer).** This
   round orders effects *across* firings (by the thread) and says nothing
