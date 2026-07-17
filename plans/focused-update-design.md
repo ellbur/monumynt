@@ -4,7 +4,12 @@ Status: exploration — leanings, not adopted. Nothing here is
 implemented. Code samples use the textual syntax of
 `textual-representation-design.md`; the compact path spelling (`|=`)
 and the write-back collect (`collect back`) are *spelling provisional*
-and owed to the textual round.
+and owed to the textual round — as are two glyphs the compact form
+borrows that collide with reserved meanings: the leading `doc | …` path
+marker (that document reserves `|` exclusively for junction taps) and
+the `->*` map-into-open arrow (not in the arrow family). Read every
+compact-form sample as a sketch of the drawn structure, not as parseable
+text.
 
 Focused update is changing a small part of a large nested value while
 preserving everything else: increment every post's like-count, redact

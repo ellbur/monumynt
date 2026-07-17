@@ -66,7 +66,7 @@ docs actually require, and let the requirement emerge:
 | Failable-flow discharging collect | per-outcome ports on one collect | `async-flow-design.md`, "Failure as terminator payload" residuals |
 | `hold` / `changes` | kind-crossing: async-side ports and incremental-side ports on one node | `incremental-flow-design.md`, open question 7 |
 | Commute node | flow ports only — zero value ports | spec, Commute section |
-| Delay | 1 value out (`prev`), inputs wired in two phases | spec, Delay section |
+| Delay | 1 value out (`prev`), inputs wired in two phases — the spec's current shape, which the back-edge section below overturns (the pair adds `final`) | spec, Delay section |
 
 Three observations fall out of the table:
 
@@ -629,6 +629,13 @@ write's `step`, everyone's reads of `prev` and `final`) and nothing else.
   source never finishes, so its `final` is never available. Demand-time
   error, type-level impossibility, or a thunk that never returns —
   belongs to the iteration-state round's self-driven-stream story.
+- **Which flow the read half's `flow` names.** The schema above commits
+  to a `flow: FlowSource` field and the examples bind it to the
+  uncollect's flow — but *which* flow a Delay is over, when more than
+  one is in reach, is the open Delay ontology
+  (`delay-ontology-design.md`); the field's existence does not settle
+  it, and its meaning may end up read off provenance (the update
+  cadence) rather than authored.
 
 ## Open questions
 

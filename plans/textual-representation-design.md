@@ -514,10 +514,12 @@ m -> split isJust of Just, Nothing => cs
 y~
 ~cs.Nothing: 0
 -~> collect => out
-``` Spread-out authoring is a path, not a
-reading — the representation keeps only the wiring, so the
-canonical reprint regroups statements into its own order ("many
-authoring paths, few readings" applied to statement order itself).
+```
+
+Spread-out authoring is a path, not a reading — the representation
+keeps only the wiring, so the canonical reprint regroups statements
+into its own order ("many authoring paths, few readings" applied to
+statement order itself).
 And an unrelated flow opened and closed between the split and its
 collect raises no false crossing signal: its span is contained, and
 the derived indentation follows semantic depth, so it prints at its
@@ -952,7 +954,10 @@ an authoring convenience, not a stable interchange surface.
 3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `~`/`~^`, the
    branch suffix `value~`, `!`, `@`, `+`. Each is cheap to respell;
    the family structure (sorted arrows, one meaning per glyph — `|`
-   is only ever a junction) is the commitment. Watch `-~>` vs `~>`
+   is only ever a junction) is the commitment. One reuse to record:
+   `@` here is the id suffix (`sum@n42`), while the retired informal
+   glyphs used `@` for collect (`core-model.md`) — harmless since
+   those are retired, but the naming sweep should notice. Watch `-~>` vs `~>`
    legibility, and whether the prefix/suffix `~` mirror (`~y` the
    flow port, `y~` the value with its flow) is mnemonic or too
    subtle in practice — alternatives: `y&`, a headless `y -~`.

@@ -107,23 +107,39 @@ productivity check: where the register demands *every cycle crosses a
 Delay* (so state can't be skipped), saturation demands *every flow cycle
 crosses a dedup collect* (so the loop is monotone and can converge).
 
+The two-point map (value back-edge / flow back-edge) has since gained a
+third point: `effects-design.md` reads the threaded IO handle as a
+register carrying a **marker** wire across a Delay — a back-edge whose
+threaded wire has no readable payload. Value, flow, marker: three
+instances of one move, a linearly threaded wire crossing an iteration
+boundary, each with its own crossing discipline. (How the marker register
+squares with "Delay does not thread the flow wire" is reconciled in
+`delay-ontology-design.md`.)
+
 Strawman spelling (doubly provisional — the visual form of a flow
 back-edge, like the register's write half, is the hard part and belongs to
 the layout side; this is only to fix the pieces):
 
 ```
-edges -> open list -~> collect set => reach0     -- seed: Reach = Edge
-reach ~> saturate init reach0 => reach            -- the flow back-edge
-  reach -> open set => (x, y)                       -- reopen the current relation
-  edges -> open list => (y2, z)
-  (x, y), (y2, z) ~> cross -> keep (y == y2) -> tuple(x, z)
-  -~> collect set                                  -- new facts, unioned in
+edges -> open list -~> collect set => reach0    -- seed: Reach = Edge
+saturate init reach0 => reach                   -- read half: the current relation, per round
+reach -> open set => x, y                       -- reopen the current relation
+edges -> open list => y2, z
+x, y2 -> eq => hit                              -- the shared variable: an equality filter
+(x, y), (y2, z) ~> cross -> keep(hit) -> pair(x, z)
+-~> collect set -> feed of reach                -- write half: union the round's facts back
 ```
 
-*`saturate` is the flow-level counterpart of `delay`: `init` seeds the
-relation, the body derives one round's consequences into a set collect,
-and the collected set is fed back as `reach` for the next round.
-Saturation halts when a round's set collect adds nothing new.*
+*`saturate` is the flow-level counterpart of `delay`, spelled with the
+same two-statement read/write discipline (mint the read, wire the
+feedback later — token order stays time, names stay single-assignment):
+`init` seeds the relation, the read half exposes the current relation per
+round, the body derives one round's consequences into a set collect, and
+`feed of` deposits the collected set as the next round's relation.
+Saturation halts when a round's collect adds nothing new. The `pair(x, z)`
+is a genuine relation fact — data the set stores — not a structure packed
+to cross the Cross; the no-bottleneck principle polices packing at
+barriers, not tuples as values.*
 
 The point is not the spelling but that the pieces are the register's
 pieces raised one level: `init` is the seed (the register's initial
@@ -206,7 +222,22 @@ Saturation's back-edge is parameterized by its collect:
   the lattice order.
 
 Shortest-distance *is* keyed-min-collect plus this feedback, nothing else.
-Two things generalize with the swap:
+In the same provisional spelling, single-source shortest distance over a
+weighted edge set:
+
+```
+src -> pair(0) -~> collect keyed by min => d0   -- seed: {src: 0}
+saturate init d0 => dist                        -- read half: current distances
+dist -> open keyed => n, dn                     -- per known node: name, distance
+edges -> open list => a, b, w                   -- per edge: from, to, weight
+n, a -> eq => hit
+(n, dn), (a, b, w) ~> cross -> keep(hit)
+-> pair(b, dn + w)                              -- a candidate distance for b
+-~> collect keyed by min -> feed of dist        -- write half: per-key min merge
+```
+
+Rounds stop when no key's value drops — the same halt test, read in the
+lattice order. Two things generalize with the swap:
 
 1. The termination test broadens from "no new members" to "no member
    **changed** value" — the keyed map reached a fixpoint in the lattice

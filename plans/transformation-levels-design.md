@@ -64,7 +64,7 @@ the language's first **non-primitive** operation. A macro, not a special
 form.
 
 This is where "building blocks at the programmer's abstraction level"
-(the philosophy in `iteration-with-state-design.md` and `CLAUDE.md`)
+(the philosophy in `iteration-with-state-design.md` and `language-design-philosophy.md`)
 lives. The language is deliberately *not* minimal-Lisp: programmer-level
 vocabulary is available as building blocks. Programmer vocabulary
 (`loopify`, and later `sum`, `max`, …) are **transformation-level**
@@ -764,7 +764,7 @@ catalog so far: no entry has independent content at two levels.
 
 ## What this says about the language's philosophy
 
-This work sharpens and extends four principles in `CLAUDE.md`.
+This work sharpens and extends four principles in `language-design-philosophy.md`.
 
 **Abstraction is the source of truth; concreteness is a derived view.**
 The load-bearing new principle. The authored program keeps the

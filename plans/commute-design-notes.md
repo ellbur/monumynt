@@ -1,10 +1,11 @@
 # Commuting Option Out of List: Design Notes
 
 > **Status: superseded stopgap — kept for its options analysis.** This
-> document worked out what `commute` should mean and where it could live,
-> and recommended a near-term stopgap (Option 6, a non-short-circuiting
-> commute bolted onto the existing eager list flow). That stopgap was
-> never built. The stream-flow conversation it deferred to happened
+> document worked out what `commute` should mean and where it could live.
+> Its recommendation was Option 3 (defer commute to the stream-flow
+> conversation), with Option 6 — a non-short-circuiting commute bolted
+> onto the existing eager list flow — held as the near-term stopgap *if*
+> one proved necessary. The stopgap was never needed or built. The stream-flow conversation it deferred to happened
 > instead, and commute landed there as a per-close output annotation on
 > *stream* flows — the "honest split" this document recommends as the real
 > answer (the deferred half of Option 3). See `lazy-stream-placement-design.md`,
@@ -343,5 +344,3 @@ within list flow:
   as list flow stays multi-consumer, no operation requiring real linearity
   can be added to it; commute was the first such operation thought through,
   and stream flow is where those belong.
-</content>
-</invoke>

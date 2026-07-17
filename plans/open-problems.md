@@ -144,66 +144,31 @@ counted↔conditional seam it opens is filed back here as that round's
 open question); and operator identities for reduce-close — now worked
 jointly with the collect family (`collect-family-design.md`: the
 identity question reframed as the empty-collect question, a three-tier
-availability ladder — monoid → total, semigroup → option-shaped,
-neither → augment — identities as catalog rows carrying the identity
-value as witness, user monoids minted via the algebra facet, the named
-collects dissolved into catalog rows, the keyed partition worked as the
-primary construct with its four readouts as consumption). New **open
-problem**: the **Delay ontology** — what a Delay *is* and which flow its
-"next iteration" binds to (`iteration-with-state-design.md`, "What a Delay
-is, and which flow binds it"). Firm: a Delay is a feature of the flow and
-does not thread the flow wire (IO's wire-threading encodes a temporal
-sequence Delay lacks). Open fork — two live candidates: the **collect**
-that binds the register, or the **ancestor uncollect** its value descends
-from. A first pass leaned collect-binding; three considerations reopened it,
-and the fork is now genuinely balanced: (1) the multiple-collect/shared-grid
-problem (a consumer-order-dependent axis breaks products' compute-once-
-transpose implementation) — but this is a *cost, not a knockout*, since
-re-running a register per collect is a legitimate implementation and an
-outer-axis accumulator wants the store-and-zip cost anyway (a register along
-an outer axis must retain the previous fiber and zip — exactly an
-outer-loop accumulator, and not infrequent); (2) the "value wire in context"
-reframing (a per-iteration value may honestly carry a previous and a next,
-dissolving candidate 2's rejection and reaching into what uncollect
-*means*); (3) the possibility that Delay is the wrong abstraction. The
-choice selects behaviour wherever a commute or a product's axes puts more
-than one flow in reach. A worked optional-readings example
-(`iteration-with-state-design.md`, "Working an example") adds a vote for the
-collect on the *nesting* axis (a value's innermost ancestor uncollect can be
-the wrong flow to thread), sharpens the rule to **the collect that gathers
-the flow the Delay is on** (resolving nesting but not the product's
-one-flow/many-collects case), and surfaces the live obstacle:
-disambiguation wants an *explicit* flow reference, which the textual form
-has for free (`~L ~> delay`) but every visual attempt makes a mess of wires.
-Consideration (2) is now itself **worked with leanings**
-(`iteration-with-state-design.md`, "The value-in-context model, examined"):
-modelling an uncollected value as a **cursor into its wire's firing-indexed
-sequence** relocates the whole fork — the flow is fixed by provenance, not
-chosen, so collect-vs-ancestor *coincide on sequences* and are *silent on
-grids*, leaving a product's **linearization** (which axis) as the sole live
-residue. It factors the register into raw-previous + seed + feedback
-(dissolving the four `prev(x)` rejections), explains backward-only Delay by
-causality (`next` legal only on materialized flows), and *predicts* the
-product's axis gap and the transpose cost (any context-read, not just a
-register, is non-transpose-invariant). Not adopted — it reshapes uncollect
-language-wide and owes an everyday-`prev` frequency check. The product
-linearization residue has since **narrowed**
-(`iteration-with-state-design.md`, "The product, re-read through
-update-cadence and read-range"): reading the product through the
-update-cadence/read-range split locates the whole residue in the *update*
-half (a missing order on the one grid, not a flow ambiguity; the read half
-stays ordinary) and **closes the pure-`final` corner** collect-binding was
-owed — over a product `final` is a reduced-rank flow, so its consumer names
-the axis. The sole hard case left is *several running-view consumers of one
-non-commutative register reading in different orders* — argument 1's
-recompute-vs-reference trade, isolated. Effects sharpen this residue from
-the other side (`effects-design.md`): a spanning IO handle threaded
-through a nested loop is a full-cube fold on a *linear, non-commutative*
-wire, so the linearization becomes *observable* (bytes land in one order)
-and the commutative-monoid escape hatch is removed — the same order
-question, now load-bearing for any program that writes under nested
-iteration. The row's center, the surface
-decision, is untouched by all of these.
+availability ladder, identities as catalog rows carrying the identity
+value as witness).
+
+Beside the surface decision sits the row's open problem, now its own
+document: the **Delay ontology** — what a Delay *is* and which flow
+its "next iteration" binds to (`delay-ontology-design.md`, split out
+of the iteration-state doc). Where it stands: firm that a Delay is a
+feature of the flow and does not thread the flow wire; the
+collect-vs-ancestor fork dissolves on sequences and is silent on
+grids (the value-in-context model, worked with leanings, unadopted —
+it reshapes uncollect language-wide and owes an everyday-`prev`
+frequency check); the two candidates answer the register's two halves
+(update cadence, provenance-fixed, vs read range, consumer-chosen —
+this is `hold`); the pure-`final` corner is closed; and the sole hard
+residue is a product's **linearization** — several running-view
+consumers of one non-commutative register reading in different
+orders, the recompute-vs-explicit-axis-reference trade. Effects
+sharpen that residue from the other side (`effects-design.md`): a
+spanning IO handle under a nested loop makes the linearization
+*observable* and removes the commutative-monoid escape hatch. The
+ontology doc also carries the row's most concrete owed work: the
+per-kind "next iteration" question, on which several rounds
+(incremental, concurrent collect, async, effects) are already writing
+checks. The row's center, the surface decision, is untouched by all
+of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -765,4 +730,3 @@ the scores above rather than carrying its own. The named next rounds
 The standing method is to be used proactively: when any row above is
 worked and its round starts assuming importance rather than measuring
 it, sample first.
-</content>

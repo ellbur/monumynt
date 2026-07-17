@@ -69,8 +69,9 @@ each, so the use cases can reference it:
   vars, switch-join, `hold` and `changes`, scan-then-hold at the mutation
   boundary.
 - **The register** (`iteration-with-state-design.md`): loop-carried state
-  via the link transformation; two candidates (Delay-as-ports and the
-  latent-flow uncollect) deliberately side by side; self-driven streams (a
+  via the link transformation; two candidate drawings (Delay-as-ports and
+  the latent-flow uncollect), since proven result-level equivalent — one
+  register pair; self-driven streams (a
   register with no source); the every-cycle-crosses-a-register
   productivity rule.
 - **First-class ports** (`first-class-ports-design.md`): per-kind port
@@ -105,9 +106,9 @@ The inbound side is fully designed. Incoming requests are an external
 event source — an async stream, buffer-kind (every request matters; none
 may be dropped), exactly the adapter the async doc's external-event-sources
 section describes. Routing is a case split on the request value — cases as
-values, nothing new. The language description already sketched a server
-flow (configuration scopes section) as an iteration over "a stream of
-events", so the reading "a server is an open over the request stream" is
+values, nothing new. The retired language description already sketched a server
+flow (now `configuration-scopes.md`, event-driven section) as an iteration
+over "a stream of events", so the reading "a server is an open over the request stream" is
 established.
 
 ### Break #1: where does the response go?
@@ -141,7 +142,7 @@ Two ways to say that:
 The second is clearly this language's answer. It costs no new wiring
 concept — an open with value+flow out, a collect with value in — only a
 new flow kind whose collect has an external meaning. And it is the missing
-half of the language description's own server sketch: that section had the
+half of that server sketch (`configuration-scopes.md`): the sketch had the
 open (requests as an ongoing flow) and stopped before saying what closing
 it means. Answering the requester is what closing it means.
 
@@ -176,7 +177,7 @@ structure says so, because the reader can see which collect species is in
 play. Sequential remains the default; concurrency is visible, not
 inferred.
 
-This is the language description's parallel pool ("looks sequential; the
+This is the retired language description's parallel pool ("looks sequential; the
 runtime has N workers") landing in async vocabulary — with the important
 correction that the concurrency is *cooperative interleaving on the event
 loop*, per the async doc's honesty rule, not worker parallelism. The pool
@@ -204,7 +205,7 @@ concurrency a visible collect species rather than a runtime mood.
 
 "Each session may use IO" sounds like it should wait for the IO round, and
 mostly it does, but this use case leaves the IO round a constraint it must
-honour: the language description's IO story threads an `io_flow` effect
+honour: the IO story (now `custom-flows.md`) threads an `io_flow` effect
 handle through operations to sequence them. Thread *one* handle through a
 server and every session serialises on it — the concurrency of break #2
 destroyed by the effect system. So: IO handles must be mintable per
@@ -666,8 +667,9 @@ demand:
   state should be readable elsewhere — but the honest assessment is that
   this is the *hardest* composition in this document: a state machine
   hand-built from a register whose carried value is a protocol-state ADT,
-  with a case split per step. The language description's custom-flow
-  section ("state-machine protocols": file open→read/write→close) is the
+  with a case split per step. The custom-flow doc
+  (`custom-flows.md`, "state-machine protocols": file
+  open→read/write→close) is the
   designed-ahead hook: a custom flow kind whose lifecycle *is* the
   protocol, giving the state machine one reading instead of a
   register-and-split assembly. Whether custom protocol flows are

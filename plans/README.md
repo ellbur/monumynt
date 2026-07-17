@@ -70,6 +70,15 @@ Everything else hinges on these two:
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
   (the redesigned "rail" surface) and the Delay back-edge sections of
   `first-class-ports-design.md`.
+- **[`delay-ontology-design.md`](delay-ontology-design.md)** — the open
+  problem split out of the doc above, kept whole here: what a Delay *is*,
+  and which flow supplies its "next iteration." The collect-vs-ancestor
+  fork dissolves on sequences and is silent on grids (the value-in-context
+  model); the candidates answer the register's two halves (update cadence
+  vs read range — this is `hold`); the live residue is a product's
+  linearization, plus the per-kind "next iteration" question that several
+  rounds (incremental, concurrent collect, effects) are already writing
+  checks against.
 
 ## Representation and checking
 

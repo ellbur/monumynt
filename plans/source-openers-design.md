@@ -187,8 +187,10 @@ open a range value (`0..n` as a list or stream) and the walk has n
 firings. The Zig round endorsed this from the other side — an index is
 "one more aligned lane," `for (items, 0..)`. APL's power operator splits
 exactly here: `f⍣n` (bounded) is a register walked over a range; `f⍣≡` (to
-fixpoint) is a register on a self-driven flow with end-when on
-`state = prev state`.
+fixpoint) is a register on a self-driven flow with end-when on "the step
+changed nothing" — a comparison of the register's previous value with its
+new step value, both ordinary wires (no `prev` operator; that shape is
+rejected, `iteration-with-state-design.md`).
 
 The rule: **if the data knows the extent, the extent is data; if only the
 walk can discover it, the walk is self-driven and a terminator-writer ends
@@ -432,11 +434,17 @@ the effect gap.
 
 ```
 open self => ~R
-~R ~> delay init x0 => s
-s -> f -> step of s
-s -> eq(prev s)? …                          -- converged test
-~R, ~c.Converged ~> end-when => ~W          -- final s off ~W
+~R ~> delay init x0 => s                    -- s = the previous state
+s -> f => s'                                -- one improvement step
+s' -> step of s                             -- carry it
+s, s' -> eq -> split conv of Converged, Improving => c
+~R, ~c.Converged ~> end-when => ~W          -- stop when a step changes nothing; final s' off ~W
 ```
+
+The convergence test needs no `prev` operator: the register's read (`s`)
+*is* the previous value and the step (`s'`) is the new one, so
+`state = prev state` is an ordinary comparison of two wires already in
+hand.
 
 **The pump** — with the pull source as a block, the drawing shrinks to the
 sentinel-and-payload logic that is actually the program; the source line

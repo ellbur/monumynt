@@ -148,7 +148,9 @@ code follows the recursion.
 
 ## The pipeline
 
-Five passes, each a pure function, each with a printable output.
+Five passes (stages 0–4), each a pure function, each with a printable
+output; the diagram's sixth stage, print, is the existing `JsPrint`, not
+a new pass.
 
 ```
 program of record (node set, versions of the step-DAG)

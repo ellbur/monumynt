@@ -244,8 +244,7 @@ can hold — and two constructs that compute identically can still differ in
 what they *are*. Figuring out what a thing means is design work, not
 philosophy layered on top of it.
 
-The worked instance is Delay (`iteration-with-state-design.md`, "What a
-Delay is, and which flow binds it"). The register pair's *results* were
+The worked instance is Delay (`delay-ontology-design.md`). The register pair's *results* were
 fully pinned by the equivalence round, yet a prior question survived: what
 is a Delay, and which flow does its "next iteration" refer to — the collect
 that binds it, the uncollect its value descends from, or something else?

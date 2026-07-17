@@ -474,7 +474,22 @@ threshold (readout 4); collapse survivors into the report map. Each step is
 **Grouped z-score** (broadcast-back): partition by player; lane as value
 (`nest_by`'s move) → collect mean of the sub-list; re-open the sub-list
 with the mean as ancestor value; pass-through readout rides the z back to
-subject order (readout 2).
+subject order (readout 2). In the strawman spelling, mean-centering (the
+z's core move — two walks of the lane, never a within-walk broadcast):
+
+```
+-- spelling provisional, composed from the strawman table above
+scores -> open list => row, ~L
+row -> .player => k
+k, row -~> collect keyed => byPlayer          -- partition: one lane per player
+byPlayer -> open keyed => lane, ~P            -- per player: the lane as a value
+lane -> open list -> .score -~> collect by mean => mu   -- walk 1: the lane's mean
+lane -> open list => r, ~W                    -- walk 2: mu in scope as an ancestor value
+r -> .score -> sub(mu) -~> collect => centered -- per-player centered scores
+```
+
+The mean is *finished* before walk 2 opens — the two-walk shape is what
+keeps the broadcast-back inside no-time-travel.
 
 ## Against the principles
 

@@ -253,5 +253,3 @@ viewing machinery applies downstream of it.
    "everything in this region touches resource R only via algebra A" (an
    offer of absence), and whether possession-by-wiring makes most
    negative constraints structural rather than asserted. Unworked.
-</content>
-</invoke>

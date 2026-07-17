@@ -244,7 +244,10 @@ given a fallback meaning.
 > incomplete programs, and each row below is a program over explicit join
 > nodes plus collects that each close exactly one flow. The *frame* — stages
 > inside-out, requirements checked when reached, ill-formed stacks rejected
-> — survives that reframing intact.
+> — survives that reframing intact. (A chain-notation rendering of the six
+> rows is owed with that reframing and deliberately not attempted here —
+> join's operand adjacency makes the translation design work, not
+> transcription; the wrapper rows stay as the record of the discipline.)
 
 Running the discipline over the S/T/option nesting (layers nearest first:
 `[T, S]`, per-element value `option<X>`):
@@ -446,7 +449,9 @@ variant or note a no-op.
   representation — but the "laziness has to give" principle applies in its
   effect form: the commuted side batches all effects up front. There is no
   short-circuit (markers don't fail), so the walk is unconditional. The
-  naturality quotient survives effects: it concerns *value* wires not
+  naturality quotient (the identity map-then-commute = commute-then-map,
+  which makes "before vs after the commute" unrepresentable) survives
+  effects: it concerns *value* wires not
   interacting with the node, and effect ordering rides *flow* wires, which
   the commute node legitimately reorders — the value/flow division of labor
   working as intended.
@@ -565,12 +570,10 @@ variant or note a no-op.
   semantic content (short-circuit), and restructures rather than re-reads.
   Both "swap flow order," which is why one word covers both, but they are not
   one operation with two names; they are two operations. This is not merely
-  cosmetic: the Delay-binding ontology (`iteration-with-state-design.md`,
-  "What a Delay is, and which flow binds it") is the second client — a
+  cosmetic: the Delay-binding ontology (`delay-ontology-design.md`) is the second client — a
   register's "next iteration" relates to a reversible re-reading (transpose)
   and to a directed restructuring (sequence) *differently*, so conflating
   them under "commute" hides a real fork. The vocabulary should name the two
   operations distinctly, not just choose between "commute" and "sequence" for
   one of them. Deferred, but upgraded from a naming nicety to a
   two-operations distinction with downstream consequences.
-</content>

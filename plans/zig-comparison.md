@@ -579,5 +579,3 @@ bar is the whole language, and the record's beginner claims would face their
 real jury); and, from this study's vantage, a hardware-description or
 synchronous language (Verilog/VHDL, Lustre/Esterel) would stress-read the
 register/clock story from the side that never had mutable loops at all.
-</content>
-</invoke>

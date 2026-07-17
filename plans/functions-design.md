@@ -35,7 +35,14 @@ diagram double
 end
 ```
 -- a one-input, one-output function; a caller wires a value into `x`
-and reads `result`.
+and reads `result`. The call is an ordinary chain stage (spelling
+provisional; the textual doc keeps calls deliberately thin until
+diagrams are the top-level structure):
+
+```
+5 -> double => ten                    -- topic wires into `x`; binder reads `result`
+"hi", ~io ~> print_string => ~io2     -- a flow port is wired with its sigil, like any flow
+```
 
 Functions interact with flows as naturally as with values. A function
 can take a flow as a port, open a flow internally, collect a flow passed

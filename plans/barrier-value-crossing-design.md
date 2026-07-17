@@ -116,7 +116,7 @@ inventories that first-class ports already models:
 | partial collect | the merged value (one row) | selection: the firing branch's value |
 | collect | `result` | the fold/packaging of the walk |
 | discharging collect | see below | the settlement of the terminator |
-| Delay write half | `final` | the register after the flow completes |
+| Delay write half | `final` | the register after the flow completes (the pair is worked, not yet adopted — `first-class-ports-design.md`) |
 
 The two mechanisms compose, and their composition is the whole story of a
 sum barrier: **into a cell by availability, out of a bundle by the partial
@@ -182,7 +182,19 @@ availability law they agree, for a stated reason: both are product-side
 barriers, and product-side crossing is availability. The flatten join's
 output context is the inner operand's (nothing new readable); the
 concurrent join's is the product of its operands' (everything on either
-side readable). Neither mints a value; neither carries a value port.
+side readable). Neither mints a value; neither carries a value port. In
+the textual form (the flow-only spelling this round confirms):
+
+```
+urlA -> open async => a, ~A
+urlB -> open async => b, ~B
+~A, ~B ~> join all => ~ab        -- flow-only: no value crosses the node
+a, b -> add -~> collect => total -- both values readable in the merged context
+```
+
+`a` and `b` reach the merged context by availability (their provenance is
+a prefix of `~ab`'s), not by passing through the join — which is exactly
+why the node needs no value ports.
 
 The construct that *does* differ — race — differs because it is the sum
 barrier: its per-cell values are mints, and mints are ports. So the
