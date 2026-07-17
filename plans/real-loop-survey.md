@@ -1410,7 +1410,13 @@ able to express without too much pain, each drawn blind:
 5. **The buffer with conditional flush** (survey 1, net/http) —
    multi-site append, reset entangled with effect ordering. Owner:
    registers + the custom-flows effect story, jointly; untested
-   jointly.
+   jointly. *(Now has a worked exploration round —
+   `within-firing-effects-design.md`: the buffer dissolves into a
+   segmentation of the op flow (split-when + the effect thread); the
+   register half of the joint ownership was the imperative costume,
+   and the caveat recorded under finding 3 — "what strains is effect
+   ordering, which no writeback count addresses" — is discharged
+   there.)*
 6. **The backtracking parser** (survey 1, rdoc markdown) —
    save/restore cursor; wants the save/restore *pairing* visible.
    Owner: registers express it; nothing yet makes it legible.

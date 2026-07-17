@@ -151,6 +151,14 @@ Everything else hinges on these two:
   commutes. The effects half of the IO row; within-firing
   ordering and the batched (collected-plan) pole are fenced out.
   *Exploration.*
+- [`within-firing-effects-design.md`](within-firing-effects-design.md) —
+  effect ordering *within* one firing, and the conditional-flush buffer
+  (breadth item 5): within a firing there is no time — the only
+  intra-firing order is along a handle's segment — and the buffer
+  dissolves into a segmentation of the op flow (buffer = per-segment
+  collect, reset = boundary, flush = per-segment write). Batching is
+  meaning exactly when the sink's write doesn't coalesce (chunked
+  encoding); a handle is an ordering commitment. *Exploration.*
 - [`cancellation-design.md`](cancellation-design.md) — the other half of
   the IO row: cancellation and bracket. Stopping is drawn (race,
   interrupt, end-when); cancelling is *delivered* — the runtime writes a

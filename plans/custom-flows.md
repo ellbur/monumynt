@@ -3,7 +3,11 @@
 Status: design-only exploration. Related, later work builds on this:
 `tough-use-cases-design.md` (custom protocol flows, bracket),
 `bundle-provenance-design.md` (open question 4: effect flows and
-semantic families), `async-flow-design.md`.
+semantic families), `async-flow-design.md`, `effects-design.md` (the
+handle threaded across a loop), `within-firing-effects-design.md`
+(ordering within one firing — the segment sentence below is that
+round's whole answer; its handle-as-ordering-commitment leaning
+touches this doc's granularity guidance).
 
 ## Two ways to define a custom flow
 

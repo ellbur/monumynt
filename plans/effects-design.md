@@ -302,7 +302,13 @@ recent rounds have been circling.
   one segment are ordered by the segment — but the *conditional-flush*
   shape (buffer, and flush-or-not depending on state) couples effect order
   to a register's value and is left to its joint owner (registers + the
-  effect story). Named, not worked.
+  effect story). Named, not worked. *That round now exists*
+  (`within-firing-effects-design.md`, exploration): within a firing there
+  is no time — the segment sentence above is confirmed as the whole
+  answer — and the conditional-flush buffer dissolves into a segmentation
+  of the op flow (buffer = per-segment collect, reset = boundary, flush =
+  per-segment write, the interleaved raw op discharged from the segment
+  terminator); no register appears.
 
 - **The collected-plan / batched pole.** Effects-as-collected-plan (XQuery's
   pending update list: gather effect *descriptions* as values, apply them

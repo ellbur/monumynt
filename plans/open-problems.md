@@ -107,11 +107,26 @@ completion observable as data; silence exists only at the edges (root
 exit, vanished requester), converted there by the runtime/FFI; six dead
 ends recorded.
 
+A third piece is now worked: *within-firing ordering*
+(`within-firing-effects-design.md`, exploration) — within a firing there
+is no time (the only intra-firing order is along a handle's segment;
+everything else is data dependence), and the conditional-flush buffer
+(breadth item 5, the axis's standing witness) dissolves into a
+segmentation of the op flow — buffer = per-segment collect, reset =
+boundary, flush = per-segment write on the thread, the interleaved raw
+op discharged from the segment terminator, so the register half of its
+joint ownership was the imperative costume; batching is meaning exactly
+when the sink's write doesn't coalesce (a catalog-row law — chunked
+encoding is the observable pole); a handle is an ordering commitment,
+so a cross-handle order demand marks mis-factored handles, never a new
+edge species; five dead ends recorded. Split-when gains its second
+everyday client, and the one-writeback rule its first marker-wire
+client (conditional carry on the thread).
+
 Residue keeping I at 3: the adoption conversation (one conversation for
-both halves — the release half consumes the thread's `final`); effect
-*ordering within a firing* (the conditional-flush buffer, a distinct
-axis) still has only raw material (`custom-flows.md`'s lifecycle
-pattern), not a design; the batched-effect construct's own round; the
+the row's halves — the release half consumes the thread's `final`, and
+the within-firing round's handle-granularity leaning joins it); the
+batched-effect construct's own round; the
 permit-pool block (now unblocked by bracket); the threaded op's and the
 release half's spellings; the `Cancelled` payload (joint with
 failability's composition residue); multi-close — one spanning handle's
@@ -234,7 +249,11 @@ real dimension, per-window reversal, 2D windows — 2D filing to
 Products) comes from APL. The segmented-scan genre (grade-of-grade
 flat encodings) is the strongest assembly-language exhibit yet for
 split-when + register; tidyr's `cumsum`-key synthesis is a
-fourth-ecosystem scan costume. See `raku-grammars-comparison.md`,
+fourth-ecosystem scan costume. Split-when now also carries the IO row's
+within-firing round (`within-firing-effects-design.md`: the
+conditional-flush buffer is a segmentation of the op flow) — a second
+everyday client from outside this row's own cluster, a datum for the
+adoption conversation. See `raku-grammars-comparison.md`,
 `xquery-jq-comparison.md`, `apl-family-comparison.md`, `zig-comparison.md`,
 `tidyverse-comparison.md`.
 
