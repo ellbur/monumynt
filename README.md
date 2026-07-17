@@ -75,15 +75,18 @@ visual-language Expr   →   JsAst   →   JavaScript source string
 
 ## The next generation (`src/next/`)
 
-The rebuild the design record calls for has started as scaffolding
-under `src/next/`: the ports-first representation (program = node set +
-outputs, binary Join, per-alt ports, the Delay pair), a parser and a
-total printer for the textual form, and the compile pipeline as typed
-passes (check with witnesses; complete/annotate/codegen stubbed, with a
-disposable bridge to the legacy compiler so programs run end-to-end
-today). **`src/next/ARCHITECTURE.md`** is the map: module status, the
-decisions taken, and the growth path. `npm run next` runs its smoke
-suite.
+The rebuild the design record calls for has started under `src/next/`:
+the ports-first representation (program = node set + outputs, binary
+Join, per-alt ports, the Delay pair), a parser and a total printer for
+the textual form, and the compile pipeline as typed passes (check with
+witnesses; derive/complete as honest v0 skeletons). Code generation
+runs on **two engines**: the new pure codegen (value fragment and
+list/option/join collects today, including computed functions the old
+compiler cannot express) with automatic fallback to a disposable bridge
+into the legacy compiler for the emitters not yet written — and a
+differential check that both engines agree wherever both compile.
+**`src/next/ARCHITECTURE.md`** is the map: module status, the decisions
+taken, and the fill-in worklist. `npm run next` runs its smoke suite.
 
 ## Running
 
@@ -147,6 +150,7 @@ src/
   ExprPrint.res                      human-readable Expr rendering
   Compile.res                        Expr → JS
   Main.res                           test runner + examples
+  next/                              the next-generation rebuild — see src/next/ARCHITECTURE.md
 rescript.json                        ESM output, lib/es6/, .res.mjs suffix
 package.json                         "type": "module"
 ```
