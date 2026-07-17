@@ -73,6 +73,18 @@ visual-language Expr   →   JsAst   →   JavaScript source string
   list flows (multi-close, nested, joined, mixed), case splits,
   filters, option flows, and mixed case+filter closes on one split.
 
+## The next generation (`src/next/`)
+
+The rebuild the design record calls for has started as scaffolding
+under `src/next/`: the ports-first representation (program = node set +
+outputs, binary Join, per-alt ports, the Delay pair), a parser and a
+total printer for the textual form, and the compile pipeline as typed
+passes (check with witnesses; complete/annotate/codegen stubbed, with a
+disposable bridge to the legacy compiler so programs run end-to-end
+today). **`src/next/ARCHITECTURE.md`** is the map: module status, the
+decisions taken, and the growth path. `npm run next` runs its smoke
+suite.
+
 ## Running
 
 ```bash
