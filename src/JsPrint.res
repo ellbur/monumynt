@@ -328,6 +328,10 @@ and printExprInner = (e: expr): (int, string) =>
     (pAssign, "..." ++ printExpr(~minPrec=pAssign, e))
   | EAwait(e) =>
     (pUnary, "await " ++ printExpr(~minPrec=pUnary, e))
+  | ERaw(s) =>
+    // Verbatim escape hatch. Parenthesized unconditionally so the result is
+    // a primary expression regardless of what the string contains.
+    (pPrimary, "(" ++ s ++ ")")
   }
 
 and printBin = (op: binOp, left: expr, right: expr): (int, string) => {

@@ -1,0 +1,359 @@
+// Parser: tokens -> TextAst statements. Recursive descent over the token
+// array. Owns only what is lexically decidable (sort discipline, statement
+// shape); resolution happens in TextResolve.
+//
+// Grammar coverage and continuation rules: see the header of TextAst.res.
+// Deliberate v0 rejections carry pointed messages so playing with the
+// notation tells you which construct is missing, not just "syntax error".
+//
+// Note: token comparisons use `==` (structural) — `===` on payload-carrying
+// variants compares allocations.
+
+open TextAst
+open TextLex
+
+exception ParseError({message: string, line: int})
+
+type p = {toks: array<positioned>, mutable pos: int}
+
+let peek = (st: p): token =>
+  switch st.toks[st.pos] {
+  | Some({tok}) => tok
+  | None => TokEof
+  }
+
+let peek2 = (st: p): token =>
+  switch st.toks[st.pos + 1] {
+  | Some({tok}) => tok
+  | None => TokEof
+  }
+
+let lineAt = (st: p): int =>
+  switch st.toks[st.pos] {
+  | Some({line}) => line
+  | None => 0
+  }
+
+let advance = (st: p): unit => st.pos = st.pos + 1
+
+let fail = (st: p, msg: string) => throw(ParseError({message: msg, line: lineAt(st)}))
+
+let expect = (st: p, t: token, what: string): unit =>
+  if peek(st) == t {
+    advance(st)
+  } else {
+    fail(st, "expected " ++ what ++ ", found " ++ tokenToString(peek(st)))
+  }
+
+let expectName = (st: p, what: string): string =>
+  switch peek(st) {
+  | TokName(s) => {
+      advance(st)
+      s
+    }
+  | other => fail(st, "expected " ++ what ++ ", found " ++ tokenToString(other))
+  }
+
+let peekIsKeyword = (st: p, kw: string): bool =>
+  switch peek(st) {
+  | TokName(s) => s === kw
+  | _ => false
+  }
+
+let skipNewlines = (st: p): unit =>
+  while peek(st) == TokNewline {
+    advance(st)
+  }
+
+// --- terms ------------------------------------------------------------------
+
+let rec parseTerm = (st: p): term =>
+  switch peek(st) {
+  | TokNum(f) => {
+      advance(st)
+      TNum(f)
+    }
+  | TokStr(s) => {
+      advance(st)
+      TStr(s)
+    }
+  | TokLBracket => {
+      advance(st)
+      let elems: array<term> = []
+      if peek(st) != TokRBracket {
+        Array.push(elems, parseTerm(st))
+        while peek(st) == TokComma {
+          advance(st)
+          Array.push(elems, parseTerm(st))
+        }
+      }
+      expect(st, TokRBracket, "']'")
+      TArr(elems)
+    }
+  | TokName("js") =>
+    switch peek2(st) {
+    | TokStr(code) => {
+        advance(st)
+        advance(st)
+        TJs(code)
+      }
+    | _ => parseNameTerm(st)
+    }
+  | TokName(_) => parseNameTerm(st)
+  | other => fail(st, "expected a term, found " ++ tokenToString(other))
+  }
+
+and parseNameTerm = (st: p): term => {
+  let name = expectName(st, "a name")
+  if peek(st) == TokDot {
+    advance(st)
+    let port = expectName(st, "a port name after '.'")
+    TProj(name, port)
+  } else {
+    TName(name)
+  }
+}
+
+let parseFlowTerm = (st: p): flowTerm => {
+  // caller has consumed the '~'
+  let name = expectName(st, "a flow name after '~'")
+  if peek(st) == TokDot {
+    advance(st)
+    let port = expectName(st, "a port name after '.'")
+    FProj(name, port)
+  } else {
+    FName(name)
+  }
+}
+
+let expectTildeFlowTerm = (st: p, what: string): flowTerm => {
+  expect(st, TokTilde, "'~' introducing " ++ what)
+  parseFlowTerm(st)
+}
+
+// --- stages -----------------------------------------------------------------
+
+let parseStage = (st: p): stage =>
+  switch peek(st) {
+  | TokName("open") => {
+      advance(st)
+      let kindWord = expectName(st, "a flow kind after 'open'")
+      switch kindWord {
+      | "list" | "option" => ()
+      | other =>
+        fail(
+          st,
+          "unknown flow kind '" ++
+          other ++ "' (v0 knows list and option; stream/async/var arrive with their runtime layers)",
+        )
+      }
+      let nesting = if peekIsKeyword(st, "in") {
+        advance(st)
+        Some(expectTildeFlowTerm(st, "the outer flow of 'in'"))
+      } else {
+        None
+      }
+      StUncollect({kindWord, nesting})
+    }
+  | TokName("split") => {
+      advance(st)
+      let disc = parseTerm(st)
+      expect(st, TokName("of"), "'of' after the split discriminator")
+      let alts: array<string> = [expectName(st, "an alt name")]
+      while peek(st) == TokComma {
+        advance(st)
+        Array.push(alts, expectName(st, "an alt name"))
+      }
+      StSplit({disc, alts})
+    }
+  | TokName("collect") => {
+      advance(st)
+      let flowArg = if peek(st) == TokTilde {
+        advance(st)
+        Some(parseFlowTerm(st))
+      } else {
+        None
+      }
+      StCollect({flowArg: flowArg})
+    }
+  | TokName("join") => {
+      advance(st)
+      let into = if peekIsKeyword(st, "into") {
+        advance(st)
+        Some(expectTildeFlowTerm(st, "the outer flow of 'into'"))
+      } else {
+        None
+      }
+      StJoin({into: into})
+    }
+  | TokName("commute") => {
+      advance(st)
+      StCommute
+    }
+  | TokName("delay") => {
+      advance(st)
+      expect(st, TokName("init"), "'init' after 'delay'")
+      StDelay({init: parseTerm(st)})
+    }
+  | TokName("step") => {
+      advance(st)
+      expect(st, TokName("of"), "'of' after 'step'")
+      StStepOf(expectName(st, "a register name"))
+    }
+  | TokName(_) => {
+      // application stage: NAME or NAME(extraArgs)
+      let fn = parseNameTerm(st)
+      let extraArgs: array<term> = []
+      if peek(st) == TokLParen {
+        advance(st)
+        if peek(st) != TokRParen {
+          Array.push(extraArgs, parseTerm(st))
+          while peek(st) == TokComma {
+            advance(st)
+            Array.push(extraArgs, parseTerm(st))
+          }
+        }
+        expect(st, TokRParen, "')'")
+      }
+      StApp({fn, extraArgs})
+    }
+  | other => fail(st, "expected a stage, found " ++ tokenToString(other))
+  }
+
+// --- statements ---------------------------------------------------------------
+
+let parseBinders = (st: p): array<binder> => {
+  // caller consumed '=>'
+  let one = (): binder =>
+    if peek(st) == TokTilde {
+      advance(st)
+      BFlow(expectName(st, "a flow binder name"))
+    } else {
+      BValue(expectName(st, "a binder name"))
+    }
+  let binders = [one()]
+  while peek(st) == TokComma {
+    advance(st)
+    Array.push(binders, one())
+  }
+  binders
+}
+
+// Parse the tail of a chain (stages and naming), given sources. A physical
+// line starting with an arrow or '=>' continues the chain.
+let parseChainTail = (st: p, sources: array<source>): statement => {
+  let stages: array<(arrow, stage)> = []
+  let binders: array<binder> = []
+  let continue = ref(true)
+  while continue.contents {
+    switch peek(st) {
+    | TokArrowV | TokArrowF | TokArrowVF => {
+        let arrow = switch peek(st) {
+        | TokArrowV => AValue
+        | TokArrowF => AFlow
+        | _ => AValueFlow
+        }
+        advance(st)
+        // taps sit between the arrow and its stage: `-> | double`
+        while peek(st) == TokPipe {
+          Array.push(stages, (arrow, StTap))
+          advance(st)
+        }
+        Array.push(stages, (arrow, parseStage(st)))
+      }
+    | TokBind => {
+        advance(st)
+        let bs = parseBinders(st)
+        bs->Array.forEach(b => Array.push(binders, b))
+      }
+    | TokNewline => {
+        let save = st.pos
+        skipNewlines(st)
+        switch peek(st) {
+        | TokArrowV | TokArrowF | TokArrowVF | TokBind => ()
+        | _ => {
+            st.pos = save
+            continue := false
+          }
+        }
+      }
+    | TokEof => continue := false
+    | TokColon =>
+      fail(
+        st,
+        "lane lines (label: chain) are not parsed yet — name the split and use projections (see ARCHITECTURE.md)",
+      )
+    | other => fail(st, "unexpected " ++ tokenToString(other) ++ " in chain")
+    }
+  }
+  Chain({sources, stages, binders})
+}
+
+let rec parseStatement = (st: p): statement =>
+  switch peek(st) {
+  | TokPlus => {
+      // A '+' completion line: derived, never stored — skip the line.
+      while peek(st) != TokNewline && peek(st) != TokEof {
+        advance(st)
+      }
+      skipNewlines(st)
+      parseStatement(st)
+    }
+  | TokName("out") => {
+      advance(st)
+      let name = expectName(st, "an output name")
+      let from = if peek(st) == TokEq {
+        advance(st)
+        Some(expectName(st, "a source name"))
+      } else {
+        None
+      }
+      OutDecl({name, from})
+    }
+  | TokPipe => {
+      // tap resumption: leading '|'s are ordinal tap sources
+      let sources: array<source> = []
+      while peek(st) == TokPipe {
+        advance(st)
+        Array.push(sources, SrcTap)
+      }
+      parseChainTail(st, sources)
+    }
+  | TokTilde => {
+      // flow-sourced chain: ~L ~> delay init 0 => sum
+      advance(st)
+      let f = parseFlowTerm(st)
+      parseChainTail(st, [SrcFlow(f)])
+    }
+  | TokName(_) if peek2(st) == TokEq => {
+      let name = expectName(st, "a name")
+      advance(st) // '='
+      let t = parseTerm(st)
+      LeafDef({name, term: t})
+    }
+  | _ => {
+      // value-sourced chain
+      let sources: array<source> = [SrcTerm(parseTerm(st))]
+      while peek(st) == TokComma {
+        advance(st)
+        if peek(st) == TokTilde {
+          advance(st)
+          Array.push(sources, SrcFlow(parseFlowTerm(st)))
+        } else {
+          Array.push(sources, SrcTerm(parseTerm(st)))
+        }
+      }
+      parseChainTail(st, sources)
+    }
+  }
+
+let parse = (src: string): array<statement> => {
+  let st = {toks: lex(src), pos: 0}
+  let out: array<statement> = []
+  skipNewlines(st)
+  while peek(st) != TokEof {
+    Array.push(out, parseStatement(st))
+    skipNewlines(st)
+  }
+  out
+}

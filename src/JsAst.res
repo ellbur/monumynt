@@ -57,6 +57,12 @@ type rec expr =
   | ESeq(array<expr>)
   | ESpread(expr)
   | EAwait(expr)
+  // Escape hatch: a verbatim JS expression carried as a string. Exists for
+  // the textual form's `js "..."` externs (src/next/TextParse.res), which
+  // can't parse arbitrary JS into this AST. The printer wraps it in parens
+  // so precedence never depends on the string's contents. Never produced by
+  // the compilers themselves.
+  | ERaw(string)
 
 and arrayElement =
   | AElem(expr)
