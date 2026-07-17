@@ -549,8 +549,10 @@ Reasons kept short and forward-looking, so they are not re-proposed.
 ## What this doesn't address
 
 - **Within-firing effect ordering** (the conditional-flush buffer) —
-  the distinct axis fenced by the effects round, still owned jointly by
-  registers + effects.
+  the distinct axis fenced by the effects round. *Now worked*
+  (`within-firing-effects-design.md`, exploration): the buffer dissolves
+  into a segmentation of the op flow; the register half of the joint
+  ownership was the costume.
 - **The batched-effect construct** — the collected-plan pole's own
   round, unchanged.
 - **The permit pool, the served flow's own round, the chooser family** —
