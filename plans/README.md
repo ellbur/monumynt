@@ -53,6 +53,9 @@ OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to r
   in: sorted arrows (`->`, `~>`, `-~>`), postfix chains, ports and
   projections, taps, marks, and lanes, registers. If you want to *read the code
   samples* in the rest of the record, skim this first.
+
+OH Comment: We need to decidee what to do with these. No sense keeping them around for historical reasons. If they have useful points on language philosophy, they should go there. If they have ideas worth developing, they should be developed.
+  
 - Short topic docs distilled from the retired first-generation
   narratives: [`trees-and-recursion.md`](trees-and-recursion.md),
   [`functions-design.md`](functions-design.md),
@@ -74,6 +77,9 @@ OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to r
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
   (the redesigned "rail" surface) and the Delay back-edge sections of
   `first-class-ports-design.md`.
+
+OH Comment: first class ports design shouldn't be a main topic page for iteration with state design. It's a separate topic. Reorganize this info across these pages.
+  
 - **[`delay-ontology-design.md`](delay-ontology-design.md)** — the open
   problem split out of the doc above, kept whole here: what a Delay *is*,
   and which flow supplies its "next iteration." The collect-vs-ancestor
@@ -85,6 +91,8 @@ OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to r
   checks against.
 
 ## Representation and checking
+
+OH Comment: first class ports should become such a basic aspect of the language that we no longer need a doc devoted to it. It's like in a book on C, you wouldn't have a chapter on structs and then a second chapter on structs having more than one field. It's basic to the language that nodes have multiple ports. Maybe the other docs aren't there yet, but they should get there, and info in the first class ports design page moved into other pages or deleted.
 
 - [`first-class-ports-design.md`](first-class-ports-design.md) — the
   next representation step: making ports first-class, which dissolves the
