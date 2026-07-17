@@ -96,9 +96,10 @@ machinery is graded. Three reference tiers, cheapest first:
   its flow context rides along (marked, see the arrow family); no
   names at all.
 - **Pronouns** — short-range anaphora for local seams: junction
-  taps (`|`) for nearby fan-out, lane labels for a split's
-  branches, `~` / `~^` for the innermost flows. All of these
-  desugar at parse; the representation never contains one.
+  taps (`|`) for nearby fan-out, value marks (`^`) for nearby
+  fan-in, lane labels for a split's branches, `~` / `~^` for the
+  innermost flows. All of these desugar at parse; the
+  representation never contains one.
 - **Names** — for anything shared or distant. A name is the mark of
   sharing: anonymous is linear, named is shared, which restates the
   language's own "sharing is opt-in via binding" as a fact the text
@@ -218,8 +219,8 @@ than wires. Level is read off the operand sort, matching the
 admission test ("an operation belongs at level 1 iff its content is
 a statement about level-0 programs rather than about values").
 
-**P8. Pronouns desugar at parse.** Taps, lane labels, and flow
-anaphora are resolved to explicit wiring by the parser; the
+**P8. Pronouns desugar at parse.** Taps, value marks, lane labels,
+and flow anaphora are resolved to explicit wiring by the parser; the
 representation is always fully explicit. This is what keeps
 `$_`-style convenience from becoming `$_`-style fragility: the
 pronoun is never runtime or representation state, only reference
@@ -275,6 +276,22 @@ Value operations in chain position take the chain's value as their
 first input; extra inputs go in parentheses: `-> add(ten)` is
 `add(topic, ten)`. When the topic is not the first argument, use
 the full form: `ten, x -> sub`.
+
+A source-list item may itself be a short chain, parenthesized:
+`(a -> sq), (b -> sq) -> add -> sqrt => c`. The parentheses are
+**grouping, not scope** — they bind nothing and have no interior;
+they only delimit where the item's chain ends, which without them
+would be ambiguous against the consuming chain. Inside a stage's
+argument list the delimiters already exist, so items there may be
+bare chains: `-> add(b -> sq)` (accepted input; canonical output
+prefers the forward comma-list spelling, since a computed chain
+inside stage arguments reads against token order the way prefix
+application does). Reading direction survives grouping intact:
+within each group and across the list, producers still precede
+consumers — a group is the one tree-shaped nesting the forward form
+admits, because a group reads forward too. Provisional restriction:
+no taps, marks, or lanes minted inside a group; a sub-chain that
+complex should be its own line (a mark) or named.
 
 ```
 double = js "x => x * 2"          -- extern: the JsAst escape hatch
@@ -394,6 +411,103 @@ xs -> open list -> | double -~> collect => doubled
 
 Both bare `collect`s close the list flow; the tap carries the
 element to both chains; the opener is shared through the tap.
+
+### Value marks: fan-in without names
+
+Taps are the fan-out pronoun; this is the fan-in one — the shape the
+notation has quietly been worst at. The tell is in this record's own
+examples: they lean on unary stages (`double`, `sq`) because chains
+embed those perfectly, and the moment a multi-input node's operands
+are themselves computed, the comma source list demands a name per
+operand:
+
+```
+a -> sq => a2
+b -> sq => b2
+a2, b2 -> add -> sqrt => c
+```
+
+`a2` and `b2` are pure noise — single-use, adjacent, unmeaning. This
+is challenge 2's over-naming failure ("if every seam forces a name,
+the code goes flat") surfacing on the many-to-one side, which taps
+never touched.
+
+A terminal `^` **marks** a chain's final value: the chain ends there
+and its value is *pending*. Pending marks queue in text order. A `^`
+in any source position — a comma-list item, a stage argument —
+**uses** the front of the queue: the k-th use in reading order binds
+the k-th pending mark.
+
+```
+a -> sq ^
+b -> sq ^
+^, ^ -> add -> sqrt => c
+```
+
+Mid-chain, in a stage argument — a value computed once, then used
+inside a loop (capture stays implicit, as ever):
+
+```
+ys -> mean ^
+xs -> open list -> sub(^) -~> collect => centered
+```
+
+Mechanics:
+
+- **Binding is FIFO and ordinal** (P8): k-th use ↔ k-th pending
+  mark, so values are consumed in the order they were produced —
+  token order is time on the use side too. The nearest-first
+  (`~`/`~^`-style) alternative was considered and rejected: with two
+  operands, `^, ^` would bind reversed against reading order, and
+  the flow anaphors' depth logic has no analogue here (marks have no
+  nesting to index into).
+- **Marks are linear.** One use consumes one mark; a stage cannot be
+  marked twice. A value needed twice is *shared*, and P1 stands: a
+  name is the mark of sharing, so the anonymous mark is single-use
+  by definition. (Near fan-out already has taps, which bear
+  repetition.)
+- **Terminal only.** No stage or binder follows a mark, and a
+  mark-terminated line cannot be continued by a leading arrow
+  (pointed error — its value is spoken for). Mark-and-continue is
+  spelled with the existing pronoun: tap the chain and mark the
+  resumed line.
+- **Naming and marking are exclusive.** `=> name ^` is rejected; a
+  named value is shared and referenced by its name.
+- **Marks desugar at parse** (P8): a use resolves to a direct wire
+  to the marked port; the representation never contains one. Marks
+  are value-sort only — the flow side has its own pronouns (`~`,
+  `~^`, lane labels).
+- **Unconsumed marks are legal input** — an unconsumed mark is just
+  a dangling output, which the node set permits — but the span lint
+  flags them, and flags any mark whose use is more than a statement
+  or two away: pronouns for adjacency, names for distance, enforced
+  as a warning, never a rule. Because the pendingness desugars to
+  nothing, an unconsumed mark does not survive a round-trip; the
+  canonical printer never emits one. (The editor's pending mark —
+  `program-editing-design.md` — is this same remember-then-use
+  gesture at the session level, and it serializes with its own
+  statement for exactly this reason.)
+- The printer emits marks under the same implicitness thresholds as
+  taps (open question 5): single-use, with the use landing within
+  the next statement or two. Anything else prints named.
+
+Why marks are not taps in different clothes: the two pronouns need
+opposite lifetimes. Tap antecedents **replace** — leading `|`s bind
+to the nearest tap-minting line, and a new minting line supersedes
+it — which is what keeps taps trackable under repetition. Marks must
+**accumulate** — several contributor lines pend their values before
+one consumer takes them all — and be consumed linearly. One symbol
+carrying both rules would read worse than two symbols carrying one
+rule each; the glyphs are cheap (open question 3), the separation is
+the commitment.
+
+One variant recorded as rejected: gathering *unmarked* dangling
+lines implicitly — the race-lane shape without labels, several bare
+chains consumed by the next arrow-led line. It collides with "a
+leading arrow continues the previous line's chain," and it would
+silently convert today's legal build-and-ignore statement into a
+pending operand. Contribution must be opt-in per line, which is
+exactly what the terminal mark is.
 
 ### Lanes: labeled lines
 
@@ -696,6 +810,47 @@ line solid. A contradictory program (directed constraints cycle)
 has no completion; it still parses and prints, and the *error*
 carries the witness.
 
+## Non-tree shapes: the survey
+
+The pronoun tier grew a piece at a time (taps, then lanes, then flow
+anaphora, now marks); this section checks it against the catalog of
+ways a diagram departs from a tree, so coverage is a verified fact
+rather than an accumulation. Value shapes first:
+
+| shape | anonymous spelling | falls back to names when |
+|---|---|---|
+| spine — single-output, single-consumer runs | chains | never |
+| one-to-many, near | taps (`\|`), repeated per consumer line | consumers are distant, or many |
+| many-to-one, near | marks (`^`) across lines; parenthesized groups inline | operands are distant, or shared |
+| diamond — fan-out that meets again | tap + marks | either half outgrows its pronoun |
+| distance / heavy reuse | — | always (deliberately: both are facts worth a name) |
+| multi-output nodes | projections (`cs.Just`), fused lanes | ports consumed non-linearly |
+| back-edge | — | always — the register write half refers back by name (P4 forbids the forward reference) |
+
+The diamond, zero names — `parse`'s anonymous result feeds `max` and
+`min` through the tap; their results meet in `sub` through the queue:
+
+```
+data -> parse -> | max ^
+| -> min ^
+^, ^ -> sub => range
+```
+
+This earns a sharper form of the dominator-tree claim made in "the
+graph is a tree with seams." Chains nest along dominance; taps
+extended anonymous reference to fan-out *within* a dominance region
+(everything reachable only through the tapped point); marks are the
+missing mirror — a consumer that all its contributors feed into can
+now gather them anonymously, the post-dominance direction the tier
+lacked. What still requires a name is exactly what should: sharing
+beyond a tap's short reach, and distance beyond the lint's tolerance.
+
+Flow shapes were already covered and are listed for completeness:
+nesting by chaining or `in`, reconvergence by lane gathers, layer
+reordering by commute chains, merging by join, sibling products by
+Cross — none of them changed by the additions above, since marks are
+value-sort only.
+
 ## The crossing signal: spans, verticals, indentation
 
 The diagram shows an out-of-order flow use as a wire crossing. The
@@ -815,6 +970,27 @@ xs -> open list -> split parity of Even, Odd
   Odd:  -~> join -~> collect => odds
 ```
 
+The same meeting point three ways (named, grouped, marked) — the
+canonical printer emits the grouped form while the operands stay
+short, the marked form as they grow, the named form once anything is
+shared or distant:
+
+```
+a -> sq => a2
+b -> sq => b2
+a2, b2 -> add -> sqrt => c
+```
+
+```
+(a -> sq), (b -> sq) -> add -> sqrt => c
+```
+
+```
+a -> sq ^
+b -> sq ^
+^, ^ -> add -> sqrt => c
+```
+
 Design-only constructs:
 
 Running sum (register):
@@ -854,8 +1030,9 @@ The parser owns only what is lexically decidable:
   sort is required);
 - single assignment, definition before use;
 - statement/stage shape per keyword;
-- pronoun resolution (taps, lanes, `~`/`~^`) — all desugared to
-  explicit wiring per P8, with their ordinal binding rules.
+- pronoun resolution (taps, value marks, lanes, `~`/`~^`) — all
+  desugared to explicit wiring per P8, with their ordinal binding
+  rules.
 
 Everything else stays where it belongs — checks on the
 representation, shared with every other authoring path: port
@@ -884,7 +1061,7 @@ direct:
 | `-~> join` (then `-~> collect`) | `close_(join_(NodeFlow(inner)), value)` — the chain determines the opener chain the compiler walks |
 | lane `Even: -~> join -~> collect` | `close_(filter_(NodeFlow(branch)), value)` |
 | lane group gathered by `-~> collect` | `caseClose([{altName, flow, value}, …])` |
-| tap `\|` / anaphora `~` | nothing — desugared to shared references |
+| tap `\|` / mark `^` / anaphora `~` | nothing — desugared to explicit wiring |
 
 Under the first-class-ports migration the right column simplifies
 (projections become `ValuePort`/`FlowPort` refs; Join becomes the
@@ -916,6 +1093,26 @@ replace it.
 **Significant alignment.** Horizontal alignment as syntax (matching
 taps by column, lanes by position on the page) is attractive and a
 known disaster; all pronoun binding is ordinal (P8).
+
+**Scoped implicit parameters** (`_`, Scala/Kotlin's `it`, Raku's
+alphabetically-ordered block parameters). All of these bind the
+pronoun to a *scope* — the nearest enclosing block or lambda decides
+what `_` means — and this language has no blocks to bind to (P3);
+adding delimiters just to host a pronoun would reintroduce the
+interior/exterior distinction the whole design refuses. The mark
+queue is the non-scoped replacement: its "binder" is text order
+itself — ordinal adjacency, the same mechanism taps and lanes
+already use — so no region of the program reads differently from any
+other.
+
+**Stack combinators** (the concatenative languages' dup/swap/rot).
+The mark queue is recognizably a stack-family discipline — values
+pend, then are consumed — but concatenative languages spend their
+readability budget on *rearranging* the pending values, which is
+where those programs die. Here rearrangement is deliberately
+impossible: FIFO order, linear consumption, and anything shared or
+reordered takes a tap or a name. The queue is stack passing with the
+juggling removed.
 
 **Raw edge list / JSON dump.** Complete, trivially parseable,
 unreadable — rejected as the primary form. (A mechanical JSON
@@ -951,16 +1148,20 @@ an authoring convenience, not a stable interchange surface.
    new tap-minting line replaces. Alternatives (per-paragraph
    scope, explicit tap counts) exist if the proposed rule proves
    too subtle in practice.
-3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `~`/`~^`, the
-   branch suffix `value~`, `!`, `@`, `+`. Each is cheap to respell;
-   the family structure (sorted arrows, one meaning per glyph — `|`
-   is only ever a junction) is the commitment. One reuse to record:
-   `@` here is the id suffix (`sum@n42`), while the retired informal
-   glyphs used `@` for collect (`core-model.md`) — harmless since
-   those are retired, but the naming sweep should notice. Watch `-~>` vs `~>`
-   legibility, and whether the prefix/suffix `~` mirror (`~y` the
-   flow port, `y~` the value with its flow) is mnemonic or too
-   subtle in practice — alternatives: `y&`, a headless `y -~`.
+3. **Glyph budget.** `->`/`~>`/`-~>`, `=>`/`=`, `|`, `^`, `~`/`~^`,
+   the branch suffix `value~`, `!`, `@`, `+`, grouping `( )`. Each is
+   cheap to respell; the family structure (sorted arrows, one meaning
+   per glyph — `|` is only ever a junction) is the commitment. One
+   reuse to record: `@` here is the id suffix (`sum@n42`), while the
+   retired informal glyphs used `@` for collect (`core-model.md`) —
+   harmless since those are retired, but the naming sweep should
+   notice. Watch `-~>` vs `~>` legibility, and whether the
+   prefix/suffix `~` mirror (`~y` the flow port, `y~` the value with
+   its flow) is mnemonic or too subtle in practice — alternatives:
+   `y&`, a headless `y -~`. New watch item: the value mark `^` shares
+   a character with the flow anaphor `~^` — both "reach back," which
+   may be mnemonic or may be confusing; alternatives if it proves the
+   latter: `` ` ``, `'`, `&`.
 4. **Stage extra-argument convention.** `-> f(e)` = topic-first.
    Fine for the current catalog; revisit if operations with
    non-leading principal inputs appear.
@@ -986,6 +1187,15 @@ an authoring convenience, not a stable interchange surface.
     the docs' prime convention suggests wanting light threading for
     long effect chains. Deferred until effect flows are closer to
     implementation.
+11. **Mark discipline details.** Whether a consuming line taking
+    fewer than all pending marks should warn (partial consumption is
+    the one place the reader must track the queue across statements);
+    the span lint's exact tolerance for mark-to-use distance; whether
+    a lane's chain may end in a mark (presumably yes, as a deferred
+    lane — it would contribute no branch to the gather, mirroring
+    `=> name` deferral — but the gather rule should say so
+    explicitly); and whether stage-argument chains (`-> add(b ->
+    sq)`) ever print canonically or stay input-only.
 
 ## Implementation path
 

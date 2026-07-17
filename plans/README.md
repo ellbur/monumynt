@@ -47,7 +47,7 @@ Everything else hinges on these two:
 - [`textual-representation-design.md`](textual-representation-design.md)
   — the parseable/printable textual form the other docs write examples
   in: sorted arrows (`->`, `~>`, `-~>`), postfix chains, ports and
-  projections, taps and lanes, registers. If you want to *read the code
+  projections, taps, marks, and lanes, registers. If you want to *read the code
   samples* in the rest of the record, skim this first.
 - Short topic docs distilled from the retired first-generation
   narratives: [`trees-and-recursion.md`](trees-and-recursion.md),
@@ -97,6 +97,16 @@ Everything else hinges on these two:
 - [`bundle-provenance-design.md`](bundle-provenance-design.md) — context
   paths, and the one check that catches two kinds of clash (mixing
   mutually-exclusive case branches; time travel).
+
+## Editing
+
+- [`program-editing-design.md`](program-editing-design.md) — how
+  programs are edited (first vehicle: a curses-style TUI over the
+  textual form): the cursor as a node/port/slot position plus a mark,
+  every edit an atomic pure function preserving structural validity,
+  and holes/planned wires as the representable partiality that makes
+  that possible. Builds on the step-DAG and completion docs.
+  *Exploration.*
 
 ## Constructs
 
