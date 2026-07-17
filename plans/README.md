@@ -47,7 +47,7 @@ Everything else hinges on these two:
 - [`textual-representation-design.md`](textual-representation-design.md)
   — the parseable/printable textual form the other docs write examples
   in: sorted arrows (`->`, `~>`, `-~>`), postfix chains, ports and
-  projections, taps and lanes, registers. If you want to *read the code
+  projections, taps, marks, and lanes, registers. If you want to *read the code
   samples* in the rest of the record, skim this first.
 - Short topic docs distilled from the retired first-generation
   narratives: [`trees-and-recursion.md`](trees-and-recursion.md),
