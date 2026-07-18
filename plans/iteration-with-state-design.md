@@ -11,6 +11,9 @@ Code samples use the textual syntax from
 uncollect/collect renaming: "open"/"opener" mean uncollect, "close"
 means collect, "reduce-close" the reducing collect.
 
+OH Comment: If there's stale terminology in this doc, update it, then
+delete the comment about the old terminology.
+
 ## Reader's guide
 
 The design has converged to a single result-level construct — the
@@ -55,9 +58,21 @@ state thread (§"A fourth option") is one candidate already in hand, not
 presumed the last, and a genuinely different approach may earn a place
 *alongside* Delay rather than having to replace it.
 
+OH Comment: I think it's a confusing organization to have a basic aspect
+of iteration with state worked out in a doc called first-class-ports-design.
+Anything that is really about iteration with state should go in this doc.
+Eventually, I think we want to get rid of first-class-ports-design because
+having first class ports is going to be just a basic aspect of the language
+rather than a design topic that needs its own page.
+
 The two-phase back-edge construction both candidates rest on is worked
 out in `first-class-ports-design.md` ("The Delay back-edge: the write
-half is a node"). Rejected shapes are recorded in place below with their
+half is a node"). 
+
+OH Comment: The reader won't understand these rejected shapes here with
+no context, so we can delete the below paragraph.
+
+Rejected shapes are recorded in place below with their
 reasons: `stateful(...)`, `prev(x)`, the Delay *lambda* form, and the
 output-less terminal stateful-collect.
 
@@ -81,7 +96,7 @@ The goal is the functional clarity without the bottleneck. Each carried
 variable should be independently nameable and independently readable,
 with no tuple at any level. **Adding a second accumulator must not touch
 the first.** This is the same multi-output goal the language pursues
-everywhere (several closes on one opener, each independently readable, no
+everywhere (several collects on one uncollect, each independently readable, no
 tuple), applied to carried-across-iteration state.
 
 Three design commitments shape every candidate below:
@@ -106,6 +121,12 @@ Three design commitments shape every candidate below:
   implementing the wrong thing and dismantling it later. This is why the
   work below spends more time in critique than in construction.
 
+OH Comment: I think the below sentence means, "Below is a sample of
+pseudocode showing how iteration with state might be written while
+attempting to satisfy these design goals". If that is what it means,
+I suggest writing that, and similarly trying to use more ordinary
+language throughout this document.
+
 The target, in the textual register syntax (spelling provisional; this
 is the port-form surface):
 
@@ -120,6 +141,17 @@ previous value, `0` the value before any iteration. `sum, a -> add ->
 step of sum => total` writes it: add the previous sum to the element and
 deposit the result as the next step; `total` is the final value. One
 running sum, no tuple, no fold declared upfront.
+
+OH Comment: The above pseudocode seems to be suffering from a lack of
+any collect on the flow `~L`. `total` seems to be a per-iteration
+value. If there's no collect, the code is not complete.
+
+OH Comment: I'll also add that the above pseudo code is... it seems
+a little complicated for adding up the elements of a list. I'm worried
+it will scare people off. Maybe that's just a consequence of the
+textual representation and it would look better in the visual diagram.
+Maybe the textual representation needs to be improved to make the
+above pseudocode more palatable.
 
 ## Rejected: `stateful(initial, update)`
 

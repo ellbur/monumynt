@@ -1,3 +1,9 @@
+
+OH Comment: Generally in this file, conider whether the brief descriptions
+that follow linked files are understandable to a newcomer. A lot of them
+use historical jargon like "Option C was chosen," when the reader is
+going to have no idea what "Option C" was.
+
 # Design documents
 
 This is the design record for an experimental visual, flow-based
@@ -20,7 +26,9 @@ recurring status words:
   with the reason they must not be tried again. Check those before
   re-proposing a construct.
 
-OH Comment: The following are too detailed to be listed up front here. The reader won't even know what they mean. They only need to be listed in the specific docs where they are relevant.
+OH Comment: The following are too detailed to be listed up front
+here. The reader won't even know what they mean. They only need
+to be listed in the specific docs where they are relevant.
 
 Four statuses are easy to misread, so, stated once: the compile-time
 placement pass and the stream consumer-set lattice are **deferred
@@ -34,7 +42,10 @@ term**.
 
 Everything else hinges on these two:
 
-OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to reflect that time travel is now very much part of the language the user will program in, while being always transformed to no time travel to show the user what will actually happen.
+OH Comment: In the below, I'd change "no time travel" to
+"(no) time travel" to reflect that time travel is now very much
+part of the language the user will program in, while being
+always transformed to no time travel to show the user what will actually happen.
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)** —
   the seven principles every new construct is judged against, and the
@@ -54,7 +65,10 @@ OH Comment: In the below, I'd change "no time travel" to "(no) time travel" to r
   projections, taps, marks, and lanes, registers. If you want to *read the code
   samples* in the rest of the record, skim this first.
 
-OH Comment: We need to decidee what to do with these. No sense keeping them around for historical reasons. If they have useful points on language philosophy, they should go there. If they have ideas worth developing, they should be developed.
+OH Comment: We need to decide what to do with the following. No sense
+keeping them around for historical reasons. If they have useful points
+on language philosophy, they should go there. If they have ideas 
+worth developing, they should be developed.
   
 - Short topic docs distilled from the retired first-generation
   narratives: [`trees-and-recursion.md`](trees-and-recursion.md),
@@ -78,7 +92,8 @@ OH Comment: We need to decidee what to do with these. No sense keeping them arou
   (the redesigned "rail" surface) and the Delay back-edge sections of
   `first-class-ports-design.md`.
 
-OH Comment: first class ports design shouldn't be a main topic page for iteration with state design. It's a separate topic. Reorganize this info across these pages.
+OH Comment: first class ports design shouldn't be a main topic page for
+iteration with state design. It's a separate topic. Reorganize this info across these pages.
   
 - **[`delay-ontology-design.md`](delay-ontology-design.md)** — the open
   problem split out of the doc above, kept whole here: what a Delay *is*,
@@ -92,7 +107,13 @@ OH Comment: first class ports design shouldn't be a main topic page for iteratio
 
 ## Representation and checking
 
-OH Comment: first class ports should become such a basic aspect of the language that we no longer need a doc devoted to it. It's like in a book on C, you wouldn't have a chapter on structs and then a second chapter on structs having more than one field. It's basic to the language that nodes have multiple ports. Maybe the other docs aren't there yet, but they should get there, and info in the first class ports design page moved into other pages or deleted.
+OH Comment: first class ports should become such a basic aspect of the
+language that we no longer need a doc devoted to it. It's like in a
+book on C, you wouldn't have a chapter on structs and then a second
+chapter on structs having more than one field. It's basic to the
+language that nodes have multiple ports. Maybe the other docs aren't
+there yet, but they should get there, and info in the first class
+ports design page moved into other pages or deleted.
 
 - [`first-class-ports-design.md`](first-class-ports-design.md) — the
   next representation step: making ports first-class, which dissolves the
@@ -106,6 +127,11 @@ OH Comment: first class ports should become such a basic aspect of the language 
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
+
+OH Comment: The below summary of that doc is entirely opaque to someone
+who doesn't know the language yet. Try to reword it in a way that is
+more generally understandable to an outsider.
+
 - [`bundle-provenance-design.md`](bundle-provenance-design.md) — context
   paths, and the one check that catches two kinds of clash (mixing
   mutually-exclusive case branches; time travel).
@@ -122,25 +148,43 @@ OH Comment: first class ports should become such a basic aspect of the language 
 
 ## Constructs
 
+OH Comment: Should the below doc maybe be categorized along with other
+case-split related docs?
+
 - [`partial-collect-design.md`](partial-collect-design.md) — collecting
   only some branches of a case split; one k-ary partial-collect node.
+
 - [`product-flows-design.md`](product-flows-design.md) — Cross, the node
   for combining two independent (sibling) flows without nesting one in
   the other; commute-as-transpose over products. Also its positional
   sibling, the aligned product (zip) — same-extent pairing by position —
   and the multi-wire collect (the table) as zip's value form.
+
+OH Comment: I think the below doc on time-travel should be moved to a place that reflects it is
+more fundamental than some of the other docs. It's basic to the nature
+of the language.
+
 - [`time-travel-programs-design.md`](time-travel-programs-design.md) —
   letting you draw under-committed programs (order left unstated) and
   having the editor complete them by published rules, shown faint.
+
+OH Comment: The below doc on transformation levels is also fundamental, but it's
+sort of a reach goal.
+
 - [`transformation-levels-design.md`](transformation-levels-design.md) —
   program and edit history as one structure; every lowering is a
   read-only derived view; nothing is ever mutated.
+
+OH Comment: The below two docs (end when and variable rate consumption) seem to belong
+to a similar concept space, which is more flexible iteration.
+
 - [`end-when-design.md`](end-when-design.md) — data-driven termination
   (stop the loop when the data says so): the surveys' biggest unserved
   everyday demand, worked as a binary flow operation. *Exploration.*
 - [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
   — "advance how far?" reframed as placing segment boundaries
   (split-when), plus the running view of a collect. *Exploration.*
+
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
@@ -148,6 +192,9 @@ OH Comment: first class ports should become such a basic aspect of the language 
 - [`collect-family-design.md`](collect-family-design.md) — the empty
   collect (what does an empty sum/max return?), identities as catalog
   rows, and the keyed collect (group-by as flows). *Exploration.*
+
+OH Comment: The below doc summary is very opaque to an outsider.
+
 - [`speculation-design.md`](speculation-design.md) — ordered alternatives
   with rollback (try-in-order choice for parsers and search): race's
   *sequential* sibling, where restoration is structural (the shared input
@@ -164,6 +211,11 @@ OH Comment: first class ports should become such a basic aspect of the language 
   collect re-opened) where the register is a back-edge on a *value* wire (a
   Delay). Naive vs semi-naive are lowerings; the lattice variant is the
   keyed collect under feedback. *Exploration.*
+
+OH Comment: Just from the below summary, it's not obvious to me why an effect
+that fires once per loop iteration is unwritable, since I would think that
+would just be commuting the effect flow out of the loop flow?
+
 - [`effects-design.md`](effects-design.md) — per-firing effects (cause an
   effect once per firing of a loop — the most common loop payload, and
   currently unwritable): the IO handle threaded through the loop *is* a
@@ -198,9 +250,16 @@ case/option are implemented; the rest are designed:
 - [`commute-design-notes.md`](commute-design-notes.md) — the
   commute-on-lists analysis (a superseded stopgap kept for its options
   survey) that led to streams.
+
+OH Comment: The below doc on lazy stream placement should really be under the
+"Compile" heading beacuse it's about how to compile a stream flow. Also the
+below description should not reference "Shape C" because the reader will
+have no idea what "Shape C" is.
+
 - [`lazy-stream-placement-design.md`](lazy-stream-placement-design.md) —
   stream flows (pull-based, on-demand). Read the status header: Shape C
   is the baseline; the consumer lattice is the deferred optimisation.
+
 - [`lazy-stream-join-design.md`](lazy-stream-join-design.md) — join as a
   binary flow operation. This is the correction the whole record now
   follows.
@@ -212,10 +271,16 @@ case/option are implemented; the rest are designed:
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*
+
+OH Comment: The below summary is very opaque to an outsider. The summary
+should say what the concurrent collect generally is, what it is for, etc.,
+not some obscure detail of how it's implemented.
+
 - [`concurrent-collect-design.md`](concurrent-collect-design.md) — one
   primitive (settle) minting a completions flow: one firing per body
   that settles, in settlement order, failures carried as data.
   *Exploration.*
+
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
   values into a "necessity frontier."
@@ -288,8 +353,14 @@ what must **not** be imported and why:
 
 ## Sequencing and open problems
 
+OH Comment: From the below description, implementation-strategy.md sounds
+like it belongs in the compile category.
+
 - [`implementation-strategy.md`](implementation-strategy.md) — the map
   from the design record to code: workstreams, ledger, sequencing.
+
+OH Comment: The below problems doc should be listed at the top of this README, since it spans everything.
+
 - [`open-problems.md`](open-problems.md) — the ranked index of open
   problems and incomplete areas, scored incompleteness × importance.
   Read its anti-tunnel-vision rules before treating it as a queue.
@@ -306,6 +377,8 @@ its vocabulary predates the newer rounds.
 - [`program-to-graph-transformation.md`](program-to-graph-transformation.md)
 
 ## Retired documents
+
+OH Comment: If these docs are truly retired, no need to list them here.
 
 `flow_language_design.md` and `visual-flow-language.md` — the
 first-generation narratives copied from an older project — were retired.

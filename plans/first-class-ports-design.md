@@ -367,6 +367,9 @@ then relies on.
 
 ## The Delay back-edge: the write half is a node
 
+OH Comment: The below is really more about iteration with state than about
+ports, so it should go there.
+
 A register (Delay) is where a loop-carried accumulator lives, and it is
 the one place a cycle enters the language. The spec wires a Delay's
 `step` input in a second act, *after* its `prev` output is already

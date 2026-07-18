@@ -243,6 +243,9 @@ Three arrows, one per wire-sort combination:
   both), and into `join`/`commute` (which act on the flow while the
   value rides through).
 
+OH Comment: in the latest design, join and commute operate on flows
+only, not values. This doc should be updated to match.
+
 The third arrow earns its keep by fixing a level-mixing problem. A
 value in a chain has a *context path* — the stack of flows it lives
 under, derivable from the dataflow. It is tempting to let a plain
@@ -261,6 +264,9 @@ value ports. That is exactly the naturality quotient — "before vs
 after the commute" is unrepresentable, so the desugaring (value
 refs keep pointing at their producer; the flow ops rewire context)
 loses nothing the language considers real.
+
+OH Comment: Again, commute does not operate on values, only on flows.
+It takes two flows as inputs and emits two flows as outputs.
 
 ### Chains, lines, and naming
 
@@ -333,6 +339,9 @@ Flatten-map, with no names at all:
 ```
 rows -> open list -> open list -> double -~> join -~> collect => flat
 ```
+
+OH Comment: Join operates on flows only, not values. It takes two
+flows as inputs and produces one flow as an output.
 
 This is well-defined, not merely convenient, because of the
 adjacency requirement: binary join's operands must be
@@ -409,8 +418,11 @@ xs -> open list -> | double -~> collect => doubled
 | -> triple -~> collect => tripled
 ```
 
+OH Comment: This section could benefit from more examples.
+
 Both bare `collect`s close the list flow; the tap carries the
 element to both chains; the opener is shared through the tap.
+
 
 ### Value marks: fan-in without names
 
@@ -444,6 +456,9 @@ b -> sq ^
 ^, ^ -> add -> sqrt => c
 ```
 
+OH Comment: The above example is good, but it would be even better if
+you could cleanly use multiplication instead of sq for squaring.
+
 Mid-chain, in a stage argument — a value computed once, then used
 inside a loop (capture stays implicit, as ever):
 
@@ -451,6 +466,8 @@ inside a loop (capture stays implicit, as ever):
 ys -> mean ^
 xs -> open list -> sub(^) -~> collect => centered
 ```
+
+OH Comment: This section could benefit from more examples.
 
 Mechanics:
 
