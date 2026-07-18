@@ -194,8 +194,8 @@ rendering: every producer appears before its consumers, within a
 line and across lines. No forward references exist — even for
 cyclic programs, because of how cycles enter the language: every
 cycle passes through a register, and a register's write half is its
-own node (`first-class-ports-design.md`, "the write half is a
-node") wired in a later act. The one back-edge is always spelled as
+own node (`iteration-with-state-design.md`, "The Delay back-edge:
+the write half is a node") wired in a later act. The one back-edge is always spelled as
 a later statement referring back to an earlier name.
 
 **P5. Barriers are labeled lanes.** A multi-in multi-out barrier is
@@ -240,11 +240,12 @@ Three arrows, one per wire-sort combination:
 - `~>` — a flow wire. Wiring a flow into a stage with no value
   involved: `~L ~> delay init 0`, `~c.Even ~> join into ~L`.
 - `-~>` — a value **with its flow**. Into `collect` (which consumes
-  both), and into `join`/`commute` (which act on the flow while the
-  value rides through).
-
-OH Comment: in the latest design, join and commute operate on flows
-only, not values. This doc should be updated to match.
+  both). Also used in chain position for `join` and `commute`, which
+  are flow-only operations — join takes two flows in and emits one
+  flow; commute takes two flows in and emits two flows; neither has
+  any value port. There the arrow marks that the stage acts on the
+  chain value's flow context; the value itself never enters the node
+  (see the soundness note below).
 
 The third arrow earns its keep by fixing a level-mixing problem. A
 value in a chain has a *context path* — the stack of flows it lives
@@ -258,15 +259,14 @@ stage still needs no *operand* (see "The implicit flow stack" — the
 adjacency rules determine which flow), but the arrow says a flow is
 entering at all.
 
-Soundness of the ride-through: `-~>` into a join or commute claims
-the value passes through a node that, representationally, has no
-value ports. That is exactly the naturality quotient — "before vs
-after the commute" is unrepresentable, so the desugaring (value
-refs keep pointing at their producer; the flow ops rewire context)
-loses nothing the language considers real.
-
-OH Comment: Again, commute does not operate on values, only on flows.
-It takes two flows as inputs and emits two flows as outputs.
+Soundness of the ride-through: join and commute are pure flow
+operations — a join is two flows in, one flow out; a commute is two
+flows in, two flows out — with no value ports at all, so no value
+ever passes through either. The chain spelling is sugar: at desugar
+the value wire bypasses the node entirely (value refs keep pointing
+at their producer) and only the flows are rewired. Nothing is lost
+by drawing the value as riding through, because "before vs after
+the commute" is unrepresentable — the naturality quotient.
 
 ### Chains, lines, and naming
 
@@ -331,8 +331,10 @@ chain position need no operands:
 
 - `-~> collect` closes the **innermost** layer of the incoming
   value's path.
-- `-~> join` merges the **two innermost** layers (inner into outer).
-- `-~> commute` swaps the **two innermost** layers.
+- `-~> join` merges the **two innermost** layers — the binary flow
+  operation: two flows in (inner into outer), one combined flow out.
+- `-~> commute` swaps the **two innermost** layers — two flows in,
+  two flows out, reordered.
 
 Flatten-map, with no names at all:
 
@@ -340,8 +342,10 @@ Flatten-map, with no names at all:
 rows -> open list -> open list -> double -~> join -~> collect => flat
 ```
 
-OH Comment: Join operates on flows only, not values. It takes two
-flows as inputs and produces one flow as an output.
+The bare `join` stage is the binary flow node: the two innermost
+layers of the value's path are its two flow inputs, the combined
+flow its one output. `double`'s value rides the chain past it
+untouched — the node has no value ports.
 
 This is well-defined, not merely convenient, because of the
 adjacency requirement: binary join's operands must be
@@ -418,10 +422,33 @@ xs -> open list -> | double -~> collect => doubled
 | -> triple -~> collect => tripled
 ```
 
-OH Comment: This section could benefit from more examples.
-
 Both bare `collect`s close the list flow; the tap carries the
 element to both chains; the opener is shared through the tap.
+
+Fan-out to three consumers is three `|` lines — consecutive
+continuation lines reuse the same antecedent taps:
+
+```
+req -> parse -> | route => target
+| -> logLine -> emit => logged
+| -> checksum => sum
+```
+
+All three chains read `parse`'s result, and no name is minted for
+it.
+
+More taps, same rules, inside a loop — the element and an
+intermediate result each fan out, and the k-th leading `|` on a
+resuming line binds the k-th tap:
+
+```
+xs -> open list -> | double -> | add(ten) -~> collect => bumped
+| -> triple -~> collect => tripled ; | -> negate -~> collect => negated
+```
+
+`triple` consumes the element (first tap); `negate` consumes
+`double`'s result (second tap); all three collects close the same
+list flow.
 
 
 ### Value marks: fan-in without names
@@ -434,10 +461,14 @@ are themselves computed, the comma source list demands a name per
 operand:
 
 ```
-a -> sq => a2
-b -> sq => b2
+a, a -> mul => a2
+b, b -> mul => b2
 a2, b2 -> add -> sqrt => c
 ```
+
+(Squaring is spelled as plain multiplication — `a` is a name, so
+using it twice is ordinary fan-out from one port; `a * a` is
+accepted infix input for the same node.)
 
 `a2` and `b2` are pure noise — single-use, adjacent, unmeaning. This
 is challenge 2's over-naming failure ("if every seam forces a name,
@@ -451,13 +482,10 @@ in any source position — a comma-list item, a stage argument —
 the k-th pending mark.
 
 ```
-a -> sq ^
-b -> sq ^
+a, a -> mul ^
+b, b -> mul ^
 ^, ^ -> add -> sqrt => c
 ```
-
-OH Comment: The above example is good, but it would be even better if
-you could cleanly use multiplication instead of sq for squaring.
 
 Mid-chain, in a stage argument — a value computed once, then used
 inside a loop (capture stays implicit, as ever):
@@ -467,7 +495,18 @@ ys -> mean ^
 xs -> open list -> sub(^) -~> collect => centered
 ```
 
-OH Comment: This section could benefit from more examples.
+More than two marks queue the same way — production order and
+consumption order agree, so the queue never needs tracking:
+
+```
+xs -> min ^
+xs -> max ^
+xs -> mean ^
+^, ^, ^ -> describe => stats
+```
+
+The first `^` in the source list takes `min`'s value, the second
+`max`'s, the third `mean`'s.
 
 Mechanics:
 
@@ -993,18 +1032,18 @@ short, the marked form as they grow, the named form once anything is
 shared or distant:
 
 ```
-a -> sq => a2
-b -> sq => b2
+a, a -> mul => a2
+b, b -> mul => b2
 a2, b2 -> add -> sqrt => c
 ```
 
 ```
-(a -> sq), (b -> sq) -> add -> sqrt => c
+(a, a -> mul), (b, b -> mul) -> add -> sqrt => c
 ```
 
 ```
-a -> sq ^
-b -> sq ^
+a, a -> mul ^
+b, b -> mul ^
 ^, ^ -> add -> sqrt => c
 ```
 

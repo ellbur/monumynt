@@ -152,7 +152,8 @@ computation was waiting for.** On its own a Delay is a sequential
 computation in the abstract; the collect grounds it in a specific
 iteration, and the register's meaning completes there — at its collect, not
 at the Delay glyph. This reframes the write half
-(`first-class-ports-design.md`): the feedback collect is not merely where
+(`iteration-with-state-design.md`, "The Delay back-edge: the write half
+is a node"): the feedback collect is not merely where
 the step is deposited, it is the *act of binding* the delayed computation to
 a flow. Its appeal: it keeps "orders live at terminations" true for the
 register too, and it treats the value wire an uncollect produces as strictly

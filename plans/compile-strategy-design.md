@@ -53,8 +53,8 @@ something the compiler learns from *downstream* nodes:
 - **Consumer-set placement** (`lazy-stream-placement-design.md`, a
   deferred but committed optimisation) partitions per-element work by which
   outputs read it.
-- **Registers** (`first-class-ports-design.md`, "the write half is a
-  node") need a write index a root-first walk cannot even build, because a
+- **Registers** (`iteration-with-state-design.md`, "The Delay
+  back-edge: the write half is a node") need a write index a root-first walk cannot even build, because a
   write half can be root-unreachable.
 - **Multi-level programs** (`transformation-levels-design.md`) put whole
   derived programs between the program of record and the code generator.

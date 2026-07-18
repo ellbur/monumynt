@@ -126,15 +126,16 @@ None committed to.
   equivalence round there showed the two candidates are one
   construct at the result level, so the pair serves both; the
   authoring-surface choice stays open.) The back-edge construction
-  is worked out in `plans/first-class-ports-design.md` ("the write
-  half is a node"): the object graph stays a DAG, and the pair
+  is worked out there ("The Delay back-edge: the write half is a
+  node"): the object graph stays a DAG, and the pair
   supplies the previously missing `final` readout.
 - **Diagrams as the top-level structure** — the spec's `Diagram`
   type, compiling to a JS function per diagram. Now has a forcing
   argument beyond spec fidelity: a Delay write half can be
   root-unreachable in a complete program, so the program of record
-  is a node set, not a root expression (first-class-ports doc,
-  "the program is a node set").
+  is a node set, not a root expression
+  (`plans/iteration-with-state-design.md`, "What it forces to the
+  surface: the program is a node set").
 - **Structural tests** — pin outer-stmt counts, golden-file the
   generated JS.
 

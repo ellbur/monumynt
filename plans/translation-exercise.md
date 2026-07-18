@@ -66,7 +66,8 @@ One pattern above deserves a name, because three rows share it: `step
 of`, `boundary of`, and `value of` are all **late-wired operands** — a
 node minted in one statement, one input wired by a later statement that
 refers back to it. The register design already has exactly this (mint
-the read half, wire the step later, `first-class-ports-design.md`). The
+the read half, wire the step later — `iteration-with-state-design.md`,
+"The Delay back-edge: the write half is a node"). The
 exercise found that the same two-phase spelling is demanded by every
 construct that sits on a cycle, not just Delay. Taken up in the findings.
 

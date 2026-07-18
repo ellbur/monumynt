@@ -7,12 +7,7 @@ design area. This document works out the shape of the primitive and
 records the dead ends along the way.
 
 Code samples use the textual syntax from
-`textual-representation-design.md`. Terminology predates the
-uncollect/collect renaming: "open"/"opener" mean uncollect, "close"
-means collect, "reduce-close" the reducing collect.
-
-OH Comment: If there's stale terminology in this doc, update it, then
-delete the comment about the old terminology.
+`textual-representation-design.md`.
 
 ## Reader's guide
 
@@ -58,23 +53,8 @@ state thread (§"A fourth option") is one candidate already in hand, not
 presumed the last, and a genuinely different approach may earn a place
 *alongside* Delay rather than having to replace it.
 
-OH Comment: I think it's a confusing organization to have a basic aspect
-of iteration with state worked out in a doc called first-class-ports-design.
-Anything that is really about iteration with state should go in this doc.
-Eventually, I think we want to get rid of first-class-ports-design because
-having first class ports is going to be just a basic aspect of the language
-rather than a design topic that needs its own page.
-
 The two-phase back-edge construction both candidates rest on is worked
-out in `first-class-ports-design.md` ("The Delay back-edge: the write
-half is a node"). 
-
-OH Comment: The reader won't understand these rejected shapes here with
-no context, so we can delete the below paragraph.
-
-Rejected shapes are recorded in place below with their
-reasons: `stateful(...)`, `prev(x)`, the Delay *lambda* form, and the
-output-less terminal stateful-collect.
+out below, in §"The Delay back-edge: the write half is a node".
 
 ## The problem: multi-accumulator iteration without a bottleneck
 
@@ -121,14 +101,9 @@ Three design commitments shape every candidate below:
   implementing the wrong thing and dismantling it later. This is why the
   work below spends more time in critique than in construction.
 
-OH Comment: I think the below sentence means, "Below is a sample of
-pseudocode showing how iteration with state might be written while
-attempting to satisfy these design goals". If that is what it means,
-I suggest writing that, and similarly trying to use more ordinary
-language throughout this document.
-
-The target, in the textual register syntax (spelling provisional; this
-is the port-form surface):
+Below is a sample of how iteration with state might be written while
+satisfying these commitments — a running sum, in the textual register
+syntax (spelling provisional; this is the port-form surface):
 
 ```
 xs -> open list => a, ~L
@@ -142,16 +117,20 @@ step of sum => total` writes it: add the previous sum to the element and
 deposit the result as the next step; `total` is the final value. One
 running sum, no tuple, no fold declared upfront.
 
-OH Comment: The above pseudocode seems to be suffering from a lack of
-any collect on the flow `~L`. `total` seems to be a per-iteration
-value. If there's no collect, the code is not complete.
-
-OH Comment: I'll also add that the above pseudo code is... it seems
-a little complicated for adding up the elements of a list. I'm worried
-it will scare people off. Maybe that's just a consequence of the
-textual representation and it would look better in the visual diagram.
-Maybe the textual representation needs to be improved to make the
-above pseudocode more palatable.
+Two things about this sample that are easy to misread. First, there is
+no separate collect statement on `~L`, and none is missing: the write
+statement is itself the register's collect — the write half doubles as
+the feedback collect (§"The equivalence, worked") — so it terminates the
+iteration, and `total` is not a per-iteration value but the final,
+outside-the-flow one: the completed sum after the last element, or `0`
+if the list was empty. Second, three statements is undeniably a lot of
+ceremony for adding up a list — but nobody sums a list this way. A plain
+sum is a **reducing collect** (§"Two operations for accumulation"), one
+ordinary stage in a chain; the register spelling is for iteration that
+genuinely carries state. Whether even that spelling asks too much of a
+beginner — and whether the visual thread rendering or a better textual
+spelling softens it — is exactly the open surface question (§"The
+surface question: point, cell, or thread").
 
 ## Rejected: `stateful(initial, update)`
 
@@ -198,7 +177,7 @@ visible, self-reference is just a name binding). But it was set aside:
   `prev(x)` means something only inside an iteration; outside any flow it
   is meaningless. Yet it is spelled as an ordinary value-layer expression
   with no sign it depends on the surrounding flow. When a value is
-  provided by the flow structure (like a list element from the opener),
+  provided by the flow structure (like a list element from the uncollect),
   the language should show that.
 - **Many `prev` uses are one case split written many times.**
   `prev(sum)` and `prev(product)` both yield `None` on iteration 0. There
@@ -214,17 +193,17 @@ visible, self-reference is just a name binding). But it was set aside:
 
 The two rejections point at a common shape:
 
-- **The initial value belongs outside the opener.** It should not be an
+- **The initial value belongs outside the uncollect.** It should not be an
   input to the flow's uncollect — that would force you to enumerate every
-  carried variable when you write the opener, the tuple bottleneck moved
-  to the opener. Instead the initial value attaches independently, one
+  carried variable when you write the uncollect, the tuple bottleneck moved
+  to the uncollect. Instead the initial value attaches independently, one
   per iteration construct.
 - **The first-vs-subsequent split is flow-level, not value-level.** It is
   one property of the surrounding flow, expressed once, within which all
   initial values live in the first-iteration scope and all carried values
   in the subsequent scope — not a per-variable `case(prev(x))`.
 - **The carried value is provided as a port, not conjured by an
-  operator.** Like the list element off a list-open node, the carried
+  operator.** Like the list element off a list-uncollect node, the carried
   value should be an output the body reads by wiring — visible because it
   was wired in, not because a special-scoped function was invoked.
 - **Closing initial+step does not close the outer flow.** Combining the
@@ -261,7 +240,7 @@ coupling. *Being stateful is exactly being in the three-way coupling.*
 
 The coupling need not be enforced by construction. The language already
 relies on **quotient constraints** enforced as checks: matching alts on a
-CaseSplit, a collect compatible with its opener, type agreement, the
+CaseSplit, a collect compatible with its uncollect, type agreement, the
 no-crossing rule. So it is acceptable that a variable's three slots must
 refer to one identity, enforced as a matching constraint rather than
 built as one inseparable unit.
@@ -283,8 +262,9 @@ own way:
 - The **port form** has no separate feedback node at all — the step is an
   *input port* of the register, so nothing output-less exists.
 - The **latent form**'s feedback collect *does* produce something: the
-  final value (see §"The equivalence, worked"). The write half worked out
-  in `first-class-ports-design.md` recovers a distinct writing *node* that
+  final value (see §"The equivalence, worked"). The write half (worked
+  out below, §"The Delay back-edge: the write half is a node") recovers
+  a distinct writing *node* that
   is not terminal precisely because it outputs the final value — the
   exit anchor the one-node contraction had no port for.
 
@@ -327,8 +307,8 @@ times and the result is just `0`. The initial value serves double duty:
 
 You cannot link without providing an initial value (the empty case would
 be unhandled), and providing one without linking is just a constant. In
-flow terms the link is *simultaneously* a close for the empty case and an
-open for the iteration — the same act.
+flow terms the link is *simultaneously* a collect for the empty case and an
+uncollect for the iteration — the same act.
 
 A consequence: **access-previous is never option-typed.** The `prev(x)`
 candidate returned `option<X>` to handle "first iteration has no
@@ -394,7 +374,7 @@ The grid after both links:
 |---|---|---|---|---|
 | `sum_init` | `0` (outside) | `sum_step` | `sum_init` (per-iter) | — |
 | `max_init` | `-inf` (outside) | `max_step` | `max_init` (per-iter) | — |
-| `element` | — | — | — | provided by list-open |
+| `element` | — | — | — | provided by the list uncollect |
 
 `element` is access-current only. Neither link touches it or the other.
 Their only interaction is sharing `element` through the containing list
@@ -425,7 +405,7 @@ specific flow:
 - **Example-first generalize.** Starting from the concrete program above,
   `element = list[0]` is a partial access — no list flow exists yet.
   Applying the link *is* the generalise step on `list[0]`: "the first
-  element" becomes "each element," and the list-open is born in the same
+  element" becomes "each element," and the list uncollect is born in the same
   act. The flow and the link are created together.
 
 **The self-driven edge case.** A link whose step depends only on
@@ -507,7 +487,7 @@ other, and arrived at two constructs. Both are kept.
 
 `prev` does not have to be a bound parameter. It can be an **output port**
 of the Delay node — read by wiring, exactly as the current element is read
-off a list-open node. A Delay node has three connections, none a lambda:
+off a list-uncollect node. A Delay node has three connections, none a lambda:
 
 - **`init`** — an input from outside the flow; the first-step output.
 - **a `prev` output port** — the previous step's result (or `init` on
@@ -559,7 +539,7 @@ the node-identity-plus-wiring pattern the codebase already uses for
 Open/Close: mint the node (its `prev` port exists immediately and can be
 referenced downstream), then wire its `step` and `init` as a separate,
 later act — exactly like wiring a Close back to its Open. The Expr-level
-mechanism is worked out in `first-class-ports-design.md` ("The Delay
+mechanism is worked out below (§"The Delay
 back-edge: the write half is a node"): the later act mints its own node —
 a write half holding the read reference and the step — so nothing mutates
 the Delay after construction, the object graph stays a DAG
@@ -779,7 +759,7 @@ ecosystem's `scan` is the register with an optional seed
 view is a real, shippable surface — evidence for the drawings
 conversation, not a decision.
 
-## Two operations for accumulation: reduce-close vs augment
+## Two operations for accumulation: reducing collect vs augment
 
 Summing a list can be approached from more than one direction, and the
 directions are not one construct. Forcing them together is exactly the
@@ -801,8 +781,9 @@ intent-decoding the abstraction-level principle warns against. There are
 
 **Approaches 1 and 3 are the same construct** — the latent-flow augment
 (a list-with-state flow), from two authoring directions. **Approach 2 is
-a genuinely different operation: a reduce-close** — a close-variant, a
-sibling of the ordinary collect-close. It collapses a flow with an
+a genuinely different operation: a reducing collect** (spelled
+*reduce-close* elsewhere in the record) — a collect variant, a sibling
+of the ordinary collect. It collapses a flow with an
 associative operator, identity implied. It builds **no** state variable in
 the authoring surface ("I don't think about a running sum" is literally
 true), and it carries information augment does not:
@@ -818,14 +799,14 @@ true), and it carries information augment does not:
   count, list-building).
 
 So a reader can always tell total-sum from running-sum: different
-constructs. The only new machinery reduce-close needs is **operator
+constructs. The only new machinery reducing collect needs is **operator
 identities**.
 
-**Result-level decision: reduce-close is its own node**, carrying the
+**Result-level decision: reducing collect is its own node**, carrying the
 operator's monoid, and `Compile` *lowers* it to
 `acc = identity; for (el of list) acc = op(acc, value)`. It is **not**
 elaborated into the augment loop on construction. The decisive reason:
-elaborating on construction would make reduce-close and "augment + expose
+elaborating on construction would make reducing collect and "augment + expose
 final" persist as the *same* result structure — collapsing the
 total-vs-running distinction, making a plain `sum` read as a running-sum
 machine whose intermediates nobody uses. The program of record is the
@@ -834,12 +815,12 @@ nothing (same `for-of` JS) and preserves the monoid for possible future
 reassociation or parallel reduction. It fits the existing close family
 (list / case / filter / option), already discriminated by shape.
 
-**Boundary:** reduce-close is available exactly when the operator is a
+**Boundary:** reducing collect is available exactly when the operator is a
 known associative monoid; no identity / non-associative falls back to
 augment (explicit seed). The degradation is structural: no monoid, no
 node. This is refined (not reversed) by `collect-family-design.md`
 (status: leanings, not adopted) into a three-tier ladder — monoid →
-total; associative-without-identity (last, min) → reduce-close with an
+total; associative-without-identity (last, min) → reducing collect with an
 option-shaped output (fires iff the flow fired); non-associative →
 augment. The empty-collect question is the identity question, and
 structure carries the "no answer" case.
@@ -848,11 +829,11 @@ structure carries the "no answer" case.
 
 Adding a second accumulator to a `sum` (also tracking `max`, in lockstep)
 does **not** require lowering the `sum` or editing anything. `sum`
-(reduce-close) has an always-available derived level-0 form — the augment
+(reducing collect) has an always-available derived level-0 form — the augment
 iteration — and that derived form exposes a combined list-with-state flow
 as an output port. You build a *new* augment whose `src` **references that
 derived port** and adds the `max` state. `sum` stays a pristine
-reduce-close; nothing about it is touched. This is the stacking rule
+reducing collect; nothing about it is touched. This is the stacking rule
 reaching *across the derivation boundary*: the current combined flow may
 itself be derived. The mechanism (a wire referencing a derived result's
 output port) is developed in `transformation-levels-design.md`; the only
@@ -860,7 +841,7 @@ open detail is which derived ports are exposed (principal outputs like the
 combined flow, not derivation internals).
 
 That covers *adding alongside* a `sum`. *Changing the interior* (making
-the step decay — no monoid) cannot be a reduce-close, and is handled
+the step decay — no monoid) cannot be a reducing collect, and is handled
 without editing: a level-1 `expand` in **materialize mode** records a step
 whose result version contains the augment loop's nodes as ordinary parts,
 and the decaying version is *built* from those parts while the sum version
@@ -886,7 +867,7 @@ state-out / feedback / seed-in).
 
 **Where they differ.**
 
-- **Node species vs generalized opener.** The port form keeps the variable
+- **Node species vs generalized uncollect.** The port form keeps the variable
   in a *new node* (Delay) standing beside the flow it names. The latent
   form weaves it *into the flow*: the cut interposes an uncollect that is
   "Open ListIter with one extra port pair," yielding a combined flow whose
@@ -903,8 +884,8 @@ state-out / feedback / seed-in).
   iteration state means — and reads the principle as forbidding only
   *invisible* differences.
 - **Companion machinery.** The latent thread additionally brings the
-  transformation-levels framing, reduce-close, and derived-port
-  references. These are largely independent of the choice (reduce-close's
+  transformation-levels framing, reducing collect, and derived-port
+  references. These are largely independent of the choice (reducing collect's
   lowering could target either form) but were stated in the latent form's
   vocabulary.
 
@@ -914,7 +895,7 @@ Converting between the forms surfaces two facts that matter for the
 decision.
 
 **Delay is the quotient.** Recognition (augment → Delay) is total and
-**canonical** — restore the plain opener, mint a Delay per augmentation
+**canonical** — restore the plain uncollect, mint a Delay per augmentation
 layer, unwind stacked layers inside-out, forget the stack order. Lowering
 (Delay → augment) is total but requires an **arbitrary choice**: multiple
 Delays on one flow have no ordering, but stacking augmentations must
@@ -944,6 +925,279 @@ recorded position that **cycles will have to be supported eventually**:
 even the form designed to stay acyclic hits one as soon as accumulators
 cross-reference, which is Fibonacci — the second example anyone writes.
 
+## The Delay back-edge: the write half is a node
+
+A register (Delay) is where a loop-carried accumulator lives, and it is
+the one place a cycle enters the language. The spec wires a Delay's
+`step` input in a second act, *after* its `prev` output is already
+referenced — the same two-phase pattern as wiring a Collect to its
+Uncollect. But Expr construction is immutable and bottom-up: there is no
+"second act on an existing node" without mutation, a tie-the-knot, or
+symbolic indirection. This section works out a fourth escape the list
+didn't name — **move the edge, not the node**. It is a fact about the
+Expr representation, but both candidates above rest on it, so it lives
+here; `first-class-ports-design.md`, whose migration it presupposes,
+keeps a pointer.
+
+### The three named escapes fail for cause
+
+- **Mutation.** At the diagram level, "wire `step` later" is a field
+  assignment on mutable diagram data — an ordinary editing gesture,
+  which is why the spec can say it casually. Expr nodes are immutable
+  records; there is no second act to perform. A mutable cell smuggled in
+  for `step` alone would make Delay the one node whose meaning can change
+  after construction — and every consumer of Expr (printer, memo, future
+  checks) currently assumes it can't.
+- **Tie-the-knot.** `let rec` with deferred evaluation can build a
+  cyclic immutable structure — but the port form's supersession of the
+  earlier lambda form counted "no `let rec`, no deferred evaluation, no
+  circular value dependency at construction time" among its gains. Buying
+  construction back with host-language laziness re-imports the lambda
+  form's machinery with less visibility than the lambda had.
+- **Symbolic indirection.** The spec discarded `ById` references when it
+  superseded IterationRail — "replaced by an honest back-edge."
+  Resurrecting id-as-reference at the Expr level would undo exactly that
+  supersession, and would make Delay the one place in Expr where a
+  reference is not a structural pointer.
+
+### Read the wiring analogy literally
+
+Both documents justify the two-phase wiring by the same analogy: `step`
+is wired "as a separate, later act — the same two-phase pattern as
+wiring a Collect to its Uncollect." Look at *why* Collect-to-Uncollect
+needs none of the three escapes at the Expr level: **the late edge is
+held by a new node.** The Open is never revisited; the Close,
+constructed last, carries every edge of the wiring act — the flow it
+closes, the value it collects. The object graph stays a DAG even though
+the computation is circular in the informal sense (the element the Open
+provides is used in the value the Close consumes; the pairing carries
+that loop, not any forward pointer).
+
+The analogy breaks for Delay only because the spec puts the late edge
+*inside the existing node* — `step` is a field of Delay. So make the
+analogy literal: the later act mints its own node.
+
+### The shape
+
+The Delay splits into a read half and a write half (names provisional —
+tap/writeback in the rail vocabulary would also do):
+
+```
+DelayRead:                      DelayWrite:
+  flow: FlowSource                read: (the DelayRead node)
+  init: ValueSource  (outside)    step: ValueSource  (per-iteration)
+  valueOutputs: {prev}            valueOutputs: {final}
+```
+
+In the textual form this is the two-statement register — running sum:
+
+```
+xs -> open list => a, ~L
+~L ~> delay init 0 => sum          -- read half; bare `sum` = prev
+sum, a -> add -> step of sum => total   -- write half; binder = final
+```
+
+Construction is bottom-up with no second act on any node:
+
+1. Mint the read half — its `flow` and `init` are known up front.
+   `ValuePort(read, "prev")` exists immediately.
+2. Build the step expression, referencing this read's `prev` and any
+   other reads' `prev`s (cross-reference needs nothing extra: mint all
+   the reads first, then build all the steps).
+3. Mint the write half last, holding the read reference and the step.
+
+The object graph is a DAG unconditionally — Fibonacci included:
+
+```
+steps -> open list => n, ~L
+~L ~> delay init 1 => fa
+~L ~> delay init 1 => fb
+fb -> step of fa => lastA
+fa, fb -> add -> step of fb => lastB
+```
+
+Both reads are minted before either step, so the cross-references
+(`step_a` reading `prev_b` and vice versa) are ordinary forward wires.
+The back-edge — the `step → prev` crossing, the language's one
+iteration-boundary edge — is recovered from *identity*: the write names
+its read, and the compiler and the productivity check treat the pair as
+the crossing. The productivity condition ("every cycle crosses a
+register") restates verbatim with "the Delay's internal `step → prev`
+edge" read as "the pairing edge write → read."
+
+How the write names its read is a spelling choice with a wrinkle worth
+recording: a bare node reference (as `flow` names a node today) is the
+lean; the alternative is a dedicated port on the read half — a
+*register* or *thread* port — that the write half consumes, making the
+read-to-write connection a wire of its own species. The alternative is
+resonant: the iteration-state doc's fourth option wants the state's
+history to be "a path in the picture," and a thread wire from read to
+write *is* that path's rail, present in the representation rather than
+reconstructed by the renderer. It also turns the one-write rule into
+wire linearity (the thread port is consumed exactly once). Deferred to
+the naming question; the pair works identically under either spelling.
+
+### The exit anchor comes for free
+
+What is the write half's output? The record answers before the question
+is asked. The final value is "available as a normal solid wire emerging
+from the right end of the rail" — but the *contracted* one-node Delay has
+`valueOutputs: {prev}` and `flowOutputs: {}`. The point projection kept
+three of the state thread's four anchors (enter/`init`, tap/`prev`,
+writeback/`step`) and *lost the exit*. Nothing in that record says how a
+program reads a fold's total out of the Delay form: Delay emits no flow,
+so the latent form's expose (a collect on the combined flow) isn't
+available, and collecting the `step` values into a list and taking the
+last element is a distortion — it materialises the whole history and
+gets the empty case wrong (zero iterations should yield `init`; the
+collected list is empty).
+
+The write half is where the exit was hiding: `final` is the register's
+value after the flow completes — the last `step`, or `init` if no
+iteration ran, which grounds the empty case exactly as `init` grounds
+productivity.
+
+The pair's port signature is Open/Close transposed to the register:
+
+| | outside in | per-iteration out | per-iteration in | outside out |
+|---|---|---|---|---|
+| collection | source (Open) | element (Open) | value (Close) | result (Close) |
+| register | `init` (read) | `prev` (read) | `step` (write) | `final` (write) |
+
+Each half converts across the flow boundary in one direction: the read
+half brings an outside value in as the tap; the write half takes a
+per-iteration value out as the total. The state thread's four anchors
+are exactly the pair's four ports, two per node — which is what "the
+thread's endpoints" should mean representationally. The stored-form
+arrangement the thread section leans toward ("store the Delay quotient,
+render the thread") gets a quotient with all four anchors to render
+from, instead of one missing the right end of the rail.
+
+`final` is the *total*, not the *running* value. Exposing the running
+sum stays an ordinary close over per-iteration values, so the
+total-vs-running distinction (reducing collect must not persist as "augment
++ expose final") survives untouched.
+
+### Facing the terminal-node critique
+
+The record counted "no matched open/close pair; no terminal node with no
+output" among Delay's virtues, and the port form's superseding note says
+"there is no separate feedback node at all … so nothing output-less
+exists." Doesn't a write node un-supersede the stateful-collect it
+rejected? No. The recorded discomfort was *outputlessness* — "previously,
+every node was a producer; stateful-collect is a pure consumer" — not
+pairedness; the language is made of pairs. The write half is a producer,
+and its output is one the one-node form turns out to need and not have.
+What the stateful-collect got wrong was terminating; what it got right —
+a distinct node for the writing act — is what constructability forces
+back.
+
+What survives as a cost: the one-write-per-read constraint changes
+character. On the one-node form it is local — "is the `step` field
+wired." On the pair it is a whole-graph counting check: exactly one
+write references each read. But this joins a family the record already
+made peace with — "one variable has one write slot; two writes conflict"
+was called structural, and the well-formedness family (alt matching,
+no-crossing, productivity) consists precisely of quotient constraints
+"enforced as a check, not by construction." (Under the thread-port
+spelling it is wire linearity rather than counting.)
+
+### What it forces to the surface: the program is a node set
+
+One genuinely new consequence. A write half is reachable from a
+program's root only through `final`. Consider Fibonacci consumed
+one-sided: the result references `final` of register *a* only; `step_a`
+reads `prev_b`, so register *b* must advance every iteration — but *b*'s
+write half hangs off nothing downstream. Walking inputs from the root
+never finds it.
+
+So a compile that encounters a foreign `prev` needs a **write index**
+(read-node id → write node), built by a pre-pass — the
+`collectBranchesByAlt` move — except the index *cannot* be built from
+the root expression when a write is root-unreachable. This forces a
+README next step motivated so far only by spec fidelity: **diagrams as
+the top-level structure.** The spec keeps an explicit `nodes` set and
+justifies it by editing-time disconnection; the write half makes the
+node set necessary for *complete* programs.
+
+So **a program with loop-carried state is a node set with distinguished
+outputs, not a root expression.** This is why a write statement's binder
+may be omitted when the final value is unused, and why the textual form
+is a statement list with declared outputs rather than "the last
+expression is the result." The interim spelling is honest and small: the
+compile entry takes the writes alongside the root
+(`compileToBody(root, ~writes)`), stating the requirement without
+building Diagram yet.
+
+Root-reachability as the definition of the program is not just
+insufficient for Delay write halves — it loses live work in mainstream
+runtimes today. The concurrency survey (`real-loop-survey.md`, survey 3,
+finding 3.4) drew a spawned companion task carrying the comment "Keep a
+hard reference to prevent garbage collection" with a production incident
+link: asyncio holds tasks weakly, so a complete, running program whose
+parts are unreachable from any root gets collected mid-flight. The
+node-set consequence has a field bug class behind it.
+
+### The latent-flow crossover
+
+Both candidates needed the back-edge answer; the crossover is more than
+that. §"The cross-reference cycle, and Delay as the quotient" above
+records a forced choice between two discomforts for the latent form:
+combined flow out of
+the feedback collect → cross-referencing accumulators cycle among the
+augmentations; combined flow out of the uncollect → the feedback collect
+is again a terminal node with no output. The write half's lesson
+dissolves the second horn: the feedback collect's output does not have to
+be the combined flow to be an output — it can be the **final value**.
+Combined flow out of the uncollect (no cycle), final value out of the
+feedback collect (no terminal node). The latent form takes exactly this
+arrangement, and the equivalence round below shows the pinning
+is forced rather than chosen, identifies the feedback collect with the
+write half, and proves the two candidates result-level equivalent — one
+register pair under two drawings (§"The equivalence, worked: one
+register, two drawings").
+
+### Against the philosophy, briefly
+
+Inside-out: unchanged — no scope is introduced; `prev` and `final` are
+wires. No bottlenecks: unchanged — two registers are two pairs, no
+packing. Example first: the link transformation's steps *are* the
+construction order (the concrete step expression exists before the write
+half that generalises it). Abstraction as source of truth: the thread
+renders over the stored pair, and the pair — unlike the three-anchor
+contraction — contains everything the thread draws.
+
+### Effect on the ports migration
+
+None on `first-class-ports-design.md`'s steps 1–4; the pair lands with
+the iteration-state round, not with that migration. It presupposes step
+1's `valueRef` (the write's `step`, everyone's reads of `prev` and
+`final`) and nothing else.
+
+### What stays open on the pair
+
+- **Diagram-level shape.** Does the spec keep one Delay node, with the
+  pair as its Expr-level form — or adopt the pair? Either way the spec's
+  inventory needs a home for `final`, which it currently lacks.
+- **Naming, and the pairing spelling.** read/write vs tap/writeback;
+  bare node reference vs thread port (above); whether the pair renders
+  as one glyph (the rail) regardless.
+- **Multiple writebacks.** Conditional carry / multi-site update is
+  unchanged; if conditional carry is ever a second write node rather
+  than a conditional value into one write, the counting check is where
+  it lands.
+- **`final` on self-driven streams.** A Fibonacci with no external
+  source never finishes, so its `final` is never available. Demand-time
+  error, type-level impossibility, or a thunk that never returns —
+  belongs to the iteration-state round's self-driven-stream story.
+- **Which flow the read half's `flow` names.** The schema above commits
+  to a `flow: FlowSource` field and the examples bind it to the
+  uncollect's flow — but *which* flow a Delay is over, when more than
+  one is in reach, is the open Delay ontology
+  (`delay-ontology-design.md`); the field's existence does not settle
+  it, and its meaning may end up read off provenance (the update
+  cadence) rather than authored.
+
 ## The equivalence, worked: one register, two drawings
 
 Status: **an exploration with a worked correspondence and leanings, not
@@ -960,7 +1214,8 @@ decision moves from semantics to surface.
 The latent form's residue was (a) cursor vs explicit feedback wire, (b)
 the concrete form of the feedback collect, (c) the stacking rule — plus
 "which side of the feedback collect the combined flow comes out of." The
-write half (`first-class-ports-design.md`) answers (b) by identification,
+write half (§"The Delay back-edge: the write half is a node" above)
+answers (b) by identification,
 and the identification is **forced from three directions at once**:
 
 - **The collect must have an output.** The rejection of the terminal
@@ -1030,7 +1285,7 @@ pass-through ports (`element`, earlier states) the port form never draws.
   of states is availability, not port plumbing. So the stacking rule
   (residue (c)) is confirmed as a composition and simultaneously demoted:
   it is a drawn convention, not load-bearing structure. This softens a
-  listed cost of the latent form ("openers grow; the same logical
+  listed cost of the latent form ("uncollects grow; the same logical
   iteration exists in several versions"): the chain of combined flows is
   inert drawn structure over one quotient, like the lowering's n! stack
   orders.
@@ -1080,12 +1335,12 @@ its Delay "references its flow," which presupposes a flow-minting node the
 record never names (the same hole the text side hit —
 `translation-exercise.md`, finding 3). So here the latent form is not
 equivalent to the port form; it is *ahead* by one node. The equivalence
-holds once the port form borrows that node — a bare self-driven opener
+holds once the port form borrows that node — a bare self-driven uncollect
 whose only content is the flow mint — which it needs anyway for the corner
 to be authorable. (`final` on a self-driven flow is never available; that
 residue is shared and stays with the async/stream rounds.) That borrowed
 node now has its own round, `source-openers-design.md` (status: leanings,
-not adopted): a bare flow-minting opener exactly as pinned here — no value
+not adopted): a bare flow-minting uncollect exactly as pinned here — no value
 ports, no new flow kind, the sourceless stream — with pacing and the
 external pull source worked beside it.
 
@@ -1118,7 +1373,7 @@ Consequences:
 - **Store the pair.** The quotient nominated the Delay side as the program
   of record; the erasure arguments strengthen it (the augmented drawing
   carries *only* inert extras). The augmented flow becomes a derived view
-  over the stored pair — machinery already load-bearing: reduce-close's
+  over the stored pair — machinery already load-bearing: reducing collect's
   derived augment form and the running view
   (`variable-rate-consumption-design.md`) are that view in use.
 
@@ -1141,11 +1396,11 @@ guaranteeing no choice of drawing forecloses any semantics.
    firings of its own, no collect behaviour of its own; a kind with no
    kind content that would fork every row of the kinds table). State is
    ports on a flow, never a kind of flow.
-3. **Read-half-as-opener** (identifying the Delay read with an uncollect
+3. **Read-half-as-uncollect** (identifying the Delay read with an uncollect
    even when an external source exists) — makes each accumulator re-open
    the flow, so stacking/siblinghood becomes structural rather than inert,
    destroying the quotient the by-reference tie buys. (The self-driven
-   corner is the one place read-as-opener is right, because there the flow
+   corner is the one place read-as-uncollect is right, because there the flow
    must be minted by something.)
 4. **Dissolving the write-count check through the correspondence** — it
    does not dissolve; the counting check transfers unchanged (one feedback
@@ -1254,7 +1509,7 @@ of the path*:
   drawn path — and you have the Delay node (`init` in, `prev`/tap out,
   `step`/writeback in). This is why Delay feels like Verilog: the timing
   geometry is deleted, so timing must be reconstructed by counting.
-- **Absorb the thread into the opener** — keep only where the path crosses
+- **Absorb the thread into the uncollect** — keep only where the path crosses
   the column boundary, discard its identity as a line — and you have the
   augmented flow (the seed-in/state-out pair plus feedback). This is why
   augment feels imperative: the thread's followable identity has dissolved
@@ -1266,7 +1521,7 @@ projections, each used where the path picture degrades: cross-referencing
 threads (Fibonacci) are parallel threads with taps between them (drawable
 for two or three; dense mutual reference tangles, and contracting to Delay
 points is the honest fallback — also where cycles are unavoidable in any
-form); whole-flow operations (stacking generalizes, reduce-close's derived
+form); whole-flow operations (stacking generalizes, reducing collect's derived
 view, referencing the combined flow as a thing) use the flow projection.
 
 **Where it lands.** The thread's semantics is exactly the register core
@@ -1276,7 +1531,7 @@ can see, answering the objection that the core is "the imperative picture
 both surfaces exist to dress." The equivalence grounds it end to end:
 "store the pair (the quotient), render the thread, derive the flow view"
 is the thread's cheapest realization — one construct, three drawings: the
-point (Delay glyph), the flow (augmented opener), the thread (the path with
+point (Delay glyph), the flow (augmented uncollect), the thread (the path with
 all four anchors, which the pair, unlike the one-node contraction, fully
 carries). The productivity check restates naturally: a cycle is well-formed
 iff it passes through a thread's tap-to-writeback epoch — every feedback
@@ -1315,7 +1570,7 @@ on a proven two-way equivalence:
 
 - **Stored-form asymmetry (derived views).** One form is the program of
   record; the other an always-available read-only derived view (the fifth
-  principle's machinery, already needed for reduce-close). Only the
+  principle's machinery, already needed for reducing collect). Only the
   derivation direction need exist; authoring gestures on the view are
   reinterpreted as edits to the stored form. The quotient nominates Delay
   as stored with the augmented flow as its view.
@@ -1383,7 +1638,7 @@ on a proven two-way equivalence:
   the flat "no monoid, no node" boundary is refined to the three-tier ladder
   (monoid → total; associative-without-identity → option-shaped output;
   non-associative → augment).
-- **Which derived ports a reduce-close or augment exposes.** Building a
+- **Which derived ports a reducing collect or augment exposes.** Building a
   second accumulator references the derived combined flow. The exact set of
   principal output ports a derived result exposes for reference (versus
   private derivation internals) needs pinning; see
