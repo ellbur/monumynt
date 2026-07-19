@@ -211,11 +211,17 @@ line tells you which tests are waiting.
 4. **Printer round** (`TextPrint.res`): chain compression + taps (port
    ExprPrint's greedy chains), derived indentation, span lint. Then
    golden-file tests.
-5. **Checks** (`Check.res` stubs): productivity over
-   `Annotate.writeIndex`; provenance origins with the mixing-vs-
-   time-travel classification; coverage; flow-borne's general interior
-   rule (each stub names its design doc). These turn Codegen asserts
-   into user-facing witnesses — do them before or with item 6.
+5. **Checks** (`Check.res`): **coverage** — DONE (`checkCoverage`):
+   mixed-split / non-alt-multi-branch collects (via `classifyCollect`)
+   plus duplicate-alt coverage, turning a case-emitter crash into a
+   witness (NextMain test 11). **productivity** — unreachable today (the
+   object graph is a DAG by construction; the only cycle is the register
+   pairing itself), so left stubbed with that rationale recorded; it
+   becomes load-bearing once a representation admits foreign cycles.
+   Remaining: provenance origins with the mixing-vs-time-travel
+   classification; flow-borne's general interior rule (each stub names
+   its design doc). These turn the remaining Codegen asserts into
+   user-facing witnesses.
 6. **Registers** — DONE for the self-driven case (`Codegen.res`,
    `emitRegister`, reached via the `DelayWrite` `final` port). The write
    half doubles as the feedback collect: it emits its own loop skeleton

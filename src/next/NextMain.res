@@ -409,6 +409,39 @@ header("check: combining sibling flows' elements is witnessed, not trusted")
 }
 
 // ============================================================================
+// 11. Witness surface: a malformed case collect (an alt covered twice)
+// ============================================================================
+
+header("check: covering an alt twice is witnessed, not a codegen crash")
+{
+  let b = Build.make()
+  let disc = Build.raw(b, "x => ({tag: 'A', value: x})")
+  let xs = Build.lit(b, array_([int_(1)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B"], ~discriminator=disc.value, it.element)
+  let zero = Build.lit(b, int_(0))
+  let one = Build.lit(b, int_(1))
+  // Two branches for "A", none for "B": covered-count still matches, so this
+  // would misclassify as full and crash the case emitter without a check.
+  let perElem = Build.collectCases(
+    b,
+    [(Build.alt(cs, "A").altFlow, zero.value), (Build.alt(cs, "A").altFlow, one.value)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "coverage") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("coverage witness produced")
+    } else {
+      fail("expected a coverage witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | Ok(_) => fail("malformed case collect compiled without a witness")
+  }
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++
