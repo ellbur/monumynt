@@ -92,7 +92,7 @@ which is why the example above needed almost no new vocabulary.
 one vocabulary for "does this element satisfy P": a case split
 producing a bundle of alt flows. Filtering is already defined that
 way — `join(list, case flow)` keeps the firing elements of an alt
-(`core-model.md`, "Join, and filtering as join"). Higher-order
+(`core-model.md`, "Filtering is a join too"). Higher-order
 predicates are rejected outright: a function waiting to be called
 has no honest visual form (`configuration-scopes.md`). So
 end-when's condition must arrive as a flow, never as a lambda or a
@@ -639,7 +639,7 @@ tough doc's inventory item 4 gains its worked member; the
 breadth-set theta kernel and retry-with-escalation get a concrete
 owner shape; the bottom-up mergesort composition can be drawn end
 to end. `core-model.md` would gain end-when a line alongside join
-in "Join, and filtering as join" (it is the same operand pattern
+in "Filtering is a join too" (it is the same operand pattern
 with a different verb) — but not before adoption.
 
 ## Open questions
