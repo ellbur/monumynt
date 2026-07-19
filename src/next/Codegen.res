@@ -294,14 +294,10 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
         }
       )
       if hasAlt {
-        // The filter shape: join(list flow, case-alt flow). One thunk =
-        // accumulator + the Iter levels' loops + `const s = disc(force(elem));
-        // if (s.tag === alt) { <alt payload pre-memoised as lazyDone(s.value)>
-        // ...value...; out.push(force(value)) }`. Mirror Compile.emitFilterClose;
-        // the AltLevel carries the split node and alt name.
-        throw(Todo("filter collect (a case-alt level in an iter chain) — mirror Compile.emitFilterClose"))
+        emitFilterCollect(st, ctx, cn, branch, levels)
+      } else {
+        emitIterCollect(st, ctx, cn, branch, levels)
       }
-      emitIterCollect(st, ctx, cn, branch, levels)
     }
   | CaseFull => emitCaseCollect(st, ctx, cn, branches)
   | CasePartial(_) =>
@@ -575,6 +571,179 @@ and emitCaseCollect = (
       },
       [JsBuild.ret(JsBuild.id(outName))],
     ),
+  )
+
+  let name = st.fresh()
+  recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// The filter shape: an iter chain (`join`ed lists) whose innermost operand is
+// a case-alt flow — `join(list, case-alt)`. One thunk = a list accumulator,
+// the leading Iter levels' for-of loops, and at the innermost body a
+// discriminator dispatch that pushes only in the matching alt:
+//
+//   const s = force(disc)(force(elem));
+//   if (s.tag === alt) { const payload = __lazyDone__(s.value); …value…;
+//                        out.push(force(value)) }
+//
+// The alt payload port is pre-memoised at the alt's context so the value
+// subtree resolves it; loop-invariant work floats out of the thunk. Mirrors
+// Compile.emitFilterClose (output is always a list — push, not assign).
+and emitFilterCollect = (
+  st: state,
+  ctx: ctxPath,
+  cn: node,
+  branch: collectBranch,
+  levels: array<level>,
+): compiled => {
+  let n = Array.length(levels)
+  let (split, alt) = switch levels->Array.getUnsafe(n - 1) {
+  | AltLevel({split, alt}) => (split, alt)
+  | IterLevel(_) =>
+    throw(
+      Todo(
+        "filter chain whose innermost level is not the case-alt operand — " ++
+        "a shape Compile.emitFilterClose does not cover",
+      ),
+    )
+  }
+  let iterLevels = levels->Array.slice(~start=0, ~end=n - 1)
+  iterLevels->Array.forEach(l =>
+    switch l {
+    | IterLevel({isList: true}) => ()
+    | IterLevel({isList: false}) =>
+      throw(Todo("filter over an option level — not covered by Compile.emitFilterClose"))
+    | AltLevel(_) =>
+      throw(Todo("filter chain with a non-trailing case-alt level — mirror Compile.emitFilterClose"))
+    }
+  )
+  if Array.length(iterLevels) === 0 {
+    failwith("Codegen.emitFilterCollect: a filter needs a list to iterate — Check should have witnessed")
+  }
+  let (discriminator, csInput) = switch split.kind {
+  | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
+  | _ => failwith("Codegen.emitFilterCollect: alt level's node is not a case split — placement bug")
+  }
+
+  let exterior = instantiate(
+    ~what="Filter collect node " ++ Int.toString(cn.id),
+    Context.flowContext(branch.flow),
+    ctx,
+  )
+
+  // Walk the Iter levels outermost-in, exactly as emitIterCollect does.
+  let floatedAcc: array<placed> = []
+  let plans: array<levelPlan> = []
+  let parentCtx = ref(exterior)
+  iterLevels->Array.forEach(l =>
+    switch l {
+    | AltLevel(_) => failwith("Codegen.emitFilterCollect: alt level in the iter prefix — sliced off above")
+    | IterLevel({uncollect, isList}) => {
+        let input = switch uncollect.kind {
+        | Uncollect({input}) => input
+        | _ => failwith("Codegen.emitFilterCollect: IterLevel is not an Uncollect")
+        }
+        let own = FlowPort(uncollect, "flow")
+        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
+        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+          failwith(
+            "Codegen: level " ++
+            Int.toString(uncollect.id) ++
+            " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
+          )
+        }
+        let feedC = compileValue(st, parentCtx.contents, input)
+        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: cn.id}])
+        let iterVar = st.fresh()
+        let elemName = st.fresh()
+        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+        Array.push(plans, {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName})
+        parentCtx := bodyCtx
+      }
+    }
+  )
+
+  // At the innermost list body: the case-split input feeds the dispatch, the
+  // discriminator is loop-invariant (compiled at the exterior), and the alt
+  // payload is pre-memoised at the alt's context so the branch value resolves.
+  let innerCtx = parentCtx.contents
+  let inputC = compileValue(st, innerCtx, csInput)
+  inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+  let discC = compileValue(st, exterior, discriminator)
+  discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  let altFlow = FlowPort(split, alt)
+  let altCtx = Array.concat(innerCtx, [{flow: altFlow, thunkOf: cn.id}])
+  let payloadName = st.fresh()
+  recordMemo(st, split.id, alt, altCtx, payloadName)
+  let valueC = compileValue(st, altCtx, branch.value)
+  valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  // Partition: each iter body and the alt body claim what is addressed to them;
+  // everything at the exterior or shallower floats out of the thunk.
+  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
+  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  Map.set(buckets, ctxPathKey(altCtx), [])
+  let escaped: array<placed> = []
+  floatedAcc->Array.forEach(pl =>
+    switch Map.get(buckets, ctxPathKey(pl.at)) {
+    | Some(bk) => Array.push(bk, pl.stmt)
+    | None =>
+      if isCtxPrefix(pl.at, exterior) {
+        Array.push(escaped, pl)
+      } else {
+        failwith("Codegen: a statement floated to a context unrelated to the filter collect being assembled — placement bug")
+      }
+    }
+  )
+
+  let outName = st.fresh()
+  let splitName = st.fresh()
+  let altBucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
+  let altBody = Array.concat(
+    Array.concat(
+      [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")))],
+      altBucket,
+    ),
+    [
+      JsBuild.exprStmt(
+        JsBuild.call(
+          JsBuild.member(JsBuild.id(outName), "push"),
+          [Runtime.forceOf(JsBuild.id(valueC.name))],
+        ),
+      ),
+    ],
+  )
+  let dispatch = [
+    JsBuild.const(
+      splitName,
+      JsBuild.call(Runtime.forceOf(JsBuild.id(discC.name)), [Runtime.forceOf(JsBuild.id(inputC.name))]),
+    ),
+    JsBuild.if_(
+      JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(alt)),
+      altBody,
+    ),
+  ]
+
+  // Assemble the loops innermost-out; the dispatch is the innermost payload.
+  let nested = ref(dispatch)
+  for i in Array.length(plans) - 1 downto 0 {
+    let p = plans->Array.getUnsafe(i)
+    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
+    let body = Array.concat(
+      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))],
+      Array.concat(bucket, nested.contents),
+    )
+    nested := [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+  }
+  let thunkBody = Array.concat(
+    [JsBuild.const(outName, JsBuild.array_([]))],
+    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
   )
 
   let name = st.fresh()
