@@ -499,6 +499,176 @@ render is not. (This also keeps `print(parse(t)) = t` honest:
 canonical-form stability is defined over program + session, and
 materialization is deterministic given both.)
 
+## The next step: legal edits, useful edits, and finding them
+
+The inventory says what edits exist; atomicity says which applications
+succeed. On top of both sits the discoverability question: at a given
+position, **which edits should the editor offer, and in what order** —
+how does the user find the step they need? The question has a precise
+foundation, because determining whether a program is valid and
+determining the valid programs one step away are the same relation
+read in opposite directions. The checker (`types-design.md`) asks of
+a finished wiring "does every demand meet a compatible offer?"; the
+suggester asks of a position "which one-edit extensions would that
+checker accept?" — the inverse image of validity, restricted to one
+step. The types doc's no-search commitment is what makes the inverse
+tractable: because checking is monotone propagation with no choice
+points, suggesting is *enumeration* — the candidates are the finite
+node catalog plus the program's own finite port set, and each
+candidate's verdict is a propagation delta over a hypothetical
+program, not a search. (Contrast unification-based systems, where
+"what fits here" is a type-inhabitation query — exactly the searchy,
+unexplainable shape the checker already refuses to be.)
+
+### Eligibility mirrors the validity tiers
+
+Validity is tiered (unrepresentable / structural invariants /
+checked), and edit eligibility mirrors it tier for tier:
+
+- **Sort-eligible** — the edit is constructible at the cursor's sort
+  at all: only flow ops at a flow port, node-local edits at `OnNode`,
+  interpose only in a slot. Hard tier: an edit that is not
+  sort-eligible is not shown, exactly as an ill-sorted reference
+  cannot be drawn.
+- **Structurally eligible** — the edit's refusal condition would not
+  fire: a connect from the mark that would create a cycle, a
+  delete-splice on a node without the 1-in-1-out shape. Also hard:
+  offering an edit that would be refused whole is offering a button
+  that does nothing.
+- **Property-eligible** — applying the edit would introduce no
+  clash: the candidate node's demand is consistent with the offer
+  derived at the cursor's port; the marked port's offer meets the
+  slot's demand. This tier is **soft by principle.** Checked-tier
+  properties are feedback, not gates ("Atomicity" above), so a
+  clash-inducing edit is *ranked down and badged, never hidden*.
+  Hiding would let the menu enforce what the check deliberately
+  doesn't — and would guess wrong systematically during
+  placeholder-driven building, where the demands in force are
+  themselves provisional. This sharpens the types doc's scoping line
+  ("checking validates choices; suggestion narrows menus; neither
+  chooses"): *narrows* means orders and marks at the property tier;
+  only the two hard tiers remove.
+
+One consequence comes for free, and it is "building blocks must
+build" a third time: the whole surface is generic. A new node kind's
+catalog entry — port and slot inventories, demands, offers — is
+exactly the data the three tiers consume, so a new kind appears in
+the right menus, correctly ranked and badged, with no editor work.
+Suggestion quality is a property of the catalog, not of editor code.
+
+### The queries, one per cursor sort
+
+- **At a value port**, with derived offer O: catalog nodes having a
+  value slot whose demand is consistent with O — the append menu.
+  The demand/offer inventory is the index; at a flow port the
+  flow-kind table plays the same role (per-kind operation legality
+  is the flow side's existing discipline).
+- **In a slot or at a hole**, with accumulated demand D: the dual
+  query, in two halves. Which *existing* output ports offer
+  something meeting D — the connect candidates, dangling outputs
+  first, a planned source first of all. And which catalog nodes'
+  *output* offer would meet D — the interpose / build-backward
+  candidates.
+- **With the mark set**, the dual view travels with the cursor: the
+  mark's offer against each slot's demand is one pre-checked
+  verdict, so the TUI can render fit or clash on the mark's glyph as
+  the cursor moves — and can highlight the slots and holes the
+  marked value could legally land in. That is the "where can this
+  go?" reading, dual to the palette's "what can go here?".
+
+A hole is where the mirror pays most. The types doc's read-out 3
+(placeholders) built the schematic source: a node with no
+computation whose knowledge is declared offers and accumulated
+demands. A hole is the same object reached from the other end — zero
+declared offers, demands accumulated from its consumers — and those
+accumulated demands are precisely the search key for its discharge.
+"Next hole" plus the connect-candidate list is the top-down workflow
+with the palette pre-filtered at every stop. (Whether `Hole` should
+simply grow the schematic source's optional declared offers,
+unifying the two constructs, is an open question below.)
+
+### Witnesses are suggestions read backwards
+
+The checker's witnesses are records addressed to node ids — built to
+render at anchors. Each witness *kind* can carry its mechanical
+repairs: a hole witness carries its connect candidates; a
+missing-alt witness on a collect carries add-branch-for-that-alt; a
+time-travel clash carries the nesting or cross insertions that would
+relate the two contexts. A witness thereby becomes actionable —
+cursor to its anchor, and pick mode opens on the repairs. This is
+the same mirror at witness grain: a failed check names the family of
+programs one edit away in which it passes; enumerate them. Not every
+witness has a finite mechanical repair set (a shape clash may mean
+the program is simply wrong), and the unlisted option is always that
+the user redesigns; the repairs offered are the mechanical ones
+only.
+
+The symmetry runs the other way too: **suggestions carry positive
+witnesses.** Why is `open list` offered here? Because the wire's
+source offers *list-shaped*, from the collect there. That is the
+same anchors-plus-path display as error explanation with the sign
+flipped, so "explain this suggestion" costs nothing the error
+renderer doesn't already have — and it keeps the surface honest, in
+the record's standing sense: no offer appears without a reason you
+can point at on the diagram.
+
+### Useful: ranking without guessing
+
+Legal is large — most of the catalog is sort-eligible at any value
+port — and useful is an ordering problem. The ranking signals that
+are not editor taste:
+
+1. **Specificity of fit.** Candidates whose demands consume the
+   strongest offers actually derived at the cursor rank above
+   generic ones: at a wire offering *list-shaped*, `open list` beats
+   any shape-indifferent App.
+2. **The frontier.** Holes, planned wires, and witnesses are the
+   program's own authored todo structure; candidates that discharge
+   one rank above candidates that open new frontier.
+3. **Observed frequency.** The standing method: sessions are
+   serializable records, instrumentation is free, and once a corpus
+   exists real edit frequencies rank the menu — read with the 80/20
+   counterweight. Frequency decides what sits in the top rows and
+   earns a single-keystroke binding; the rare legal edit stays
+   findable (the full sort-eligible catalog remains reachable by
+   filter), never removed for being rare.
+
+And one boundary, drawn with the checker's own rule: **one step, no
+search.** The suggester never synthesizes chains — "to get from this
+offer to that demand, insert `parse` then `max`" is type-directed
+program synthesis, which is search, the thing the no-choice-points
+commitment excludes; and it would cross the scoping line from
+narrowing into choosing. Multi-step intent already has an owner: the
+user, via planned wires. At a plan the editor's whole role is to
+prefer one-step candidates consistent with it — never to complete
+it.
+
+### Presentation
+
+Pick mode *is* this computation rendered: rows are the sort- and
+structurally-eligible candidates in rank order, clash rows demoted
+and badged, filter-as-you-type over the rest of the catalog. The
+palette is a derived view — computed from (program, catalog, cursor,
+mark), lens discipline, never stored — so there is no suggestion
+state to invalidate.
+
+Because edits are pure functions on the record, **preview is
+apply-print-discard**: highlighting a candidate can render its
+post-state faint at the anchor without touching the real record, and
+per-candidate property checking prices the same way (persistent
+sharing plus boundary-projection memoization make the hypothetical
+checks incremental). The faint preview is kin to the completion
+lens's `+` lines and must be styled apart from them, because they
+differ in exactly the dimension that matters: a completion is
+committed meaning supplied by published rule; a preview is a
+candidate carrying no commitment at all.
+
+Gesture discoverability is the smaller sibling of node
+discoverability and needs less: the edit inventory is short and
+uniform (almost everything is a node-add), so a per-position hint
+line listing the sort-eligible *edits* — not nodes — covers it, the
+which-key idiom rather than a second palette.
+
 ## Worked sessions
 
 Keystrokes are illustrative bindings, not proposals; the display marks
@@ -635,9 +805,10 @@ completion lens's `+` lines faint and live, and a margin for checker
 witnesses (addressed to node ids, hence renderable at anchors). The
 keyboard maps motions and the edit inventory; the only modes are
 micro-entry (typing a payload, a name, an alt list) and a pick mode
-for choosing an operation at append/interpose (which is a menu over
-the node-kind catalog plus named externs, filterable by the cursor's
-sort — only flow ops offer themselves at a flow port). The TUI runs
+for choosing an operation at append/interpose — the render of the
+eligibility-and-ranking computation ("The next step" above): a menu
+over the node-kind catalog plus named externs, sort-filtered,
+rank-ordered, clash rows badged, filterable by typing. The TUI runs
 on Node like everything else in the repo (raw-mode stdin + ANSI;
 no dependency decisions needed yet).
 
@@ -671,7 +842,8 @@ no dependency decisions needed yet).
   there is no corpus of sessions to sample yet. The counterpart
   obligation: once the TUI runs, instrument it (sessions are
   serializable records, so logging is free) and let real edit
-  frequencies re-rank which gestures must be one keystroke.
+  frequencies re-rank which gestures must be one keystroke — and,
+  from the same corpus, the suggestion rankings above.
 
 ## Open questions
 
@@ -709,6 +881,31 @@ no dependency decisions needed yet).
    structural (add/remove/rename alt as separate edits, enabling the
    step-DAG to see alt renames)? Leaning: structural — renames want
    identity.
+9. **Hole vs schematic source.** Should `Hole` grow the schematic
+   source's optional declared offers (`types-design.md` read-out 3),
+   unifying two constructs that differ only in which direction their
+   knowledge arrived from — declared forward vs accumulated
+   backward? Leaning: yes — one node kind, offers optional, demands
+   always accumulated; the types doc's placeholder workflow and the
+   editor's top-down workflow become the same workflow.
+10. **Soft-tier presentation.** Demote-and-badge is the stated
+    stance for clash-inducing candidates; should a "strict palette"
+    mode exist that filters the property tier, and is it
+    default-off? Leaning: the stance as stated; a filter mode is UI
+    policy, decidable later against real sessions.
+11. **Repair catalogs.** Which witness kinds carry mechanical
+    repairs, and is each kind's repair set hand-maintained alongside
+    its check or derived from the check's definition? Leaning:
+    hand-maintained to start — derivation smells like search, and
+    the honest version of "this witness has no mechanical repair" is
+    an empty list, not a synthesized one.
+12. **Cost of hypothetical checking.** Rank by literally
+    applying-and-checking each candidate, or by reading a pre-built
+    index of the catalog keyed by demand/offer? Boundary-projection
+    memoization may make the former cheap enough at interactive
+    rates; if not, the index is an approximation whose divergences
+    from the real check need stating. An implementation question,
+    but it decides whether ranking signals stay exact.
 
 ## Smallest first step
 
@@ -729,7 +926,15 @@ No TUI in step one; the model is testable headless, in the
    code: a list of edits applied from the empty record, asserting the
    print after each step (this doubles as the golden record for
    cursor-after conventions).
-5. **The TUI shell** — a thin loop mapping keys to motions and edits
+5. **`Edit.eligible`** — the eligibility computation as a pure
+   function `workingRecord => array<candidate>` (candidate = edit +
+   tier + rank signals), headless-testable: assert the candidate
+   lists at chosen stops in the scripted sessions. The two hard
+   tiers need no property machinery and can land first;
+   property-tier ranking arrives with the types doc's shape
+   propagation (its smallest-first-step 2) and slots in without
+   changing the function's shape.
+6. **The TUI shell** — a thin loop mapping keys to motions and edits
    and re-printing; by this point it contains no logic worth testing
    through the terminal.
 
