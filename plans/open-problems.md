@@ -786,13 +786,20 @@ the scores above rather than carrying its own. The named next rounds
   custom-protocol-flows probation's category-strength documentation
   into a field sighting (Zig's labeled switch is a systems-language
   sighting, not the UI-population one).
-- **A combinator census** — *done* (`real-loop-survey.md`, "Combinator
-  census"): counting every loop and combinator across the survey-1
-  corpora, combinators are ~1/3 of iteration constructs (statement
-  loops outnumber them ~2:1 even in Ruby/JS), split collect 76% /
-  search 18% / fold 6%; finding 1's "well above half needs no state"
-  holds as a ~60% majority, carried mostly by stateless statement
-  loops rather than the excluded combinators. Larger n where a
+- **A combinator census** — *done*, both corpus families
+  (`real-loop-survey.md`, "Combinator census" and "Combinator census:
+  the domain corpora"): counting every loop and combinator across the
+  survey-1 infrastructure corpora, combinators are ~1/3 of iteration
+  constructs (statement loops outnumber them ~2:1 even in Ruby/JS),
+  split collect 76% / search 18% / fold 6%; finding 1's "well above
+  half needs no state" holds as a ~60% majority, carried mostly by
+  stateless statement loops rather than the excluded combinators. The
+  domain extension over survey 2's six projects confirmed the census's
+  biggest stated bias: fold's combinator share triples (6% → 20%), but
+  the rise is graph reduction via `sum`, not the numeric scan — which
+  is a statement loop, so it never enters the combinator-fold bucket
+  (finding D.1); three.js is the extreme loop-dominated corpus in
+  either census (0.03 combinators per loop). Larger n where a
   proportion becomes load-bearing still owed.
 - **The saturation frequency question.** Closure-shaped computation was
   absent from all three random surveys; a domain sample (package/build/
