@@ -1,50 +1,91 @@
 # Visual Programming Language: Data Representation Specification
 
-## Overview
+*Or: what a program is made of, exactly.*
 
-This is the diagram-level specification of how programs are represented:
-what nodes exist and how they connect. The representation is:
+Status: reference — this chapter is the settled specification of how
+programs are represented as data: the full diagram model, which runs
+ahead of the code. The implemented layer (`src/Expr.res`) covers a
+smaller fragment with representation debts of its own; a few sections
+below note where a schema is kept in an older form pending an adopted
+revision (Join's signature), and Delay's section records an open
+choice between two equivalent surfaces. Everything else here you can
+read as "this is what a program *is*."
 
-- **Structural, not semantic.** It describes what nodes exist and how
-  they wire together, not which programs are valid. Validity — type
-  correctness, flow-nesting correctness, collect coverage — is a
-  separate layer built on top.
+## A program, as data
+
+You have seen programs like this one (in `core-model.md`):
+
+```
+double = js "x => x * 2"
+[1, 2, 3] -> open list -> double -~> collect => out    -- out = [2, 4, 6]
+```
+
+This chapter answers a different question about it: when the editor
+saves that program, *what does it save?* Not text — the text above is
+just one way of writing it down. The program itself is a set of
+**nodes** connected by **wires**. The doubling program is four nodes:
+a node holding the list `[1, 2, 3]`, a node that opens it, a node
+that applies `double`, and a node that collects the results. Each
+wire is nothing more than one node's input remembering which other
+node's output it reads from.
+
+That is the whole idea. The rest of this chapter makes it precise:
+which node kinds exist, which input and output ports each kind has,
+and how the pointers between them work.
+
+Three properties frame everything that follows:
+
+- **Structural, not semantic.** The representation describes what
+  nodes exist and how they wire together, not which programs are
+  valid. Validity — type correctness, flow-nesting correctness,
+  collect coverage — is a separate layer built on top.
 - **Nested.** An input points to an output of another node, so the
   program is a directed graph traversed by following pointers.
 - **Language-agnostic.** Described with common constructs (structs,
-  unions, lists, maps, sets).
+  unions, lists, maps, sets), so it can be realized in any host
+  language.
 
+## Two sorts of wire
+
+Look at the arrows in the doubling program: most are `->`, but the
+one into `collect` is `-~>`. That difference is real in the data.
 A program separates two sorts of wire:
 
 - A **value wire** carries data — an element, a branch's payload, a
   result. Values are computed on and transformed.
-- A **flow wire** carries iteration/branching *context*: when, and how
-  often, something happens. Flow wires are read only by flow operations
-  (collect, join, commute); a flow wire cannot be read as a value.
+- A **flow wire** carries iteration/branching *context*: when, and
+  how often, something happens. Flow wires are read only by flow
+  operations (collect, join, commute); a flow wire cannot be read as
+  a value.
 
-Both are the same structural thing — a connection from an input port to
-an output port — but keeping the sorts distinct makes misuse
-unrepresentable: you cannot apply a function to a flow, because a flow
-is not a value.
+Both are the same structural thing — a connection from an input port
+to an output port — but keeping the sorts distinct makes misuse
+unrepresentable: you cannot apply a function to a flow, because a
+flow is not a value.
 
 Code samples throughout use the textual syntax of
-`textual-representation-design.md`, glossed one line each. The textual
-form is a projection of exactly these nodes and ports — a compact way to
-show what a construct looks like when written down.
+`textual-representation-design.md`, glossed one line each. The
+textual form is a projection of exactly these nodes and ports — a
+compact way to show what a construct looks like when written down.
+(The `-~>` arrow you just saw marks a value crossing *together with
+its flow*; you will meet it properly at Collect.)
 
-**Scope.** This spec describes the full diagram model. The implemented
-layer (`src/Expr.res`) is a smaller fragment with its own representation
-debts; its migration to first-class ports — dissolving Branch and the
-`Joined`/`Filtered` wrappers into alt ports and binary Join nodes — is
-worked out in `first-class-ports-design.md`. An earlier IterationRail /
-TapIn / TapOut machinery for loop-carried state has been removed
-(schemas remain in git history); why it died is recorded under Delay,
-and the still-usable rail ideas are kept in
+**Scope.** This spec describes the full diagram model. The
+implemented layer (`src/Expr.res`) is a smaller fragment with its own
+representation debts; its migration to first-class ports — dissolving
+Branch and the `Joined`/`Filtered` wrappers into alt ports and binary
+Join nodes — is worked out in `first-class-ports-design.md`. An
+earlier IterationRail / TapIn / TapOut machinery for loop-carried
+state has been removed (schemas remain in git history); why it died
+is recorded under Delay, and the still-usable rail ideas are kept in
 `iteration-rails-design-notes.md`.
 
 ---
 
 ## Primitive Identifiers
+
+Before the schemas, the names they use. Each of these is just an
+identifier — a label with no structure of its own:
 
 ```
 DiagramId: unique identifier for a diagram
@@ -62,8 +103,10 @@ CaseName: identifier for cases within a split
 
 ## Diagrams
 
-A **Diagram** is a reusable sub-program with defined inputs, outputs, and
-optionally slots where sub-diagrams can be supplied.
+Where does a set of nodes live? In a **Diagram** — a reusable
+sub-program with defined inputs, outputs, and optionally slots where
+sub-diagrams can be supplied. If you are used to conventional
+languages, a diagram plays the role of a function definition.
 
 ```
 Diagram:
@@ -77,18 +120,22 @@ Diagram:
   nodes: Set<Node>
 ```
 
-The `nodes` field contains all nodes in the diagram. In a complete
-diagram most nodes are reachable by recursively following sources back
-from the `DiagramValueOutput` and `DiagramFlowOutput` nodes, but the
-explicit set accommodates partially constructed diagrams during editing.
-It is load-bearing for complete programs too: a Delay's write half can be
-root-unreachable, so **the program of record is a node set, not a root
-expression** (`first-class-ports-design.md`, "the program is a node
-set").
+The `nodes` field contains all nodes in the diagram. You might expect
+the node set to be redundant — surely you could recover every node by
+starting at the outputs and following wires backwards? In a complete
+diagram most nodes are indeed reachable by recursively following
+sources back from the `DiagramValueOutput` and `DiagramFlowOutput`
+nodes, but the explicit set accommodates partially constructed
+diagrams during editing. And it is load-bearing for complete programs
+too: a Delay's write half (you will meet Delay below) can be
+root-unreachable, so **the program of record is a node set, not a
+root expression** (`first-class-ports-design.md`, "the program is a
+node set").
 
 **Slots** let a diagram have "cut-outs" where caller-supplied
-sub-diagrams are inserted. This enables configuration scopes and similar
-patterns.
+sub-diagrams are inserted. This enables configuration scopes and
+similar patterns. A slot's signature says what the inserted
+sub-diagram must offer:
 
 ```
 SlotSignature:
@@ -98,8 +145,8 @@ SlotSignature:
   flowOutputs: List<{name: String}>
 ```
 
-In the textual form a diagram declares its boundary ports explicitly; an
-output is a statement, not an implicit "last expression":
+In the textual form a diagram declares its boundary ports explicitly;
+an output is a statement, not an implicit "last expression":
 
 ```
 diagram sumOf
@@ -123,14 +170,16 @@ Node:
   kind: NodeKind
 ```
 
-Nodes have named input and output ports for both values and flows. Which
-ports exist depends on the node kind.
+Nodes have named input and output ports for both values and flows.
+Which ports exist depends on the node kind.
 
 ---
 
 ## Sources
 
-Sources are the nested pointers from inputs to outputs.
+A wire, in the data, is a pointer stored at the input end: the input
+remembers which node and which output port it reads. These pointers
+are called **sources**.
 
 ```
 ValueSource:
@@ -145,16 +194,24 @@ FlowSource:
 A `ValueSource` points to a value output port on another node; a
 `FlowSource` points to a flow output port. In the text these are just
 references: a bare name denotes a node's principal value port, `~name`
-its principal flow port, and `name.Alt` / `~name.Alt` project to a named
-port.
+its principal flow port, and `name.Alt` / `~name.Alt` project to a
+named port.
 
 ---
 
 ## Node Kinds
 
+Now the inventory. Each kind is introduced by what it does in a small
+program, then pinned down by its schema. The order roughly follows
+the order you would meet them as a learner: the pieces of the
+doubling program first, then flow surgery (join, commute), then the
+machinery for structs, functions, effects, positional splits, and
+loop-carried state.
+
 ### Literal
 
-Produces a constant value.
+Produces a constant value — the `[1, 2, 3]` of the doubling program
+is one of these.
 
 ```
 Literal:
@@ -175,7 +232,8 @@ double = js "x => x * 2"   -- an extern (a JsAst expression), named
 
 ### Primitive
 
-Applies a built-in operation to inputs.
+Applies a built-in operation to inputs — an `add`, a comparison, a
+`double`.
 
 ```
 Primitive:
@@ -192,61 +250,12 @@ a, b -> add             -- add(a, b); topic-first: -> add(b) means add(a, b)
 
 ---
 
-### Aggregate
-
-Combines field values into a struct.
-
-```
-Aggregate:
-  structType: StructType
-  fields: Map<FieldName, ValueSource>
-
-  valueOutputs: {struct}
-  flowOutputs: {}
-```
-
----
-
-### Disaggregate
-
-Splits a struct into its field values.
-
-```
-Disaggregate:
-  structType: StructType
-  input: ValueSource
-
-  valueOutputs: {<one per field in structType, named by FieldName>}
-  flowOutputs: {}
-```
-
----
-
-### FunctionCall
-
-Invokes another diagram.
-
-```
-FunctionCall:
-  function: DiagramId
-  args: Map<ParamName, ValueSource>
-  flowArgs: Map<FlowParamName, FlowSource>
-  slotImplementations: Map<SlotName, DiagramId>
-
-  valueOutputs: {<defined by function's valueOutputs>}
-  flowOutputs: {<defined by function's flowOutputs>}
-```
-
-`slotImplementations` supplies sub-diagrams for any slots the called
-function defines.
-
----
-
 ### Uncollect
 
-Creates a flow by "opening" an iteration, case split, or configuration
-scope. (*Uncollect* is the operation that turns a value into a flow: a
-list opens into a per-element flow, a case-typed value into a bundle of
+The `open list` in the doubling program is this node. It creates a
+flow by "opening" an iteration, case split, or configuration scope.
+(*Uncollect* is the operation that turns a value into a flow: a list
+opens into a per-element flow, a case-typed value into a bundle of
 case flows.)
 
 ```
@@ -259,8 +268,10 @@ Uncollect:
   flowOutputs: {<depends on variant>}
 ```
 
-`outerFlows` lists the existing flows this new flow is "inner" to, from
-outermost to innermost. It must be explicit because:
+`outerFlows` lists the existing flows this new flow is "inner" to,
+from outermost to innermost. You might wonder why this has to be
+stored — can't the nesting be worked out from where the inputs come
+from? It must be explicit because:
 
 1. It cannot always be inferred from value inputs — especially when
    there are no value inputs.
@@ -286,18 +297,19 @@ UncollectVariant:
 
 For `Iteration`, the input is typically a collection (list, tree, …).
 The value outputs are the **universal payload** — fields available at
-every position regardless of case (e.g. `element` for a list). The flow
-output is the iteration context. Case-specific payload fields are reached
-via `IterationPayload` after case-splitting.
+every position regardless of case (e.g. `element` for a list). The
+flow output is the iteration context. Case-specific payload fields
+are reached via `IterationPayload` after case-splitting.
 
-For `CaseSplit`, the input is a value of an alternative type; the outputs
-are the payload and flow for each alternative.
+For `CaseSplit`, the input is a value of an alternative type; the
+outputs are the payload and flow for each alternative.
 
 For `ConfigScope`, the inputs are whatever the diagram requires; the
-outputs are what the slot expects, plus an opaque flow representing the
-suspended scope state.
+outputs are what the slot expects, plus an opaque flow representing
+the suspended scope state.
 
-The flow kind is part of the node — chosen explicitly, never inferred:
+The flow kind is part of the node — chosen explicitly, never
+inferred:
 
 ```
 xs -> open list => a, ~L                  -- element `a`, flow `~L`
@@ -306,19 +318,20 @@ r  -> split isJust of Just, Nothing => cs -- CaseSplit; alt ports on `cs`
 ys -> open list in ~L => y, ~Y            -- explicit outer-nesting (outerFlows)
 ```
 
-The `in ~L` clause is `outerFlows`. When nesting is implied by the value
-input (opening a value that is itself per-iteration), it is omitted; when
-neither implied nor stated, the program is under-committed and the editor
-completes it.
+The `in ~L` clause is `outerFlows`. When nesting is implied by the
+value input (opening a value that is itself per-iteration), it is
+omitted; when neither implied nor stated, the program is
+under-committed and the editor completes it.
 
 ---
 
 ### Collect
 
-Destroys a flow by "closing" an iteration, case split, or configuration
-scope. (*Collect* terminates a flow and produces a value — a list flow
-gathers its per-element values back into a list; a case flow supplies one
-value per alternative.)
+The other end of the loop: the `collect` of the doubling program.
+Destroys a flow by "closing" an iteration, case split, or
+configuration scope. (*Collect* terminates a flow and produces a
+value — a list flow gathers its per-element values back into a list;
+a case flow supplies one value per alternative.)
 
 ```
 Collect:
@@ -339,11 +352,11 @@ CollectVariant:
   | ConfigScope(diagram: DiagramId, slotName: String, slotOutputs: Map<String, ValueSource>, flow: FlowSource)
 ```
 
-For `Iteration`, the inputs are the computed value and flow; the output
-is the collected result (e.g. a list). For `Case`, each branch supplies
-its computed value and flow; the output is the recombined alternative
-value. For `ConfigScope`, the inputs are what the slot produced plus the
-flow; the outputs are what the diagram produces.
+For `Iteration`, the inputs are the computed value and flow; the
+output is the collected result (e.g. a list). For `Case`, each branch
+supplies its computed value and flow; the output is the recombined
+alternative value. For `ConfigScope`, the inputs are what the slot
+produced plus the flow; the outputs are what the diagram produces.
 
 An iteration close, and a case close gathering its lanes:
 
@@ -358,51 +371,26 @@ maybes -> open list -> split isJust of Just, Nothing
 => out
 ```
 
-The `-~>` arrow marks a value crossing *together with its flow*, which is
-what a collect consumes.
-
----
-
-### Bundle
-
-Combines multiple flows into a single bundled flow.
-
-```
-Bundle:
-  count: Int
-  flows: List<FlowSource>
-
-  valueOutputs: {}
-  flowOutputs: {bundle}
-```
-
-`count` says how many flows are bundled; `flows` must have exactly that
-many elements.
-
----
-
-### Unbundle
-
-Splits a bundled flow into its constituent flows.
-
-```
-Unbundle:
-  count: Int
-  bundle: FlowSource
-
-  valueOutputs: {}
-  flowOutputs: {<count many, named by index: "0", "1", ..., "(count-1)">}
-```
+The `-~>` arrow marks a value crossing *together with its flow*,
+which is what a collect consumes: notice in the schema that an
+Iteration collect takes exactly one `value: ValueSource` and one
+`flow: FlowSource` — the two halves of that arrow.
 
 ---
 
 ### Join
 
-Collapses flow nesting, moving values from an inner flow context to an
-outer one. Flattening a nested list is a join of a list flow with a list
-flow; **filtering** is a join of a list flow with a case-alt flow (keep
-the elements where the alt fires) — there is no separate filter
-primitive.
+Suppose you open a list of lists twice and want one flat result.
+You have two levels of flow nesting but want to collect only once.
+Join collapses flow nesting, moving values from an inner flow context
+to an outer one. Flattening a nested list is a join of a list flow
+with a list flow.
+
+And here is a pleasant surprise: you might wonder why this inventory
+has no filter node. It turns out **filtering** *is* a join — a join
+of a list flow with a case-alt flow (keep the elements where the alt
+fires) — so there is no separate filter primitive; the language gets
+filtering for free from the pieces it already has.
 
 ```
 Join:
@@ -421,12 +409,13 @@ Join:
 JoinVariant: OperationName
 ```
 
-Different variants implement different joining behaviors (standard join,
-filter join). The output values correspond 1-1 with input values (same
-names); the output flow is the outer flow after the join.
+Different variants implement different joining behaviors (standard
+join, filter join). The output values correspond 1-1 with input
+values (same names); the output flow is the outer flow after the
+join.
 
-In a chain, join is operand-free — it merges the two innermost layers,
-inner into outer:
+In a chain, join is operand-free — it merges the two innermost
+layers, inner into outer:
 
 ```
 rows -> open list -> open list -> double -~> join -~> collect => flat
@@ -437,25 +426,29 @@ xs -> open list -> split parity of Even, Odd
   Odd:  -~> join -~> collect => odds
 ```
 
-**Design note — the binary form.** Join is a **binary** flow operation
-with asymmetric operands, an outer and an inner (`lazy-stream-join-design.md`,
-"Join is a binary flow operation"). Multi-level joins are *chains* of
-binary joins, not one node carrying several `innerFlows`. Whether the
-node keeps value pass-through ports at all is
-`first-class-ports-design.md` open question 3: the lean is **flow-only**,
-with values meeting the join only at collects, and the concurrent join is
+**Design note — the binary form.** Join is a **binary** flow
+operation with asymmetric operands, an outer and an inner
+(`lazy-stream-join-design.md`, "Join is a binary flow operation").
+Multi-level joins are *chains* of binary joins, not one node carrying
+several `innerFlows`. Whether the node keeps value pass-through ports
+at all is `first-class-ports-design.md` open question 3 — the
+language hasn't decided this yet. The lean is **flow-only**, with
+values meeting the join only at collects, and the concurrent join is
 the case that could justify keeping the ports. The crossing analysis
-(`barrier-value-crossing-design.md`) leans flow-only for the flatten join
-and the concurrent join both — pass-through reduces to availability by
-provenance, and this signature's `values` rows re-read as the drawn form
-of that availability. The multi-flow signature above is the older form,
-kept as the record until the binary revision is adopted here.
+(`barrier-value-crossing-design.md`) leans flow-only for the flatten
+join and the concurrent join both — pass-through reduces to
+availability by provenance, and this signature's `values` rows
+re-read as the drawn form of that availability. The multi-flow
+signature above is the older form, kept as the record until the
+binary revision is adopted here.
 
 ---
 
 ### Commute
 
-Swaps the nesting order of two flows.
+Sometimes two layers of nesting are in the wrong order for what you
+want next — you want to close the inner one but keep the outer one
+open. Commute swaps the nesting order of two flows.
 
 ```
 Commute:
@@ -472,47 +465,47 @@ Commute:
 CommuteVariant: OperationName
 ```
 
-After commute, what was inner becomes outer and vice versa. Both flows
-are output as *new* flows (not pass-throughs) because commute involves
-sequencing that downstream nodes may depend on.
+After commute, what was inner becomes outer and vice versa. Both
+flows are output as *new* flows (not pass-throughs) because commute
+involves sequencing that downstream nodes may depend on.
 
-**The node carries flow wires only — no value inputs or outputs.** Value
-computations hang off the original opens' value ports and meet the
-commute only at a close: a close on a commute-derived flow supplies its
-value from ordinary value wires, like any close. Compilation realizes
-commute in the close's output construction
-(`lazy-stream-commute-design.md`); when the two swapped flows are closed
-separately, the compiler treats the node as a full commuted close
-followed by an immediate re-open of the still-open layer(s) — internal
-bookkeeping, never surfaced as ports. This is the reconciliation of the
-node form (the representation) with the per-close form (the
-compilation): **the node is the representation; the close is the
-compilation.**
+**The node carries flow wires only — no value inputs or outputs.**
+Value computations hang off the original opens' value ports and meet
+the commute only at a close: a close on a commute-derived flow
+supplies its value from ordinary value wires, like any close.
+Compilation realizes commute in the close's output construction
+(`lazy-stream-commute-design.md`); when the two swapped flows are
+closed separately, the compiler treats the node as a full commuted
+close followed by an immediate re-open of the still-open layer(s) —
+internal bookkeeping, never surfaced as ports. This is the
+reconciliation of the node form (the representation) with the
+per-close form (the compilation): **the node is the representation;
+the close is the compilation.**
 
 Two consequences:
 
-- **"Swap-and-continue" is not a thing.** With no value ports there is
-  nothing to wire "under the swapped nesting"; the only consumers of the
-  node's output flows are flow operations (closes, joins, further
-  commutes). The old question — whether continuing computation under the
-  swapped nesting is implementable — is not answered but *dissolved*: no
-  such program is expressible.
+- **"Swap-and-continue" is not a thing.** With no value ports there
+  is nothing to wire "under the swapped nesting"; the only consumers
+  of the node's output flows are flow operations (closes, joins,
+  further commutes). The old question — whether continuing
+  computation under the swapped nesting is implementable — is not
+  answered but *dissolved*: no such program is expressible.
 - **The syntax quotients by naturality.** Because value nodes neither
-  inherit from nor feed the Commute node, "before vs. after the commute"
-  has no representation: programs equal by the naturality identity
-  (map-then-commute = commute-then-map) are the same diagram — the
-  strongest form of the one-way-to-read principle. The compiler is free
-  to pick evaluation timing; it computes values per element during the
-  commuted walk, with the short-circuit skipping the rest. Unobservable
-  in a pure language, so the choice is free.
+  inherit from nor feed the Commute node, "before vs. after the
+  commute" has no representation: programs equal by the naturality
+  identity (map-then-commute = commute-then-map) are the same
+  diagram — the strongest form of the one-way-to-read principle. The
+  compiler is free to pick evaluation timing; it computes values per
+  element during the commuted walk, with the short-circuit skipping
+  the rest. Unobservable in a pure language, so the choice is free.
 
-The two output flows need not be closed together. Closing the new inner
-flow while leaving the new outer flow open is the **defer-the-error**
-idiom: a loop that may fail commutes its option/error flow out of the
-loop, closes the loop, and leaves the error flow open to handle later.
-The inner close's output is then an ordinary value wire under the
-still-open outer flow, referenced by whatever close eventually handles
-it.
+The two output flows need not be closed together. Closing the new
+inner flow while leaving the new outer flow open is the
+**defer-the-error** idiom: a loop that may fail commutes its
+option/error flow out of the loop, closes the loop, and leaves the
+error flow open to handle later. The inner close's output is then an
+ordinary value wire under the still-open outer flow, referenced by
+whatever close eventually handles it.
 
 ```
 xs -> open list -> mayFail -> open option -~> commute -~> collect
@@ -520,30 +513,142 @@ xs -> open list -> mayFail -> open option -~> commute -~> collect
 perElem -> summarize -~> collect => report
 ```
 
-A close under a never-closed flow is unreachable (dead by consumer-set
-analysis), so deferral is "not now," not "never" — the editor should
-surface a never-closed commute-derived flow rather than let it die
-silently.
+A close under a never-closed flow is unreachable (dead by
+consumer-set analysis), so deferral is "not now," not "never" — the
+editor should surface a never-closed commute-derived flow rather than
+let it die silently.
 
 Only option-out-of-stream has a worked-out compile
 (`lazy-stream-commute-design.md`); other variants
 (result-out-of-stream, marker-out-of-sequenceable, …) share the node
 shape but await their own runtime design. Which flow-kind pairs get a
-variant at all — and which commute for free or belong to other operations
-— is mapped in that document's "The commute-variant taxonomy" section.
+variant at all — and which commute for free or belong to other
+operations — is mapped in that document's "The commute-variant
+taxonomy" section.
 
-**Why not value pass-through ports.** An earlier signature carried
-per-element value pass-through ports; those are what made
-"swap-and-continue" look like a design obligation. The 1-1
-correspondence they encoded is the naturality identity, which the
-port-free node expresses better by making the before/after distinction
-unrepresentable.
+Now, you might wonder why the commute node doesn't carry value ports
+that pass each per-element value across the swap, so you could keep
+computing "under the swapped nesting." An earlier signature did
+exactly that — it carried per-element value pass-through ports — and
+those ports are what made "swap-and-continue" look like a design
+obligation. It turns out the ports were encoding something the
+representation already guarantees: the 1-1 correspondence they
+encoded is the naturality identity, which the port-free node
+expresses better by making the before/after distinction
+unrepresentable. (This is a settled removal — the value-port
+signature should not be re-proposed without new evidence.)
+
+---
+
+### Aggregate
+
+Combines field values into a struct.
+
+```
+Aggregate:
+  structType: StructType
+  fields: Map<FieldName, ValueSource>
+
+  valueOutputs: {struct}
+  flowOutputs: {}
+```
+
+---
+
+### Disaggregate
+
+The reverse: splits a struct into its field values.
+
+```
+Disaggregate:
+  structType: StructType
+  input: ValueSource
+
+  valueOutputs: {<one per field in structType, named by FieldName>}
+  flowOutputs: {}
+```
+
+---
+
+### FunctionCall
+
+Invokes another diagram — this is how one diagram uses another as a
+building block.
+
+```
+FunctionCall:
+  function: DiagramId
+  args: Map<ParamName, ValueSource>
+  flowArgs: Map<FlowParamName, FlowSource>
+  slotImplementations: Map<SlotName, DiagramId>
+
+  valueOutputs: {<defined by function's valueOutputs>}
+  flowOutputs: {<defined by function's flowOutputs>}
+```
+
+`slotImplementations` supplies sub-diagrams for any slots the called
+function defines.
+
+---
+
+### SlotInvocation
+
+Inside a diagram that declares a slot, this node is where the
+caller-supplied sub-diagram runs.
+
+```
+SlotInvocation:
+  slotName: String
+  args: Map<ParamName, ValueSource>
+  flowArgs: Map<FlowParamName, FlowSource>
+
+  valueOutputs: {<defined by slot signature's valueOutputs>}
+  flowOutputs: {<defined by slot signature's flowOutputs>}
+```
+
+Can only appear within a diagram that defines the named slot.
+
+---
+
+### Bundle
+
+Combines multiple flows into a single bundled flow, so they can be
+carried together as one wire.
+
+```
+Bundle:
+  count: Int
+  flows: List<FlowSource>
+
+  valueOutputs: {}
+  flowOutputs: {bundle}
+```
+
+`count` says how many flows are bundled; `flows` must have exactly
+that many elements.
+
+---
+
+### Unbundle
+
+Splits a bundled flow back into its constituent flows.
+
+```
+Unbundle:
+  count: Int
+  bundle: FlowSource
+
+  valueOutputs: {}
+  flowOutputs: {<count many, named by index: "0", "1", ..., "(count-1)">}
+```
 
 ---
 
 ### EffectOperation
 
 Performs an operation on an effect flow (IO, State, Exception, …).
+An effect flow is how the language sequences things like printing:
+each operation happens after whatever produced the flow it consumes.
 
 ```
 EffectOperation:
@@ -557,27 +662,31 @@ EffectOperation:
 ```
 
 - `effect`: which effect type (e.g. "IO", "State", "Exception").
-- `operation`: which operation on it (e.g. "print", "readLine", "get",
-  "put", "throw").
-- `flow`: the incoming effect flow; this operation happens after whatever
-  produced that flow.
+- `operation`: which operation on it (e.g. "print", "readLine",
+  "get", "put", "throw").
+- `flow`: the incoming effect flow; this operation happens after
+  whatever produced that flow.
 - `inputs`: values the operation needs.
 
 The output `flow` is the effect flow after this operation. Downstream
 effect operations must use it to keep sequencing.
 
 Effect flows enter diagrams via `DiagramFlowInput`, exit via
-`DiagramFlowOutput`, can be bundled/unbundled like other flows, can be
-incorporated into values (`Incorporate`), and can be sequenced (`Join`).
+`DiagramFlowOutput`, can be bundled/unbundled like other flows, can
+be incorporated into values (`Incorporate`), and can be sequenced
+(`Join`).
 
 ---
 
 ### Incorporate
 
-Adds flow dependencies to a value, positioning new flows relative to
-existing flow dependencies. This is how a value from outside a flow — a
-constant, or a value from an enclosing context — is brought into that
-flow's context as a named step.
+A value from outside a flow — a constant, or a value from an
+enclosing context — can usually just be used inside the flow, no
+ceremony required. But sometimes you want the bringing-in to be a
+named, explicit step, with control over exactly where in the nesting
+order the new dependency sits. Incorporate adds flow dependencies to
+a value, positioning new flows relative to existing flow
+dependencies.
 
 ```
 Incorporate:
@@ -596,15 +705,15 @@ IncorporateFlowSpec:
   isExisting: Bool  // true = existing dependency, false = newly incorporated
 ```
 
-`flows` specifies the desired flow-dependency order for the output value,
-outermost to innermost. Each entry says whether the flow is an existing
-dependency of the input value or a newly incorporated one. The output
-value depends on all flows in that order.
+`flows` specifies the desired flow-dependency order for the output
+value, outermost to innermost. Each entry says whether the flow is an
+existing dependency of the input value or a newly incorporated one.
+The output value depends on all flows in that order.
 
 **Flow outputs:** each existing flow in the input list produces a
-corresponding flow output, because existing flows that now have newly
-incorporated flows *outer* to them must be closed and reopened during
-implementation, producing new flow wires.
+corresponding flow output. Why? Because existing flows that now have
+newly incorporated flows *outer* to them must be closed and reopened
+during implementation, producing new flow wires.
 
 **Examples:**
 
@@ -618,8 +727,8 @@ implementation, producing new flow wires.
    - flowOutputs: `{A', B'}` (reopened versions)
    - Result: `v` depending on `[A', C, B']`
 
-3. Value `v` depending on `[A, B, C]`, incorporate `D` between A and B
-   and `E` between B and C:
+3. Value `v` depending on `[A, B, C]`, incorporate `D` between A and
+   B and `E` between B and C:
    - flows: `[{A, existing}, {D, new}, {B, existing}, {E, new}, {C, existing}]`
    - flowOutputs: `{A', B', C'}`
    - Result: `v` depending on `[A', D, B', E, C']`
@@ -631,18 +740,24 @@ listA -> incorporate in ~B      -- bring listA into ~B's context (spelling per
 ```
 
 **One usage is corrected.** Incorporate is a meaningful primitive and
-stays. But it must **not** be used to nest two *sibling* uncollects (two
-independently opened lists) inside one another — that erases their mutual
-independence. For that case the right node is a **Cross**
-(`product-flows-design.md`). The Cross node has no spec entry yet; one is
-owed when that design lands.
+stays. But you might wonder whether you could use it to nest two
+*sibling* uncollects (two independently opened lists) inside one
+another — incorporating one open's flow under the other's. It turns
+out this must **not** be done: it erases their mutual independence.
+For that case the right node is a **Cross**
+(`product-flows-design.md`). (This misuse is a settled correction —
+don't reach for Incorporate there.) The Cross node has no spec entry
+yet; one is owed when that design lands — that's deferred work, not a
+rejection of Cross.
 
 ---
 
 ### IterationCaseSplit
 
-Splits an iteration flow by structural position (e.g. initial vs. step,
-or last vs. non-last).
+Some programs care about *where* in an iteration they are — is this
+the first element? the last? — rather than what the element is. This
+node splits an iteration flow by structural position (e.g. initial
+vs. step, or last vs. non-last).
 
 ```
 IterationCaseSplit:
@@ -661,12 +776,12 @@ For example, a list iteration might have:
 - a "future" split with cases "last" and "non-last" → outputs named
   "last" and "non-last".
 
-The output flows are still iteration flows: they can be case-split again
-with a different split, or used with `IterationPayload`.
+The output flows are still iteration flows: they can be case-split
+again with a different split, or used with `IterationPayload`.
 
-Carried state does *not* need this split: Delay's initial value is wired
-from outside the flow, so no first/subsequent split is required. The
-split remains for genuinely positional programs.
+Carried state does *not* need this split: Delay's initial value is
+wired from outside the flow, so no first/subsequent split is
+required. The split remains for genuinely positional programs.
 
 ---
 
@@ -684,22 +799,32 @@ IterationPayload:
   flowOutputs: {}
 ```
 
-- `iterationType`: the iteration type, which defines available payload
-  fields per case.
-- `caseFlow`: the case-split flow, which determines which case's payload
-  fields are available.
+- `iterationType`: the iteration type, which defines available
+  payload fields per case.
+- `caseFlow`: the case-split flow, which determines which case's
+  payload fields are available.
 
-Needed only for case-specific payload. Universal payload (like `element`
-for a list) is output directly from Uncollect. For a binary tree in the
-"node" case this outputs the `element`; the case is fixed by which flow
-is wired to `caseFlow`.
+Needed only for case-specific payload. Universal payload (like
+`element` for a list) is output directly from Uncollect. For a binary
+tree in the "node" case this outputs the `element`; the case is fixed
+by which flow is wired to `caseFlow`.
 
 ---
 
 ### Delay
 
-The loop-carried-variable construct: a value carried from one iteration
-of a flow to the next.
+Here is a running sum, the classic loop-carried computation — a value
+carried from one iteration of a flow to the next:
+
+```
+xs -> open list => a, ~L
+~L ~> delay init 0 => sum          -- read half; bare `sum` = prev
+sum, a -> add -> step of sum => total   -- write half; binder = the new value
+```
+
+On the first element, `sum` is `0`; on each later element, `sum` is
+whatever `step` was wired to on the previous element. Delay is the
+loop-carried-variable construct.
 
 ```
 Delay:
@@ -711,48 +836,51 @@ Delay:
   flowOutputs: {}
 ```
 
-> *Known gap in this inventory.* The one-node shape above has no home for
-> the register's **final value** (the total after the flow completes), and
-> the two-phase `step` wiring is not constructible on immutable data. Both
-> are answered by the **register pair** — a read half and a write half,
-> the write half a node of its own with `final` as its output
-> (`iteration-with-state-design.md`, "The Delay back-edge: the write half is
-> a node"). Whether the spec keeps one Delay node with the pair as its
-> Expr-level form, or adopts the pair, is open there; either way `final`
-> needs a home this section currently lacks. A second open question rides
-> on `flow`: *which* flow a Delay is tied to when more than one is in
-> reach is the Delay ontology (`delay-ontology-design.md`), not settled by
-> this field's existence.
+> *Known gap in this inventory.* The one-node shape above has no home
+> for the register's **final value** (the total after the flow
+> completes), and the two-phase `step` wiring is not constructible on
+> immutable data. Both are answered by the **register pair** — a read
+> half and a write half, the write half a node of its own with
+> `final` as its output (`iteration-with-state-design.md`, "The Delay
+> back-edge: the write half is a node"). Whether the spec keeps one
+> Delay node with the pair as its Expr-level form, or adopts the
+> pair, is open there; either way `final` needs a home this section
+> currently lacks. A second open question rides on `flow`: *which*
+> flow a Delay is tied to when more than one is in reach is the Delay
+> ontology — the question of what a Delay *is*
+> (`delay-ontology-design.md`), not settled by this field's
+> existence.
 
 - `flow`: the iteration flow the carried variable spans. A Delay is
   always explicitly tied to a specific flow.
-- `init`: an input from outside the flow. On the first iteration, `prev`
-  outputs this value. Wiring `init` from a per-iteration value is
-  ill-formed (same family as the no-time-travel rule).
-- `step`: a per-iteration input. Whatever computes the new carried value
-  wires into this port; that value emerges from `prev` on the next
-  iteration.
-- `prev` output: the previous iteration's `step` value (or `init` on the
-  first iteration). Read by ordinary wiring, exactly as a list
+- `init`: an input from outside the flow. On the first iteration,
+  `prev` outputs this value. Wiring `init` from a per-iteration value
+  is ill-formed (same family as the no-time-travel rule).
+- `step`: a per-iteration input. Whatever computes the new carried
+  value wires into this port; that value emerges from `prev` on the
+  next iteration.
+- `prev` output: the previous iteration's `step` value (or `init` on
+  the first iteration). Read by ordinary wiring, exactly as a list
   iteration's `element` is read off its Uncollect.
 
-The read half and write half are two textual statements — mint the read,
-wire the step later:
-
-```
-xs -> open list => a, ~L
-~L ~> delay init 0 => sum          -- read half; bare `sum` = prev
-sum, a -> add -> step of sum => total   -- write half; binder = the new value
-```
+The read half and write half are two textual statements — mint the
+read, wire the step later — as the running-sum example above shows.
 
 `init` is kept syntactically apart from per-iteration inputs. That
-separation is load-bearing: putting the initial value inside the flow is
-the misplacement that got the rejected `stateful(initial, update)` /
-`prev(x)` shapes rejected (`iteration-with-state-design.md`).
+separation is load-bearing: you might wonder why the language doesn't
+just offer a `stateful(initial, update)` operation, or a `prev(x)`
+you can call anywhere. It turns out putting the initial value inside
+the flow is exactly the misplacement that got those shapes rejected —
+the rejected `stateful(initial, update)` / `prev(x)` forms and the
+full reasons are recorded in `iteration-with-state-design.md`. (Those
+are settled rejections — please don't re-propose them without new
+evidence.)
 
-**One variable per Delay.** Multiple carried variables are multiple Delay
-nodes; no tuple packing. Cross-references (one Delay's `step` computed
-from another's `prev`) are ordinary wires — self-reference and
+**One variable per Delay.** You might wonder: if a loop carries two
+variables, why not one Delay holding a tuple of both? The language
+says no — multiple carried variables are multiple Delay nodes; no
+tuple packing. Cross-references (one Delay's `step` computed from
+another's `prev`) are ordinary wires — self-reference and
 cross-reference are not distinguished structurally. Fibonacci is two
 Delays whose `step` inputs read each other's `prev` outputs:
 
@@ -764,80 +892,72 @@ fb -> step of fa => lastA
 fa, fb -> add -> step of fb => lastB
 ```
 
-**No multi-step lookback.** `prev` reaches back exactly one iteration.
-Two-step lookback is two Delays, one feeding the other — the chain of
-carried state stays visible.
+**No multi-step lookback.** `prev` reaches back exactly one
+iteration. Two-step lookback is two Delays, one feeding the other —
+the chain of carried state stays visible.
 
-**No symbolic references.** The `step` input is a back-edge: a diagram
-containing a Delay is not a DAG. This is deliberate — the back-edge *is*
-the iteration — and it needs no `ById`-style symbolic indirection. A
-Delay's `prev` port exists as soon as the node is created and can be
-referenced immediately; `step` is wired as a separate, later act — the
-same two-phase pattern as wiring a Collect to its Uncollect.
+**No symbolic references.** The `step` input is a back-edge: a
+diagram containing a Delay is not a DAG. This is deliberate — the
+back-edge *is* the iteration — and it needs no `ById`-style symbolic
+indirection. A Delay's `prev` port exists as soon as the node is
+created and can be referenced immediately; `step` is wired as a
+separate, later act — the same two-phase pattern as wiring a Collect
+to its Uncollect.
 
 **Well-formedness (productivity).** A diagram is well-formed only if
-deleting every Delay's internal `step → prev` edge leaves the value graph
-acyclic — i.e. every cycle must pass through a Delay. This is a
-whole-diagram quotient constraint (like alt matching and no-crossing):
-enforced as a check, not by construction. It is the standard causality
-check of synchronous dataflow languages (Lustre's `pre`/`->`).
+deleting every Delay's internal `step → prev` edge leaves the value
+graph acyclic — i.e. every cycle must pass through a Delay. This is a
+whole-diagram quotient constraint (like alt matching and
+no-crossing): enforced as a check, not by construction. It is the
+standard causality check of synchronous dataflow languages (Lustre's
+`pre`/`->`).
 
 **Compile target.** A single mutable register in the generated loop:
 `init` sets it before the loop, `prev` reads it at the top of each
 iteration, `step` assigns it at the bottom. The cross-iteration cycle
 never appears within one iteration of the generated code.
 
-**Visual representation.** The redesigned iteration rail: a horizontal
-line crossing the single generic iteration column, with a tap-down read
-on the left (= `prev`), a writeback-up on the right (= `step`), and the
-initial value attached by a dotted line (= `init`). No diagonal, no
-multi-slot shapes, no ghost columns. See
-`iteration-rails-design-notes.md`.
+**Visual representation.** (Drawing concerns are out of scope for
+work in this repo; recorded here for completeness.) The redesigned
+iteration rail: a horizontal line crossing the single generic
+iteration column, with a tap-down read on the left (= `prev`), a
+writeback-up on the right (= `step`), and the initial value attached
+by a dotted line (= `init`). No diagonal, no multi-slot shapes, no
+ghost columns. See `iteration-rails-design-notes.md`.
 
 **Status — one of two live candidates.** Delay is one of two live
 candidate designs for iteration state. Both supersede the retired
-IterationRail / TapIn / TapOut trio (schemas in git history), which got
-three things wrong: multi-slot lookback made the rail visually degenerate
-under generalization (deeper lookback is chained Delays instead);
-per-case TapIns put the initial value *inside* the flow when it belongs
-outside; and `ById` symbolic references stand in for what is honestly a
-back-edge plus the productivity check. The other candidate is the
-**latent-flow representation**: generalizing cuts a value wire and
-interposes an *augmented uncollect* — the flow's opener with a seed input
-and a per-iteration state output added — with a feedback collect
-producing the modified flow. Its node schema is not yet pinned down (the
-feedback-collect mechanic is open), so only Delay is specified here. The two candidates have since been proven result-level equivalent — one
-register pair under two drawings — so the open decision is the surface,
-not the semantics. See
-`iteration-with-state-design.md`, "The two candidates side by side" and
-"The equivalence, worked," for the comparison; the
-reasoning behind Delay is there (semantic side: the "link" transformation
-and the port form) and in `iteration-rails-design-notes.md` (visual side:
-the redesigned rail, which both candidates realize).
+IterationRail / TapIn / TapOut trio (schemas in git history). You
+might wonder why the language doesn't keep that rail machinery — it
+looked like a natural home for carried state. It turns out it got
+three things wrong: multi-slot lookback made the rail visually
+degenerate under generalization (deeper lookback is chained Delays
+instead); per-case TapIns put the initial value *inside* the flow
+when it belongs outside; and `ById` symbolic references stand in for
+what is honestly a back-edge plus the productivity check. (This is a
+settled retirement — don't resurrect the trio without new evidence.)
 
----
-
-### SlotInvocation
-
-Invokes a slot within the current diagram.
-
-```
-SlotInvocation:
-  slotName: String
-  args: Map<ParamName, ValueSource>
-  flowArgs: Map<FlowParamName, FlowSource>
-
-  valueOutputs: {<defined by slot signature's valueOutputs>}
-  flowOutputs: {<defined by slot signature's flowOutputs>}
-```
-
-Can only appear within a diagram that defines the named slot.
+The other candidate is the **latent-flow representation**:
+generalizing cuts a value wire and interposes an *augmented
+uncollect* — the flow's opener with a seed input and a per-iteration
+state output added — with a feedback collect producing the modified
+flow. Its node schema is not yet pinned down (the feedback-collect
+mechanic is open), so only Delay is specified here. The two
+candidates have since been proven result-level equivalent — one
+register pair under two drawings — so the open decision is the
+surface, not the semantics. See `iteration-with-state-design.md`,
+"The two candidates side by side" and "The equivalence, worked," for
+the comparison; the reasoning behind Delay is there (semantic side:
+the "link" transformation and the port form) and in
+`iteration-rails-design-notes.md` (visual side: the redesigned rail,
+which both candidates realize).
 
 ---
 
 ### DiagramValueInput
 
-Entry point for a value parameter into a diagram.
+Entry point for a value parameter into a diagram — the node behind an
+`in xs` line.
 
 ```
 DiagramValueInput:
@@ -853,7 +973,8 @@ DiagramValueInput:
 
 ### DiagramValueOutput
 
-Exit point for a value result from a diagram.
+Exit point for a value result from a diagram — the node behind an
+`out total = t` line.
 
 ```
 DiagramValueOutput:
@@ -905,7 +1026,8 @@ DiagramFlowOutput:
 
 ### AlternativeType
 
-Defines the alternatives for a disjoint union.
+Defines the alternatives for a disjoint union — the `Just, Nothing`
+or `Even, Odd` of a split.
 
 ```
 AlternativeType:
@@ -917,7 +1039,9 @@ AlternativeType:
 ### IterationType
 
 Defines the structure of an iteration: its universal payload, case
-splits, and the case-specific fields available in each case.
+splits, and the case-specific fields available in each case. This is
+what makes `open list` and `open binaryTree` different instances of
+the same Uncollect node.
 
 ```
 IterationType:
@@ -998,32 +1122,39 @@ version of the language.
 
 ## Flow Types
 
-Flows created by different mechanisms have different capabilities:
+You have now met four ways a flow can come into being. Flows created
+by different mechanisms have different capabilities:
 
 **Iteration flows** (from Uncollect Iteration):
 - Can be case-split using `IterationCaseSplit`.
-- Can host Delay nodes (loop-carried state; formerly iteration rails).
+- Can host Delay nodes (loop-carried state; formerly iteration
+  rails).
 - Used for traversing recursive data structures (lists, trees, …).
 
 **Alternative flows** (from Uncollect CaseSplit):
 - Represent being in a particular branch of a sum type.
-- Cannot be case-split further (they already represent a specific case).
+- Cannot be case-split further (they already represent a specific
+  case).
 - No zipper structure.
 - Must eventually be recombined via Collect Case.
 
 **Opaque flows** (from Uncollect ConfigScope):
 - Cannot be case-split or inspected.
-- Represent bundled wiring that passes through from uncollect to collect.
+- Represent bundled wiring that passes through from uncollect to
+  collect.
 - Implemented as if the entire sub-diagram were inlined.
 
 **Effect flows** (from DiagramFlowInput or EffectOperation):
 - Enforce sequencing of effectful operations.
 - No zipper structure.
 - Threaded through EffectOperation nodes.
-- Can be incorporated into values, bundled, and joined like other flows.
+- Can be incorporated into values, bundled, and joined like other
+  flows.
 
-These distinctions are not enforced in the structural representation but
-are semantic properties of how each flow type can be used.
+These distinctions are not enforced in the structural representation
+but are semantic properties of how each flow type can be used — that
+is, they describe meaning, not what the data structure physically
+prevents.
 
 ---
 
@@ -1031,52 +1162,59 @@ are semantic properties of how each flow type can be used.
 
 ### No Time Travel Rule
 
-The representation is designed to support the "no time travel" rule: flow
-ordering and nesting relationships must be established at construction
-time, never determined retroactively. This is why:
+The representation is designed to support the "no time travel" rule:
+flow ordering and nesting relationships must be established at
+construction time, never determined retroactively. What you see
+nested *is* nested. This is why:
 
 - Join takes both an inner flow and an outer flow (binary — one inner
   flow per node, per the Join section's design note; whether it keeps
-  value ports is open there, and the point here needs only the two flow
-  operands).
-- Commute takes both flows as inputs (it carries no value ports — see the
-  Commute section).
-- Flow outputs from Join and Commute are new flows, not pass-throughs.
+  value ports is open there, and the point here needs only the two
+  flow operands).
+- Commute takes both flows as inputs (it carries no value ports — see
+  the Commute section).
+- Flow outputs from Join and Commute are new flows, not
+  pass-throughs.
 
 ### Nested Representation
 
-This is primarily a nested representation where inputs point to outputs.
-In a complete diagram, all nodes are reachable by starting from the
-diagram's output nodes (DiagramValueOutput, DiagramFlowOutput) and
-recursively following all sources, tracking visited nodes to handle
-sharing. Without Delay nodes the structure is a DAG; each Delay's `step`
-input is a back-edge, so traversal must treat `step` sources like any
-other shared reference (visited-set) rather than assuming acyclicity.
-Acyclicity modulo Delay crossings is the productivity check (see Delay).
+This is primarily a nested representation where inputs point to
+outputs. In a complete diagram, all nodes are reachable by starting
+from the diagram's output nodes (DiagramValueOutput,
+DiagramFlowOutput) and recursively following all sources, tracking
+visited nodes to handle sharing. Without Delay nodes the structure is
+a DAG; each Delay's `step` input is a back-edge, so traversal must
+treat `step` sources like any other shared reference (visited-set)
+rather than assuming acyclicity. Acyclicity modulo Delay crossings is
+the productivity check (see Delay).
 
-The diagram also maintains an explicit `nodes` set because during editing
-some nodes may be temporarily disconnected — and because a complete
-program is a node set (see the Diagram section).
+The diagram also maintains an explicit `nodes` set because during
+editing some nodes may be temporarily disconnected — and because a
+complete program is a node set (see the Diagram section).
 
-Self-reference needs no symbolic indirection: the cycle is embraced, not
-avoided. Delay's `step → prev` back-edge is an ordinary structural
-connection, well-formedness comes from the productivity check, and
-construction is two-phase (mint the Delay, wire `step` later). The
-retired alternative — `ById` symbolic references à la bound variable
-names — died with the rail design (see the status note under Delay);
-resurrecting id-as-reference would make Delay the one place a reference
-is not a structural pointer (`first-class-ports-design.md`, "The three
-named escapes fail for cause").
+Self-reference needs no symbolic indirection: the cycle is embraced,
+not avoided. Delay's `step → prev` back-edge is an ordinary
+structural connection, well-formedness comes from the productivity
+check, and construction is two-phase (mint the Delay, wire `step`
+later). Now, you might wonder why the language doesn't use `ById`
+symbolic references — names standing for nodes, the way a bound
+variable name stands for its binding — to break the cycle instead. It
+turns out that alternative died with the rail design (see the status
+note under Delay): resurrecting id-as-reference would make Delay the
+one place a reference is not a structural pointer
+(`first-class-ports-design.md`, "The three named escapes fail for
+cause"). (This is a settled rejection — please don't re-propose it
+without new evidence.)
 
 ### Types Omitted
 
-Value types (what kind of data flows through value wires) are outside the
-scope of this specification. They present unique considerations and will
-be addressed separately.
+Value types (what kind of data flows through value wires) are outside
+the scope of this specification. They present unique considerations
+and will be addressed separately.
 
 ### Semantic Validity
 
 This specification describes what diagrams can be structurally
-represented, not which diagrams are semantically valid. Validity checking
-(type correctness, flow-nesting correctness, etc.) is a separate concern
-built on top of this representation.
+represented, not which diagrams are semantically valid. Validity
+checking (type correctness, flow-nesting correctness, etc.) is a
+separate concern built on top of this representation.
