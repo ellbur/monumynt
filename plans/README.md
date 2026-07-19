@@ -215,8 +215,8 @@ consumes, and whether it needs an input list at all:
   the three docs below build on. *Exploration.*
 - [`effects-design.md`](effects-design.md) — making a loop *do*
   something once per firing (print a line, write a row): the most
-  common thing sampled loops are for, and currently unwritable. The
-  missing piece is not the effect but its ordering — an effect
+  common thing sampled loops are for. The piece to design is not the
+  effect but its ordering — an effect
   operation consumes an IO handle and emits the next one, so effects
   that must happen in loop order thread one handle through every
   iteration, which makes the handle loop-carried state: a register on a

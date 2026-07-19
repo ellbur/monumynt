@@ -50,11 +50,10 @@ open question 1. The *picture* it draws, though, is the chapter's
 whole subject: what does that handle do at the two ends of the
 loop?)
 
-As of this round, this little program is unwritable in the designed
-vocabulary — and doing an effect per firing is the single most common
-thing sampled loops do: about 42% of the sampled loops exist for
-their effects (`translation-exercise.md` B3). That is the gap this
-chapter works.
+Doing an effect per firing is the single most common thing sampled
+loops do: about 42% of the sampled loops exist for their effects
+(`translation-exercise.md` B3). That is what makes this small program
+worth a chapter.
 
 ## What was already settled before this chapter
 
