@@ -196,6 +196,13 @@ reduce-close, replacing the flat "no monoid, no node":
   (explicit seed, explicit asymmetry). Unchanged from the original
   decision.
 
+> TODO (simplify): when an augment's step is in fact a catalog
+> monoid applied symmetrically, the authored seed restates the
+> operator's identity — the same witness the reduce-close already
+> infers from. Seed the augment from the catalog in that case, and
+> reserve authored seeds for the genuinely asymmetric `S×E→S` steps
+> that are augment's reason to exist.
+
 This is the tidyverse `detect`-miss (option-shaped discharge)
 adopted as the tier itself, and it is what SQL has always done
 (aggregates of an empty group are NULL, except COUNT). The runtime

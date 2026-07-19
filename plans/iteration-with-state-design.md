@@ -473,6 +473,18 @@ hi, a -> max -> step of hi => curMax
 
 Two `delay`s over the same `~L`, two independent step lines, no tuple.
 
+> TODO (simplify): two pieces of ceremony in this sample are
+> bookkeeping the drawing already determines, and should default
+> away (precedent: the effects round's never-drawn commute —
+> mandatory + unique ⇒ inferred). (1) `init 0` and `init neginf`
+> restate the step operators' catalog identities; default a
+> register's `init` to the identity witness that already grounds the
+> empty reduce-close (`collect-family-design.md`), authored only
+> when the step is non-monoidal. (2) `~L ~>` names the flow purely
+> to attach; when exactly one enclosing flow is in reach, bind to it
+> by default (faint), spelling the flow only in the multi-flow case
+> `delay-ontology-design.md` isolates as the genuine choice.
+
 ### How the link relates to its flow
 
 Which loop does a link belong to? Two cases, resolving the same way —

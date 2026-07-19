@@ -13,9 +13,10 @@ waits.
 
 If you want the background first: `custom-flows.md` teaches the
 effect-handle lifecycle (the raw material this chapter builds from),
-`core-model.md` teaches value vs flow wires and points at the
-register, and the register sections of
-`iteration-with-state-design.md` teach `init`/`prev`/`step`/`final`.
+`core-model.md` teaches value vs flow wires, and
+`lazy-stream-commute-design.md` teaches commute — an inner flow
+moved outside its enclosing flow — which is the shape this
+chapter's answer takes.
 The prior-art poles are in `xquery-jq-comparison.md` (the pending
 update list), `reactive-comparison.md` (Elm `Cmd`),
 `effekt-comparison.md` and `flix-comparison.md` (effects interleaved
@@ -175,90 +176,114 @@ The record already knows this shape as the register half's wire
 linearity — the thread port is consumed exactly once
 (`first-class-ports-design.md`). Duplicating a single-threaded
 resource into N firings is meaningless; linearity is exactly why the
-handle must thread (like a register) rather than be read in (like a
-constant). (This is a settled rejection — please don't re-propose the
-prefix-read without new evidence.)
+handle must be threaded through the firings — each firing holding
+its own stretch of the handle, following the last firing's — rather
+than read in (like a constant). (This is a settled rejection —
+please don't re-propose the prefix-read without new evidence.)
 
-## The answer: the handle threads — it is a register
+## The answer: commuting IO out of the loop sequences the operations
 
 A linear wire that must visit each firing in turn cannot be
-prefix-read; it must be **threaded** — firing *i* consumes the handle
-firing *i−1* left behind, and produces the handle firing *i+1* will
-consume. And threading a wire across an iteration boundary, one
-firing reading the previous firing's output, is the one
-iteration-boundary edge the language already has a construct for: the
-**Delay / register** (`iteration-with-state-design.md`). So:
+prefix-read; each firing holds its own stretch of the handle — the
+**segment** of operations that firing performs. So inside the loop,
+the IO flow sits nested under the loop's flow: one segment per
+firing. The question "what is `~io'` outside the loop?" is then a
+question the language already has a word for. An inner flow moving
+outside its enclosing flow is a **commute**
+(`lazy-stream-commute-design.md`), and the list/IO commute is
+*defined* to sequence:
 
-> **A per-firing effect is a register whose threaded wire is the IO
-> handle.** The handle enters as the register's `init`, each firing's
-> operation is the `step` that produces the next handle, and the
-> handle after the loop is the register's `final` — one handle out,
-> never a list.
+> **Commuting an IO flow out of a list flow concatenates the
+> per-firing segments, in firing order, into one segment.** The
+> handle enters at the head of the first firing's segment; `~io'` is
+> the tail of the last — one handle out, never a list.
 
 That last clause is the answer to the translation-exercise gap.
+
+Sequencing is not a mechanism bolted onto the commute; it is the
+only thing the crossing *can* mean, forced by facts the record
+already holds. Operations along one segment are ordered by the
+segment (`custom-flows.md`). The handle is linear and unique — one
+console, one file — so after the loop the N segments cannot sit
+side by side: there is only one handle for them to be segments
+*of*. Concatenation is the only available shape, and firing order
+is the only order the loop offers. Effect *order* therefore falls
+out for free, and falls out correctly: the writes land in loop
+order — which is what an ordered resource (a file, a log) demands,
+and demands without a knob. Nothing is annotated.
+
+The empty loop grounds itself the same way: zero segments
+concatenate to nothing, so `~io'` is `~io` — the handle leaves
+exactly as it entered, no effects done.
 
 Now, you might wonder why collecting an effect flow doesn't just
 yield a list of handles — that was the tempting reading the
 translation exercise surfaced, "a collect of an effect flow." It
 turns out that was the wrong picture entirely: the handle is a
 flow-context marker, not a value, and N firings do not produce N
-handles to gather. They **thread one handle**, and the thing outside
-the loop is the register's `final` — one marker — not a collected
-list. (This is a settled rejection — please don't re-propose
-list-of-handles without new evidence.)
-
-`final` already has exactly the right meaning: "the value after the
-flow completes — the last `step`, or `init` if no iteration ran"
-(`first-class-ports-design.md`). What should an empty loop do? It
-does no effects and leaves the handle exactly as it entered:
-`final = init`, grounded the same way the empty running-sum is
-grounded.
-
-Effect *order* falls out for free, and falls out correctly: a
-register folds along its iteration in firing order, so the writes
-happen in loop order — which is what an ordered resource (a file, a
-log) demands, and demands without a knob. Nothing is annotated; the
-order is the iteration's order, because the handle is threaded
-through the iteration.
+handles to gather. Their segments concatenate into one, and the
+thing outside the loop is that one segment's tail — one marker — not
+a collected list. (This is a settled rejection — please don't
+re-propose list-of-handles without new evidence.)
 
 One more shape you might reach for and shouldn't: you might wonder
 whether the meeting of the loop's flow and the IO flow is a **Cross**
 product of the two — Cross being the language's node for combining
 flows (`product-flows-design.md`). It turns out this can't be right:
 Cross pairs *independent* flows, and the IO thread is the opposite of
-independent — firing *i+1*'s handle depends on firing *i*'s. There is
-no product because there is no independence; there is a fold. (This
-is a settled rejection — please don't re-propose the Cross reading
-without new evidence.)
+independent — firing *i+1*'s segment follows firing *i*'s. There is
+no product because there is no independence; there is a
+concatenation. (This is a settled rejection — please don't
+re-propose the Cross reading without new evidence.)
 
-### The three-point map this lands on
+### You never draw the commute
 
-Step back and the register answer takes a satisfying place in a map
-the record was already drawing. The register was a back-edge on a
-**value** wire crossing a Delay. Saturation is "the register's dual
-one level up — a back-edge on a **flow** wire crossing a set collect
-re-opened" (`saturation-design.md`). The IO thread is the third
-point: a back-edge that threads a **marker** wire across a Delay. It
-sits on the register's side of the map (it crosses a Delay, one
-firing reading the previous firing's output), differing from the
-running sum in exactly one respect — the threaded wire carries no
-readable payload. You cannot compute on `prev` here; `prev` is "the
-handle so far," consumed only by the next effect operation, and
-`final` is "the handle after the loop," consumed only by a further
-operation or the handle's close.
+For the option/stream commute, commuting is a *choice*: the same
+option-per-element close is lawful commuted
+(`option<stream<X>>`) and uncommuted (`stream<option<X>>`), so the
+choice must be drawn. The list/IO commute has no such alternative —
+the un-commuted crossing would be the list of handles rejected
+above — so for a spanning handle the commute is mandatory and
+unique. A mandatory, unique operation needs no glyph. The author
+simply strings operations along `~io` inside the loop and consumes
+the handle after it; that the handle crossed the boundary — and
+therefore that the segments concatenated — is read off the drawing.
+This is the same move the language already makes for
+under-committed programs: the editor completes what the drawing
+determines, faint, and the author never spells it
+(`time-travel-programs-design.md`). Collecting the handle at the
+end of the loop just does the job.
 
-The lesson of the map: the register construct is not intrinsically
-about data. It is about a linearly threaded wire crossing an
-iteration boundary, and the IO handle is the marker-flow instance of
-exactly that. Effects therefore do not need a new mechanism — they
-extend the biggest open area (`iteration-with-state-design.md`) to
-cover the most-cited effects gap, which is the strongest thing this
-chapter has to say.
+### No register appears (a dissolved reading)
+
+The first working of this round answered differently: "a per-firing
+effect is a register whose threaded wire is the IO handle" — the
+handle as `init`, each firing's operation as `step`, `~io'` as
+`final`, with a three-point map (value register / saturation / IO
+thread) unifying the three as back-edges crossing an iteration
+boundary. That reading is **dissolved**, and the reason is worth
+recording. Every register port is inert for a marker: `prev` ("the
+handle so far") admits no reading, the step is just the firing's
+segment, `final` is just the segment's tail. All that remained of
+the register was the ordering — which the commute definition states
+directly. A register that holds a running sum earns its vocabulary:
+the reader sees the carried value and the need to carry it. A
+register that sequences effects carries nothing and teaches
+nothing; it described the operational *lowering* (a threaded fold —
+still a fine way to implement the concatenation), not the meaning,
+and abstraction is the source of truth
+(`language-design-philosophy.md`). The commute reading also keeps
+one ordering principle at every level: within a firing, order is
+order along the segment (`within-firing-effects-design.md`); across
+firings, the crossing concatenates segments — segment order all the
+way up, no second order-source introduced by a fold. (Dissolved —
+please don't re-propose register-on-a-marker-wire without new
+evidence.)
 
 ## The two shapes of an effect under a loop
 
-The register answer is the whole story only when the handle **spans**
-the loop — enters from outside, exits outside. There is a second,
+The sequencing commute is the whole story only when the handle
+**spans** the loop — enters from outside, exits outside. There is a second,
 equally common shape, where the handle **nests** wholly inside each
 firing. The two are told apart structurally, by where the handle's
 lifecycle vertices sit relative to the loop — the same "inferred from
@@ -276,27 +301,28 @@ B4's file pump is this shape:
 ```
 
 One file handle, threaded through the `~W` firings, writes in order;
-`~io'` is the file after the last line. This is a register on `~io`,
-and `~io'` is its `final`. The effects are ordered by the loop,
-because one resource cannot be in two firings at once.
+`~io'` is the file after the last line — the tail of the
+concatenated segment. The effects are ordered by the loop, because
+one resource cannot be in two firings at once.
 
 A property worth naming here, because it is a good one: B4's sibling
 in the wild appends to a list instead of writing to the file, and
 that is *the same drawing with one statement swapped* —
-`~io ~> writeLine(outLine) in ~W` (the register's `final` readout of
-the handle) becomes `outLine -~> collect ~W` (the list readout of the
-elements). The effect and the collect are two readouts of one loop —
-one takes the handle out via `final`, the other takes the elements
-out via `collect`. That the swap is one line is exactly what the port
-table predicts: `final`/`collect` are the two "outside out" anchors
-of the same iteration (`first-class-ports-design.md`).
+`~io ~> writeLine(outLine) in ~W` (the handle carried out of the
+loop) becomes `outLine -~> collect ~W` (the list readout of the
+elements). The effect and the collect are the two ways one loop
+crosses its own boundary — the value flow leaves by collect, the
+marker flow leaves by the sequencing commute — and swapping between
+them is one line.
 
 **Shape 2 — the handle nests inside the firing (independent;
 unordered).** The whole acquire/use/release segment sits inside one
 firing of the loop — a connection opened, used, and closed for that
 firing alone. Then there is **no thread across the loop at all**:
 each firing's handle is a fresh, independent resource, and by the
-custom-flow rule independent handles commute. The effects across
+custom-flow rule independent handles commute (commute in
+`custom-flows.md`'s independent-handles sense — they reorder freely
+past each other — not the nesting commute above). The effects across
 firings are unordered, and may run concurrently — which is precisely
 the per-session IO requirement (`tough-use-cases-design.md` break
 #3): mint the handle per firing and the sessions do not serialise on
@@ -311,23 +337,25 @@ req -> connect => ~s            -- handle minted inside the firing: top vertex u
 ~s' ~> closeConn                -- released within the same firing
 ```
 
-Every handle vertex sits under `~R`; no register, no `final`, and the
-N segments commute.
+Every handle vertex sits under `~R`; nothing crosses the boundary,
+and the N segments are mutually unordered.
 
 Notice what you never do: pick a mode. The distinction is not
 something the author selects; it is *read off the drawing* — does the
 handle's top vertex sit outside the loop, or inside a firing?
-Spanning ⇒ one threaded register ⇒ ordered. Nesting ⇒ N independent
-segments ⇒ commute. This is the register-vs-no-register fork made
-structural, and it satisfies the tough-use-cases constraint without a
-new rule: "only same-handle operations are ordered" becomes "only a
-*spanning* handle threads, and only a threaded handle orders."
+Spanning ⇒ segments concatenated in loop order ⇒ ordered. Nesting ⇒
+N independent segments ⇒ unordered. This is the
+ordered-vs-independent fork made structural, and it satisfies the
+tough-use-cases constraint without a new rule: "only same-handle
+operations are ordered" becomes "only a *spanning* handle crosses
+the boundary, and only the crossing orders."
 
 Now, you might wonder why the language doesn't offer an explicit
 ordered/unordered switch for effects under a loop anyway — surely the
 author knows what they want? It turns out this would cause problems:
 the order is not a knob but a structural fact — a spanning handle
-threads and orders; a nested handle is independent and commutes.
+concatenates and orders; a nested handle is independent and
+unordered.
 Selecting a mode would let the drawing and the declared order
 disagree, which is the same reason `custom-flows.md` infers
 commutativity from the definition rather than from an annotation.
@@ -351,9 +379,12 @@ of which axis runs first. That choice is the open residue of the
 loop-carried-state row (`iteration-with-state-design.md`, "The
 product, re-read through update-cadence and read-range";
 `product-flows-design.md`, question 5). A spanning effect handle
-threaded through a doubly-nested loop — both axes writing to one
-file — is exactly a full-cube fold on a linear wire, so its effect
-order **is** that linearization.
+under a doubly-nested loop — both axes writing to one file — must
+concatenate segments across the whole grid, and a grid has no
+firing order until an axis order is chosen: the concatenation order
+**is** that linearization. (Nested loops proper are fine — nesting
+supplies lexicographic order, drawn; the residue is the *grid*,
+where neither axis encloses the other.)
 
 Here is the difference effects make. For a pure register, the
 linearization was "a cost, not a knockout" — a commutative monoid (a
@@ -369,22 +400,20 @@ writes under nested iteration. Filed back to the loop-carried-state
 and products rows as the observable-stakes version of a question they
 already own.
 
-## What this feeds the open question of what a Delay *is*
+## What this no longer feeds the open question of what a Delay *is*
 
-The live open problem in `iteration-with-state-design.md` is about
-what a Delay's back-edge fundamentally *is* — which flow it binds to:
-the collect that gathers it, or an ancestor uncollect its value
-descends from. The IO register is a clean data point for the
-"provenance fixes the flow, it is not chosen" leaning. The effect
-handle's thread is not a value that could plausibly belong to several
-flows; it is pinned to the single flow it is threaded through — the
-loop whose firings consume and produce it — because a linear resource
-can only be threaded where it is actually used. The flow is fixed by
-*use*, the most forcing kind of provenance. This does not resolve the
-fork for readable registers (whose value genuinely can be in reach of
-more than one flow), but it is a witness that at the linear extreme
-the flow is determined, not selected — a vote for the
-value-in-context reading that recent rounds have been circling.
+The first working of this round, with its register reading, offered
+the IO thread as a data point for the live Delay-ontology fork
+(`delay-ontology-design.md`, via `iteration-with-state-design.md`):
+a linear resource pinned by *use* to the one flow it is threaded
+through, a vote for provenance-fixes-the-flow. With the register
+reading dissolved, no Delay appears anywhere in the effects story,
+and that datum is withdrawn as stated — the weaker observation that
+a linear wire's segments are pinned to the loop whose firings hold
+them survives, but it is no longer evidence *inside* the Delay
+question. The decoupling cuts both ways and both are good: effects
+no longer wait on the Delay fork being settled, and the Delay fork
+loses a witness it would have had to explain.
 
 ## What this chapter does not cover (fenced, with reasons)
 
@@ -406,7 +435,7 @@ not rejected. The reasons matter, so here they are in full.
   design. *That round now exists* (`cancellation-design.md`,
   exploration): delivery over the demand frontier, `Cancelled` as a
   terminator lane, the release half consuming this chapter's
-  `final` — consuming the thread, not changing it; the two rounds
+  `~io'` — consuming the thread, not changing it; the two rounds
   should go to the adoption conversation together.
 
 - **Within-firing effect ordering (the conditional-flush buffer).**
@@ -468,20 +497,25 @@ the proposal.
 
 1. **The spelling of the threaded effect op and its two boundaries.**
    The provisional `~io ~> op(args…) in ~loop => ~io'`
-   (translation-exercise open question 10) needs the register
-   connection made visible: is `~io'` spelled as a `final`-style
-   readout of the loop, and does the `in ~loop` phrase carry the
-   spanning-vs-nesting distinction, or does the drawing alone?
+   (translation-exercise open question 10) needs the boundary story
+   confirmed on the page: the commute itself is never drawn, so
+   does the `in ~loop` phrase carry the spanning-vs-nesting
+   distinction, or does the drawing alone? And is the faint
+   completed form (the commute the editor fills in,
+   `time-travel-programs-design.md`-style) worth showing at all?
    Jointly owned with `textual-representation-design.md` and
    `first-class-ports-design.md`.
 
-2. **Does the marker register reuse the Delay node or need its own?**
-   The claim is "the register with a marker wire." Whether that is
-   literally a Delay whose wire happens to be a marker, or a sibling
-   node sharing the port signature, is an unforced representation
-   choice — but the productivity check, the `final` exit anchor, and
-   the empty-loop grounding all transfer verbatim, which argues for
-   one node.
+2. **Stacking with other commutes.** When the effect ops sit under
+   an option-in-list whose option layer also commutes out
+   (`lazy-stream-commute-design.md`), the two crossings have an
+   order: does the IO concatenation include the segments of firings
+   that ran before the option layer short-circuited on a `None`, or
+   not? This is the one known place where "concatenate in firing
+   order" must say more, and where the dissolved register reading
+   might have answered differently — the divergence that would make
+   the ontological choice observable. Jointly owned with
+   `lazy-stream-commute-design.md`.
 
 3. **The batched-effect construct.** Deferred above, but it owes its
    own round: what a plan-valued effect is, how it discharges at a
@@ -489,13 +523,14 @@ the proposal.
    becoming the invisible ordering XQuery's rules are.
 
 4. **Interaction with multi-close.** One list flow may be collected
-   many times (`core-model.md`, "One loop, several results"). If two
-   sibling closes each thread the *same* spanning handle, the handle
-   cannot be in two independent thread-orders at once — this is the
+   many times (`core-model.md`, "One loop, several results"). The
+   handle's linearity gives half the rule for free — the
+   commuted-out segment is one wire with one consumer — but if two
+   sibling closes iterate independently, which close's iteration
+   does the concatenation bind to? This is the
    multiple-collect/shared-grid problem
-   (`iteration-with-state-design.md`) in its observable-effects form,
-   and it may force a rule that a spanning handle admits exactly one
-   threading consumer. Flagged, not worked.
+   (`iteration-with-state-design.md`) in its observable-effects
+   form. Flagged, not worked.
 
 The story continues inward from here: what orders two effects
 *within* one firing is the subject of

@@ -216,15 +216,16 @@ consumes, and whether it needs an input list at all:
 - [`effects-design.md`](effects-design.md) — making a loop *do*
   something once per firing (print a line, write a row): the most
   common thing sampled loops are for. The piece to design is not the
-  effect but its ordering — an effect
-  operation consumes an IO handle and emits the next one, so effects
-  that must happen in loop order thread one handle through every
-  iteration, which makes the handle loop-carried state: a register on a
-  marker wire, with "collect of an effect flow" the register's `final`
-  (one handle out, not a list). An effect that needs no ordering gets
-  its own per-firing-minted handle and commutes freely out of the loop.
-  Within-firing ordering and the batched (collected-plan) pole are
-  fenced out. *Exploration.*
+  effect but its ordering — and the answer is one definition:
+  commuting an IO flow out of a list flow *sequences* the
+  operations, concatenating each firing's segment in firing order
+  into one segment ("collect of an effect flow" is that
+  concatenation's tail — one handle out, not a list). The commute is
+  mandatory and unique because the handle is linear, so it is never
+  drawn: consuming the handle after the loop does the job. An effect
+  that needs no ordering gets its own per-firing-minted handle,
+  which never crosses the loop boundary. Within-firing ordering and
+  the batched (collected-plan) pole are fenced out. *Exploration.*
 - [`within-firing-effects-design.md`](within-firing-effects-design.md) —
   effect ordering *within* one firing, and the conditional-flush buffer:
   within a firing there is no time — the only intra-firing order is

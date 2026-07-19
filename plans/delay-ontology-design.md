@@ -170,27 +170,24 @@ thread the wire.** IO threads; Delay does not. (This is a settled
 rejection — please don't re-propose wire-threading for Delay
 without new evidence.)
 
-**Reconciliation with the effects round.** `effects-design.md`
-later identifies the threaded IO handle *with* a register — "a
-per-firing effect is a register whose threaded wire is the IO
-handle," a Delay carrying a **marker** wire. That is not a
-contradiction of this section, but the reconciliation deserves one
-statement. The claim here is that a Delay does not take the
-*iteration-identifying* flow wire in and out to say which flow it
-is on — that would impose a meaningless order among Delays. The
-effects register rides the loop's flow like any register; the
-handle is its *payload*, the thing threaded *by* the register, not
-how the register finds its flow. IO's own inter-operation sequence
-is still encoded by threading, exactly as above — it is just that
-the threading mechanism turns out to *be* a register crossing. What
-the effects round genuinely adds is a broadening the register story
-should absorb: the carried wire need not be a readable value
-(`prev` there is "the handle so far," not computable-on) — the
-register is about a linearly threaded wire crossing the iteration
-boundary, of which the value-carrying Delay is one instance and the
-marker-carrying IO thread another. `saturation-design.md`'s
-two-point duality (value back-edge / flow back-edge) extends to the
-same three-point map.
+**Reconciliation with the effects round.** An earlier working of
+`effects-design.md` identified the threaded IO handle *with* a
+register — "a per-firing effect is a register whose threaded wire
+is the IO handle," a Delay carrying a **marker** wire — and this
+paragraph used to reconcile that with the rule above (the register
+rides the loop's flow; the handle is its payload, not how it finds
+its flow). That reading is since dissolved: the effects round now
+answers with the **sequencing commute** — commuting an IO flow out
+of a list flow concatenates the per-firing segments in firing
+order — and no Delay appears in the effects story at all
+(`effects-design.md`, "No register appears"). The reconciliation
+dissolves with it, and this section's distinction stands cleaner
+than before: IO threads its wire because it has a real
+inter-operation sequence to encode; Delay has none and must not
+thread; the two never share a node. The broadening the register
+story was once asked to absorb (a carried wire with no readable
+payload) is withdrawn, and `saturation-design.md`'s two-point
+duality (value back-edge / flow back-edge) stays two-point.
 
 ## Candidate 1: a delayed computation, bound at the collect
 
@@ -1155,10 +1152,11 @@ current state of every strand:
   (a new structural check — a Delay whose flow feeds a settle
   node's body operand) while putting a register on the
   **completions flow**, which the event loop serialises, so it
-  steps in settlement order; `async-flow-design.md` defers "a Delay
-  inside an async stream flow" as probably-composing; and
-  `effects-design.md` threads a marker register wherever a spanning
-  handle crosses a loop. Each of these presupposes an answer to
+  steps in settlement order; and `async-flow-design.md` defers "a
+  Delay inside an async stream flow" as probably-composing.
+  (`effects-design.md` was on this client list while it threaded a
+  marker register; the sequencing-commute re-reading removed it —
+  one fewer check to cash.) Each of these presupposes an answer to
   which kinds supply a "next" — the firmest boundary statement so
   far is `flix-comparison.md`'s: a register is value feedback along
   a walk whose **extent is fixed** by the opened data, which is
