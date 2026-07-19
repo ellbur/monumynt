@@ -257,6 +257,9 @@ interface summarisation (`functions-design.md`), configuration scopes
 and slots (`configuration-scopes.md`), concurrency pools and
 custom/effect flows (`custom-flows.md`): design-narrative only. Each
 needs its own starting-point document before any implementation claim.
+(The divide-flow half of the trees area now has one —
+`divide-flow-design.md`, exploration; the zipper/data half is still
+narrative-stage.)
 None is on the near path, and nothing on the near path blocks on them
 — with one exception: *diagrams as top-level structure* is pulled
 forward in minimal form (a node set with distinguished outputs) by the

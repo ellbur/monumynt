@@ -285,7 +285,11 @@ through* a selection, and the deep-rewrite case is their product.
 Neither is worked enough yet to nail the seam; the divide flow's
 round should take `walk`-style rewrite as a first client, because it
 forces the unfold side that the constructed divide-flow examples so
-far have not.
+far have not. *The round has now done so*
+(`divide-flow-design.md`, "Deep rewrite: the unfold client"): each
+level is this round's fixed-depth mirror with a link at every child
+locus, and — because the division there is over data (strict
+components) — its termination measure holds by construction.
 
 ## What an update gives back: the delta
 
@@ -468,7 +472,10 @@ The language hasn't decided any of these yet.
 6. **The seam with the trees row.** How the fixed-depth mirror lifts
    to the divide flow's unfold for deep (`walk`-style) rewrite. Both
    rows are under-worked; take `walk` as a first client of the
-   divide flow's round.
+   divide flow's round. *Worked in `divide-flow-design.md`* ("Deep
+   rewrite: the unfold client") — the seam held as predicted; what
+   remains here is only the delta output's behaviour through the
+   lift (question 7's territory).
 7. **Delta output and incremental coupling.** Whether the
    touched-loci flow is emitted beside the result by default
    (Immer's patches) and how it feeds the incremental-collections

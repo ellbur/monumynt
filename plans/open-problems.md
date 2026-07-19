@@ -345,19 +345,6 @@ indices); "this hole demands a pure filler" is added as demands/offers
 vocabulary; `@Terminates` is prior art for declared, checked
 termination. See `flix-comparison.md`.
 
-**Recursion: the divide flow and trees — I 4, W 3.**
-`trees-and-recursion.md` is narrative-stage (no starting-point
-document; flagged so in `implementation-strategy.md`). The divide flow
-is a candidate primitive with an unworked termination story (a
-non-list example — quadtree — is owed; `tough-use-cases-design.md`
-question 4); whether tree iteration inherits the register discipline is
-unresolved. Breadth item 9 (the recursive gather) is the field
-sighting. Parsing is named as the everyday client of
-recursion-over-virtual-structure (`raku-grammars-comparison.md`) — the
-divide flow's worked examples so far are constructed, so recursive
-descent (nested-delimiter parsing) is a candidate first program with
-field precedent when the row's round runs.
-
 **Functions, reuse, and facets — I 4, W 4.**
 Narrative-stage: the function boundary (flow skeleton with data holes,
 `functions-design.md`), its conjectured relationship to
@@ -595,6 +582,57 @@ graph features); the frequency question stays on the evidence-owed list.
 See `saturation-design.md`, `flix-comparison.md`,
 `collect-family-design.md`, `effekt-comparison.md`.
 
+**Recursion: the divide flow and trees — I 3, W 3.**
+Recursion over virtual structure is now worked
+(`divide-flow-design.md`, exploration — moved down from Tier 2 by
+this index's maintenance rule): the divide flow is **the link
+transformation, tree-shaped** — write one level concretely (an
+ordinary case split; a leaf is an alt with no links, dissolving the
+base-case construct), then link the sub-problem wires back to the
+problem wires. Each link firing mints an instance; per-instance
+membership is derived from dataflow (downstream of a problem wire —
+everything else is shared by the prefix rule); the link is a barrier
+(multi-wire problems cross pairwise); and the construct is honestly
+primitive — the defunctionalized stack encoding is ruled inadmissible
+as a derived view (frames are a packed sum). Termination is a
+**three-species measure discipline**: structural shrink (catalog rows
+with witnesses), cursor progress (whose violation witness is exactly
+the parser field's left-recursion check), and drawn fuel (the
+quadtree budget — the owed non-list example, worked; the catalog is
+confirmed not list-shaped), with warned trust as the fenced escape
+hatch (derived-iteration precedent; Flix `@Terminates` prior art).
+Recursive descent is worked as the first program — variable arity
+dissolves into a link inside a drawn walk, sequenced children are the
+register on that walk, two answers are two sibling collects — closing
+speculation's four-part parsing vocabulary; the `walk`-style deep
+rewrite lands as focused-update's unfold client and re-reads
+recursion-over-data as the strict-components division, unifying the
+ADT-derivation story with the divide flow. Sibling instances have no
+time: registers over instances are ill-formed (concurrent-collect
+precedent), traversal orders dissolve into combines, and whole-tree
+collects are order-free iff commutative (the product-round law). Five
+dead ends recorded.
+
+Remaining: the adoption conversation; the link's spelling and anchor
+— the **level boundary**, the first construct-driven demand for the
+functions row's flow skeleton, to decide jointly with that row;
+mutual recursion (a joint measure over a link group; where Zig's
+inference warning bites hardest); the measure catalog's schema (joint
+with the checking row's question 4); whole-tree linearization (rides
+the delay-ontology/product residue); and the **zipper seam** —
+whether tree-over-data iteration re-reads its computed-value accesses
+as drawn crossings and retires the verify-or-fall-back scheme
+(`trees-and-recursion.md` owns that decision; the round's leaning
+runs that way). W = 3 as a breadth obligation: the three random
+surveys produced one recursive draw (breadth item 9, survey 2 —
+transcribed in the round), but
+parsing supplies everyday demand from outside the sampled domains,
+and parsers/planners/tree algorithms are rare-but-breaking; the
+frequency question folds into the saturation row's owed domain
+sample. See `divide-flow-design.md`, `trees-and-recursion.md`,
+`tough-use-cases-design.md`, `raku-grammars-comparison.md`,
+`flix-comparison.md`.
+
 **How values cross a barrier — I 2, W 4.**
 Worked (`barrier-value-crossing-design.md`): crossing split into
 availability (provenance over the barrier's flow law; no pass-through
@@ -756,7 +794,10 @@ the scores above rather than carrying its own. The named next rounds
   applications) would measure how often the shape occurs and in what
   costume (hand-rolled worklists, embedded query engines, union-find),
   informing the saturation row's W. The same sample can carry the
-  functions row's condition: does real application code swap providers?
+  functions row's condition (does real application code swap
+  providers?) and the recursion row's frequency question (how often
+  divide-shaped recursion occurs, and in what costume — hand-rolled
+  recursive functions, visitor patterns, `walk` helpers).
 - **The focused-update frequency question.** The shape is invisible to
   loop sampling by construction, and its comparison corpora are
   document-domain-biased toward it; a sample of application code's

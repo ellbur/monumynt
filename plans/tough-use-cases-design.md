@@ -881,7 +881,14 @@ where this document's motivating programs actually had their bugs.
    check, plus warned trust for user divisions — confirm against the
    derived-iteration soundness precedent; work a non-list example (tree
    from use, not from data — e.g. quadtree build) to make sure the catalog
-   isn't list-shaped.
+   isn't list-shaped. *Worked in `divide-flow-design.md`:* the ladder is
+   confirmed (catalog division → drawn measure → warned trust, the last
+   matching the derived-iteration precedent), and the quadtree did its
+   job — point count is *not* a valid measure (coincident points), so the
+   example forces the drawn-fuel species, and the catalog comes out
+   three-specied (structural shrink, cursor progress, fuel), not
+   list-shaped. The progress species' violation witness is the parser
+   field's left-recursion check. Leanings, not adopted.
 5. **Decision-driven merge arity and generality.** Two flows with a binary
    chooser covers merge; framing wants single-input with advance-counts;
    is there one primitive (chooser over N heads returning which-advances)

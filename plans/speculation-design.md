@@ -543,7 +543,12 @@ The language hasn't decided any of these yet.
 
 - **Recursion over virtual structure** — recursive descent's nesting
   is the divide flow's (`trees-and-recursion.md`), deferred;
-  speculation supplies the choice, not the recursion.
+  speculation supplies the choice, not the recursion. *The round now
+  exists* (`divide-flow-design.md`, exploration): recursive descent
+  is worked as its first program, with the link riding inside
+  contenders unchanged — a failed contender's sub-parses abandon as
+  unconsumed values, per this round's structural-restoration result —
+  completing the four-part parsing vocabulary named above.
 - **Cancellation / release of effectful attempts** — the Tier-1 IO
   round (`open-problems.md`); only the trigger is named here. *The
   round now exists* (`cancellation-design.md`, exploration): a

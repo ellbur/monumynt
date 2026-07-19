@@ -5,7 +5,10 @@ proposal that has not been adopted, and none of it is implemented.
 Code samples use the textual syntax of
 `textual-representation-design.md`; where the language has no settled
 spelling for a recursive construct, the sample is marked *spelling
-provisional*.
+provisional*. The divide flow — recursion over *virtual* structure,
+which this chapter only points at — now has its own worked round
+(`divide-flow-design.md`, exploration); this chapter remains the
+home of recursion over *data* (the zipper, ADT derivation).
 
 ## Your first tree program
 
@@ -89,7 +92,14 @@ lazy fallback" (`iteration-rails-design-notes.md`) — in favour of the
 register discipline, where every cycle must cross a register and
 productivity is checked structurally. Tree iteration could inherit
 that discipline instead of its own verifier. The register precedent
-is the stronger current.
+is the stronger current — and the divide-flow round strengthened it
+(`divide-flow-design.md`, "What this feeds back to the trees row"):
+the verifier's three access directions all have drawn counterparts
+there (children→parent = link answers, parent→children = problem
+components, sibling→sibling = a register on the drawn children
+walk), so the leaning on record is that the zipper's computed-value
+accesses re-read as drawn crossings and the verifier retires. Not
+decided; this doc still owns the question.
 
 ## You get this for free: derivation from recursive types
 
@@ -119,8 +129,14 @@ which the example-first principle forbids — and it is rejected in
 that document for that reason. (This is a settled rejection —
 recorded in `tough-use-cases-design.md`; don't re-propose it without
 new evidence.) The **divide flow** proposed in that doc is the
-candidate primitive for recursion over virtual structure. ADT
-derivation remains the story for recursion over *data*.
+candidate primitive for recursion over virtual structure — now
+worked in its own round (`divide-flow-design.md`: the link
+transformation tree-shaped, a three-species measure discipline for
+termination, recursive descent and the quadtree worked end-to-end).
+ADT derivation remains the story for recursion over *data*, with one
+new connection: that round reads recursion-over-data as the divide
+flow whose division is "take the strict components," which is where
+the derivation's termination guarantee was always coming from.
 
 ## The two-layer visual pattern
 
