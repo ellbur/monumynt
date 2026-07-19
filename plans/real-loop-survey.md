@@ -1253,7 +1253,10 @@ iteration-state machinery is not niche — but its demand is
 domain-shaped, which matters for the decision bar: "flexible enough
 for complex code" is mostly a numerics/simulation requirement, while
 the beginner-facing everyday loop is a search, a pump, or a stateless
-walk.
+walk. *(The domain combinator census below sharpens this with a level
+distinction: the numeric scan is a statement loop, so it does not show
+up as combinator-fold — the combinator-fold rise across the domains is
+graph reduction via `sum`, a distinct population. See finding D.1.)*
 
 ### 2.2 Cross-referencing registers occur in production code
 
@@ -1284,7 +1287,11 @@ value. This is reduce-close's exact boundary
 (`iteration-with-state-design.md`, "Two operations for accumulation"),
 now with field frequency behind it, and it presses on the open
 question recorded there: **how operator identities attach** (`+`→0,
-`and`→true, `&`→full-mask...). Note the third fold (three 4) cannot
+`and`→true, `&`→full-mask...). *(The domain combinator census below
+adds magnitude from the commonest monoid: `sum` is the largest
+non-comprehension combinator in the graph corpus, 325 implicit `+`/`0`
+reduce-closes — the identity answer's everyday case is `sum`. See
+finding D.2.)* Note the third fold (three 4) cannot
 early-exit despite being an `any`, because the same walk performs
 per-element sync effects — one logical iteration, two consumers
 (effects + fold), i.e. multi-close earning its keep.
@@ -2468,7 +2475,10 @@ combinator side. Read under the 80/20 counterweight: fold's rarity
 ranks it as *not needing effortlessness in infrastructure code*, not
 as unimportant. Survey 2 showed the ratio inverts in numerics, and the
 reduce-close operator-identity question keeps its breadth weight
-regardless of this count.
+regardless of this count. *(The domain census below measures the move:
+fold rises to 20% of combinators over the survey-2 domains, and the
+rise is graph `sum`, not the numeric scan — which is a statement loop,
+not a combinator. See findings D.1–D.2.)*
 
 ### C.3 Search/early-exit is prominent at the expression level too
 
@@ -2551,3 +2561,224 @@ which statement loops carry state (that is the loop surveys' job) and
 does not update their state/stateless proportions; the iteration-state
 candidates, the commute taxonomy, and the incremental flow are
 untouched.
+
+# Combinator census: the domain corpora
+
+The census above ran over the same infrastructure corpora as survey 1,
+and named that as its single biggest bias: *"a census over the survey-2
+domains would raise the fold share… the ~60% figure is an
+infrastructure figure only."* This section runs it — the same
+exhaustive count, same identification rules, over survey 2's six domain
+projects — and reports what moved. Like survey 2 for the loop sample,
+it is the census's domain extension. It decides nothing.
+
+The headline: **fold's share of combinators rises from 6% to 20%** —
+the predicted move, and larger than a nudge. But the count reconciles
+with survey 2's loop-side scan finding in a way worth stating plainly:
+the numeric *scan* does not appear here as fold, because it is written
+as a statement loop, not as a `reduce`/`sum` call. The fold rise is
+carried by *graph* code reducing with `sum(...)`, not by numerics.
+
+## Protocol (domain census)
+
+Same three-way combinator split and same identification rules as the
+infrastructure census (Python: `ast` loops = `For`/`AsyncFor`/`While`;
+comprehensions + name-matched builtins for combinators; JS: regex over
+comment-stripped source). The rules are restated exactly so the count
+is reproducible on its own terms:
+
+- **collect** — the four comprehension nodes and generator expressions;
+  Python `map`/`filter`; JS `.map`/`.filter`/`.flatMap`.
+- **fold** — Python `reduce`/`sum`, and single-iterable `min`/`max`
+  (a call with exactly one positional argument; scalar `min(a, b)`
+  clamps, two-or-more positional, excluded); JS `.reduce`/
+  `.reduceRight`.
+- **search** — Python `any`/`all`, and `next(genexp, …)` (a `next`
+  whose first positional argument is a generator expression); JS
+  `.find`/`.findIndex`/`.some`/`.every`.
+
+`.forEach` counts as a statement loop, not a combinator, as in the
+infrastructure census.
+
+Corpora are survey 2's six projects, at the versions fetched here
+(pip/npm), rooted at each importable package source so the count is a
+well-defined tree; survey 2's path exclusions apply (`*test*`,
+`__pycache__`, `docs/`, `examples/`; for three.js also `build/` and
+`*.min.js`). The scalar-clamp exclusion is load-bearing: it removes 204
+`min(a, b)`/`max(a, b)` clamps in mpmath alone that a naïve count would
+have booked as fold.
+
+| Corpus | Source root | Domain |
+|---|---|---|
+| mpmath 1.4.1 | `mpmath/` | arbitrary-precision numerics |
+| networkx 3.6.1 | `networkx/` | graph algorithms |
+| sim (mesa 3.3.1 + simpy 4.1.2) | `mesa/`, `src/simpy/` | agent-based / discrete-event simulation |
+| textual 8.2.8 | `src/textual/` | terminal UI, event-driven |
+| chess 1.11.2 | `chess/` | game logic, engines, formats |
+| three.js 0.182.0 | `src/` | 3D graphics (JS) |
+
+## The counts
+
+| Corpus | Stmt loops | collect | fold | search | Combinators | comb : loops | fold % of comb |
+|---|---|---|---|---|---|---|---|
+| mpmath (numerics) | 902 | 226 | 50 | 10 | 286 | 0.32 | 17% |
+| networkx (graphs) | 2086 | 1473 | 482 | 147 | 2102 | 1.01 | 23% |
+| sim (mesa+simpy) | 215 | 112 | 30 | 6 | 148 | 0.69 | 20% |
+| textual (TUI) | 671 | 392 | 71 | 40 | 503 | 0.75 | 14% |
+| chess (game) | 272 | 171 | 6 | 37 | 214 | 0.79 | 3% |
+| three.js (3D, JS) | 1036 | 23 | 3 | 3 | 29 | 0.03 | 10% |
+| **Domains combined** | **5182** | **2397** | **642** | **243** | **3282** | **0.63** | **20%** |
+| *Infra census (above)* | *8507* | *3106* | *263* | *731* | *4100* | *0.48* | *6%* |
+| **All nine corpora** | **13689** | **5503** | **905** | **974** | **7382** | **0.54** | **12%** |
+
+Derived:
+
+- **Fold's combinator share triples: 6% → 20%.** As a fraction of *all*
+  iteration constructs (loops + combinators), fold goes 2.1% → 7.6%.
+  The census's stated bias was real and its direction right; the
+  magnitude is substantial, not a nudge — the mirror of finding C.1,
+  where the same bias on the no-state fraction *was* only a nudge.
+- **Domain combinator split: collect 73%, fold 20%, search 7%** (infra
+  was 76 / 6 / 18). Collect still dominates; fold and search trade
+  places relative to infrastructure.
+- **The fold rise is graph code, not numerics.** networkx alone
+  supplies 482 of the 642 domain folds, and 325 of those are `sum(...)`
+  — a reduce-close with `+`/`0`, the exact construct. Strip networkx
+  and the domains still fold at 14% of combinators (double infra's 6%),
+  so the rise is broad, but its *bulk* is one sum-idiomatic corpus.
+
+## Findings (domain census)
+
+### D.1 The fold undercount is confirmed — and it is graph reduction, not the numeric scan
+
+The infrastructure census measured fold at ~2% of iteration constructs
+and flagged that as an infrastructure figure. Over the domains it is
+~7.6% — a 3.6× rise, the largest single move between the two censuses.
+But the rise does **not** come from the corpus survey 2 tied the scan
+to. mpmath, the numerics corpus where survey 2 found the scan *dominant*
+at the loop level (finding 2.1), contributes only 50 folds at 17% of
+its combinators. The reason is a level distinction the two censuses make
+visible together: the numeric scan `s = s + term` is a **statement
+loop**, which this census books in the loop column, not a `reduce`/`sum`
+*call*. So survey 2's loop-side "scans concentrate in numerics" and this
+census's "combinator-fold is modest in numerics" are not in tension —
+the numeric fold is real but lives in the loop bucket, exactly where the
+loop surveys classified it. What the *combinator* fold measures is the
+population that reaches for an explicit reduction operator, and that
+population is **graph algorithms**: networkx sums degrees, weights, and
+path lengths with `sum(...)` 325 times. Read for the design record: the
+reduce-close construct's everyday demand is sum-over-a-derived-quantity
+in graph/relational code as much as it is the numeric accumulator, and
+the two arrive in different syntactic costumes (combinator vs statement
+loop).
+
+### D.2 Reduce-close and operator identities: field frequency, from the sum side
+
+Survey 2's finding 2.3 raised the operator-identity question from three
+hand-rolled monoid folds with their genuine identities as start values.
+The domain census adds magnitude from the commonest monoid of all:
+`sum` is the single largest combinator *outside comprehensions* in the
+graph corpus (325 uses), each an implicit `+`/`0` reduce-close. The
+identity question the iteration-state and collect-family rounds carry
+(`+`→0, `and`→true, `&`→full-mask; the empty-collect framing of
+`collect-family-design.md`) is not a numerics-only concern — it is
+pressed hardest, by count, by ordinary `sum` over a graph-derived
+quantity. This does not move the identity question's *breadth* weight
+(the 80/20 rule holds it regardless of count) but it does say the
+common case the answer must make effortless is `sum`, and that the
+answer is exercised across domains, not parked in numerics.
+
+### D.3 Search falls by domain — it is infrastructure-shaped, chess excepted
+
+Search combinators drop from 18% of combinators (infra) to 7%
+(domains). First-match / boolean-short-circuit combinators are an
+infrastructure idiom — parsers and tooling ask "is there an X?"
+constantly — and library/numeric/graphics code asks it less. The one
+domain that keeps a heavy search share is **chess** (37 of 214
+combinators, 17%): move legality, attacker lookup, and position
+predicates are first-match questions, and the game corpus reaches for
+`any`/`next(genexp)` the way infrastructure does. This does not touch
+end-when's breadth weight — early termination remains the biggest
+everyday gap in *both* loop surveys and the infrastructure census — but
+it locates the *combinator* form of search as infrastructure- and
+game-shaped, not universal.
+
+### D.4 The statement loop is even more dominant in array-numeric domains — three.js at 0.03
+
+comb:loops rises to 0.63 across the domains, but that figure is a
+networkx artifact (its 1.01 is unique — very Pythonic, comprehension-
+and sum-heavy graph code). Strip networkx and the domains run at 0.38
+combinators per loop, *below* infrastructure's 0.48: numerics (0.32),
+simulation (0.69), game (0.79), and above all **3D graphics (0.03)**
+are more statement-loop-dominated than infrastructure, not less.
+three.js is the extreme exhibit in either census — 1036 loops against
+29 combinators — because its idiom is index-based mutation of typed
+arrays (`for (let i = 0; i < l; i++) array[i] = …`), the one shape a
+combinator cannot express without allocating. Read for the record: in
+the performance-critical array-numeric domains, the explicit statement
+loop is not a legacy residue the combinator vocabulary is displacing —
+it is the load-bearing construct, and the language's uncollect/collect
+center must lower to exactly that emitted shape (which the compile
+strategy already targets) without an intermediate allocation.
+
+### D.5 The trichotomy holds across nine corpora and five languages
+
+As in finding C.4, the collect/fold/search decomposition survives every
+corpus despite wildly different idioms — comprehension-and-sum graph
+code, typed-array 3D loops, block-free numeric kernels, event-driven
+TUI. collect leads the combinators in all six domain corpora; the
+collect≫{fold,search} ordering holds in five of six (chess is the lone
+inversion, search>fold, on its legality-check idiom). That the split
+carves the same three joints across nine projects in five languages is
+the strongest evidence yet that it is a property of the *work*, not of
+any one language's method menu.
+
+## Biases (domain census)
+
+- **One project per domain**, so project style and domain are
+  confounded (survey 2's bias, inherited): networkx's comprehension/
+  `sum` idiom drives the fold headline, and a second graph library
+  might weight it differently. Stated in the count itself (the
+  ex-networkx figure) rather than left implicit.
+- **Same identification rules, same residual biases** as the
+  infrastructure census: Python builtins matched by callee name
+  over-count under shadowing; JS is comment-stripped regex with
+  possible residual string contamination; occurrence-weighted, not
+  runtime-weighted. Directions as stated there.
+- **Rooted at the package source dir**, where the infrastructure census
+  rooted at the whole install tree. Both apply the `test`/`docs`/
+  `examples` exclusions; the domain rooting additionally drops
+  top-level `benchmarks/`, tooling, and packaging that sit outside the
+  importable package. *Direction: slightly conservative on all counts
+  for the domain corpora; it removes code from both numerator and
+  denominator.*
+- **Exhaustive, not sampled**, so — unlike the n = 30 loop surveys —
+  these proportions are not coarse; but they inherit survey 2's
+  one-project-per-domain confound, so read a per-corpus figure as "this
+  project," and the combined figure as "these six projects," not "all
+  domain code."
+
+## What this changes
+
+For **the infrastructure census's fold caveat** (C.2 and the
+"what this changes" note above): quantified. Fold's 6%-of-combinators
+figure is confirmed as infrastructure-specific; the domain figure is
+20%, and the ~2% → ~7.6% move on the whole-population share is now
+measured rather than predicted.
+
+For **survey 2's finding 2.1** (the scan is real and domain-shaped):
+reinforced, with a level distinction added — the numeric scan is a
+statement-loop phenomenon, so it raises the *loop*-side stateful share
+(survey 2) without raising the *combinator*-side fold share here; the
+combinator-fold rise is graph reduction (`sum`), a distinct population.
+
+For **reduce-close and operator identities** (survey 2's finding 2.3;
+the identity question in `iteration-with-state-design.md` and
+`collect-family-design.md`): the everyday high-frequency case the
+identity answer must make effortless is `sum` (`+`/`0`), exercised
+across domains and led by graph code, not only the numeric accumulator.
+
+Not changed: as with the infrastructure census, this counts occurrences
+and does not classify which statement loops carry state; the
+iteration-state candidates, the running-view-of-a-collect gap, and the
+end-when demand are argued from the loop surveys, and stand.
