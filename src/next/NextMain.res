@@ -265,9 +265,29 @@ header("case split: alt ports, exhaustive collect")
   let out = Build.collect(b, ~flow=it.flow, perElem.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
 
-  Console.log("TEXT (lane groups print; parsing them is on the growth path):")
-  Console.log(TextPrint.print(p))
   expectOutput(p, "out", array_([int_(2), int_(0), int_(10)]))
+}
+
+// ============================================================================
+// 6b. Case collect from text — lane groups now parse and round-trip
+// ============================================================================
+
+header("case collect: lane group parses, compiles, round-trips")
+{
+  let src = `
+classify = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
+dbl = js "x => x * 2"
+[1, 2, 3, 4] -> open list => a, ~L
+a -> split classify of Even, Odd => cs
+cs.Odd -> dbl => doubled
+~cs.Even: cs.Even
+~cs.Odd: doubled
+-~> collect => perElem
+perElem -~> collect ~L => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(2), int_(2), int_(6), int_(4)]))
+  expectRoundTrip(p)
 }
 
 // ============================================================================

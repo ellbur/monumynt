@@ -20,10 +20,11 @@
 // becomes testable the day the printer exists.
 //
 // Parse coverage note: most of what v0 emits reparses (that is the
-// round-trip test). Three emitted forms are ahead of the parser, matching
-// design-only constructs: lane groups for case collects, `commute out of`,
-// and `cross with`. They print so the constructs can be *seen*; parsing
-// them is listed in ARCHITECTURE.md's growth path.
+// round-trip test), now including lane groups for case collects. Emitted
+// forms still ahead of the parser, matching design-only constructs:
+// `commute out of` and `cross with` standalone forms. They print so the
+// constructs can be *seen*; parsing them is listed in ARCHITECTURE.md's
+// growth path.
 
 open Program
 

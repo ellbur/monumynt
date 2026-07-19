@@ -199,10 +199,15 @@ line tells you which tests are waiting.
    the leading list levels and swaps the innermost push for the
    discriminator dispatch. Non-trailing alt levels and option levels
    raise `Todo`. Flips test 7; differential validates.
-3. **Parser catch-up** (`TextParse.res`): flow-ref lane groups (case /
-   partial collects become parseable — the printer already emits them),
-   then fused lanes, `commute out of`, prefix application, `;`
-   multi-resume. Each form has a pointed "not yet parsed" error today.
+3. **Parser catch-up** (`TextParse.res`): flow-ref lane groups — DONE
+   for the labeled form (`~flow: value` lanes + `-~> collect =>` binder;
+   `TextParse.parseLaneCollect` → `TextAst.LaneCollect` →
+   `TextResolve.resolveLaneCollect` → `Build.collectCases`). Case
+   collects now parse, compile, and round-trip (NextMain test 6b); the
+   partial form's `~flow` remainder binder is wired but untested (needs
+   the partial-collect emitter). Still ahead of the parser: fused lanes,
+   `commute out of` / `cross with`, prefix application, `;` multi-resume.
+   Each remaining form has a pointed "not yet parsed" error today.
 4. **Printer round** (`TextPrint.res`): chain compression + taps (port
    ExprPrint's greedy chains), derived indentation, span lint. Then
    golden-file tests.
