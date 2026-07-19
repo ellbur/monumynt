@@ -134,7 +134,9 @@ they change how everything else is read.
   textual form): the cursor as a node/port/slot position plus a mark,
   every edit an atomic pure function preserving structural validity,
   and holes/planned wires as the representable partiality that makes
-  that possible. Builds on the step-DAG and completion docs.
+  that possible. Also the suggestion surface: the legal next edits at
+  a position, enumerated as the checker of `types-design.md` run in
+  reverse. Builds on the step-DAG and completion docs.
   *Exploration.*
 
 ## Constructs
