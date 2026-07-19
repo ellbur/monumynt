@@ -74,15 +74,21 @@ records worked-vs-unworked, not settled. Citations across the record to
 
 **IO, effects, and cancellation — I 3, W 5.**
 The record's most-cited hole, now worked in two halves — both
-exploration, neither adopted. *Effects* (`effects-design.md`): the IO
-handle threaded through a loop **is a register on a marker wire**, so
-"collect of an effect flow" (the translation-exercise gap, `~io'`
-outside the loop) is the register's `final` — one handle out, never a
-list; a *spanning* handle threads and orders effects by iteration
-order, a *per-firing-minted* handle is independent and commutes
-(satisfying the per-session-IO constraint), the fork read off the
-drawing not a mode; the collected-plan pole is retained as an adjacent
-*batched* construct, not the everyday form; five dead ends recorded.
+exploration, neither adopted. *Effects* (`effects-design.md`):
+**commuting an IO flow out of a list flow sequences the
+operations** — per-firing segments concatenate in firing order into
+one segment, so "collect of an effect flow" (the
+translation-exercise gap, `~io'` outside the loop) is the
+concatenation's tail — one handle out, never a list; the commute is
+mandatory and unique (the handle is linear), so it is never drawn —
+consuming the handle after the loop does the job; a *spanning*
+handle concatenates and orders effects by iteration order, a
+*per-firing-minted* handle is independent and unordered (satisfying
+the per-session-IO constraint), the fork read off the drawing not a
+mode; the collected-plan pole is retained as an adjacent *batched*
+construct, not the everyday form; dead ends recorded, including the
+round's own first answer (register on a marker wire — dissolved:
+every register port is inert for a marker).
 One sharpening that round contributed: effects over a product make the
 loop-carried-state row's linearization residue *observable* (writes are
 non-commutative, removing the commutative-monoid escape hatch).
@@ -120,12 +126,12 @@ when the sink's write doesn't coalesce (a catalog-row law — chunked
 encoding is the observable pole); a handle is an ordering commitment,
 so a cross-handle order demand marks mis-factored handles, never a new
 edge species; five dead ends recorded. Split-when gains its second
-everyday client, and the one-writeback rule its first marker-wire
-client (conditional carry on the thread).
+everyday client; the conditional effect is an empty segment
+(concatenates as identity — no carry machinery).
 
 Residue keeping I at 3: the adoption conversation (one conversation for
-the row's halves — the release half consumes the thread's `final`, and
-the within-firing round's handle-granularity leaning joins it); the
+the row's halves — the release half consumes the handle after the loop,
+and the within-firing round's handle-granularity leaning joins it); the
 batched-effect construct's own round; the
 permit-pool block (now unblocked by bracket); the threaded op's and the
 release half's spellings; the `Cancelled` payload (joint with

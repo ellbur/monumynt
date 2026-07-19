@@ -18,8 +18,9 @@ true preemption, and the served flow's body-fails leg.
 
 This chapter connects threads from several earlier ones. If you meet
 an unfamiliar construct below, its home is one of these:
-`effects-design.md` (the IO thread as a register on a marker wire —
-the carrier this chapter was waiting on), `custom-flows.md` (the
+`effects-design.md` (the IO thread — a spanning handle's per-firing
+segments, commuted out of the loop in firing order — the carrier
+this chapter was waiting on), `custom-flows.md` (the
 lifecycle segment), `async-flow-design.md` ("Effects, abandonment,
 cancellation" and the failability section), `race-barrier-design.md`
 ("Abandonment at the barrier" — the lost-cell trigger),
@@ -384,8 +385,9 @@ terminator, failure terminator, or `Cancelled`.*
 
 The release body consumes two things, both already defined. First,
 **the handle as of the last completed operation** — for a spanning
-handle, the marker register's `final`, which the discharge machinery
-defines at whatever point the walk actually ended. You close the file
+handle, the tail of the segments concatenated so far: the sequencing
+commute truncated at the cut, defined at whatever point the walk
+actually ended. You close the file
 at the position it really reached, half-write and all. Second, **the
 terminator**, so the body can discriminate per lane. One body that
 ignores the tag is `defer`; a case split on the tag is `errdefer` with
@@ -556,10 +558,11 @@ purpose.
    is an effect on abandoned cells (`race-barrier-design.md`, dead
    end 3).
 
-5. **The thread is in place.** A spanning effect handle is a register
-   on a marker wire; its `final` is the handle after the loop —
-   defined by the discharge machinery even when the walk ends early
-   (`effects-design.md`, `first-class-ports-design.md`). The effects
+5. **The thread is in place.** A spanning effect handle commutes out
+   of the loop, its per-firing segments concatenated in firing
+   order; the handle after the loop is the concatenation's tail —
+   defined even when the walk ends early, as the concatenation up to
+   the cut (`effects-design.md`). The effects
    round named the thread "the carrier a cancellation capability would
    later ride"; this round is that rider.
 
@@ -635,8 +638,8 @@ stated as a leaning, not a decision.
 
 1. **Adoption.** Prepared for the design conversation — jointly with
    the effects round: the Tier-1 row's two halves are one
-   conversation, since the release half consumes the thread's `final`
-   and the delivery rides the frontier.
+   conversation, since the release half consumes the handle after
+   the loop and the delivery rides the frontier.
 2. **The Cancelled payload.** Bare fact (the lean) vs provenance
    (which consumer abandoned) — jointly with failability's
    payload-composition residue and the subset-merge payload question.
@@ -661,9 +664,10 @@ stated as a leaning, not a decision.
    walk granularity, jointly with the effects round's
    one-threading-consumer question (its open question 4).
 7. **The register's final at a Cancelled cut.** The discharge readout
-   of a register (and the marker register) under early termination is
-   already shared residue with end-when's final-readout anchor;
-   confirm `Cancelled` needs nothing beyond that answer.
+   of a register under early termination — and, on the effects side,
+   the handle as the concatenation-so-far — is already shared residue
+   with end-when's final-readout anchor; confirm `Cancelled` needs
+   nothing beyond that answer.
 8. **The at-risk derived view.** The async round asked what the
    diagram shows when a race implies possible cancellation of a
    subgraph. This round's answer is "nothing new is authored" — the

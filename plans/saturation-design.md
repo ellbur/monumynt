@@ -126,14 +126,12 @@ register demands *every cycle crosses a Delay* (so state can't be
 skipped), saturation demands *every flow cycle crosses a dedup
 collect* (so the loop is monotone and can converge).
 
-The two-point map (value back-edge / flow back-edge) has since gained
-a third point: `effects-design.md` reads the threaded IO handle as a
-register carrying a **marker** wire across a Delay — a back-edge
-whose threaded wire has no readable payload. Value, flow, marker:
-three instances of one move, a linearly threaded wire crossing an
-iteration boundary, each with its own crossing discipline. (How the
-marker register squares with "Delay does not thread the flow wire" is
-reconciled in `delay-ontology-design.md`.)
+(The two-point map briefly gained a third point — an earlier working
+of `effects-design.md` read the threaded IO handle as a register
+carrying a **marker** wire across a Delay. That reading is since
+dissolved: effects are now the list/IO sequencing commute, no Delay
+involved, and the map is two-point again — value back-edge, flow
+back-edge.)
 
 Here is a strawman spelling of reachability with the feedback drawn
 (doubly provisional — the visual form of a flow back-edge, like the

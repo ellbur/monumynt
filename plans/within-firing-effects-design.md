@@ -52,9 +52,9 @@ partway through some firings — dissolve under it.
 ## The gap, stated precisely
 
 The effects round settled how effects order **across** firings: a
-spanning handle is a register on a marker wire, threaded through the
-iteration, so cross-firing order is iteration order and nothing is
-annotated. It then fenced the remaining axis in one sentence: the
+spanning handle commutes out of the loop — its per-firing segments
+concatenated in firing order — so cross-firing order is iteration
+order and nothing is annotated. It then fenced the remaining axis in one sentence: the
 *conditional-flush* shape "couples effect order to a register's value
 and is left to its joint owner (registers + the effect story)"
 (`effects-design.md`).
@@ -129,9 +129,10 @@ the round leans on all seven rather than reopening them.
    prefix, productive by the Delay-crossing rule
    (`variable-rate-consumption-design.md`, Part II).
 
-6. **The spanning handle is a register on a marker wire**; its
-   `final` is the handle after the loop; a nested handle is
-   independent and commutes (`effects-design.md`).
+6. **The spanning handle commutes out of the loop** — per-firing
+   segments concatenated in firing order, the handle after the loop
+   the concatenation's tail; a nested handle is independent and
+   unordered (`effects-design.md`).
 
 7. **Derivation, not retroaction.** No construct reaches into an
    existing flow and changes what other consumers see
@@ -246,8 +247,8 @@ every part of the imperative idiom finds its drawn name:
   construct, no clearing operation);
 - the **flush** is one write op per segment, on the `out` handle
   threaded through the *segment* flow (the effects round's spanning
-  register, one level up — the handle now threads segments instead of
-  pieces);
+  handle, one level up — the concatenation now runs per segment
+  instead of per piece);
 - the **raw copy** is the boundary payload — the `Raw` firing's value
   rides the segment terminator, is discharged at the segment's close,
   and feeds a `copyStream` op strung on the same handle *after* that
@@ -302,15 +303,15 @@ effects-design open question 1):
     segText:  per segment — collect the Text values,
               concatenated
     ~out:     the output handle, threaded through the
-              segment flow (a marker register: init = the
-              handle before; final = the handle after)
+              segment flow (spanning: enters before the
+              loop, leaves after, segments in order)
     per segment firing, along the handle:
               write(segText); then discharge the segment
               terminator — Raw(file): copyStream(file);
               subject-RanOut: nothing
     epilogue: the closing "--boundary--" line — an
               ordinary write op downstream of the loop,
-              consuming the thread's final
+              consuming the handle after the loop
 
 No register carries the buffer. No reset exists. The two effects per
 firing are two ops on one segment chain. The loop's sentence — "write
@@ -352,7 +353,7 @@ joint owner turns out to be half right: the effect story (the thread)
 and the *segmentation* story own it jointly; the register half
 dissolves into the nesting.
 
-## The conditional effect: conditional carry on the marker wire
+## The conditional effect: an empty segment
 
 Strip the buffer away and one residual genuinely-conditional shape
 remains: **perform an op on some firings only** — write a warning
@@ -360,18 +361,19 @@ line only for malformed entries; the witness loop's copy op, which
 fires only on `Raw` terminators. What does the handle do on the
 firings where the op doesn't fire?
 
-The record already prescribes this, for value registers: conditional
-carry is "a conditional *value* wired into the single writeback" —
-never two writebacks (`iteration-with-state-design.md`, the
-one-writeback rule). The marker register inherits it unchanged: the
-handle threads through the case split; on the firing alt the op
-consumes and produces it; on the complement it passes through
-untouched; the case collect reunifies, and the handle after is
-whichever branch fired. One threading, one writeback, a conditional
-step. "Flush-or-not depending on state," in its residual genuine form
-(after the buffer costume is gone), is conditional carry on a marker
-wire — no new rule, and the one-writeback discipline gets its first
-marker-wire client.
+Nothing — and under the sequencing commute, nothing is a complete
+answer. A firing that strings no ops contributes an **empty
+segment**, and empty segments concatenate as identity, the same
+grounding as the empty loop (`effects-design.md`). The non-firing
+alt of the case split simply touches no handle; there is no
+pass-through to wire and no reunification to draw.
+"Flush-or-not depending on state," in its residual genuine form
+(after the buffer costume is gone), is a segment that is sometimes
+empty — no rule at all. (An earlier working, under the effects
+round's since-dissolved register reading, needed conditional carry
+on the marker wire here — the one-writeback rule applied to the
+handle. Dissolved with the register: where there is no carried
+value there is nothing to carry conditionally.)
 
 ## Batching is meaning exactly when write is not a homomorphism
 
@@ -416,8 +418,10 @@ vocabulary should put them: the forgotten final flush is unwritable
 mutations and calls).
 
 Related, not reopened: moving IO across data structure is the
-marker-out-of-sequenceable commute variant, affirmed real and
-deferred (`lazy-stream-commute-design.md`). This round's batching
+marker-out-of-sequenceable commute variant
+(`lazy-stream-commute-design.md`) — now worked for the list case as
+the effects round's sequencing commute, its runtime design still
+deferred. This round's batching
 never moves an op across anything — it only chooses segment
 boundaries on the op flow's own order — so it composes with, and does
 not preempt, that variant's eventual runtime design.
@@ -485,8 +489,9 @@ size (a chunked uploader, a log shipper, `BufferedWriter`):
 
 This is the wrap loop with an effect readout instead of a list
 collect — the same drawing, one statement swapped, which is the
-`final`/`collect` two-readouts property the effects round already
-named for B4, extended one level up: *a segment's readout can be a
+two-boundary-crossings property the effects round already named for
+B4 (the value flow leaves by collect, the marker flow by the
+sequencing commute), extended one level up: *a segment's readout can be a
 value (a line) or an effect (a flush), and the segmentation doesn't
 care.* The threshold batcher and the text-wrapper are one program
 family; the survey found them at opposite ends of the record and the

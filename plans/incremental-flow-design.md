@@ -662,6 +662,11 @@ clicks -> open stream => _, ~C
 ~C ~> delay init 0 => n
 n, 1 -> add -> step of n => running
 running -> hold init 0 => count                   -- mutation boundary: scan-then-hold
+                                                  -- TODO (simplify): this `init 0` restates the
+                                                  -- register's `init 0` one line up; a hold on a
+                                                  -- scanned stream should default its initial
+                                                  -- value to the stream's own seed — one authored
+                                                  -- seed per counter, not two.
 count -> open var => c, ~V                         -- incremental open
 c, 2 -> mul -~> collect => label                   -- derived var
 label -> changes -> drain => log                   -- observation boundary

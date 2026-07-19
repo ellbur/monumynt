@@ -230,7 +230,15 @@ and the transposed consumer reads through a Commute that theorem 2
 makes lawful. B survives as the recognized reading — "these two
 orientations are the same product" — a statement the Cross node
 itself witnesses, available to the editor, the checker, and any
-future recognize-family entry, without a representational move. And
+future recognize-family entry, without a representational move.
+
+> TODO (simplify): that Commute should never be authored. Over a
+> Cross it is total (theorem 2) and uniquely determined by the
+> consumer's read orientation — mandatory + unique ⇒ inferable, the
+> effects round's never-drawn-commute precedent. The consumer reads
+> in the order it wants; the editor inserts the transpose faint,
+> `time-travel-programs-design.md`-style, instead of the author
+> hunting for "a transpose operation to insert." And
 the lean has a recorded exit: if experience shows consumers routinely
 fighting the stored orientation, promoting B to the representation is
 a local change (the node stops carrying an orientation; consumers

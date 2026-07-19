@@ -508,7 +508,12 @@ a variant or note a no-op.
   it concerns *value* wires not interacting with the node, and
   effect ordering rides *flow* wires, which the commute node
   legitimately reorders — the value/flow division of labor working
-  as intended.
+  as intended. *The list case is now worked* (`effects-design.md`):
+  the list/IO commute is defined to sequence — per-firing segments
+  concatenate in firing order — and for a spanning handle it is
+  mandatory and unique (the handle is linear), so it is never
+  drawn; that round's stacking question (IO under an option layer
+  that also commutes) is jointly owned with this doc.
 
 - **Marker × marker** (IO with State, etc.). No commute operation:
   neither side has runtime representation, so they already commute —
