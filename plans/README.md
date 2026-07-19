@@ -177,6 +177,14 @@ consumes, and whether it needs an input list at all:
   trees and other recursive structures without writing a recursive
   function: a zipper-based uncollect walks the structure and exposes
   each node with its full context. *Exploration.*
+- [`divide-flow-design.md`](divide-flow-design.md) — recursion whose
+  tree exists only as call structure (mergesort's splits, a parser's
+  descent, a quadtree build): write one level concretely, then *link*
+  the sub-problems back to the problem — the register's link
+  transformation, tree-shaped. Termination is a three-species measure
+  discipline (structural shrink, cursor progress, drawn fuel); the
+  left-recursion parser bug falls out as the progress measure's
+  violation. *Exploration.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
