@@ -29,7 +29,7 @@ function with a printable output):
 | 1 check | `Check.res` | Implemented: port-exists, write-count, alignment(v0), **join-adjacency**, **flow-borne(v0: outputs)**. Stubs with named owners: productivity, provenance, coverage; plus flow-borne's general interior rule (noted at the check). |
 | 2 complete | `Complete.res` | **pass shape real** — `harvest` → `solve` → `realise` with contracts stated and the constraint vocabulary typed — all bodies v0-trivial (no constraints harvested ⇒ identity). Heuristic table reserved as versioned data. |
 | 3 annotate | `Annotate.res` | write index + species implemented; flow-variable sets and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
-| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule). `Todo` stubs, each citing its legacy spec function: case collect, filter collect, partial collect, commute, cross, registers. |
+| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo` stubs, each citing its legacy spec function or design doc: partial collect, commute, cross; registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
 | (stand-in) | `LegacyBridge.res` | **disposable**: translates `Program` → legacy `Expr` and reuses `src/Compile.res`. Now the *fallback engine* (below). Must never grow features; deleted at retirement. |
 | entry | `Pipeline.res` | derive → check → complete → annotate → **two engines** → `JsPrint`. Witnesses come back as data (`result`), engine gaps as exceptions (`Codegen.Todo` / bridge `Failure`). |
@@ -99,10 +99,16 @@ Build handles ──────────────────────
 
 Via NextCodegen today: the value fragment (including **computed
 functions** — App's fn is a wire, which the bridge cannot express),
-list/option chains with binary Join, multi-close, and single-module
-multi-output compilation (outputs share one memo). Via the Bridge: case
-collects and filters. Representable-but-not-compilable (prints, checks):
-registers, commute, cross, explicit `in` nesting, partial collects.
+list/option chains with binary Join, multi-close, single-module
+multi-output compilation (outputs share one memo), **case collects**,
+**filters** (join with a case-alt inner operand), and **registers** (the
+Delay pair over a single-level driving flow — the first non-legacy
+construct to run, so beyond the bridge and validated against the design
+docs rather than by the differential). Via the Bridge: nothing among the
+smoke tests still falls back. Representable-but-not-compilable (prints,
+checks): commute, cross, explicit `in` nesting, partial collects, and
+registers over joined/nested/case flows (the Delay ontology open
+problem).
 
 ## Decisions taken here (all cheap to revisit; recorded so they are
 decisions, not accidents)
@@ -182,14 +188,17 @@ the legacy function named at the `Todo` is the spec, the differential
 check verifies agreement automatically, and the test log's `codegen gap`
 line tells you which tests are waiting.
 
-1. **Case collect emitter** (`Codegen.res`, the `CaseFull` arm; spec:
-   `Compile.emitCaseClose`). Shape is described at the stub. Pre-memoise
-   the alt payload port (split id, alt name) at context `exterior ++
-   [alt flow tagged with this collect]`. Flips NextMain test 6 to
-   NextCodegen; differential validates it.
-2. **Filter collect emitter** (`Codegen.res`, the `hasAlt` arm of
-   `IterCollect`; spec: `Compile.emitFilterClose`). The spine already
-   delivers the `AltLevel` with split and alt. Flips test 7.
+1. **Case collect emitter** — DONE (`Codegen.res`, `emitCaseCollect`,
+   the `CaseFull` arm; spec: `Compile.emitCaseClose`). Pre-memoises the
+   alt payload port (split id, alt name) at `exterior ++ [alt flow
+   tagged with this collect]`; NextMain test 6 runs via NextCodegen and
+   the differential validates it.
+2. **Filter collect emitter** — DONE (`Codegen.res`,
+   `emitFilterCollect`, the `hasAlt` arm of `IterCollect`; spec:
+   `Compile.emitFilterClose`). Reuses the iter-level plan machinery for
+   the leading list levels and swaps the innermost push for the
+   discriminator dispatch. Non-trailing alt levels and option levels
+   raise `Todo`. Flips test 7; differential validates.
 3. **Parser catch-up** (`TextParse.res`): flow-ref lane groups (case /
    partial collects become parseable — the printer already emits them),
    then fused lanes, `commute out of`, prefix application, `;`
@@ -202,11 +211,25 @@ line tells you which tests are waiting.
    time-travel classification; coverage; flow-borne's general interior
    rule (each stub names its design doc). These turn Codegen asserts
    into user-facing witnesses — do them before or with item 6.
-6. **Registers**: productivity check + register codegen (`DelayRead` /
-   `DelayWrite` in `Codegen.res` — the driving collect's emitter must
-   emit the register `let` into its loop skeleton via
-   `st.ann.writeIndex`; `final` readable after). First non-legacy
-   construct to run; NextMain test 8's decline flips to a real compile.
+6. **Registers** — DONE for the self-driven case (`Codegen.res`,
+   `emitRegister`, reached via the `DelayWrite` `final` port). The write
+   half doubles as the feedback collect: it emits its own loop skeleton
+   with a mutable accumulator (`let reg = force(init)`; `const prev =
+   lazyDone(reg)` at body top; `reg = force(step)` at bottom; `return
+   reg`). NextMain test 8's decline flipped to a real compile (running
+   sum = 6, empty list = init). Remaining: (a) the **productivity
+   check** (`Check.res` stub) — currently unreachable, since the object
+   graph is a DAG by construction and the only cycle is the register
+   pairing itself, so every buildable program is productive; it becomes
+   load-bearing once a representation admits foreign cycles. (b) A
+   register `prev` **read by a sibling collect** over the same flow —
+   the eager model gives each consumer its own loop, so sharing the
+   register's mutable state across loops needs the driving collect to
+   emit the register `let` into *its* skeleton via `st.ann.writeIndex`;
+   deferred (the `DelayRead` arm `failwith`s if `prev` is reached
+   outside the write half's loop). (c) Registers over a joined / nested
+   / case driving flow — the Delay ontology open problem
+   (iteration-with-state-design.md); raises `Todo`.
 7. **Retirement** (see "The two engines"): when `Todo` is unreachable,
    delete the fallback, the bridge, and the legacy modules.
 8. **Completion**: `harvest`/`solve`/`realise` bodies in `Complete.res`

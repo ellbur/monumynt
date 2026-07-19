@@ -234,13 +234,20 @@ let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
           Int.toString(n.id) ++
           " reached outside its flow — Check's flow-borne rule should have witnessed this",
         )
-      | DelayRead(_) | DelayWrite(_) =>
-        // Registers: the read compiles to a loop-skeleton `let` (init
-        // before the driving flow's loop, read at top of body), the write
-        // to assign-at-bottom, `final` readable after — which means the
-        // driving collect's emitter must emit them into ITS skeleton, via
-        // st.ann.writeIndex. Growth-path: registers.
-        throw(Todo("registers (DelayRead/DelayWrite) — first-class-ports-design.md, the pair section"))
+      | DelayWrite({read, step}) => emitRegister(st, ctx, n, read, step)
+      | DelayRead(_) =>
+        // The register's per-iteration `prev` port. The write half's emitter
+        // (emitRegister) pre-memoises it into the driving loop body before
+        // compiling the step, so a memo miss here means `prev` was read from
+        // outside that loop — a foreign consumer of the register (e.g. a
+        // sibling collect over the same flow), which is deferred (the driving
+        // collect would have to share the register's loop skeleton; ARCHITECTURE
+        // worklist item 6, general case).
+        failwith(
+          "Codegen: register `prev` port of node " ++
+          Int.toString(n.id) ++
+          " reached outside its driving loop — Check's flow-borne rule should have witnessed this",
+        )
       | Join(_) | Commute(_) | Cross(_) =>
         failwith("Codegen: flow-only node reached as a value — Check's port-exists rule should have witnessed this")
       }
@@ -748,6 +755,125 @@ and emitFilterCollect = (
 
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// A register (Delay pair). The write half doubles as the feedback collect
+// (iteration-with-state-design.md, "The write half is a node"): reaching the
+// write's `final` port emits the driving loop with a mutable accumulator —
+//
+//   const vFinal = __lazy__(() => {
+//     let reg = __force__(init);
+//     for (const x of __force__(feed)) {          // (or `if (x !== undefined)` for an option)
+//       const elem = __lazyDone__(x);
+//       const prev = __lazyDone__(reg);            // reads the carried value
+//       …step subtree…;
+//       reg = __force__(step);                     // writes the next value
+//     }
+//     return reg;                                  // final = init if no iteration ran
+//   });
+//
+// `prev` is pre-memoised to a fresh per-iteration `__lazyDone__(reg)` and the
+// element to `__lazyDone__(x)`, both inside the loop body, so the step subtree
+// re-runs each iteration (a register is the one place laziness must NOT cache
+// across firings — the bindings live in the body, never hoisted). Only a
+// single-level driving flow is compiled: a joined / nested / case flow raises
+// Todo, because which flow a register's next iteration binds to is the Delay
+// ontology open problem (iteration-with-state-design.md).
+and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRef): compiled => {
+  let (flow, init) = switch read.kind {
+  | DelayRead({flow, init}) => (flow, init)
+  | _ =>
+    failwith("Codegen.emitRegister: DelayWrite's read is not a DelayRead — Check should have witnessed this")
+  }
+  let exterior = instantiate(
+    ~what="Register final, node " ++ Int.toString(wn.id),
+    Context.flowContext(flow),
+    ctx,
+  )
+  let (uncollect, isList) = switch spine(flow) {
+  | [IterLevel({uncollect, isList})] => (uncollect, isList)
+  | _ =>
+    throw(
+      Todo(
+        "register over a joined / nested / case flow — which flow the next " ++
+        "iteration binds to is the Delay ontology open problem " ++
+        "(iteration-with-state-design.md)",
+      ),
+    )
+  }
+  let input = switch uncollect.kind {
+  | Uncollect({input}) => input
+  | _ => failwith("Codegen.emitRegister: register flow's level is not an Uncollect")
+  }
+  let ownFlow = FlowPort(uncollect, "flow")
+  if flowsKey(Context.flowContext(ownFlow)) !== flowsKey(exterior->Array.map(s => s.flow)) {
+    failwith(
+      "Codegen.emitRegister: register flow is not nesting-adjacent to its exterior — " ++
+      "Check's join-adjacency rule should have witnessed this",
+    )
+  }
+
+  let floatedAcc: array<placed> = []
+  // Feed (the collection / option) and init are loop-invariant — compiled at
+  // the exterior, they float out of the thunk.
+  let feedC = compileValue(st, exterior, input)
+  feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+  let initC = compileValue(st, exterior, init)
+  initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  let regName = st.fresh()
+  let bodyCtx = Array.concat(exterior, [{flow: ownFlow, thunkOf: wn.id}])
+  let iterVar = st.fresh()
+  let elemName = st.fresh()
+  let prevName = st.fresh()
+  recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+  recordMemo(st, read.id, "prev", bodyCtx, prevName)
+  let stepC = compileValue(st, bodyCtx, step)
+  stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  // Partition: step work addressed to the loop body is claimed into it;
+  // loop-invariant work floats out of the thunk.
+  let bucket: array<JsAst.stmt> = []
+  let escaped: array<placed> = []
+  floatedAcc->Array.forEach(pl =>
+    if ctxPathKey(pl.at) === ctxPathKey(bodyCtx) {
+      Array.push(bucket, pl.stmt)
+    } else if isCtxPrefix(pl.at, exterior) {
+      Array.push(escaped, pl)
+    } else {
+      failwith("Codegen: a statement floated to a context unrelated to the register being assembled — placement bug")
+    }
+  )
+
+  let loopBody = Array.concat(
+    Array.concat(
+      [
+        JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar))),
+        JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName))),
+      ],
+      bucket,
+    ),
+    [JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))))],
+  )
+  let loopStmts = if isList {
+    [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedC.name)), loopBody)]
+  } else {
+    [
+      JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedC.name))),
+      JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), loopBody),
+    ]
+  }
+  let thunkBody = Array.concat(
+    [JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initC.name)))],
+    Array.concat(loopStmts, [JsBuild.ret(JsBuild.id(regName))]),
+  )
+
+  let name = st.fresh()
+  recordMemo(st, wn.id, "final", exterior, name)
   {
     name,
     floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),

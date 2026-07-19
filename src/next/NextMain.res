@@ -289,10 +289,11 @@ a -~> collect ~keep => evens
 }
 
 // ============================================================================
-// 8. Registers: representable and printable, not yet compilable
+// 8. Registers: a running sum via the Delay pair — the first non-legacy
+//    construct to run (beyond the bridge, so no differential is possible)
 // ============================================================================
 
-header("register pair: prints today, compiles in phase 6")
+header("register pair: running sum compiles via next codegen")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -314,15 +315,25 @@ header("register pair: prints today, compiles in phase 6")
       ws->Array.map(Check.witnessToString)->Array.join("\n  "),
     )
   }
-  switch Pipeline.compile(p) {
-  | exception Failure(msg) => pass("compile declines gracefully: " ++ msg)
-  | Ok(_) => fail("register compile unexpectedly succeeded — phase 6 arrived early?")
-  | Error(ws) =>
-    fail(
-      "expected a bridge failure, got witnesses:\n  " ++
-      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-    )
-  }
+  // 0 + 1 + 2 + 3 = 6, the value after the last element (init if empty).
+  expectOutput(p, "total", int_(6))
+}
+
+// ============================================================================
+// 8b. Register empty-list case: final = init when no iteration ran
+// ============================================================================
+
+header("register pair: empty list yields init")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([]))
+  let it = Build.uncollectList(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(42)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  expectOutput(p, "total", int_(42))
 }
 
 // ============================================================================
