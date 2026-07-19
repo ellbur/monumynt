@@ -116,7 +116,7 @@ inventories that first-class ports already models:
 | partial collect | the merged value (one row) | selection: the firing branch's value |
 | collect | `result` | the fold/packaging of the walk |
 | discharging collect | see below | the settlement of the terminator |
-| Delay write half | `final` | the register after the flow completes (the pair is worked, not yet adopted — `first-class-ports-design.md`) |
+| Delay write half | `final` | the register after the flow completes (the pair is worked, not yet adopted — `iteration-with-state-design.md`, "The Delay back-edge") |
 
 The two mechanisms compose, and their composition is the whole story of a
 sum barrier: **into a cell by availability, out of a bundle by the partial

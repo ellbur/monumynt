@@ -215,7 +215,8 @@ order, and the broadcast-back and keyed-index consumption patterns; APL
 and BQN supply the identity catalog and the empty-collect framing. See
 `flix-comparison.md`, `xquery-jq-comparison.md`, `apl-family-comparison.md`,
 `zig-comparison.md`, `tidyverse-comparison.md`. Companions:
-`first-class-ports-design.md` (the Delay pair),
+`iteration-with-state-design.md` (the Delay pair, "The Delay
+back-edge"),
 `iteration-rails-design-notes.md`.
 
 **Variable-rate consumption and the running view of a collect —

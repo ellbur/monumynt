@@ -12,7 +12,7 @@ bodies-raise — each is fenced below with the reason.
 
 Reading order: `custom-flows.md` (the effect-handle lifecycle, the raw
 material), `core-model.md` (value vs flow wires, the register pointer),
-and the register/Delay sections of `first-class-ports-design.md`
+and the register sections of `iteration-with-state-design.md`
 (`init`/`prev`/`step`/`final`). The prior-art poles are in
 `xquery-jq-comparison.md` (the pending update list),
 `reactive-comparison.md` (Elm `Cmd`), `effekt-comparison.md` and

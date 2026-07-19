@@ -716,7 +716,7 @@ Delay:
 > the two-phase `step` wiring is not constructible on immutable data. Both
 > are answered by the **register pair** — a read half and a write half,
 > the write half a node of its own with `final` as its output
-> (`first-class-ports-design.md`, "The Delay back-edge: the write half is
+> (`iteration-with-state-design.md`, "The Delay back-edge: the write half is
 > a node"). Whether the spec keeps one Delay node with the pair as its
 > Expr-level form, or adopts the pair, is open there; either way `final`
 > needs a home this section currently lacks. A second open question rides
