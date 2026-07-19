@@ -1,24 +1,53 @@
 # Within-firing effects: ordering without time, and the conditional-flush buffer dissolved
 
-Status: exploration (a worked proposal with leanings, prepared for a
-design conversation — not adopted). Scope: the **within-firing effect
-ordering** axis that `effects-design.md` fenced out ("named, not
-worked"), whose standing witness is the conditional-flush buffer —
-breadth item 5 of the survey record, the one breadth item whose owner
-was named jointly (registers + the effect story) and never tested
-jointly (`real-loop-survey.md`). This round works that axis. It
-deliberately does **not** work the batched-effect construct,
-bodies-raise, or cancellation — each stays fenced where its owning
-round left it.
+Status: exploration — this chapter teaches a worked proposal with
+leanings, prepared for a design conversation. None of it has been
+adopted or implemented; read it as "here is a candidate and the case
+for it." Its scope is the **within-firing effect ordering** axis that
+`effects-design.md` fenced out ("named, not worked"), whose standing
+witness is the conditional-flush buffer — breadth item 5 of the
+survey record, the one breadth item whose owner was named jointly
+(registers + the effect story) and never tested jointly
+(`real-loop-survey.md`). This round works that axis. It deliberately
+does **not** work the batched-effect construct, bodies-raise, or
+cancellation — each stays fenced where its owning round left it.
 
-Reading order: `effects-design.md` (the cross-firing thread this round
-extends inward), `variable-rate-consumption-design.md` (split-when and
-the running view — this round is their second client),
-`custom-flows.md` (the lifecycle segment), `core-model.md` (value vs
-flow wires, inside-out). Prior-art contact: `reactive-comparison.md`
-(the ecosystem's flush-timing knobs and ordering disclaimers),
-`lazy-stream-commute-design.md` (the marker-out-of-sequenceable
-commute variant).
+If you want the background first: `effects-design.md` teaches the
+cross-firing thread this chapter extends inward,
+`variable-rate-consumption-design.md` teaches split-when and the
+running view (this chapter is their second client),
+`custom-flows.md` teaches the lifecycle segment, and `core-model.md`
+teaches value vs flow wires and the inside-out principle. Prior-art
+contact: `reactive-comparison.md` (the ecosystem's flush-timing knobs
+and ordering disclaimers) and `lazy-stream-commute-design.md` (the
+marker-out-of-sequenceable commute variant).
+
+## Two effects in one firing
+
+Start with the smallest program that has the problem's shape. Per
+request, send a header and then a body — two effects inside one
+firing, and their order matters:
+
+```
+reqs -> open list => req, ~R
+req -> connect => ~s              -- a fresh handle inside the firing
+~s ~> sendHeader(req) => ~s'      -- first op
+~s' ~> sendBody(req) => ~s''      -- second op: ordered by the chain
+~s'' ~> closeConn                 -- released within the same firing
+```
+
+What orders `sendHeader` before `sendBody`? Nothing new: the second
+op consumes the handle the first produced. Operations strung along
+one handle's segment are ordered by the segment — each op takes the
+handle in and produces the next — and that is true at any
+granularity, including inside a single firing. The chain *is* the
+order.
+
+That little observation, taken seriously, turns out to be the entire
+answer to within-firing ordering. The rest of this chapter is about
+taking it seriously: stating it as a rule, and then watching the
+hardest known witness — a buffer that is conditionally flushed
+partway through some firings — dissolve under it.
 
 ## The gap, stated precisely
 
@@ -30,8 +59,8 @@ annotated. It then fenced the remaining axis in one sentence: the
 and is left to its joint owner (registers + the effect story)"
 (`effects-design.md`).
 
-The witness is survey 1's net/http multipart writer (ruby 8, class 8 —
-"accumulator with multi-site append and conditional reset"):
+The witness is survey 1's net/http multipart writer (ruby 8, class
+8 — "accumulator with multi-site append and conditional reset"):
 
 ```ruby
 buf = +''
@@ -54,31 +83,35 @@ flushed — written to the output channel and cleared — partway through
 some firings, so that a raw file copy can be interleaved at the right
 position in the output. The survey's diagnosis was exact on both
 counts: the one-writeback rule survives structurally (each firing's
-final `buf` is one expression), and "what strains is not the writeback
-count but the *effects interleaved between the appends* — the flush
-must be ordered against the raw copy" (`real-loop-survey.md`,
-finding 3).
+final `buf` is one expression), and "what strains is not the
+writeback count but the *effects interleaved between the appends* —
+the flush must be ordered against the raw copy"
+(`real-loop-survey.md`, finding 3).
 
 So the question on the table: **what orders two effects within one
 firing, and what is the buffer-with-conditional-reset in drawn
-vocabulary?** The round's answer is that the first question is already
-answered by machinery the record has, and the second question
+vocabulary?** The round's answer is that the first question is
+already answered by machinery the record has, and the second question
 dissolves — there is no register in the drawn form of this loop at
 all.
 
-## What the record already fixes
+## What was already settled before this chapter
 
-1. **Operations along one handle segment are ordered by the segment.**
-   The lifecycle pattern draws a handle as a vertical segment with
-   operations strung along it; each op consumes the handle and
-   produces the next, so ops on one handle are totally ordered by
-   wiring (`custom-flows.md`, `visual-language-spec.md`). This is true
-   at any granularity, including inside a single firing.
+Seven things are fixed in the record before this round starts, and
+the round leans on all seven rather than reopening them.
+
+1. **Operations along one handle segment are ordered by the
+   segment.** The lifecycle pattern draws a handle as a vertical
+   segment with operations strung along it; each op consumes the
+   handle and produces the next, so ops on one handle are totally
+   ordered by wiring (`custom-flows.md`, `visual-language-spec.md`).
+   This is true at any granularity, including inside a single
+   firing — it is what ordered the header before the body above.
 
 2. **Independent handles commute** — their operations have no
    structural relationship and cross freely; an explicit commute
-   between them would be a no-op (`custom-flows.md`). Also true at any
-   granularity.
+   between them would be a no-op (`custom-flows.md`). Also true at
+   any granularity.
 
 3. **No interior scopes, no magic names.** Inside-out: anything
    readable at a position arrives by a visible wire
@@ -86,25 +119,25 @@ all.
 
 4. **Split-when and the law of segments.** A binary flow operation
    (subject, boundary) partitioning a flow into consecutive segments;
-   the boundary firing's value rides the segment terminator; the final
-   segment ends the way the subject ends; per-segment state needs no
-   reset construct — "the nesting is the reset"; per-segment readout
-   is discharge (`variable-rate-consumption-design.md`).
+   the boundary firing's value rides the segment terminator; the
+   final segment ends the way the subject ends; per-segment state
+   needs no reset construct — "the nesting is the reset"; per-segment
+   readout is discharge (`variable-rate-consumption-design.md`).
 
 5. **The running view.** A collect's output-so-far is readable
    per-firing as the state port of its derived augment form, strict
    prefix, productive by the Delay-crossing rule
    (`variable-rate-consumption-design.md`, Part II).
 
-6. **The spanning handle is a register on a marker wire**; its `final`
-   is the handle after the loop; a nested handle is independent and
-   commutes (`effects-design.md`).
+6. **The spanning handle is a register on a marker wire**; its
+   `final` is the handle after the loop; a nested handle is
+   independent and commutes (`effects-design.md`).
 
 7. **Derivation, not retroaction.** No construct reaches into an
    existing flow and changes what other consumers see
    (`end-when-design.md`).
 
-## The axiom: within a firing there is no time
+## Within a firing there is no time
 
 The round's first result is a statement, not a construct, and it is
 the inside-out principle applied to the *schedule* rather than the
@@ -117,66 +150,93 @@ scope:
 Unpacked into its three consequences:
 
 - **Same-handle ops are ordered by the segment they are strung on** —
-  already fixed (item 1 above). Two effects within one firing that
-  must happen in order are two operations on one handle, and the
-  handle's chain *is* the order. Nothing new.
+  already fixed (item 1 above, and the header/body example). Two
+  effects within one firing that must happen in order are two
+  operations on one handle, and the handle's chain *is* the order.
+  Nothing new.
 
-- **Values have no "when."** An effect operation's argument is a wire.
-  The question "which value does the flush see — the buffer at the
-  moment the flush runs?" is a question about a moment that does not
-  exist. Which value an op consumes is *drawn* — whichever port its
-  argument wire comes from — never scheduled. There is no "the current
-  contents" of anything; there are only named wires carrying definite
-  per-firing values.
+- **Values have no "when."** An effect operation's argument is a
+  wire. The question "which value does the flush see — the buffer at
+  the moment the flush runs?" is a question about a moment that does
+  not exist. Which value an op consumes is *drawn* — whichever port
+  its argument wire comes from — never scheduled. There is no "the
+  current contents" of anything; there are only named wires carrying
+  definite per-firing values.
 
 - **Cross-handle order does not exist, and that is a feature with a
-  sharp edge** (worked in its own section below).
+  sharp edge** — worked in its own section below.
 
-The imperative costume hides this axiom because a statement list
-supplies a total order for free, and mutable variables let value-state
-and sequencing share one name (`buf` is simultaneously "the text so
-far" and "the point in the schedule where text is pending"). The
-reactive-comparison corpus shows what happens when a genre keeps
-ambient time but loses the statement list: flush-timing knobs (Vue's
-`flush: 'post'`/`'sync'`, MobX schedulers) and universal ordering
-disclaimers ("MobX does not guarantee the order in which reactions
-will be run"; Solid: "The order of runs among multiple effects is not
-guaranteed") — the ecosystem's APIs are the shape of the hole
-(`reactive-comparison.md`). The record's position is the axiom: order
-is not ambient at *any* granularity; where order is meant, it is
-drawn, and the handle segment is where it is drawn.
+Why does imperative code hide this? Because the imperative costume
+supplies a total order for free — the statement list — and mutable
+variables let value-state and sequencing share one name: `buf` is
+simultaneously "the text so far" and "the point in the schedule where
+text is pending." The reactive-comparison corpus shows what happens
+when a genre keeps ambient time but loses the statement list:
+flush-timing knobs (Vue's `flush: 'post'`/`'sync'`, MobX schedulers)
+and universal ordering disclaimers ("MobX does not guarantee the
+order in which reactions will be run"; Solid: "The order of runs
+among multiple effects is not guaranteed") — the ecosystem's APIs are
+the shape of the hole (`reactive-comparison.md`). The record's
+position is the axiom: order is not ambient at *any* granularity;
+where order is meant, it is drawn, and the handle segment is where it
+is drawn.
+
+Now, you might wonder why the language doesn't just add an
+intra-firing sequencing construct — statement order, or "seq" edges
+between ops on different wires — so the author could pin any order
+they like. It turns out this would cause problems: within a firing
+there is no time; same-handle order is the segment, value-side order
+is data (a list), and a free-floating order edge would reintroduce
+ambient schedule — the flush-timing-knob genre the reactive corpus
+documents as a hole, not a feature. (This is a settled rejection —
+please don't re-propose a sequencing construct without new
+evidence.)
 
 ## The dissolution: the buffer is a segmentation of the op flow
 
-Now the witness loop, read for what it means rather than how it is
+Now the witness loop, read for what it *means* rather than how it is
 staged.
 
 **What the loop means.** One ordered sequence of pieces lands on
 `out`: text fragments (boundary lines, headers, inline bodies)
 interleaved with raw file bodies. That is the entire meaning. The
-buffer is not part of it — `buf` exists so that consecutive small text
-pieces become one syscall, and so that the raw copy (which writes to
-`out` directly, bypassing the string path) lands *between* the right
-text pieces. The meaning is "write these pieces, in this order"; the
-buffer is a batching of the text runs.
+buffer is not part of it — `buf` exists so that consecutive small
+text pieces become one syscall, and so that the raw copy (which
+writes to `out` directly, bypassing the string path) lands *between*
+the right text pieces. The meaning is "write these pieces, in this
+order"; the buffer is a batching of the text runs.
 
 **The appends were never effects.** Read as a drawing, each param
 produces one to three *pieces* — values, in a definite order. Several
 `buf <<` sites per firing are per-firing piece *production*: a small
 list built by ordinary value code (the case split on the param's kind
-determines which pieces), opened, and joined into the flat piece flow.
-The order among one firing's pieces is **list order — data, not
+determines which pieces), opened, and joined into the flat piece
+flow. The order among one firing's pieces is **list order — data, not
 time**. Nothing effectful has happened yet; a piece is a string or a
 file, not an operation. This is why the multi-site-append half of
 breadth item 5 never strained the one-writeback rule: it was never
 state.
+
+Now, you might wonder whether the piece flow is really a *plan* —
+effect descriptions produced now, executed later, the
+effects-as-collected-plan pole. It turns out it is not, and the
+difference matters: the pieces are values (strings, files), not
+effect descriptions; the thread performs every op in drawn order, and
+read-your-writes holds — the raw copy actually lands between the
+physical writes, which is exactly what the plan pole cannot guarantee
+(`effects-design.md`, dead end on the plan-as-default). The buffer
+batches a *thread*; it does not renounce execution order. The
+batched-effect construct remains its own fenced round. (This reading
+is a settled rejection — please don't re-propose the plan reading of
+the buffer without new evidence.)
 
 **The flush boundary is a split-when.** The pieces are a case flow —
 `Text` and `Raw` alts, a genuine data distinction, not packing. Aim
 the `Raw` alt at a split-when as the boundary operand (delimiter
 destination: the raw piece belongs to neither text segment; its value
 rides the segment terminator, per the law). The subject partitions
-into **runs of consecutive text pieces**, one segment per run:
+into **runs of consecutive text pieces**, one segment per run — and
+every part of the imperative idiom finds its drawn name:
 
 - the **buffer** is the per-segment collect — each segment's text
   pieces concatenated into one string;
@@ -195,10 +255,30 @@ into **runs of consecutive text pieces**, one segment per run:
   the segment chain, per the axiom. Across segments: ordered by the
   thread. Nothing else needs ordering, and nothing else is ordered.
 
+Now, you might wonder why the language doesn't just transcribe the
+Ruby faithfully — a register carrying the string, the flush op
+reading "its value at the flush point," then clearing it. It turns
+out this fails twice over: "at the flush point" names a moment that
+doesn't exist (values have no when — an op's argument must be a drawn
+wire), and the clear would need a reset operation, which is its own
+rejection just below. The segmentation form needs neither. (This is a
+settled rejection — please don't re-propose the
+buffer-as-mid-firing-register without new evidence.)
+
+And you might wonder, separately, why there is no reset operation or
+reset port on a register at all — the direct transcription of
+`buf.clear`. It turns out this would cause problems: the reset is a
+segment boundary, and the nesting is the reset (split-when's
+theorem). A reset port would let the effect side reach into value
+state — the very entanglement the drawing exists to dissolve — and it
+violates derivation-not-retroaction: other readers of the register
+would see their past erased. (This is a settled rejection — please
+don't re-propose a reset construct without new evidence.)
+
 **The final flush is the final segment.** The law of segments already
 says the final segment ends the way the subject ends, terminator
-passed through — so the text after the last raw copy is a segment like
-any other, and its write happens like any other. The imperative
+passed through — so the text after the last raw copy is a segment
+like any other, and its write happens like any other. The imperative
 idiom's classic bug — the forgotten final flush after the loop — is
 **unwritable** in the drawn form: there is no separate "remember to
 flush at the end" step to forget, because the end is just the last
@@ -207,7 +287,7 @@ without flushing, is equally unwritable: the buffer and the reset are
 not two operations that could disagree — they are one collect and its
 nesting.)
 
-The construct list, end to end (construct list rather than chains,
+The construct list, end to end (a construct list rather than chains,
 deliberately — the op spellings are owed to the textual round, per
 effects-design open question 1):
 
@@ -238,11 +318,11 @@ the params as multipart, streaming file bodies straight through" — is
 the drawing, clause for clause.
 
 One honest micro-difference: the imperative code batches the last
-param's trailing text together with the epilogue into one syscall; the
-drawing above writes the epilogue separately. Under the homomorphism
-property of the next section this is exactly a *free* boundary — the
-difference is one syscall, not meaning — which is the right place for
-it to land.
+param's trailing text together with the epilogue into one syscall;
+the drawing above writes the epilogue separately. Under the
+coalescing property of the batching section below this is exactly a
+*free* boundary — the difference is one syscall, not meaning — which
+is the right place for it to land.
 
 ## The coupling point, isolated
 
@@ -251,13 +331,14 @@ effect order to a register's value." The dissolution shows the
 coupling was two ordinary wires, seen through one mutable variable:
 
 - **The boundary may read accumulated state.** In the threshold
-  variant — flush whenever the pending text exceeds 4KB — the boundary
-  predicate reads the running length of the current segment's collect.
-  That is the running view / per-segment register reading that
-  split-when already worked, productive by the existing Delay-crossing
-  rule, verbatim the wrap loop's `cur_len` (`variable-rate-consumption-design.md`,
-  "Well-formedness: the boundary may read per-segment state"). The
-  *value* side of the coupling.
+  variant — flush whenever the pending text exceeds 4KB — the
+  boundary predicate reads the running length of the current
+  segment's collect. That is the running view / per-segment register
+  reading that split-when already worked, productive by the existing
+  Delay-crossing rule, verbatim the wrap loop's `cur_len`
+  (`variable-rate-consumption-design.md`, "Well-formedness: the
+  boundary may read per-segment state"). The *value* side of the
+  coupling.
 
 - **The effect consumes the segment's collect.** The write op's
   argument is the segment's collected text — an ordinary value wire
@@ -274,10 +355,10 @@ dissolves into the nesting.
 ## The conditional effect: conditional carry on the marker wire
 
 Strip the buffer away and one residual genuinely-conditional shape
-remains: **perform an op on some firings only** — write a warning line
-only for malformed entries; the witness loop's copy op, which fires
-only on `Raw` terminators. What does the handle do on the firings
-where the op doesn't fire?
+remains: **perform an op on some firings only** — write a warning
+line only for malformed entries; the witness loop's copy op, which
+fires only on `Raw` terminators. What does the handle do on the
+firings where the op doesn't fire?
 
 The record already prescribes this, for value registers: conditional
 carry is "a conditional *value* wired into the single writeback" —
@@ -300,16 +381,18 @@ The honest answer is: it depends on the resource, and the dependency
 is a declarable algebraic fact, not a vibe.
 
 For a plain byte sink, consecutive writes coalesce:
-`write(a); write(b) ≡ write(a ++ b)` — write is a monoid homomorphism
-from string-concat to handle-sequencing. Under that law, **boundary
-placement is free**: any segmentation of the same piece flow writes
-the same bytes, so the split-when is a pure efficiency choice. Under
-chunked transfer encoding it is the opposite — `flush_buffer(out,
-buf, chunked_p)` emits an HTTP *chunk*, with a length header on the
-wire per flush; each write is a frame, the law fails, and the
-boundary is **observable meaning**. Datagrams, line-buffered logs,
-and websocket messages are the same pole: one write = one unit the
-far side can see.
+`write(a); write(b) ≡ write(a ++ b)`. (In algebraic terms, write is a
+monoid homomorphism from string-concatenation to handle-sequencing —
+a structure-preserving translation: combining the strings first, or
+writing them one after another, comes to the same thing.) Under that
+law, **boundary placement is free**: any segmentation of the same
+piece flow writes the same bytes, so the split-when is a pure
+efficiency choice. Under chunked transfer encoding it is the
+opposite — `flush_buffer(out, buf, chunked_p)` emits an HTTP *chunk*,
+with a length header on the wire per flush; each write is a frame,
+the law fails, and the boundary is **observable meaning**. Datagrams,
+line-buffered logs, and websocket messages are the same pole: one
+write = one unit the far side can see.
 
 So the property "this handle's `write` coalesces" is a catalog row —
 a declared law on the op, trusted like the JS edge, exactly the shape
@@ -320,11 +403,11 @@ choice and could in principle be left *uncommitted* — a boundary the
 author never places, completed by published rules the way
 under-committed order already is (`time-travel-programs-design.md`).
 That is flagged, not proposed: the completion-contents row's own rule
-is that each addition needs a worked program behind it, and this round
-supplies only the candidate. Where the row is absent — chunked
-encoding — the boundary must be drawn, and the drawing is then telling
-the truth the imperative form hides: *which bytes share a chunk* is
-program meaning, visible as which pieces share a segment.
+is that each addition needs a worked program behind it, and this
+round supplies only the candidate. Where the row is absent — chunked
+encoding — the boundary must be drawn, and the drawing is then
+telling the truth the imperative form hides: *which bytes share a
+chunk* is program meaning, visible as which pieces share a segment.
 
 The two classic bugs of the buffer idiom land exactly where a
 vocabulary should put them: the forgotten final flush is unwritable
@@ -333,11 +416,11 @@ vocabulary should put them: the forgotten final flush is unwritable
 mutations and calls).
 
 Related, not reopened: moving IO across data structure is the
-marker-out-of-sequenceable commute variant, affirmed real and deferred
-(`lazy-stream-commute-design.md`). This round's batching never moves
-an op across anything — it only chooses segment boundaries on the op
-flow's own order — so it composes with, and does not preempt, that
-variant's eventual runtime design.
+marker-out-of-sequenceable commute variant, affirmed real and
+deferred (`lazy-stream-commute-design.md`). This round's batching
+never moves an op across anything — it only chooses segment
+boundaries on the op flow's own order — so it composes with, and does
+not preempt, that variant's eventual runtime design.
 
 ## Cross-handle order, and what a handle is
 
@@ -348,36 +431,41 @@ the drawing fixes no order between them. Real programs sometimes seem
 to want one: "log the line *before* writing the file, so a crash
 leaves the log explaining what was attempted."
 
-The record could answer with a sequencing edge between ops on
-different handles. It should not, and the reason is ontological — the
-"what does it mean?" lens (`language-design-philosophy.md`), applied
-to the handle itself:
+Now, you might wonder why the language doesn't allow an ordering
+annotation — a sequencing edge — between ops on different handles,
+for exactly that program. It turns out this would cause problems, and
+the reason is about what a handle *is* (the "what does it mean?"
+lens, `language-design-philosophy.md`), applied to the handle
+itself:
 
-> **A handle is an ordering commitment.** The resource is the payload;
-> what the flow-wire *is*, is the total order of the operations strung
-> on it. Two operations whose relative order is observable are, by
-> that very fact, operations on one resource at the granularity where
-> the order is observed.
+> **A handle is an ordering commitment.** The resource is the
+> payload; what the flow-wire *is*, is the total order of the
+> operations strung on it. Two operations whose relative order is
+> observable are, by that very fact, operations on one resource at
+> the granularity where the order is observed.
 
 The log-before-write program is the demonstration. If the crash-time
-interleaving of log and file is meaningful, then there is a real thing
-whose state both ops advance — the debugging record, the durable
-picture a post-mortem reads — and *that* is the resource; both ops
-belong on its handle. If no such thing is meant, the order is
-genuinely free and the commute is correct. Minting granularity follows
-observability: one handle per terminal (not per fd), one per debugging
-record (not per file), one per session (the per-session-IO constraint,
-`tough-use-cases-design.md` break #3 — the same rule read from the
-other side, where *fine* granularity is what's meant). An ordering
-demand that seems to span handles is a mis-factoring, and the fix is
-in the handle structure, not in a new edge species.
+interleaving of log and file is meaningful, then there is a real
+thing whose state both ops advance — the debugging record, the
+durable picture a post-mortem reads — and *that* is the resource;
+both ops belong on its handle. If no such thing is meant, the order
+is genuinely free and the commute is correct. Minting granularity
+follows observability: one handle per terminal (not per fd), one per
+debugging record (not per file), one per session (the per-session-IO
+constraint, `tough-use-cases-design.md` break #3 — the same rule read
+from the other side, where *fine* granularity is what's meant). An
+ordering demand that seems to span handles is a mis-factoring, and
+the fix is in the handle structure, not in a new edge species. An
+annotation, by contrast, would let the drawn independence and the
+meant dependence disagree — the effects round's rejection of an
+author-selected ordered/unordered mode, extended down to firing
+scale. (This is a settled rejection — please don't re-propose a
+cross-handle ordering annotation without new evidence.)
 
-This extends the effects round's dead end 5 (no author-selected
-ordered/unordered mode) down to firing scale, and it is the leaning
-this round most wants the design conversation to weigh — it decides
-what the vocabulary says when a user asks "how do I make this happen
-before that?": *put them on the same thread, or accept that the order
-is not part of your program's meaning.*
+This is the leaning this round most wants the design conversation to
+weigh — it decides what the vocabulary says when a user asks "how do
+I make this happen before that?": *put them on the same thread, or
+accept that the order is not part of your program's meaning.*
 
 ## Worked program: the threshold batcher
 
@@ -398,30 +486,32 @@ size (a chunked uploader, a log shipper, `BufferedWriter`):
 This is the wrap loop with an effect readout instead of a list
 collect — the same drawing, one statement swapped, which is the
 `final`/`collect` two-readouts property the effects round already
-named for B4 extended one level up: *a segment's readout can be a
+named for B4, extended one level up: *a segment's readout can be a
 value (a line) or an effect (a flush), and the segmentation doesn't
 care.* The threshold batcher and the text-wrapper are one program
 family; the survey found them at opposite ends of the record and the
 vocabulary reunites them.
 
-## Against the principles
+## How this sits against the design principles
 
 - **Example first, then generalise.** The concrete-first path exists
-  at every stage: draw the unbatched program (one write op per piece —
-  legal, correct, slow), then add the segmentation after the fact —
-  interpose the split-when, re-aim the op at the segment's collect.
-  Batching is an *addition to a working drawing*, not a structure
-  declared before the first piece flows.
+  at every stage: draw the unbatched program (one write op per
+  piece — legal, correct, slow), then add the segmentation after the
+  fact — interpose the split-when, re-aim the op at the segment's
+  collect. Batching is an *addition to a working drawing*, not a
+  structure declared before the first piece flows.
 
 - **Inside-out.** The axiom *is* principle 2, extended from scope to
-  schedule: no ambient time, no "current contents," no position-
-  dependent meaning. Every value an op consumes arrives on a visible
-  wire; every order that exists is a visible chain.
+  schedule: no ambient time, no "current contents," no
+  position-dependent meaning. Every value an op consumes arrives on a
+  visible wire; every order that exists is a visible chain.
 
 - **Foundations before features.** The round adds **no construct**.
   One axiom (a statement about what already exists), one composition
-  (split-when + the thread), one catalog property, one ontological
-  leaning. Five dead ends died on paper.
+  (split-when + the thread), one catalog property, one leaning about
+  what a handle is. Five would-be constructs died on paper — they
+  appear through this chapter as the "now, you might wonder"
+  passages.
 
 - **Programmer's abstraction level.** "Flush," "batch," "buffer" are
   words in the programmer's vocabulary, and each now has one reading:
@@ -430,8 +520,8 @@ vocabulary reunites them.
   entanglement (value, schedule, reset) decodes to one drawing.
 
 - **No bottlenecks.** Nothing is packed to cross anything. The
-  Text/Raw distinction is genuine data (a piece *is* text-or-file); it
-  crosses the split-when as the alt bundle it already was; the raw
+  Text/Raw distinction is genuine data (a piece *is* text-or-file);
+  it crosses the split-when as the alt bundle it already was; the raw
   piece rides the segment terminator; the text values pass to the
   collect as themselves.
 
@@ -480,6 +570,9 @@ vocabulary reunites them.
 
 ## Open questions this round leaves
 
+The language hasn't decided these yet; they are the honest edges of
+the proposal.
+
 1. **Spellings.** The per-segment op chain (an op consuming the
    segment's collect), the terminator-discharge-into-op composition,
    and the conditional marker carry all need textual forms — joint
@@ -494,57 +587,14 @@ vocabulary reunites them.
 3. **Multi-close on the op flow.** Two consumers threading one
    spanning handle is the effects round's open question 4, unchanged
    here; segmentation adds the variant "two segmentations of one op
-   flow," which presumably falls under the same one-threading-consumer
-   rule. Restated, not advanced.
+   flow," which presumably falls under the same
+   one-threading-consumer rule. Restated, not advanced.
 4. **The granularity rule's final form.** "Mint handles at the
-   granularity where order is observable" is a leaning with an
-   ontology behind it, not yet a checkable discipline; whether the
-   bundle machinery participates (a bundle of handles as a drawn
-   coarse handle) is untouched.
+   granularity where order is observable" is a leaning with a
+   worked-out sense of what a handle *is* behind it, not yet a
+   checkable discipline; whether the bundle machinery participates (a
+   bundle of handles as a drawn coarse handle) is untouched.
 5. **Per-firing piece production ergonomics.** "Several ordered
    contributions per firing" is build-a-list-open-join — correct, and
    three nodes for an everyday gesture; whether it earns a lighter
    authoring path (not a construct) is a textual/authoring question.
-
-## Dead ends recorded
-
-Reasons kept short and forward-looking, so they are not re-proposed.
-
-1. **A reset operation or reset port on a register.** The direct
-   transcription of `buf.clear`. Rejected: the reset is a segment
-   boundary, and the nesting is the reset (split-when's theorem). A
-   reset port would let the effect side reach into value state — the
-   entanglement the drawing exists to dissolve — and it violates
-   derivation-not-retroaction (other readers of the register would see
-   their past erased).
-
-2. **An intra-firing sequencing construct** (statement order, "seq"
-   edges between ops on different wires). Rejected: within a firing
-   there is no time; same-handle order is the segment, value-side
-   order is data (a list), and a free-floating order edge would
-   reintroduce ambient schedule — the flush-timing-knob genre the
-   reactive corpus documents as a hole, not a feature.
-
-3. **The buffer as a register the flush reads mid-firing.** The
-   faithful transcription: a register carrying the string, the flush
-   op reading "its value at the flush point," then clearing. Rejected
-   twice over: "at the flush point" names a moment that doesn't exist
-   (values have no when — the argument must be a drawn wire), and the
-   clear is dead end 1. The segmentation form needs neither.
-
-4. **The piece flow as a plan (the batched-effect pole).** Reading
-   "pieces produced now, written later" as effects-as-collected-plan.
-   Rejected: the pieces are values (strings, files), not effect
-   descriptions; the thread performs every op in drawn order, and
-   read-your-writes holds — the raw copy actually lands between the
-   physical writes, which is exactly what the plan pole cannot
-   guarantee (`effects-design.md`, dead end 4). The buffer batches a
-   *thread*; it does not renounce execution order. The batched-effect
-   construct remains its own fenced round.
-
-5. **An ordering annotation between independent handles.** Rejected:
-   the effects round's dead end 5 at firing scale. If the
-   interleaving of two handles' ops is observable, the handles were
-   mis-factored — the order demand *is* a same-handle demand — and an
-   annotation would let the drawn independence and the meant
-   dependence disagree.

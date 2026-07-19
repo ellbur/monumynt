@@ -5,6 +5,17 @@ programming language. The docs range from settled foundations to
 bleeding-edge exploration; read the two fundamentals first, then follow
 the map below to whatever you're after.
 
+The docs that describe the language itself are written in a tutorial
+voice: each starts from the simplest program that shows its topic and
+builds up, introducing concepts through examples. They remain the
+authoritative design record — every decision, open question, and piece
+of evidence is still in them. In particular, rejected and dissolved
+ideas usually appear as "now, you might wonder why the language
+doesn't…" passages, each carrying the full reason the idea must not be
+tried again. The docs that are evidence and analysis rather than
+language description — the surveys, the other-language comparisons,
+the compile and sequencing docs — keep their plainer report style.
+
 Each entry says what the doc is about and where it stands. A few
 recurring status words:
 
