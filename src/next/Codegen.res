@@ -203,6 +203,14 @@ type levelPlan = {
   elemName: string, // the __lazyDone__ element binding, memoised at bodyCtx
 }
 
+// Per-alt assembly plan for a case collect (see emitCaseCollect).
+type altPlan = {
+  altName: string,
+  altCtx: ctxPath, // exterior ++ [this alt's flow tagged with the collect]
+  payloadName: string, // the __lazyDone__(split.value) binding, memoised at altCtx
+  valueName: string, // the compiled branch value, forced into `out`
+}
+
 // --- The compile ------------------------------------------------------------
 
 let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
@@ -295,15 +303,7 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
       }
       emitIterCollect(st, ctx, cn, branch, levels)
     }
-  | CaseFull =>
-    // One thunk: `const s = force(disc)(force(input)); let out;` then an
-    // if-chain on s.tag, one arm per branch (exhaustive, else-throw). Each
-    // arm pre-memoises the alt's payload port (split.id, alt) to a shared
-    // `const v = __lazyDone__(s.value)` at context exterior ++ [alt flow
-    // tagged with this collect], compiles its branch value there, assigns
-    // out. Mirror Compile.emitCaseClose (note: the discriminator is a wire
-    // here — force it like emitApp forces fn).
-    throw(Todo("case collect — mirror Compile.emitCaseClose"))
+  | CaseFull => emitCaseCollect(st, ctx, cn, branches)
   | CasePartial(_) =>
     // The three arm shapes of partial-collect-design.md, dispatched by
     // coverage; the merged "flow" port of the collect is itself a flow
@@ -430,6 +430,152 @@ and emitIterCollect = (
     JsBuild.letDecl(outName)
   }
   let thunkBody = Array.concat([accDecl], Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]))
+
+  let name = st.fresh()
+  recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// One self-contained thunk per case collect (multi-close independence):
+// `const s = force(disc)(force(input)); let out;` then an exhaustive if-chain
+// on `s.tag`, one arm per alt, ending in else-throw. Each arm pre-memoises the
+// alt's payload port (split.id, alt) to a shared `const v = __lazyDone__(s.value)`
+// binding at the alt's context, compiles the branch value there, and assigns
+// `out`. Statements addressed to an alt body are bucketed into it; loop-
+// invariant work (the discriminator extern, exterior-context bindings) floats
+// out of the thunk. Mirrors Compile.emitCaseClose — with the discriminator a
+// wire that is forced at the call, like emitApp forces fn.
+and emitCaseCollect = (
+  st: state,
+  ctx: ctxPath,
+  cn: node,
+  branches: array<collectBranch>,
+): compiled => {
+  let branch0 = branches->Array.getUnsafe(0)
+  let split = switch branch0.flow {
+  | FlowPort(s, _) => s
+  }
+  let (alts, discriminator, csInput) = switch split.kind {
+  | Uncollect({flowKind: Case({alts, discriminator}), input}) => (alts, discriminator, input)
+  | _ =>
+    failwith(
+      "Codegen.emitCaseCollect: branch flow does not target a case split — " ++
+      "Check's coverage rule should have witnessed this",
+    )
+  }
+  let exterior = instantiate(
+    ~what="Case collect node " ++ Int.toString(cn.id),
+    Context.flowContext(branch0.flow),
+    ctx,
+  )
+
+  let floatedAcc: array<placed> = []
+  // The discriminator (a wire, usually to a Lit extern) and the split input,
+  // both compiled at the exterior — recomputed into `s` once per thunk firing.
+  let discC = compileValue(st, exterior, discriminator)
+  discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+  let inputC = compileValue(st, exterior, csInput)
+  inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  let splitName = st.fresh()
+  let outName = st.fresh()
+
+  // Per alt, in the split's declared order (so dispatch is exhaustive): open
+  // the alt body context, pre-memoise the payload port there, compile the
+  // branch value under it.
+  let plans = alts->Array.map(altName => {
+    let branch = switch branches->Array.find(b =>
+      switch b.flow {
+      | FlowPort(t, p) => t.id === split.id && p === altName
+      }
+    ) {
+    | Some(b) => b
+    | None =>
+      failwith(
+        "Codegen.emitCaseCollect: CaseFull is missing a branch for alt \"" ++
+        altName ++
+        "\" — Check's coverage rule should have witnessed this",
+      )
+    }
+    let altFlow = FlowPort(split, altName)
+    let altCtx = Array.concat(exterior, [{flow: altFlow, thunkOf: cn.id}])
+    let payloadName = st.fresh()
+    recordMemo(st, split.id, altName, altCtx, payloadName)
+    let valueC = compileValue(st, altCtx, branch.value)
+    valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    {altName, altCtx, payloadName, valueName: valueC.name}
+  })
+
+  // Partition: statements addressed to one alt body bucket into it (in compile
+  // order — dependencies precede consumers); everything at the exterior or
+  // shallower floats out of the thunk.
+  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
+  plans->Array.forEach(ap => Map.set(buckets, ctxPathKey(ap.altCtx), []))
+  let escaped: array<placed> = []
+  floatedAcc->Array.forEach(pl =>
+    switch Map.get(buckets, ctxPathKey(pl.at)) {
+    | Some(bk) => Array.push(bk, pl.stmt)
+    | None =>
+      if isCtxPrefix(pl.at, exterior) {
+        Array.push(escaped, pl)
+      } else {
+        failwith(
+          "Codegen: a statement floated to a context unrelated to the case " ++
+          "collect being assembled — placement bug",
+        )
+      }
+    }
+  )
+
+  // Build the if-chain in reverse, ending in the exhaustive else-throw.
+  let elseThrow = JsBuild.throw_(
+    JsBuild.new_(
+      JsBuild.id("Error"),
+      [
+        JsBuild.add(
+          JsBuild.str("Unmatched case: "),
+          JsBuild.member(JsBuild.id(splitName), "tag"),
+        ),
+      ],
+    ),
+  )
+  let chain = ref(Some(elseThrow))
+  for i in Array.length(plans) - 1 downto 0 {
+    let ap = plans->Array.getUnsafe(i)
+    let bucket = Map.get(buckets, ctxPathKey(ap.altCtx))->Option.getOr([])
+    let body = Array.concat(
+      Array.concat(
+        [JsBuild.const(ap.payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")))],
+        bucket,
+      ),
+      [JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(ap.valueName))))],
+    )
+    chain := Some(JsAst.SIf({
+      test: JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(ap.altName)),
+      cons: JsAst.SBlock(body),
+      alt: chain.contents,
+    }))
+  }
+
+  let thunkBody = Array.concat(
+    [
+      JsBuild.const(
+        splitName,
+        JsBuild.call(Runtime.forceOf(JsBuild.id(discC.name)), [Runtime.forceOf(JsBuild.id(inputC.name))]),
+      ),
+      JsBuild.letDecl(outName),
+    ],
+    Array.concat(
+      switch chain.contents {
+      | Some(s) => [s]
+      | None => []
+      },
+      [JsBuild.ret(JsBuild.id(outName))],
+    ),
+  )
 
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
