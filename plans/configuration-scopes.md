@@ -1,91 +1,124 @@
-# Configuration scopes
+# Configuration scopes — wiring in what other languages pass as a lambda
 
-Status: design-only exploration. The general open/configure/close shape
-below survives independently; for servers specifically it is largely
-superseded by the served flow of `tough-use-cases-design.md` (see
-"Event-driven extension"). Code samples use the textual syntax of
-`textual-representation-design.md`; recursive-construct spellings that
-the language has not settled are marked *spelling provisional*.
+Status: design-only exploration — this chapter teaches a worked
+proposal that has not been adopted yet; none of it is implemented.
+Read it as "here is the candidate and the case for it." The general
+open/configure/close shape taught below survives independently; for
+servers specifically it is largely superseded by the served flow of
+`tough-use-cases-design.md` (see "Handling events" below). Code
+samples use the textual syntax of
+`textual-representation-design.md`; spellings for recursive
+constructs that the language has not settled are marked *spelling
+provisional*.
 
-## The higher-order function problem
+## Sorting by a key
 
-Operations like `sort(list, comparator)` and `filter(list, predicate)`
-take a function as one of their arguments. Passing a function as a value
-is rejected for this language: a function waiting to be called has no
-honest visual representation — there is nothing on the wire, only a
-promise to run later — and it confuses exactly the users the language is
-for. So the parameter that would be a lambda has to become something the
-user can *wire*.
-
-## The pattern: open, configure, close
-
-A parameterized operation becomes a scope with a lifecycle. Opening the
-scope says "I am doing this operation, but not finishing yet" and
-exposes the item it operates on; the middle wires in the configuration —
-the computation that would have been the lambda body; closing the scope
-completes the operation.
+Suppose you have a list and want it sorted — not by the items
+themselves, but by a key you compute from each item. Here is how:
 
 ```
 list -> open sort => item, ~S            -- spelling provisional
 item -> sortKey -~> collect => sorted
 ```
 
-*Opens a sort over `list`, exposing each `item`; the wired
-`item -> sortKey` computes the ordering key; the collect closes the
-scope and yields the sorted list. `sortKey` is the comparator, wired
-instead of passed.*
+Read it one line at a time. Opening the sort says "I am sorting this list, but not finishing
+yet." It exposes the item the sort operates on: `item` stands for
+each element, and `~S` is the sort's flow. The middle of the
+lifecycle is the second line — `item -> sortKey` wires in the
+computation of the ordering key. The collect closes the scope and
+completes the operation, yielding the sorted list.
 
-Filter and group-by follow the same shape — expose the item, wire the
-predicate or the key computation, close:
+In a conventional language, that key computation would be the
+comparator: a function passed as an argument, `sort(list,
+comparator)`. Here, `sortKey` is the comparator, **wired instead of
+passed**. A parameterized operation becomes a scope with a
+lifecycle — you *open* it, you *configure* it by wiring in the
+computation that would have been the lambda body, and you *close*
+it to complete the operation. Such a scope is called a
+**configuration scope**.
+
+## Filtering, and other shapes like it
+
+Filter follows the same shape — expose the item, wire in the
+predicate, close:
 
 ```
 list -> open filter => item, ~F          -- spelling provisional
 item -> isReady -~> collect => ready
 ```
 
-*The wired predicate `item -> isReady` selects which items the close
-keeps.*
+The wired predicate `item -> isReady` selects which items the close
+keeps. Group-by follows the same shape too: expose the item, wire
+in the key computation, close. Open, configure, close — one pattern
+covering everything that other languages express as an operation
+taking a function argument.
 
-A configuration scope shares the open/close lifecycle — and the visual
-vertical-segment drawing — with custom flows (`custom-flows.md`), but it
-is **not an execution context**. It cannot join with itself, cannot
-commute, cannot be partitioned or spread. It exists only to configure
-its operation. That restriction is what distinguishes it from a real
-flow that happens to use the same open/close spelling.
+## Why not just pass a function?
 
-## Event-driven extension
+Now, you might wonder why the language doesn't just let you pass
+the comparator or the predicate as a value — write a lambda and
+hand it to `sort(list, comparator)` or `filter(list, predicate)`,
+the way every language with higher-order functions does. It turns
+out this would cause problems: a function waiting to be called has
+no honest visual representation. There is nothing on the wire —
+only a promise to run later — and it confuses exactly the users the
+language is for. So passing a function as a value is rejected for
+this language, and the parameter that would be a lambda has to
+become something you can *wire*. The open/configure/close pattern
+above is that something. (This is a settled rejection — please
+don't re-propose function-valued arguments without new evidence.
+`functions-design.md` states the same decision from the function
+side: functions are not first-class values and not closures.)
 
-The same open/configure/close shape covers callback-based APIs. An HTTP
-server opens a scope that exposes the incoming request; the wired
-computation is the handler; the flow threads through once per request.
+## A scope is not a flow
+
+You might also wonder whether a configuration scope is just another
+flow kind — after all, it shares the open/close lifecycle, and the
+visual vertical-segment drawing, with custom flows
+(`custom-flows.md`). It is not. A configuration scope is **not an
+execution context**. It cannot join with itself, cannot commute,
+cannot be partitioned or spread. It exists only to configure its
+operation. That restriction is exactly what distinguishes it from a
+real flow that happens to use the same open/close spelling.
+
+## Handling events
+
+The same open/configure/close shape covers callback-based APIs —
+the places a conventional language hands a callback function to a
+framework. An HTTP server opens a scope that exposes the incoming
+request; the wired computation is the handler; the flow threads
+through once per request:
 
 ```
 server -> open serve => req, ~R          -- spelling provisional
 req -> handle -~> collect => responses
 ```
 
-*The scope exposes each `req`; the wired `handle` is the request
-handler; the collect is what gets sent back.*
+The scope exposes each `req`; the wired `handle` is the request
+handler; the collect is what gets sent back.
 
-For servers specifically, `tough-use-cases-design.md` carries this much
-further — the **served flow** ("the collect is the response") plus
-concurrent collects with lifecycle outputs. Read that doc as the current
-design for request/response. What survives here independently is the
-general point: open/configure/close is the language's alternative to
-higher-order functions, for sort/filter/group-by as much as for
-callbacks.
+For servers specifically, this is not the current design — it has
+been carried much further, not rejected but superseded, by
+`tough-use-cases-design.md`: the **served flow** ("the collect is
+the response") plus concurrent collects with lifecycle outputs.
+Read that doc as the current design for request/response. What
+survives here independently is the general point:
+open/configure/close is the language's alternative to higher-order
+functions, for sort/filter/group-by as much as for callbacks.
 
-The general question this pattern answers — an operation whose meaning
-is wired in per use — has since grown a broader framing: **late-bound
-operations** (a request/response port pair on the diagram boundary,
-with the test double as its everyday face; the functions/reuse/facets
-row of `open-problems.md`). Configuration scopes are the special case
-where the operation is a catalog block like sort or filter; read that
-row for the provider-on-a-port direction before extending this pattern
-to new ground.
+## Where this pattern sits now
 
-## Deferred: checking a scope's signature
+The general question this pattern answers — an operation whose
+meaning is wired in per use — has since grown a broader framing:
+**late-bound operations** (a request/response port pair on the
+diagram boundary, with the test double as its everyday face; the
+functions/reuse/facets row of `open-problems.md`). Configuration
+scopes are the special case where the operation is a catalog block
+like sort or filter; read that row for the provider-on-a-port
+direction before extending this pattern to new ground.
+
+## Not decided yet: checking a scope's signature
 
 How a configuration scope's *signature* is checked — conditional
-signatures, slots — is deliberately deferred in `types-design.md` (open
-question 3).
+signatures, slots — the language hasn't decided yet; it is
+deliberately deferred in `types-design.md` (open question 3).
