@@ -715,6 +715,83 @@ header("check: crossing an axis with a flow derived from its element is witnesse
 }
 
 // ============================================================================
+// 14. The series-parallel context algebra (Poset.res) — the Fork-A `≤` primitive
+//     and the LUB merge, unit-tested against the cases worked on paper. Products
+//     + nesting only (cells arrive with partial-collect's merged context).
+// ============================================================================
+
+header("poset: the ≤ primitive (axes-⊆ + order-extends)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let a = Axis("a")
+  let leqCheck = (name, s, r, expected) =>
+    if leq(s, r) === expected {
+      pass("≤ " ++ name ++ " (" ++ toString(s) ++ (expected ? " ≤ " : " ≰ ") ++ toString(r) ++ ")")
+    } else {
+      fail("≤ " ++ name ++ ": " ++ toString(s) ++ " vs " ++ toString(r) ++ " expected " ++ (expected ? "≤" : "≰"))
+    }
+
+  // table reused in a traversal: the product is available at either nesting order
+  leqCheck("product ≤ traversal", parallel([x, y]), series([y, x]), true)
+  leqCheck("product ≤ other traversal", parallel([x, y]), series([x, y]), true)
+  // no time travel: a nesting is not available at the reversed nesting
+  leqCheck("nesting ≰ reversed", series([x, y]), series([y, x]), false)
+  // a dependent (ragged) nesting is not available at the rectangular product
+  leqCheck("nesting ≰ product", series([x, y]), parallel([x, y]), false)
+  // any subset of a product's axes is a sub-product, usable in the whole
+  leqCheck("sub-product ≤ product", parallel([y, z]), parallel([x, y, z]), true)
+  // the plain prefix rule survives as the all-Series special case
+  leqCheck("prefix", a, series([a, y]), true)
+  leqCheck("reflexive", parallel([x, y]), parallel([x, y]), true)
+
+  // the depth-mismatched cross (stopwords × words-per-doc): Parallel(s, Series(d,w)),
+  // a non-graded but series-parallel context — reusable at any traversal that
+  // keeps d outside w, and only those.
+  let stop = parallel([Axis("s"), series([Axis("d"), Axis("w")])])
+  leqCheck("depth-mismatch ≤ d-outer traversal", stop, series([Axis("d"), Axis("s"), Axis("w")]), true)
+  leqCheck("depth-mismatch ≰ w-before-d traversal", stop, series([Axis("w"), Axis("d"), Axis("s")]), false)
+}
+
+header("poset: merge / LUB (the product exists iff a Cross constructed it)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let a = Axis("a")
+
+  // comparable operands merge to the deeper one — no product needed
+  switch merge(~products=[], a, series([a, y])) {
+  | m if leq(series([a, y]), m) && leq(m, series([a, y])) => pass("merge comparable → deeper")
+  | m => fail("merge comparable gave " ++ toString(m))
+  }
+
+  // two siblings whose product WAS constructed → that product
+  let prodXY = parallel([x, y])
+  switch merge(~products=[prodXY], x, y) {
+  | m if leq(prodXY, m) && leq(m, prodXY) => pass("merge siblings → constructed product")
+  | m => fail("merge siblings gave " ++ toString(m))
+  }
+
+  // two siblings with NO constructed product → Incomparable (the time-travel gap)
+  switch merge(~products=[], x, y) {
+  | exception Incomparable(_, _) => pass("merge siblings, no product → Incomparable (time travel)")
+  | m => fail("merge without a product should raise, gave " ++ toString(m))
+  }
+
+  // least upper bound among constructed products: a bigger product covers a
+  // smaller sibling combine
+  switch merge(~products=[parallel([x, y, z])], x, y) {
+  | m if leq(m, parallel([x, y, z])) && leq(parallel([x, y, z]), m) =>
+    pass("merge siblings → least constructed product that covers them")
+  | m => fail("merge to bigger product gave " ++ toString(m))
+  }
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++

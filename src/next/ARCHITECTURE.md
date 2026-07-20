@@ -18,7 +18,8 @@ Representation and authoring:
 |---|---|---|
 | `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
 | `Build.res` | working | Typed handles over `Program` ("strings below, typed handles above"). The builder also *collects the node set* — that is how root-unreachable write halves stay in the program. |
-| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise, until products land. |
+| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise, until products land. (The poset-round successor is `Poset.res`; wiring Context onto it is the next sub-step.) |
+| `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and the LUB `merge` (the least *constructed* product above two siblings, else `Incomparable`). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. Not yet wired into Context. |
 
 The compile pipeline (`compile-strategy-design.md`; each pass a pure
 function with a printable output):
@@ -48,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 61 checks.
+Currently 74 checks.
 
 ## The two engines (the migration harness)
 
@@ -287,8 +288,22 @@ line tells you which tests are waiting.
    Cross combines — the one fact the linear context model can't supply.
    A dependent nesting (inner source varies with the outer element) is
    witnessed; top-level siblings and siblings that share an outer loop
-   both pass (the demand tests source-vs-own-axis, not raw set overlap). Still deferred (the context-model
-   generalization proper): the **Cross** emitter (point-indexed table,
+   both pass (the demand tests source-vs-own-axis, not raw set overlap).
+   **Context representation started**: the context model is a **series-
+   parallel poset** (`Poset.res`), settled on paper (recorded in the
+   session's Fork-A discussion) — nesting = SERIES, Cross = PARALLEL, so
+   every well-formed context is SP; the non-SP "N" is always a
+   repeated-flow diamond (align-vs-cross, i.e. zip-vs-Cross, left
+   unresolved) and is witnessed, never represented, which makes SP the
+   *complete* model rather than a convenient restriction. The `≤`
+   primitive (`axes-⊆ + order-extends`) and the LUB `merge` (least
+   *constructed* product above two siblings, else `Incomparable`) are
+   implemented and unit-tested (NextMain test 14). Next sub-step: wire
+   `Context.res` onto `Poset` (build the product index from the Cross
+   nodes, give Cross two corresponding output ports in `Program`, let
+   `checkAlignment` admit a valid sibling Cross while still witnessing
+   time-travel/diamond). Still deferred (the context-model generalization
+   proper): the **Cross** emitter (point-indexed table,
    `product-flows-design.md`), which also lets Check admit products
    instead of raising `Incomparable`; **commute** (transpose over a
    Cross — lawful only there, `lazy-stream-commute-design.md`); and
