@@ -629,6 +629,92 @@ header("check: a case collect branch reading a sibling alt's payload is witnesse
 }
 
 // ============================================================================
+// 13. Cross's demand: mutual invariance (product-flows-design.md, the Cross
+//     round's first step). Two sibling top-level flows are mutually invariant —
+//     a legitimate product, the two-lists program — so they raise no invariance
+//     witness (the whole-table emitter is still the deferred poset round, so we
+//     assert at the Check level, not by compiling). Crossing an axis with a
+//     flow DERIVED from its element is dependent nesting, not a product, and is
+//     witnessed.
+// ============================================================================
+
+header("check: two sibling flows cross cleanly (the invariance demand holds)")
+{
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Output something trivial; the Cross sits in the node set and the invariance
+  // check visits it regardless of downstream use.
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "sibling cross wrongly witnessed as non-invariant:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("sibling cross satisfies the invariance demand (emitter is the poset round)")
+  }
+}
+
+header("check: siblings sharing an outer loop still cross cleanly (source vs own axis)")
+{
+  // Two inner flows nested in ONE outer loop. They SHARE the outer axis, but
+  // neither's firings depend on the OTHER's element — mutually invariant within
+  // the shared loop. This is the case that would break a naive set-disjointness
+  // test (the shared outer axis is in both operands' full axis sets); the demand
+  // is source-vs-introduced, so it passes.
+  let b = Build.make()
+  let ls = Build.lit(b, array_([int_(0), int_(1)]))
+  let itL = Build.uncollectList(b, ls.value)
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, ~nesting=itL.flow, xs.value)
+  let itY = Build.uncollectList(b, ~nesting=itL.flow, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", ls.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "siblings sharing an outer loop wrongly witnessed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("shared-outer siblings cross cleanly (the demand tests source, not raw axes)")
+  }
+}
+
+header("check: crossing an axis with a flow derived from its element is witnessed")
+{
+  let b = Build.make()
+  let mkRange = Build.raw(b, "n => Array.from({length: n}, (_, i) => i)")
+  let xs = Build.lit(b, array_([int_(2), int_(3)]))
+  let itX = Build.uncollectList(b, xs.value)
+  // itY's SOURCE depends on itX's element — the inner flow's shape varies with
+  // the outer element, so the two are not mutually invariant.
+  let ys = Build.app(b, mkRange.value, [itX.element])
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "invariance") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("invariance witness produced (dependent nesting is not a product)")
+    } else {
+      fail(
+        "expected an invariance witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("dependent cross compiled without a witness")
+  }
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++
