@@ -583,6 +583,52 @@ header("check: covering an alt twice is witnessed, not a codegen crash")
 }
 
 // ============================================================================
+// 12. Witness surface: the general interior rule. A case collect whose branch
+//     for one alt reads ANOTHER alt's payload — a value borne on a sibling cell
+//     the collect does not iterate at that branch. Coverage is well-formed (one
+//     branch per alt) and no node merges the two cells, so neither the coverage
+//     nor the alignment check fires; without the interior rule this reaches
+//     Codegen and trips its "flow-borne port reached outside its flow" failwith
+//     (a crash, since Pipeline only catches Todo). The check turns it into a
+//     witness.
+// ============================================================================
+
+header("check: a case collect branch reading a sibling alt's payload is witnessed")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
+  )
+  let xs = Build.lit(b, array_([int_(1), undefined, int_(5)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, it.element)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  // The "Just" branch reads the "Nothing" payload — the wrong cell. Coverage is
+  // still one-branch-per-alt (well-formed), so only the interior rule catches it.
+  let perElem = Build.collectCases(
+    b,
+    [(just.altFlow, nothing.altValue), (nothing.altFlow, nothing.altValue)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "flow-borne") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("flow-borne interior witness produced")
+    } else {
+      fail(
+        "expected a flow-borne witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("cross-cell case collect compiled without a witness")
+  }
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++

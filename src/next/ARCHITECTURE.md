@@ -26,7 +26,7 @@ function with a printable output):
 | pass | module | status |
 |---|---|---|
 | 0 derive | `Derive.res` | honest identity (no abstract node species exist, so every program is level-0). The catalog architecture — pattern/expansion/correspondence, composite ids, the origins map — is recorded in its header for when reduce-close arrives. |
-| 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ `time-travel`), **join-adjacency**, **flow-borne(v0: outputs)**, **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round); plus flow-borne's general interior rule (noted at the check). |
+| 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ `time-travel`), **join-adjacency**, **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
 | 2 complete | `Complete.res` | **pass shape real** — `harvest` → `solve` → `realise` with contracts stated and the constraint vocabulary typed — all bodies v0-trivial (no constraints harvested ⇒ identity). Heuristic table reserved as versioned data. |
 | 3 annotate | `Annotate.res` | write index + species implemented; flow-variable sets and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
 | 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo`/deferred, each citing its design doc: commute, cross (the poset round); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
@@ -48,7 +48,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 57 checks.
+Currently 58 checks.
 
 ## The two engines (the migration harness)
 
@@ -242,9 +242,16 @@ line tells you which tests are waiting.
    `time-travel` (completable — completion inserts a Cross). NextMain
    tests 10 (`time-travel`) and 10b (`bundle-mixing`). `checkProvenance`
    now carries only the deferred cell-set / subset-lattice remainder
-   (the poset round, item 8). Remaining: flow-borne's general interior
-   rule (its stub names the design doc). These turn the remaining
-   Codegen asserts into user-facing witnesses.
+   (the poset round, item 8). **flow-borne's general interior rule** —
+   DONE (`checkFlowBorne` + `branchInterior`): a collect branch whose
+   value is borne on a flow the collect does not iterate (a sibling
+   alt's payload, an unrelated open's element) is now a witness rather
+   than Codegen's "flow-borne port reached outside its flow" failwith —
+   exact for element / alt-payload interiors (the branch flow targets an
+   Uncollect), with Join/Commute/Cross interiors left to the poset round
+   (`branchInterior` returns None). NextMain test 12. Remaining: none in
+   this pass — these turned the remaining Codegen asserts into
+   user-facing witnesses.
 6. **Registers** — DONE for the self-driven case (`Codegen.res`,
    `emitRegister`, reached via the `DelayWrite` `final` port). The write
    half doubles as the feedback collect: it emits its own loop skeleton

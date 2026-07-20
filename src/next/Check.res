@@ -23,9 +23,12 @@
 //                     walks the two paths to their first divergent step.
 //   - join-adjacency  Join/Commute operands must be nesting-adjacent
 //                     (lazy-stream-join-design.md).
-//   - flow-borne(v0)  a per-iteration value escaping to a program output
-//                     (types-design.md); the general interior rule is the
-//                     fill-in noted at the check.
+//   - flow-borne      a per-iteration value escaping its flow (types-design.md):
+//                     to a program output (context must be empty) or read by a
+//                     collect branch that does not iterate the value's flow (the
+//                     general interior rule — exact for element / alt-payload
+//                     interiors; Join/Commute/Cross interiors defer to the poset
+//                     round).
 //   - coverage        collect branches form a coherent bundle: mixed splits
 //                     and non-alt multi-branch collects (via classifyCollect)
 //                     plus duplicate-alt coverage — pairwise disjoint
@@ -341,15 +344,37 @@ let checkCoverage = (p: program): array<witness> => {
 
 // A per-iteration (flow-borne) value referenced from outside its flow
 // (types-design.md; replaces the legacy compiler's memo-ancestor guard as a
-// stated check). v0 checks the program boundary: a distinguished output is
-// read outside every flow, so its context must be empty.
+// stated check). Two rules, one property — "every reference's context must be
+// contained in its consumer's":
 //
-// TODO(types-design.md) for the general rule: every reference's context
-// must be contained in its consumer's — for each collect branch, the
-// value's context must sit within the branch's iterated chain. Today the
-// interior cases are covered indirectly (alignment raises on incomparable
-// merges; Codegen's memo-miss failwith backstops the rest); stating them
-// here as witnesses is the fill-in.
+//   - the PROGRAM BOUNDARY: a distinguished output is read outside every
+//     flow, so its context must be empty.
+//   - the general INTERIOR rule: a collect branch consumes its value at the
+//     interior of the flow it iterates, so the value's context must be a
+//     prefix of (contained in) that interior. A value borne on a flow the
+//     collect does NOT iterate — a sibling alt's payload, an element of an
+//     unrelated open — cannot be read at the branch. This is the legacy
+//     compiler's memo-ancestor miss, which Codegen surfaces as a "flow-borne
+//     port reached outside its flow" failwith ("Check's flow-borne rule
+//     should have witnessed this"); stating it here turns that crash into a
+//     witness.
+//
+// The interior is computed only where it is EXACT: a list/option element or a
+// case alt payload — the branch's flow port targets an Uncollect, and the
+// interior is that flow's own layer over its exterior. A branch that iterates a
+// Join / Commute / Cross flow descends into the poset round (the interior lives
+// deeper than the join's own layer); `branchInterior` returns None there and
+// the branch is left to the indirect coverage (alignment + the codegen
+// backstop), per ARCHITECTURE.md's "covered indirectly" note.
+let branchInterior = (flow: flowRef): option<array<flowRef>> =>
+  switch flow {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Uncollect(_) => Some(Array.concat(Context.flowContext(flow), [flow]))
+    | _ => None
+    }
+  }
+
 let checkFlowBorne = (p: program): array<witness> => {
   let out: array<witness> = []
   p.outputs->Array.forEach(o =>
@@ -370,6 +395,37 @@ let checkFlowBorne = (p: program): array<witness> => {
       }
     } catch {
     | Context.Incomparable(_) => () // alignment reports that clash
+    }
+  )
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Collect({branches}) =>
+      branches->Array.forEach(b =>
+        switch branchInterior(b.flow) {
+        | None => () // Join/Commute/Cross-borne interior — the poset round
+        | Some(interior) =>
+          try {
+            let vctx = Context.valueContext(b.value)
+            if !Context.isPrefix(vctx, interior) {
+              Array.push(
+                out,
+                {
+                  nodeId: n.id,
+                  rule: "flow-borne",
+                  message: "collect branch reads a value borne in context " ++
+                  Context.contextToString(vctx) ++
+                  " but iterates " ++
+                  Context.contextToString(interior) ++
+                  "; the value lives on a flow this collect does not iterate",
+                },
+              )
+            }
+          } catch {
+          | Context.Incomparable(_) => () // alignment reports that clash
+          }
+        }
+      )
+    | _ => ()
     }
   )
   out
