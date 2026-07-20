@@ -1332,3 +1332,29 @@ along with what remains.
    Life exhibit (this row's n-ary/axis residue, not the zip
    section's); and per-edge alignment's home (the
    iteration-state/register round).
+10. **Whether an *ambiguous cross* is owed its own combinator — the
+    order-incompatible-combine ambiguity, which keeps moving rather
+    than vanishing.** There is a lineage worth naming. **Incorporate**
+    is unambiguous for its designed job — a value into an unrelated
+    flow. *Generalizing* it to mix two values whose flow stacks are
+    order-incompatible reopens a space: many merges of the two stacks
+    are possible, so a generalized incorporate would have to *specify*
+    which. That specification turned out to be the wrong thing to
+    demand, because the mixed value can be collected twice in
+    *different* orders ("The program that demands it") — so the honest
+    representation is not a chosen merge order but the *absence* of
+    sequencing, which is exactly **Cross** (the order-free product).
+    But abstracting the order away is why Cross *under*-determines: an
+    exact product may not be constructed, and which product a
+    subset-combine belongs to is not fixed ("Availability is monotone;
+    a combine's home is exact"). So the space of possible combinations
+    did not disappear with Cross — it *moved*, from "pick an order"
+    (Incorporate, too specific) to "which product, and is there one"
+    (Cross, under-determined). The current lean resolves the residue by
+    completion — an under-determined cross is just another time-travel
+    program (above) — but the open question is whether some programs
+    will want to represent an **ambiguous cross explicitly**: a
+    combinator that carries the under-determination as a first-class,
+    parameterizable fact rather than deferring it. Filed, not answered;
+    the exit is that if completion produces too many gaps or unnatural
+    fills, this combinator is where the specification would live.
