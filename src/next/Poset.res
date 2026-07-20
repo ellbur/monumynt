@@ -113,18 +113,29 @@ let rec before = (c: t): array<string> =>
 // the linear prefix rule is its all-singletons, all-Series instance.
 let leq = (s: t, r: t): bool => subset(axes(s), axes(r)) && subset(before(s), before(r))
 
-// --- merge / LUB -------------------------------------------------------------
+// --- merge -------------------------------------------------------------------
 //
-// The combination of two operands lives at their least upper bound in `≤`.
-// Comparable operands: the deeper one. Incomparable operands (siblings): their
-// product — but ONLY if a Cross constructed it. `products` is the program's
-// constructed product contexts (the wiring layer builds it from the Cross
-// nodes); merge returns the least (fewest axes) constructed product above both,
-// and raises `Incomparable` when none exists — the time-travel gap completion
-// fills with a Cross, or the diamond/clash the checker witnesses.
+// Where the combination of two operands lives. Comparable operands: the deeper
+// one. Incomparable operands (siblings): the constructed product of EXACTLY
+// their axes — NOT a covering superset. This is the one place `merge` and `leq`
+// diverge: availability is monotone (`leq` uses ⊆, so a sub-product IS reusable
+// inside a bigger product's loop), but a combine's *home* is exact (`==`),
+// because a flat cross builds no sub-products (product-flows-design.md, n-ary:
+// "a flat three-way cross builds neither {X,Y} nor {Y,Z}"). `products` is the
+// program's constructed product contexts (the wiring layer builds it from the
+// Cross nodes).
+//
+// When no exact product exists, the combine is UNDER-DETERMINED — and that is
+// not an error to fix by giving Cross more detail. Cross exists to give
+// natural-feeling *time-travel* programs a meaning; an under-determined cross is
+// just another time-travel program, made concrete by completion picking details
+// compatible with the rest of the program. So merge raises `Incomparable` and
+// leaves it to completion / the checker, exactly as for any sibling combine —
+// including the case where two incomparable products both cover the need
+// (merge refuses to silently pick one).
 exception Incomparable(t, t)
 
-let axisCount = (c: t): int => c->axes->dedup->Array.length
+let sameSet = (a: array<string>, b: array<string>): bool => subset(a, b) && subset(b, a)
 
 let merge = (~products: array<t>, a: t, b: t): t =>
   if leq(a, b) {
@@ -133,15 +144,7 @@ let merge = (~products: array<t>, a: t, b: t): t =>
     a
   } else {
     let need = Array.concat(axes(a), axes(b))
-    let candidates =
-      products->Array.filter(p => subset(need, axes(p)) && leq(a, p) && leq(b, p))
-    let least = candidates->Array.reduce(None, (best, p) =>
-      switch best {
-      | Some(q) if axisCount(q) <= axisCount(p) => Some(q)
-      | _ => Some(p)
-      }
-    )
-    switch least {
+    switch products->Array.find(p => sameSet(axes(p), need) && leq(a, p) && leq(b, p)) {
     | Some(p) => p
     | None => throw(Incomparable(a, b))
     }

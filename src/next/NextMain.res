@@ -755,12 +755,13 @@ header("poset: the ≤ primitive (axes-⊆ + order-extends)")
   leqCheck("depth-mismatch ≰ w-before-d traversal", stop, series([Axis("w"), Axis("d"), Axis("s")]), false)
 }
 
-header("poset: merge / LUB (the product exists iff a Cross constructed it)")
+header("poset: merge (a combine's home is the EXACT constructed product)")
 {
   open Poset
   let x = Axis("x")
   let y = Axis("y")
   let z = Axis("z")
+  let w = Axis("w")
   let a = Axis("a")
 
   // comparable operands merge to the deeper one — no product needed
@@ -769,10 +770,10 @@ header("poset: merge / LUB (the product exists iff a Cross constructed it)")
   | m => fail("merge comparable gave " ++ toString(m))
   }
 
-  // two siblings whose product WAS constructed → that product
+  // two siblings whose EXACT product was constructed → that product
   let prodXY = parallel([x, y])
   switch merge(~products=[prodXY], x, y) {
-  | m if leq(prodXY, m) && leq(m, prodXY) => pass("merge siblings → constructed product")
+  | m if leq(prodXY, m) && leq(m, prodXY) => pass("merge siblings → exact constructed product")
   | m => fail("merge siblings gave " ++ toString(m))
   }
 
@@ -782,12 +783,20 @@ header("poset: merge / LUB (the product exists iff a Cross constructed it)")
   | m => fail("merge without a product should raise, gave " ++ toString(m))
   }
 
-  // least upper bound among constructed products: a bigger product covers a
-  // smaller sibling combine
+  // a SUPERSET product does not host a smaller combine — a flat cross builds no
+  // sub-product, so this is a completion gap, not a silent bind to {x,y,z}
   switch merge(~products=[parallel([x, y, z])], x, y) {
-  | m if leq(m, parallel([x, y, z])) && leq(parallel([x, y, z]), m) =>
-    pass("merge siblings → least constructed product that covers them")
-  | m => fail("merge to bigger product gave " ++ toString(m))
+  | exception Incomparable(_, _) => pass("merge siblings, only a superset product → Incomparable (gap)")
+  | m => fail("superset product should not host the {x,y} combine, gave " ++ toString(m))
+  }
+
+  // the ambiguous cross: two incomparable products both cover {x,y} and neither
+  // IS {x,y} — exact-match refuses to silently pick; it is a time-travel program
+  // for completion to make concrete compatibly with the rest of the program
+  switch merge(~products=[parallel([x, y, z]), parallel([x, y, w])], x, y) {
+  | exception Incomparable(_, _) =>
+    pass("merge siblings, two covering supersets → Incomparable (no silent pick)")
+  | m => fail("ambiguous cross should not silently pick, gave " ++ toString(m))
   }
 }
 

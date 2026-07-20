@@ -350,6 +350,28 @@ one). Per-wire context paths stay unary facts; the product segment
 records its axis set, the same move the partial-collect document made
 for cell sets.
 
+**Availability is monotone; a combine's home is exact.** These are two
+different uses of the poset and they must not be conflated. The memo's
+reuse rule is *monotone in ⊆*: a value at a sub-product `{Y,Z}` is
+available inside the loop of any larger product `{X,Y,Z}` (sub-product
+≤ product). But *where a combine lives* is **exact**: combining an
+`X`-value with a `Y`-value has its home at the product of exactly
+`{X,Y}`, never at a larger drawn `{X,Y,Z}` that merely contains it —
+consistent with the n-ary rule that a flat cross builds no
+sub-products. When no exact `{X,Y}` product is constructed the combine
+is **under-determined**, and the resolution is *not* to make Cross
+carry combination detail, nor to silently reuse a larger product (which
+is ambiguous the moment two incomparable larger products both cover the
+combine — `{X,Y,Z}` and `{X,Y,W}` with no `{X,Y}`). Recall Cross was
+introduced to give *natural-feeling time-travel programs* a meaning,
+not as a construct users typically hand-author; so **an
+under-determined cross is just another time-travel program**, made
+concrete by completion inserting the exact `Cross(X,Y)` (shown faint)
+compatibly with the rest of the program — the same treatment every
+sibling combine gets. The checker/merge therefore reports the gap
+rather than picking; completion fills it. (Implemented in `Poset.merge`
+— exact-axis match, else `Incomparable`.)
+
 ## Compile
 
 How does a Cross run? The compile target is the point-indexed table

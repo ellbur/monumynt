@@ -19,7 +19,7 @@ Representation and authoring:
 | `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
 | `Build.res` | working | Typed handles over `Program` ("strings below, typed handles above"). The builder also *collects the node set* — that is how root-unreachable write halves stay in the program. |
 | `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise, until products land. (The poset-round successor is `Poset.res`; wiring Context onto it is the next sub-step.) |
-| `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and the LUB `merge` (the least *constructed* product above two siblings, else `Incomparable`). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. Not yet wired into Context. |
+| `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and `merge` (comparable → the deeper; siblings → the **exact-axis** constructed product, not a covering superset — `leq` is monotone `⊆` but a combine's home is `==`, since a flat cross builds no sub-products; else `Incomparable`, the completion gap — an under-determined cross is just another time-travel program). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. Not yet wired into Context. |
 
 The compile pipeline (`compile-strategy-design.md`; each pass a pure
 function with a printable output):
@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 74 checks.
+Currently 75 checks.
 
 ## The two engines (the migration harness)
 
