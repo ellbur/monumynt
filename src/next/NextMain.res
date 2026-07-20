@@ -265,9 +265,29 @@ header("case split: alt ports, exhaustive collect")
   let out = Build.collect(b, ~flow=it.flow, perElem.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
 
-  Console.log("TEXT (lane groups print; parsing them is on the growth path):")
-  Console.log(TextPrint.print(p))
   expectOutput(p, "out", array_([int_(2), int_(0), int_(10)]))
+}
+
+// ============================================================================
+// 6b. Case collect from text — lane groups now parse and round-trip
+// ============================================================================
+
+header("case collect: lane group parses, compiles, round-trips")
+{
+  let src = `
+classify = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
+dbl = js "x => x * 2"
+[1, 2, 3, 4] -> open list => a, ~L
+a -> split classify of Even, Odd => cs
+cs.Odd -> dbl => doubled
+~cs.Even: cs.Even
+~cs.Odd: doubled
+-~> collect => perElem
+perElem -~> collect ~L => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(2), int_(2), int_(6), int_(4)]))
+  expectRoundTrip(p)
 }
 
 // ============================================================================
@@ -289,10 +309,58 @@ a -~> collect ~keep => evens
 }
 
 // ============================================================================
-// 8. Registers: representable and printable, not yet compilable
+// 7b. Partial collect — the merged flow of two covered cells, terminated by a
+//     join (a multi-cell filter: "keep the A's and B's, drop the C's").
+//     Beyond the bridge (its case close is exhaustive-or-throw), so validated
+//     against a hand-computed value, like registers.
 // ============================================================================
 
-header("register pair: prints today, compiles in phase 6")
+header("partial collect: merged flow of two cells drives a multi-cell filter")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+[1, 2, 3, 4, 5, 6] -> open list => a, ~L
+a -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+~pf ~> join into ~L => ~keep
+picked -~> collect ~keep => out
+`
+  let p = TextResolve.parseProgram(src)
+  // keep n where n%3 in {0,1}: 1(B) 3(A) 4(B) 6(A); drop 2,5 (C).
+  expectOutput(p, "out", array_([int_(1), int_(3), int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7c. Partial collect collected alone — the merged flow of two cells
+//     terminated at the parent as an option (0-or-1). Exercises the
+//     no-leading-level (option accumulator) path of emitPartialCollect.
+// ============================================================================
+
+header("partial collect: merged flow collected alone yields an option")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+4 -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+picked -~> collect ~pf => out
+`
+  let p = TextResolve.parseProgram(src)
+  // 4 % 3 == 1 -> B (a covered cell) -> the merged flow fires with value 4.
+  expectOutput(p, "out", int_(4))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 8. Registers: a running sum via the Delay pair — the first non-legacy
+//    construct to run (beyond the bridge, so no differential is possible)
+// ============================================================================
+
+header("register pair: running sum compiles via next codegen")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -314,15 +382,25 @@ header("register pair: prints today, compiles in phase 6")
       ws->Array.map(Check.witnessToString)->Array.join("\n  "),
     )
   }
-  switch Pipeline.compile(p) {
-  | exception Failure(msg) => pass("compile declines gracefully: " ++ msg)
-  | Ok(_) => fail("register compile unexpectedly succeeded — phase 6 arrived early?")
-  | Error(ws) =>
-    fail(
-      "expected a bridge failure, got witnesses:\n  " ++
-      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-    )
-  }
+  // 0 + 1 + 2 + 3 = 6, the value after the last element (init if empty).
+  expectOutput(p, "total", int_(6))
+}
+
+// ============================================================================
+// 8b. Register empty-list case: final = init when no iteration ran
+// ============================================================================
+
+header("register pair: empty list yields init")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([]))
+  let it = Build.uncollectList(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(42)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  expectOutput(p, "total", int_(42))
 }
 
 // ============================================================================
@@ -374,6 +452,39 @@ header("check: combining sibling flows' elements is witnessed, not trusted")
       pass("alignment witness produced (completion will insert a Cross here, phase 4)")
     }
   | Ok(_) => fail("sibling-flow combination compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 11. Witness surface: a malformed case collect (an alt covered twice)
+// ============================================================================
+
+header("check: covering an alt twice is witnessed, not a codegen crash")
+{
+  let b = Build.make()
+  let disc = Build.raw(b, "x => ({tag: 'A', value: x})")
+  let xs = Build.lit(b, array_([int_(1)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B"], ~discriminator=disc.value, it.element)
+  let zero = Build.lit(b, int_(0))
+  let one = Build.lit(b, int_(1))
+  // Two branches for "A", none for "B": covered-count still matches, so this
+  // would misclassify as full and crash the case emitter without a check.
+  let perElem = Build.collectCases(
+    b,
+    [(Build.alt(cs, "A").altFlow, zero.value), (Build.alt(cs, "A").altFlow, one.value)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "coverage") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("coverage witness produced")
+    } else {
+      fail("expected a coverage witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | Ok(_) => fail("malformed case collect compiled without a witness")
   }
 }
 

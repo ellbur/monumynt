@@ -25,7 +25,7 @@
 // doc):
 //
 //   file        := line*                          -- '--' comments to EOL
-//   statement   := leafDef | outDecl | chain
+//   statement   := leafDef | outDecl | chain | laneCollect
 //   leafDef     := NAME '=' leafTerm
 //   leafTerm    := NUMBER | STRING | 'js' STRING | '[' leafTerm,* ']'
 //   outDecl     := 'out' NAME ('=' NAME)?
@@ -36,6 +36,8 @@
 //   flowName    := NAME ('.' NAME)?
 //   arrow       := '->' | '~>' | '-~>'
 //   tap         := '|'
+//   laneCollect := lane+ '-~>' 'collect' '=>' binder (',' binder)*
+//   lane        := '~' flowName ':' term            -- one per covered alt
 //   stage       := 'open' ('list'|'option') ('in' '~' flowName)?
 //               | 'split' term 'of' NAME (',' NAME)*
 //               | 'collect' ('~' flowName)?
@@ -49,11 +51,12 @@
 //
 // A physical line starting with an arrow or '=>' continues the previous
 // statement; a line starting with '|' begins a new chain sourced from the
-// antecedent line's taps (ordinal binding). Not yet parsed (printer may
-// still emit them): lane groups (fused and flow-ref labeled), 'commute out
-// of' / 'cross with' standalone forms, '+' completion lines (recognised
-// and skipped — they are derived, never stored), '~'/'~^' anaphora, ';'
-// multi-resume, 'diagram ... end' wrappers, '@id' suffixes.
+// antecedent line's taps (ordinal binding). A line starting with '~flow:'
+// begins a lane group (the flow-ref-labeled form). Not yet parsed (printer
+// may still emit them): fused lane groups, 'commute out of' / 'cross with'
+// standalone forms, '+' completion lines (recognised and skipped — they are
+// derived, never stored), '~'/'~^' anaphora, ';' multi-resume, 'diagram
+// ... end' wrappers, '@id' suffixes.
 
 type rec term =
   | TNum(float)
@@ -99,5 +102,13 @@ type statement =
   | Chain({
       sources: array<source>,
       stages: array<(arrow, stage)>,
+      binders: array<binder>,
+    })
+  // A lane group gathered by a postfix collect (a case collect, full or
+  // partial): one `~flow: value` line per covered alt, then a `-~> collect =>
+  // binder` terminator. The binders are a value binder for the result plus,
+  // for a partial collect, a `~flow` binder for the merged remainder.
+  | LaneCollect({
+      lanes: array<(flowTerm, term)>,
       binders: array<binder>,
     })

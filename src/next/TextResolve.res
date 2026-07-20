@@ -399,6 +399,29 @@ let resolveChain = (
   }
 }
 
+// A lane group resolves to a single Collect node whose branches are the lanes
+// (one per covered alt). Coverage — full case collect vs partial — is read off
+// the branches by classifyCollect, exactly as it is for handle-built programs;
+// the resolver only wires. The value binder names the result; a `~flow` binder
+// (present only in the partial form) names the collect's merged remainder flow.
+let resolveLaneCollect = (
+  st: r,
+  lanes: array<(flowTerm, term)>,
+  binders: array<binder>,
+): unit => {
+  let branches = lanes->Array.map(((ft, t)) => (resolveFlowTerm(st, ft), resolveValueTerm(st, t)))
+  let h = Build.collectCases(st.bld, branches)
+  binders->Array.forEach(b =>
+    switch b {
+    | BValue(name) => {
+        bindName(st, name, EValue(h.value))
+        st.lastValueBinder = Some((name, h.value))
+      }
+    | BFlow(name) => bindName(st, name, EFlow(FlowPort(h.node, "flow")))
+    }
+  )
+}
+
 // --- entry point -------------------------------------------------------------------
 
 let resolve = (statements: array<statement>): program => {
@@ -427,6 +450,7 @@ let resolve = (statements: array<statement>): program => {
         }
       }
     | Chain({sources, stages, binders}) => resolveChain(st, sources, stages, binders)
+    | LaneCollect({lanes, binders}) => resolveLaneCollect(st, lanes, binders)
     }
   )
   let outputs = if Array.length(st.outs) > 0 {

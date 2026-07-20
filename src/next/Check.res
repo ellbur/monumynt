@@ -24,14 +24,21 @@
 //   - flow-borne(v0)  a per-iteration value escaping to a program output
 //                     (types-design.md); the general interior rule is the
 //                     fill-in noted at the check.
+//   - coverage        collect branches form a coherent bundle: mixed splits
+//                     and non-alt multi-branch collects (via classifyCollect)
+//                     plus duplicate-alt coverage — pairwise disjoint
+//                     (partial-collect-design.md).
 //
 // Stubbed with signatures (each names its design doc):
 //   - productivity    every cycle crosses a register pairing
 //                     (first-class-ports-design.md, the pair section).
+//                     Unreachable today: the object graph is a DAG by
+//                     construction and the only cycle is the register
+//                     pairing itself, so every buildable program is
+//                     productive; it becomes load-bearing once a
+//                     representation admits foreign cycles.
 //   - provenance      cell-level disjointness / mixing-vs-time-travel
 //                     classification (bundle-provenance-design.md).
-//   - coverage        collect branches: cells of one bundle, pairwise
-//                     disjoint (partial-collect-design.md).
 
 open Program
 
@@ -222,6 +229,50 @@ let checkProvenance = (_p: program): array<witness> => {
   []
 }
 
+// Collect branches must form a coherent bundle (partial-collect-design.md:
+// cells of one bundle, pairwise disjoint). `classifyCollect` already rejects
+// two shapes — branches spanning different splits, and a multi-branch collect
+// whose branches are not alt flows — so surface those as witnesses here. The
+// hole it cannot see is a DUPLICATE alt (two branches for one alt): that keeps
+// covered-count == branch-count, so it misclassifies as a full/partial case
+// collect and would crash the case emitter looking for the uncovered alt.
+// Checking distinctness here turns that crash into a witness.
+let checkCoverage = (p: program): array<witness> => {
+  let out: array<witness> = []
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      | Malformed(msg) =>
+        Array.push(out, {nodeId: n.id, rule: "coverage", message: "collect is malformed: " ++ msg})
+      | CaseFull | CasePartial(_) => {
+          let seen: Map.t<string, bool> = Map.make()
+          branches->Array.forEach(b =>
+            switch b.flow {
+            | FlowPort(_, port) =>
+              if Map.has(seen, port) {
+                Array.push(
+                  out,
+                  {
+                    nodeId: n.id,
+                    rule: "coverage",
+                    message: "case collect covers alt \"" ++ port ++ "\" more than once (branches must be pairwise disjoint)",
+                  },
+                )
+              } else {
+                Map.set(seen, port, true)
+              }
+            }
+          )
+        }
+      | IterCollect => ()
+      }
+    | _ => ()
+    }
+  )
+  out
+}
+
 // A per-iteration (flow-borne) value referenced from outside its flow
 // (types-design.md; replaces the legacy compiler's memo-ancestor guard as a
 // stated check). v0 checks the program boundary: a distinguished output is
@@ -266,6 +317,7 @@ let check = (p: program): array<witness> =>
     checkJoinAdjacency(p),
     checkProductivity(p),
     checkProvenance(p),
+    checkCoverage(p),
     checkFlowBorne(p),
   ])
 

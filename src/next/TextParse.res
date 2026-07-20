@@ -289,6 +289,33 @@ let parseChainTail = (st: p, sources: array<source>): statement => {
   Chain({sources, stages, binders})
 }
 
+// A lane group: the first `~flow` is already consumed by the caller. Read its
+// `: value`, then any further `~flow: value` lanes (newline-separated), then
+// the `-~> collect => binders` terminator.
+let parseLaneCollect = (st: p, firstFlow: flowTerm): statement => {
+  let lanes: array<(flowTerm, term)> = []
+  let readLane = (ft: flowTerm) => {
+    expect(st, TokColon, "':' in a lane line (~flow: value)")
+    Array.push(lanes, (ft, parseTerm(st)))
+  }
+  readLane(firstFlow)
+  let continue = ref(true)
+  while continue.contents {
+    skipNewlines(st)
+    switch peek(st) {
+    | TokTilde => {
+        advance(st)
+        readLane(parseFlowTerm(st))
+      }
+    | _ => continue := false
+    }
+  }
+  expect(st, TokArrowVF, "'-~>' terminating the lane group")
+  expect(st, TokName("collect"), "'collect' after '-~>' in a lane group")
+  expect(st, TokBind, "'=>' before the lane group's binder")
+  LaneCollect({lanes, binders: parseBinders(st)})
+}
+
 let rec parseStatement = (st: p): statement =>
   switch peek(st) {
   | TokPlus => {
@@ -320,10 +347,15 @@ let rec parseStatement = (st: p): statement =>
       parseChainTail(st, sources)
     }
   | TokTilde => {
-      // flow-sourced chain: ~L ~> delay init 0 => sum
       advance(st)
       let f = parseFlowTerm(st)
-      parseChainTail(st, [SrcFlow(f)])
+      if peek(st) == TokColon {
+        // lane group: ~flow: value (\n ~flow: value)* -~> collect => binders
+        parseLaneCollect(st, f)
+      } else {
+        // flow-sourced chain: ~L ~> delay init 0 => sum
+        parseChainTail(st, [SrcFlow(f)])
+      }
     }
   | TokName(_) if peek2(st) == TokEq => {
       let name = expectName(st, "a name")
