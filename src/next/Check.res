@@ -15,10 +15,12 @@
 //                     inventory (the one uniform question the ports
 //                     migration promised).
 //   - write-count     exactly one DelayWrite per DelayRead.
-//   - alignment(v0)   combining values from incomparable contexts, via
-//                     Context's prefix-rule merge. Blunt: it cannot yet
-//                     tell time travel (completable) from bundle mixing
-//                     (not) — that classification needs provenance origins.
+//   - alignment       combining values from incomparable contexts, via
+//                     Context's prefix-rule merge, CLASSIFIED into its two
+//                     flavors (bundle-provenance-design.md): bundle mixing
+//                     (sibling cells of one split — a hard error) vs time
+//                     travel (unrelated opens — completable). The classifier
+//                     walks the two paths to their first divergent step.
 //   - join-adjacency  Join/Commute operands must be nesting-adjacent
 //                     (lazy-stream-join-design.md).
 //   - flow-borne(v0)  a per-iteration value escaping to a program output
@@ -37,8 +39,12 @@
 //                     pairing itself, so every buildable program is
 //                     productive; it becomes load-bearing once a
 //                     representation admits foreign cycles.
-//   - provenance      cell-level disjointness / mixing-vs-time-travel
-//                     classification (bundle-provenance-design.md).
+//   - provenance      the mixing-vs-time-travel classification folded into
+//                     alignment (above); what remains stubbed is the deferred
+//                     cell-set / subset-lattice remainder, which needs the
+//                     non-tree context model of the Cross round
+//                     (bundle-provenance-design.md, "merged branches as cell
+//                     sets").
 
 open Program
 
@@ -142,7 +148,54 @@ let checkWriteCount = (p: program): array<witness> => {
   out
 }
 
-// --- alignment (v0) ----------------------------------------------------------
+// --- alignment + the mixing / time-travel classification ---------------------
+//
+// bundle-provenance-design.md, "one check, two clash flavors": when two flow
+// contexts are incomparable, walk them to their last common context and look at
+// the first divergent pair of steps.
+//
+//   - Both steps are cells of ONE case split (same node, different alt ports) →
+//     BUNDLE MIXING. The two values live in mutually exclusive cells that never
+//     coexist, so no execution produces both. A hard error (siblings may meet
+//     only at a collect — "the one door").
+//   - Anything else (two independent opens, or two different splits) → TIME
+//     TRAVEL. Sibling contexts with no correspondence between their firings.
+//     Completable: completion inserts a Cross (product-flows-design.md); Check
+//     only witnesses it.
+//
+// This is the refinement bundle-provenance-design.md folds into the alignment
+// step ("not a second check beside that one; the same check with the property
+// refined") — so the two flavors live here, and checkProvenance carries only
+// the deferred cell-set remainder.
+
+type clash =
+  | Mixing({split: node, cellA: string, cellB: string})
+  | TimeTravel({openA: flowRef, openB: flowRef})
+
+let classifyClash = (left: array<flowRef>, right: array<flowRef>): clash => {
+  // Longest common prefix by flow key. Incomparable ⇒ neither path is a prefix
+  // of the other, so a divergent step exists on each side at index `k`.
+  let k = ref(0)
+  let common = () =>
+    switch (left[k.contents], right[k.contents]) {
+    | (Some(l), Some(r)) => Context.flowKey(l) === Context.flowKey(r)
+    | _ => false
+    }
+  while common() {
+    k := k.contents + 1
+  }
+  switch (left[k.contents], right[k.contents]) {
+  | (Some(FlowPort(na, pa)), Some(FlowPort(nb, pb))) if na.id === nb.id =>
+    switch altsOfSplit(na) {
+    | Some(_) => Mixing({split: na, cellA: pa, cellB: pb})
+    | None => TimeTravel({openA: FlowPort(na, pa), openB: FlowPort(nb, pb)})
+    }
+  | (Some(l), Some(r)) => TimeTravel({openA: l, openB: r})
+  | _ =>
+    // Unreachable: an incomparable pair always diverges before either path ends.
+    failwith("Check.classifyClash: contexts are comparable — merge should not have raised")
+  }
+}
 
 let checkAlignment = (p: program): array<witness> => {
   let out: array<witness> = []
@@ -158,20 +211,28 @@ let checkAlignment = (p: program): array<witness> => {
         let _ = Context.flowContext(FlowPort(n, port))
       })
     } catch {
-    | Context.Incomparable({left, right, where}) =>
-      Array.push(
-        out,
-        {
-          nodeId: n.id,
-          rule: "alignment",
-          message: "incomparable flow contexts " ++
-          left ++
-          " vs " ++
-          right ++
-          " at " ++
-          where ++ " (time travel or bundle mixing; classification TODO)",
-        },
-      )
+    | Context.Incomparable({left, right, where: _}) =>
+      let (rule, message) = switch classifyClash(left, right) {
+      | Mixing({split, cellA, cellB}) => (
+          "bundle-mixing",
+          "values live in mutually exclusive cells \"" ++
+          cellA ++
+          "\" and \"" ++
+          cellB ++
+          "\" of case split node " ++
+          Int.toString(split.id) ++
+          "; no execution produces both (sibling cells meet only at a collect)",
+        )
+      | TimeTravel({openA, openB}) => (
+          "time-travel",
+          "combining values from unrelated flows " ++
+          Context.flowKey(openA) ++
+          " and " ++
+          Context.flowKey(openB) ++
+          " with no correspondence between their firings (completion inserts a Cross)",
+        )
+      }
+      Array.push(out, {nodeId: n.id, rule, message})
     }
   })
   out
@@ -222,10 +283,15 @@ let checkProductivity = (_p: program): array<witness> => {
 }
 
 let checkProvenance = (_p: program): array<witness> => {
-  // TODO(bundle-provenance-design.md): origins on context paths; classify
-  // clashes as mixing (hard error) vs time travel (completable — handed to
-  // Complete as its constraint harvest; detection is the front half of
-  // completion).
+  // The mixing-vs-time-travel classification (bundle-provenance-design.md, "one
+  // check, two clash flavors") now lives in checkAlignment — it is "the same
+  // check with the property refined," so it belongs at the point the clash
+  // surfaces, not in a second pass. What remains here is the DEFERRED cell-set
+  // remainder (the poset round): a context path whose bundle step carries a
+  // *set* of cells (partial collect's `{A, B}`), where comparability is subset
+  // containment and partial overlap (`{A,B}` vs `{B,C}`) is its own clash. That
+  // needs the non-tree context model the Cross emitter brings, so it stays
+  // stubbed until products land (ARCHITECTURE.md, "the poset round").
   []
 }
 

@@ -434,7 +434,7 @@ header("check: bad port reference yields a witness, not a crash")
 // 10. Witness surface: incomparable contexts (the old silent time travel)
 // ============================================================================
 
-header("check: combining sibling flows' elements is witnessed, not trusted")
+header("check: combining sibling flows' elements is witnessed as time travel")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -447,11 +447,54 @@ header("check: combining sibling flows' elements is witnessed, not trusted")
   let outer = Build.collect(b, ~flow=itY.flow, inner.value)
   let p = Build.finish(b, ~outputs=[("out", outer.value)])
   switch Pipeline.compile(p) {
-  | Error(ws) => {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "time-travel") {
       Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
-      pass("alignment witness produced (completion will insert a Cross here, phase 4)")
+      pass("time-travel witness produced (completion will insert a Cross here, phase 4)")
+    } else {
+      fail(
+        "expected a time-travel witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
     }
   | Ok(_) => fail("sibling-flow combination compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 10b. Witness surface: combining two ALTS of one split — bundle mixing, the
+//      other clash flavor. The two values live in mutually exclusive cells of
+//      one case split, so no execution produces both; this is a hard error, not
+//      a completable time-travel gap (bundle-provenance-design.md).
+// ============================================================================
+
+header("check: combining sibling alts of one split is witnessed as bundle mixing")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
+  )
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let five = Build.lit(b, int_(5))
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, five.value)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  // Combine the Just payload with the Nothing payload directly — no collect.
+  let mixed = Build.app(b, addF.value, [just.altValue, nothing.altValue])
+  let p = Build.finish(b, ~outputs=[("bad", mixed.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "bundle-mixing") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("bundle-mixing witness produced")
+    } else {
+      fail(
+        "expected a bundle-mixing witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("sibling-alt combination compiled without a witness")
   }
 }
 

@@ -19,15 +19,22 @@
 //     reached in two contexts"); until then the raise IS the (blunt)
 //     alignment check.
 //   - Case-alt segments: an alt *value* port's context gets the alt flow as
-//     its innermost segment. Provenance's cell-level disjointness checks
-//     (mixing sibling alts) are not implemented yet — Check stubs name them.
+//     its innermost segment. That is what lets Check classify an incomparable
+//     merge: two divergent segments on the *same* case node are sibling cells
+//     (bundle mixing); the `Incomparable` payload carries the paths so the
+//     classifier can see this. The cell-*set* generalisation (partial overlap)
+//     is the deferred poset round.
 //   - No memoisation yet; programs are test-sized. When Annotate becomes a
 //     real pass it should compute these once per (node, port) and hand them
 //     down, per the pipeline discipline.
 
 open Program
 
-exception Incomparable({left: string, right: string, where: string})
+// Carries the two offending context PATHS (not just their rendering) so the
+// alignment check can classify the clash — walk to the last common context and
+// look at the first divergent pair of steps (bundle-provenance-design.md, "one
+// check, two clash flavors"). `where` names the combining node.
+exception Incomparable({left: array<flowRef>, right: array<flowRef>, where: string})
 
 let flowKey = (f: flowRef): string =>
   switch f {
@@ -54,9 +61,7 @@ let merge = (~where: string, a: array<flowRef>, b: array<flowRef>): array<flowRe
   } else if isPrefix(b, a) {
     a
   } else {
-    throw(
-      Incomparable({left: contextToString(a), right: contextToString(b), where}),
-    )
+    throw(Incomparable({left: a, right: b, where}))
   }
 
 let rec valueContext = (r: valueRef): array<flowRef> =>
