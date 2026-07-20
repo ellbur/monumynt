@@ -78,9 +78,19 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       }
       Array.concat(flowContext(ownFlow), [ownFlow])
     | Collect({branches}) =>
-      switch branches[0] {
-      | None => []
-      | Some({flow}) => flowContext(flow)
+      switch classifyCollect(branches) {
+      | CasePartial(_) =>
+        // A partial collect's value is the MERGED value — per-firing of the
+        // collect's own merged flow (option-kind relative to the parent), not
+        // a result at the exterior. So it is flow-borne on that merged flow.
+        // (A full collect's value, below, is the result at the exterior.)
+        let merged = FlowPort(n, "flow")
+        Array.concat(flowContext(merged), [merged])
+      | _ =>
+        switch branches[0] {
+        | None => []
+        | Some({flow}) => flowContext(flow)
+        }
       }
     | Join(_) | Commute(_) | Cross(_) =>
       failwith("Context.valueContext: flow-only node has no value ports")

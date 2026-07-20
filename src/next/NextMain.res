@@ -309,6 +309,53 @@ a -~> collect ~keep => evens
 }
 
 // ============================================================================
+// 7b. Partial collect — the merged flow of two covered cells, terminated by a
+//     join (a multi-cell filter: "keep the A's and B's, drop the C's").
+//     Beyond the bridge (its case close is exhaustive-or-throw), so validated
+//     against a hand-computed value, like registers.
+// ============================================================================
+
+header("partial collect: merged flow of two cells drives a multi-cell filter")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+[1, 2, 3, 4, 5, 6] -> open list => a, ~L
+a -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+~pf ~> join into ~L => ~keep
+picked -~> collect ~keep => out
+`
+  let p = TextResolve.parseProgram(src)
+  // keep n where n%3 in {0,1}: 1(B) 3(A) 4(B) 6(A); drop 2,5 (C).
+  expectOutput(p, "out", array_([int_(1), int_(3), int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7c. Partial collect collected alone — the merged flow of two cells
+//     terminated at the parent as an option (0-or-1). Exercises the
+//     no-leading-level (option accumulator) path of emitPartialCollect.
+// ============================================================================
+
+header("partial collect: merged flow collected alone yields an option")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+4 -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+picked -~> collect ~pf => out
+`
+  let p = TextResolve.parseProgram(src)
+  // 4 % 3 == 1 -> B (a covered cell) -> the merged flow fires with value 4.
+  expectOutput(p, "out", int_(4))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 8. Registers: a running sum via the Delay pair — the first non-legacy
 //    construct to run (beyond the bridge, so no differential is possible)
 // ============================================================================

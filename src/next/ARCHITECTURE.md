@@ -29,7 +29,7 @@ function with a printable output):
 | 1 check | `Check.res` | Implemented: port-exists, write-count, alignment(v0), **join-adjacency**, **flow-borne(v0: outputs)**. Stubs with named owners: productivity, provenance, coverage; plus flow-borne's general interior rule (noted at the check). |
 | 2 complete | `Complete.res` | **pass shape real** — `harvest` → `solve` → `realise` with contracts stated and the constraint vocabulary typed — all bodies v0-trivial (no constraints harvested ⇒ identity). Heuristic table reserved as versioned data. |
 | 3 annotate | `Annotate.res` | write index + species implemented; flow-variable sets and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
-| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo` stubs, each citing its legacy spec function or design doc: partial collect, commute, cross; registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
+| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo`/deferred, each citing its design doc: commute, cross (the poset round); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
 | (stand-in) | `LegacyBridge.res` | **disposable**: translates `Program` → legacy `Expr` and reuses `src/Compile.res`. Now the *fallback engine* (below). Must never grow features; deleted at retirement. |
 | entry | `Pipeline.res` | derive → check → complete → annotate → **two engines** → `JsPrint`. Witnesses come back as data (`result`), engine gaps as exceptions (`Codegen.Todo` / bridge `Failure`). |
@@ -101,14 +101,16 @@ Via NextCodegen today: the value fragment (including **computed
 functions** — App's fn is a wire, which the bridge cannot express),
 list/option chains with binary Join, multi-close, single-module
 multi-output compilation (outputs share one memo), **case collects**,
-**filters** (join with a case-alt inner operand), and **registers** (the
-Delay pair over a single-level driving flow — the first non-legacy
-construct to run, so beyond the bridge and validated against the design
-docs rather than by the differential). Via the Bridge: nothing among the
-smoke tests still falls back. Representable-but-not-compilable (prints,
-checks): commute, cross, explicit `in` nesting, partial collects, and
-registers over joined/nested/case flows (the Delay ontology open
-problem).
+**filters** (join with a case-alt inner operand), **partial collects**
+(the direct slice — a merged flow of k covered cells feeding a filter or
+an option), and **registers** (the Delay pair over a single-level
+driving flow — the first non-legacy construct to run, so beyond the
+bridge and validated against the design docs rather than by the
+differential). Via the Bridge: nothing among the smoke tests still falls
+back. Representable-but-not-compilable (prints, checks): commute, cross,
+explicit `in` nesting, partial collects whose merged value is *computed
+at the merged context* (needs the cell-set/poset round), and registers
+over joined/nested/case flows (the Delay ontology open problem).
 
 ## Decisions taken here (all cheap to revisit; recorded so they are
 decisions, not accidents)
@@ -243,14 +245,29 @@ line tells you which tests are waiting.
    (iteration-with-state-design.md); raises `Todo`.
 7. **Retirement** (see "The two engines"): when `Todo` is unreachable,
    delete the fallback, the bridge, and the legacy modules.
-8. **Completion**: `harvest`/`solve`/`realise` bodies in `Complete.res`
-   (constraint vocabulary already typed there); `+` lines in TextPrint;
-   Cross emitter (point-indexed table, `product-flows-design.md`) —
-   which is also what lets Check admit products instead of raising
-   `Incomparable`.
-9. Then per `implementation-strategy.md`: partial collect, streams,
-   async/incremental — each a new species in `Annotate` + cells in
-   `Runtime.res` + an emitter, not a restructuring.
+8. **The poset round** (deferred together, because they are one
+   context-model generalization — linear prefix → a genuine poset with
+   non-tree segments): the **Cross** emitter (point-indexed table,
+   `product-flows-design.md`), which also lets Check admit products
+   instead of raising `Incomparable`; **commute** (transpose over a
+   Cross — lawful only there, `lazy-stream-commute-design.md`); and
+   partial collect's **merged-context computation** (the cell-set /
+   subset-lattice segment, the *same* non-tree feature — `product-flows-
+   design.md`'s "the first non-tree feature: partial-collect's subset
+   lattice"). The Delay-over-products case rides on this too.
+   `Complete.res`'s `harvest`/`solve`/`realise` bodies and TextPrint's
+   `+` lines land alongside.
+9. **Partial collect** — DONE for the direct slice (`Codegen.res`,
+   `emitPartialCollect`, plus a `PartialLevel` in `spine`, the flow-borne
+   merged-value context in `Context.res`, and the `~pf` lane binder in
+   the text pipeline): a merged flow of k covered cells terminated by a
+   join (multi-cell filter) or alone (option), k-arm non-exhaustive
+   dispatch, merged value consumed directly. NextMain tests 7b/7c;
+   beyond the bridge, so validated against hand-computed values.
+   Merged-context computation deferred to item 8. Then per
+   `implementation-strategy.md`: streams, async/incremental — each a new
+   species in `Annotate` + cells in `Runtime.res` + an emitter, not a
+   restructuring.
 
 ## Relation to the legacy modules
 
