@@ -42,13 +42,13 @@ The text surface (`textual-representation-design.md`):
 | `TextLex.res` | working | Line-oriented lexer; sorted arrows (`->`/`~>`/`-~>`), sigils; indentation never parsed. |
 | `TextParse.res` | working (v0 subset) | tokens → TextAst. Owns only the lexically decidable; pointed errors for not-yet-parsed forms (lanes). `+` lines are skipped (derived, never stored). |
 | `TextResolve.res` | working (v0 subset) | TextAst → `Program` via `Build`. Pronouns desugar here (P8): single-assignment global names, ordinal taps, the implicit flow stack as chain-local state. No semantic checks — those stay in `Check`, shared with every authoring path. |
-| `TextPrint.res` | working (v0, total) | `Program` → text. Total (registers, commute, cross print today) but not yet pretty: one named forward statement per node; chain compression, taps, derived indentation and the span lint are the next printer round. |
+| `TextPrint.res` | working (total + chains) | `Program` → text. Total (registers, commute, cross print today). First pretty round DONE: single-consumer runs fuse into postfix chains, implicit flows drop their `~name`, single-use data literals inline, statements are topologically ordered by name dependency. Still deferred: junction taps (named fan-out stands in), bare `join` in a chain (joins print standalone), derived indentation and the span lint. |
 
 `NextMain.res` (`npm run next`) is the smoke suite / playground: text and
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 32 checks.
+Currently 57 checks.
 
 ## The two engines (the migration harness)
 
@@ -210,9 +210,22 @@ line tells you which tests are waiting.
    the partial-collect emitter). Still ahead of the parser: fused lanes,
    `commute out of` / `cross with`, prefix application, `;` multi-resume.
    Each remaining form has a pointed "not yet parsed" error today.
-4. **Printer round** (`TextPrint.res`): chain compression + taps (port
-   ExprPrint's greedy chains), derived indentation, span lint. Then
-   golden-file tests.
+4. **Printer round** (`TextPrint.res`): chain compression — DONE
+   (single-consumer runs fuse into postfix `->`/`-~>` chains; a flow a
+   chain opens *and* closes is implicit — no `~name`, the bare `collect`
+   reseeds the stack from the value's context; single-use data literals
+   inline at their use site; the App-fn / split-disc / output positions
+   keep their operand named). The subtle piece is ORDERING: fusing a
+   chain onto its head prints it at the head's slot, so a `-~> collect
+   ~jN` or a referenced fn literal can end up before the statement that
+   binds it — statements are therefore topologically sorted by name
+   dependency (a "unit" = head node + the nodes it fuses; edges from any
+   cross-unit input; Kahn, ties by node order). NextMain has golden
+   assertions (`expectFusedLine`) beside the round-trips. Still deferred
+   (kept out to keep the round focused): junction TAPS (`|`) — named
+   fan-out is the total, round-tripping stand-in; bare `join` in a chain
+   (joins print as the standalone `join into` form); derived indentation
+   by flow depth and the span lint; `+` completion lines.
 5. **Checks** (`Check.res`): **coverage** — DONE (`checkCoverage`):
    mixed-split / non-alt-multi-branch collects (via `classifyCollect`)
    plus duplicate-alt coverage, turning a case-emitter crash into a
