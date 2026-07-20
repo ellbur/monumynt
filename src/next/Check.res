@@ -332,9 +332,13 @@ let checkProvenance = (_p: program): array<witness> => {
   // surfaces, not in a second pass. What remains here is the DEFERRED cell-set
   // remainder (the poset round): a context path whose bundle step carries a
   // *set* of cells (partial collect's `{A, B}`), where comparability is subset
-  // containment and partial overlap (`{A,B}` vs `{B,C}`) is its own clash. That
-  // needs the non-tree context model the Cross emitter brings, so it stays
-  // stubbed until products land (ARCHITECTURE.md, "the poset round").
+  // containment. The not-≤ branch splits by the MEET (bundle-provenance-
+  // design.md, "Revision: overlap is incorporate, not a clash"): a non-empty
+  // meet (`{A,B}` vs `{B,C}` ⇒ `{B}`) is an inferred incorporate to that meet,
+  // NOT a clash; only a disjoint (empty) meet is bundle mixing. That needs the
+  // non-tree context model the Cross emitter brings plus completion's
+  // incorporate insertion, so it stays stubbed until products land
+  // (ARCHITECTURE.md, "the poset round").
   []
 }
 

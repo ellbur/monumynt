@@ -368,16 +368,19 @@ firing iff the fired cell is in S. Then:
   constituents" a theorem: `{A} ⊆ {A, B}`, so AB-context values are
   usable inside A. Disjoint sets never coexist — bundle mixing,
   with singletons as the special case.
-- **Partial overlap is a clash, not a narrowing.** `{A, B}` meets
-  `{B, C}`. Now, you might wonder why the checker doesn't just
-  narrow the combination to the intersection `{B}` — after all, the
-  combination would be meaningful exactly when B fires. It turns
-  out silently narrowing to the intersection is inference choosing
-  a meaning. Explicit-over-implicit says coarsening and narrowing
-  across cells happen only at explicit nodes (a collect, a partial
-  close), never by the checker's arithmetic. (Settled within this
-  sketch — don't re-propose intersection-narrowing without new
-  evidence.)
+- **Partial overlap of a *combine* is an inferred incorporate to the
+  meet** (revised; see "Revision: overlap is incorporate, not a clash"
+  below). Two values combined at incomparable sets `{A, B}` and
+  `{B, C}` exist together exactly when the fired cell is in the meet
+  `{A, B} ∩ {B, C} = {B}` — the greatest cell set contained in both,
+  the intersection in the subset lattice, and it is *unique*. So the
+  combination lives at `{B}`, reached by incorporating each operand to
+  `{B}`, exactly as a value is incorporated into a flow or narrowed
+  across nesting. The one case that stays a **clash** is a disjoint
+  meet — the empty set (`{A}` meets `{C}`; `{Just}` meets
+  `{Nothing}`): no cell where both exist, no execution that produces
+  both, nothing to incorporate *to*. The line is the meet:
+  **non-empty ⇒ inferred incorporate, empty ⇒ bundle mixing.**
 - **The exhaustive collect generalizes for free**: branch cell sets
   must be pairwise disjoint and cover the bundle. Alt matching is
   the all-singletons instance.
@@ -386,11 +389,71 @@ The partial close's own meaning is worked out in
 `partial-collect-design.md`: rather than choosing from a menu of
 possible meanings, the candidates dissolve into distinct complete
 programs, and the construct is the partial collect, whose covering
-instance is the exhaustive collect. The sketch survives that test —
-all three clauses confirmed, with overlap ill-formed already at the
-node. One refinement: at a bundle step the context structure is the
-subset lattice of constructed sets, not a tree; paths stay unary
-per-wire facts.
+instance is the exhaustive collect. One refinement: at a bundle step
+the context structure is the subset lattice of constructed sets, not a
+tree; paths stay unary per-wire facts.
+
+### Revision: overlap is incorporate, not a clash
+
+The sketch above first recorded partial overlap as a hard clash — the
+checker must never narrow a combination to the intersection, because
+"silently narrowing is inference choosing a meaning." That rule is
+**reversed here**, and the reversal is a consistency argument, which is
+the new evidence the earlier note asked for.
+
+Making a **more flow-agnostic value more flow-specific is an
+incorporate** — the CAPTURE family of `time-travel-programs-design.md`,
+value-level shadow the identity. This is true on *both* axes. On the
+flow axis: using a non-flow value inside a flow `~a` narrows it into
+`~a`'s context; strictly, no-time-travel wants that incorporate drawn
+(otherwise it is ambiguous whether the value's own computation runs
+inside `~a`'s loop or before it — different programs, different cost).
+A time-travel program that omits the incorporate is *completed*: we
+derive that the author wants to incorporate **at the last available
+opportunity**, keeping the value as agnostic as possible and doing as
+much computation outside the loop as possible. The cell axis is the
+same relation: a `{A, B}` value is more agnostic than a `{A}` value,
+and using it at `{A}` incorporates it (`{A} ⊆ {A, B}` — free, a
+reference inward, no recomputation). Combining `{A, B}` with `{B, C}`
+is that same incorporate applied to *both* operands, forced only as far
+as the meet `{B}` where both exist — the last available opportunity on
+the cell axis.
+
+So forbidding cell-axis incorporate while allowing flow-axis
+incorporate was inconsistent. If we complete time-travel programs by
+inferring incorporates on the flow axis, we complete overlapping-bundle
+combines by inferring them on the cell axis. The two are one rule.
+
+The **explicit-over-implicit** worry that motivated the original clash
+is answered exactly as `time-travel-programs-design.md` answers the
+no-time-travel rule: the inferred incorporate *is* a node, surfaced as
+a **derived (faint / `+`) view**, not the checker doing silent
+arithmetic. The meet is not a searched-for choice — it is the lattice
+meet, unique and ruled — so completion stays deterministic (the
+elaborator derives it, never scores candidates). And the derived view
+is **graded by surprise**: an obvious subset incorporate (`{A, B}` used
+at `{A}`, or a constant used in a loop) may be elided, exactly as
+auto-capture is never drawn today; a surprising narrowing (`{A, B}` ×
+`{B, C}` ⇒ `{B}`, where the user may not have noticed the combination
+only fires on B) is *shown*, so the completion the user gets is on
+screen. Showing it is what turns the user-error risk into a visible
+fact instead of a prohibition.
+
+**One distinction the reversal must keep.** This concerns a *combine*
+(an App merging two values), where the meet is a well-defined
+combination context. It does **not** touch a partial collect **node**
+whose two *branches* have overlapping cell sets: there the ambiguity is
+*selection* — when B fires, both branches fire, and which value the
+merged flow carries is undefined — and no meet resolves a selection.
+Node-level branch overlap stays ill-formed (the collect's disjointness
+demand, `partial-collect-design.md`); only the wire-level combine
+becomes an inferred incorporate. Combination is resolved by the meet;
+selection is not.
+
+(Settled with this reversal — the wire-level combine over overlapping
+cells is an inferred, shown incorporate to the meet, not a clash;
+disjoint meets and node-level branch overlap remain clashes. Don't
+re-propose blanket overlap-is-a-clash without new evidence.)
 
 ## Fit with the compiler: sharpening the smallest first step
 

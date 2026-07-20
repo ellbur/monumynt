@@ -242,7 +242,11 @@ line tells you which tests are waiting.
    `time-travel` (completable — completion inserts a Cross). NextMain
    tests 10 (`time-travel`) and 10b (`bundle-mixing`). `checkProvenance`
    now carries only the deferred cell-set / subset-lattice remainder
-   (the poset round, item 8). **flow-borne's general interior rule** —
+   (the poset round, item 8), where the not-≤ branch splits by the MEET:
+   a non-empty meet (`{A,B}` vs `{B,C}` ⇒ `{B}`) is an inferred
+   incorporate, not a clash — only a disjoint meet is bundle mixing
+   (bundle-provenance-design.md, "Revision: overlap is incorporate, not
+   a clash"). **flow-borne's general interior rule** —
    DONE (`checkFlowBorne` + `branchInterior`): a collect branch whose
    value is borne on a flow the collect does not iterate (a sibling
    alt's payload, an unrelated open's element) is now a witness rather
