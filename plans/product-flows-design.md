@@ -350,6 +350,28 @@ one). Per-wire context paths stay unary facts; the product segment
 records its axis set, the same move the partial-collect document made
 for cell sets.
 
+**Availability is monotone; a combine's home is exact.** These are two
+different uses of the poset and they must not be conflated. The memo's
+reuse rule is *monotone in ⊆*: a value at a sub-product `{Y,Z}` is
+available inside the loop of any larger product `{X,Y,Z}` (sub-product
+≤ product). But *where a combine lives* is **exact**: combining an
+`X`-value with a `Y`-value has its home at the product of exactly
+`{X,Y}`, never at a larger drawn `{X,Y,Z}` that merely contains it —
+consistent with the n-ary rule that a flat cross builds no
+sub-products. When no exact `{X,Y}` product is constructed the combine
+is **under-determined**, and the resolution is *not* to make Cross
+carry combination detail, nor to silently reuse a larger product (which
+is ambiguous the moment two incomparable larger products both cover the
+combine — `{X,Y,Z}` and `{X,Y,W}` with no `{X,Y}`). Recall Cross was
+introduced to give *natural-feeling time-travel programs* a meaning,
+not as a construct users typically hand-author; so **an
+under-determined cross is just another time-travel program**, made
+concrete by completion inserting the exact `Cross(X,Y)` (shown faint)
+compatibly with the rest of the program — the same treatment every
+sibling combine gets. The checker/merge therefore reports the gap
+rather than picking; completion fills it. (Implemented in `Poset.merge`
+— exact-axis match, else `Incomparable`.)
+
 ## Compile
 
 How does a Cross run? The compile target is the point-indexed table
@@ -1310,3 +1332,29 @@ along with what remains.
    Life exhibit (this row's n-ary/axis residue, not the zip
    section's); and per-edge alignment's home (the
    iteration-state/register round).
+10. **Whether an *ambiguous cross* is owed its own combinator — the
+    order-incompatible-combine ambiguity, which keeps moving rather
+    than vanishing.** There is a lineage worth naming. **Incorporate**
+    is unambiguous for its designed job — a value into an unrelated
+    flow. *Generalizing* it to mix two values whose flow stacks are
+    order-incompatible reopens a space: many merges of the two stacks
+    are possible, so a generalized incorporate would have to *specify*
+    which. That specification turned out to be the wrong thing to
+    demand, because the mixed value can be collected twice in
+    *different* orders ("The program that demands it") — so the honest
+    representation is not a chosen merge order but the *absence* of
+    sequencing, which is exactly **Cross** (the order-free product).
+    But abstracting the order away is why Cross *under*-determines: an
+    exact product may not be constructed, and which product a
+    subset-combine belongs to is not fixed ("Availability is monotone;
+    a combine's home is exact"). So the space of possible combinations
+    did not disappear with Cross — it *moved*, from "pick an order"
+    (Incorporate, too specific) to "which product, and is there one"
+    (Cross, under-determined). The current lean resolves the residue by
+    completion — an under-determined cross is just another time-travel
+    program (above) — but the open question is whether some programs
+    will want to represent an **ambiguous cross explicitly**: a
+    combinator that carries the under-determination as a first-class,
+    parameterizable fact rather than deferring it. Filed, not answered;
+    the exit is that if completion produces too many gaps or unnatural
+    fills, this combinator is where the specification would live.

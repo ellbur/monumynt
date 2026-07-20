@@ -23,6 +23,10 @@
 //                     walks the two paths to their first divergent step.
 //   - join-adjacency  Join/Commute operands must be nesting-adjacent
 //                     (lazy-stream-join-design.md).
+//   - invariance      Cross operands must be mutually invariant — neither
+//                     axis's firings vary with the other's element
+//                     (product-flows-design.md, the Cross round's first step).
+//                     Consumes Annotate's flow-variable sets.
 //   - flow-borne      a per-iteration value escaping its flow (types-design.md):
 //                     to a program output (context must be empty) or read by a
 //                     collect branch that does not iterate the value's flow (the
@@ -277,6 +281,42 @@ let checkJoinAdjacency = (p: program): array<witness> => {
   out
 }
 
+// Cross's demand: the two operands must be mutually invariant
+// (product-flows-design.md, "The construct"). A violation means one axis's
+// firings vary with the other's element — the nesting is dependent, not a
+// product, so it has no transpose and cannot be crossed. This is the front
+// half of the Cross round (its "smallest first step" 1): the demand is
+// checkable ahead of the whole-table emitter, so an ill-formed Cross is
+// witnessed here rather than mis-compiled once the poset emitter lands. The
+// flow-variable machinery it consumes lives in Annotate (the invariance fact
+// is an annotate-pass fact; Check calls it directly, as the pipeline permits).
+let checkCross = (p: program): array<witness> => {
+  let out: array<witness> = []
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Cross({left, right}) =>
+      switch Annotate.crossViolation(left, right) {
+      | Some(axisKey) =>
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "invariance",
+            message: "cross operands are not mutually invariant: one axis's firings vary " ++
+            "with flow " ++
+            axisKey ++
+            " (the other operand's element), so the nesting is dependent, not a product — " ++
+            "no transpose exists to cross",
+          },
+        )
+      | None => ()
+      }
+    | _ => ()
+    }
+  )
+  out
+}
+
 let checkProductivity = (_p: program): array<witness> => {
   // TODO(first-class-ports-design.md): every cycle in the value graph +
   // write→read pairing edges crosses a pairing edge. Requires the write
@@ -292,9 +332,13 @@ let checkProvenance = (_p: program): array<witness> => {
   // surfaces, not in a second pass. What remains here is the DEFERRED cell-set
   // remainder (the poset round): a context path whose bundle step carries a
   // *set* of cells (partial collect's `{A, B}`), where comparability is subset
-  // containment and partial overlap (`{A,B}` vs `{B,C}`) is its own clash. That
-  // needs the non-tree context model the Cross emitter brings, so it stays
-  // stubbed until products land (ARCHITECTURE.md, "the poset round").
+  // containment. The not-≤ branch splits by the MEET (bundle-provenance-
+  // design.md, "Revision: overlap is incorporate, not a clash"): a non-empty
+  // meet (`{A,B}` vs `{B,C}` ⇒ `{B}`) is an inferred incorporate to that meet,
+  // NOT a clash; only a disjoint (empty) meet is bundle mixing. That needs the
+  // non-tree context model the Cross emitter brings plus completion's
+  // incorporate insertion, so it stays stubbed until products land
+  // (ARCHITECTURE.md, "the poset round").
   []
 }
 
@@ -437,6 +481,7 @@ let check = (p: program): array<witness> =>
     checkWriteCount(p),
     checkAlignment(p),
     checkJoinAdjacency(p),
+    checkCross(p),
     checkProductivity(p),
     checkProvenance(p),
     checkCoverage(p),

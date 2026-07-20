@@ -241,10 +241,20 @@ discards `+` lines because they are re-derived, not stored.
 
 Completion inserts **flow bookkeeping only** — two families:
 
-- **Incorporate.** Bringing a *value* into a flow's context (the old
-  design's CAPTURE). Its value-level shadow is the identity:
-  incorporation changes what context a value is available in, never
-  the value.
+- **Incorporate.** Making a value more *context-specific* — its
+  value-level shadow is the identity: incorporation changes what
+  context a value is available in, never the value. Two axes, one
+  relation: bringing a *value* into a flow's context (the old design's
+  CAPTURE), and narrowing a value across a **bundle** to a more
+  specific cell set. The cell-axis case completes an overlapping-bundle
+  *combine*: two values at incomparable sets `{A,B}` and `{B,C}`
+  combine at the meet `{B}`, reached by incorporating each operand
+  there (`bundle-provenance-design.md`, "Revision: overlap is
+  incorporate, not a clash"). Both axes obey the "last available
+  opportunity" rule — incorporate as late / as agnostically as
+  possible, keeping computation outside the loop — and both surface as
+  the same faint derived node, elided when obvious (a constant in a
+  loop, a subset narrowing) and shown when surprising.
 - **Cross.** Nesting two *sibling* opens — two independently opened
   flows with no drawn nesting. This is what turns "sibling opens" into
   "nested opens," and it is what the opening example's faint line

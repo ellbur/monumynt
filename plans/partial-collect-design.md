@@ -263,8 +263,15 @@ firing):
 - **Disjointness is a node demand.** Two branches whose cell sets
   share a cell (`{A,B}` with `{B,C}`) would both fire when B fires,
   and the law's "the firing branch" would not refer. Ill-formed at
-  the node. The provenance sketch's "partial overlap is a clash, not
-  a narrowing" is the wire-level shadow of this same fact.
+  the node — this is a *selection* ambiguity (which branch's value
+  does the merged flow carry?), and no meet resolves a selection.
+  Note this is **not** the same as the wire-level combine of two
+  overlapping-cell values: that *combination* lives at the meet and is
+  now an inferred incorporate, not a clash (`bundle-provenance-
+  design.md`, "Revision: overlap is incorporate, not a clash"). The
+  earlier identification of the two was dropped there — combination is
+  resolved by the meet, selection is not; only the node-level branch
+  overlap stays ill-formed.
 - **A single-branch partial collect is the identity.** One branch,
   its flow, its value: the merged flow fires when that flow fires
   with that value — just the pair you put in. Nothing forbids it;
@@ -383,10 +390,16 @@ clauses against the construct:
 - **Containment as comparability** — confirmed; it is the
   parent-scope section above, `{A} ⊆ {A, B}` with the value
   threading made explicit.
-- **Partial overlap is a clash** — confirmed and strengthened:
-  overlap is ill-formed already at the partial collect (the law's
-  "the firing branch" must refer), so the checker's refusal to
-  narrow is backed by there being no node that narrows.
+- **Partial overlap at the node is a clash** — confirmed for the
+  *node*: overlapping branches are ill-formed at the partial collect
+  (the law's "the firing branch" must refer). The sketch's separate
+  claim about the *wire-level combine* over overlapping cells was
+  since revised (`bundle-provenance-design.md`, "Revision: overlap is
+  incorporate, not a clash"): that combination lives at the meet and
+  is an inferred incorporate. The node still admits no narrowing —
+  there is no node that selects among simultaneously-firing branches —
+  but the combine does, at the meet, because a combination is not a
+  selection.
 - **The generalized collect demand** (pairwise disjoint, covering) —
   confirmed; it is the covering configuration's well-formedness
   condition, with alt matching as the all-singletons instance.

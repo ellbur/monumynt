@@ -629,6 +629,178 @@ header("check: a case collect branch reading a sibling alt's payload is witnesse
 }
 
 // ============================================================================
+// 13. Cross's demand: mutual invariance (product-flows-design.md, the Cross
+//     round's first step). Two sibling top-level flows are mutually invariant —
+//     a legitimate product, the two-lists program — so they raise no invariance
+//     witness (the whole-table emitter is still the deferred poset round, so we
+//     assert at the Check level, not by compiling). Crossing an axis with a
+//     flow DERIVED from its element is dependent nesting, not a product, and is
+//     witnessed.
+// ============================================================================
+
+header("check: two sibling flows cross cleanly (the invariance demand holds)")
+{
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Output something trivial; the Cross sits in the node set and the invariance
+  // check visits it regardless of downstream use.
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "sibling cross wrongly witnessed as non-invariant:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("sibling cross satisfies the invariance demand (emitter is the poset round)")
+  }
+}
+
+header("check: siblings sharing an outer loop still cross cleanly (source vs own axis)")
+{
+  // Two inner flows nested in ONE outer loop. They SHARE the outer axis, but
+  // neither's firings depend on the OTHER's element — mutually invariant within
+  // the shared loop. This is the case that would break a naive set-disjointness
+  // test (the shared outer axis is in both operands' full axis sets); the demand
+  // is source-vs-introduced, so it passes.
+  let b = Build.make()
+  let ls = Build.lit(b, array_([int_(0), int_(1)]))
+  let itL = Build.uncollectList(b, ls.value)
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, ~nesting=itL.flow, xs.value)
+  let itY = Build.uncollectList(b, ~nesting=itL.flow, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", ls.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "siblings sharing an outer loop wrongly witnessed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("shared-outer siblings cross cleanly (the demand tests source, not raw axes)")
+  }
+}
+
+header("check: crossing an axis with a flow derived from its element is witnessed")
+{
+  let b = Build.make()
+  let mkRange = Build.raw(b, "n => Array.from({length: n}, (_, i) => i)")
+  let xs = Build.lit(b, array_([int_(2), int_(3)]))
+  let itX = Build.uncollectList(b, xs.value)
+  // itY's SOURCE depends on itX's element — the inner flow's shape varies with
+  // the outer element, so the two are not mutually invariant.
+  let ys = Build.app(b, mkRange.value, [itX.element])
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "invariance") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("invariance witness produced (dependent nesting is not a product)")
+    } else {
+      fail(
+        "expected an invariance witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("dependent cross compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 14. The series-parallel context algebra (Poset.res) — the Fork-A `≤` primitive
+//     and the LUB merge, unit-tested against the cases worked on paper. Products
+//     + nesting only (cells arrive with partial-collect's merged context).
+// ============================================================================
+
+header("poset: the ≤ primitive (axes-⊆ + order-extends)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let a = Axis("a")
+  let leqCheck = (name, s, r, expected) =>
+    if leq(s, r) === expected {
+      pass("≤ " ++ name ++ " (" ++ toString(s) ++ (expected ? " ≤ " : " ≰ ") ++ toString(r) ++ ")")
+    } else {
+      fail("≤ " ++ name ++ ": " ++ toString(s) ++ " vs " ++ toString(r) ++ " expected " ++ (expected ? "≤" : "≰"))
+    }
+
+  // table reused in a traversal: the product is available at either nesting order
+  leqCheck("product ≤ traversal", parallel([x, y]), series([y, x]), true)
+  leqCheck("product ≤ other traversal", parallel([x, y]), series([x, y]), true)
+  // no time travel: a nesting is not available at the reversed nesting
+  leqCheck("nesting ≰ reversed", series([x, y]), series([y, x]), false)
+  // a dependent (ragged) nesting is not available at the rectangular product
+  leqCheck("nesting ≰ product", series([x, y]), parallel([x, y]), false)
+  // any subset of a product's axes is a sub-product, usable in the whole
+  leqCheck("sub-product ≤ product", parallel([y, z]), parallel([x, y, z]), true)
+  // the plain prefix rule survives as the all-Series special case
+  leqCheck("prefix", a, series([a, y]), true)
+  leqCheck("reflexive", parallel([x, y]), parallel([x, y]), true)
+
+  // the depth-mismatched cross (stopwords × words-per-doc): Parallel(s, Series(d,w)),
+  // a non-graded but series-parallel context — reusable at any traversal that
+  // keeps d outside w, and only those.
+  let stop = parallel([Axis("s"), series([Axis("d"), Axis("w")])])
+  leqCheck("depth-mismatch ≤ d-outer traversal", stop, series([Axis("d"), Axis("s"), Axis("w")]), true)
+  leqCheck("depth-mismatch ≰ w-before-d traversal", stop, series([Axis("w"), Axis("d"), Axis("s")]), false)
+}
+
+header("poset: merge (a combine's home is the EXACT constructed product)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let w = Axis("w")
+  let a = Axis("a")
+
+  // comparable operands merge to the deeper one — no product needed
+  switch merge(~products=[], a, series([a, y])) {
+  | m if leq(series([a, y]), m) && leq(m, series([a, y])) => pass("merge comparable → deeper")
+  | m => fail("merge comparable gave " ++ toString(m))
+  }
+
+  // two siblings whose EXACT product was constructed → that product
+  let prodXY = parallel([x, y])
+  switch merge(~products=[prodXY], x, y) {
+  | m if leq(prodXY, m) && leq(m, prodXY) => pass("merge siblings → exact constructed product")
+  | m => fail("merge siblings gave " ++ toString(m))
+  }
+
+  // two siblings with NO constructed product → Incomparable (the time-travel gap)
+  switch merge(~products=[], x, y) {
+  | exception Incomparable(_, _) => pass("merge siblings, no product → Incomparable (time travel)")
+  | m => fail("merge without a product should raise, gave " ++ toString(m))
+  }
+
+  // a SUPERSET product does not host a smaller combine — a flat cross builds no
+  // sub-product, so this is a completion gap, not a silent bind to {x,y,z}
+  switch merge(~products=[parallel([x, y, z])], x, y) {
+  | exception Incomparable(_, _) => pass("merge siblings, only a superset product → Incomparable (gap)")
+  | m => fail("superset product should not host the {x,y} combine, gave " ++ toString(m))
+  }
+
+  // the ambiguous cross: two incomparable products both cover {x,y} and neither
+  // IS {x,y} — exact-match refuses to silently pick; it is a time-travel program
+  // for completion to make concrete compatibly with the rest of the program
+  switch merge(~products=[parallel([x, y, z]), parallel([x, y, w])], x, y) {
+  | exception Incomparable(_, _) =>
+    pass("merge siblings, two covering supersets → Incomparable (no silent pick)")
+  | m => fail("ambiguous cross should not silently pick, gave " ++ toString(m))
+  }
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++
