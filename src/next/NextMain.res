@@ -221,6 +221,57 @@ five -> open option -> double -~> collect => out
 }
 
 // ============================================================================
+// 5c. Printer chain compression (ARCHITECTURE.md worklist item 4)
+// ============================================================================
+// Single-consumer runs fuse into one postfix chain; the flow a chain opens and
+// closes itself is implicit (no `~name`); single-use data literals inline. The
+// round-trip check is the correctness spec — these add a golden assertion that
+// the fused shape is actually produced, not just that it reparses.
+
+// Assert some printed line contains every needle (the fused chain landed on one
+// line rather than being split across named statements).
+let expectFusedLine = (p: Program.program, needles: array<string>, label: string): unit => {
+  let text = TextPrint.print(p)
+  let hit =
+    text
+    ->String.split("\n")
+    ->Array.some(line => needles->Array.every(nd => line->String.includes(nd)))
+  if hit {
+    pass("print fuses: " ++ label)
+  } else {
+    fail("print did not fuse (" ++ label ++ "):\n" ++ text)
+  }
+}
+
+header("printer: a multi-stage value chain fuses onto one line")
+{
+  let src = `
+inc = js "x => x + 1"
+dbl = js "x => x * 2"
+[10, 20, 30] -> open list -> inc -> dbl -~> collect => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(22), int_(42), int_(62)]))
+  expectRoundTrip(p)
+  // whole chain — source list through the two apps to the bare collect — on one
+  // line (names are the printer's own, so assert the stable structural markers).
+  expectFusedLine(p, ["[10, 20, 30]", "open list", "-~> collect", "=> out"], "source..collect")
+}
+
+header("printer: an application stage carries an inlined extra argument")
+{
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2, 3] -> open list -> add(100) -~> collect => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(101), int_(102), int_(103)]))
+  expectRoundTrip(p)
+  // the extra argument literal inlines into the call: `-> nN(100)`.
+  expectFusedLine(p, ["open list", "(100)", "-~> collect", "=> out"], "inlined extra arg")
+}
+
+// ============================================================================
 // 5b. A computed function — the new codegen exceeding the bridge
 // ============================================================================
 // App's fn is a wire; here it is another App's output, which the legacy
