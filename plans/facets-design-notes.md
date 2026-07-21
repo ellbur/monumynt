@@ -242,7 +242,13 @@ viewing machinery applies downstream of it.
    catalog row, with the added constraint that the facet carry a *value*
    witness (the identity element itself), not just a named law; the
    offer is consumed by checking, and the claim's truth is trusted like
-   a JS-boundary assertion.
+   a JS-boundary assertion. *The recommended round has since been run:*
+   `late-bound-operations-design.md` works the algebra facet with the
+   test double, and pins three things about facets in passing — a facet
+   can group operation pairs, carries the sequenced/unordered ordering
+   commitment (a handle), and is the identity binding matches on
+   (drawn reference, never structural search). Attachment (edge 3
+   below) remains unworked.
 3. **What attachment is, representationally.** A relationship between a
    facet and a program version — plausibly transformation-levels
    territory (a level-1 relationship that survives edits which don't

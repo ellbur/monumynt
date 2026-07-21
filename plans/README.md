@@ -256,6 +256,15 @@ consumes, and whether it needs an input list at all:
   for higher-order arguments (comparators, predicates): instead of
   passing a function, open the operation as a scope and wire the
   would-be lambda body into it. *Exploration.*
+- [`late-bound-operations-design.md`](late-bound-operations-design.md) —
+  one program, many meanings: write a diagram against operations whose
+  meaning is supplied per use, with the test double ("run it against
+  fake IO") as the everyday face and middleware (logging, retry,
+  fault injection) as the stacked form. An unbound operation is a
+  request/response port pair on the boundary — the client end of a
+  served flow; binding is wiring a provider on; unmet demands travel
+  outward like the placeholder story's residue; the facet supplies
+  the grouping identity. *Exploration.*
 - [`facets-design-notes.md`](facets-design-notes.md) — early, deliberately
   undeveloped intuitions about *facets*: authorable, attachable
   abstractions (interfaces, algebras, state machines) you hang on code.
