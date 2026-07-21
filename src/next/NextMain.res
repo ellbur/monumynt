@@ -482,10 +482,16 @@ header("check: bad port reference yields a witness, not a crash")
 }
 
 // ============================================================================
-// 10. Witness surface: incomparable contexts (the old silent time travel)
+// 10. Completion: the sibling-opens combine (the old silent time travel) is now
+//     COMPLETED — the two-lists program with no hand-drawn Cross has one
+//     inserted for it (product-flows-design.md, "smallest first step" 3;
+//     time-travel-programs-design.md, disposition 4). What test 13b checked at
+//     the Check level — a Cross admits this combine — completion now supplies
+//     automatically, and the completed program compiles via the whole-table
+//     emitter (test 15) to the same values as the hand-drawn version.
 // ============================================================================
 
-header("check: combining sibling flows' elements is witnessed as time travel")
+header("complete: a sibling-opens combine gets a Cross inserted, then compiles")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -494,21 +500,47 @@ header("check: combining sibling flows' elements is witnessed as time travel")
   let itX = Build.uncollectList(b, xs.value)
   let itY = Build.uncollectList(b, ys.value)
   let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // No hand-drawn Cross: this is the under-committed time-travel program.
   let inner = Build.collect(b, ~flow=itX.flow, s.value)
   let outer = Build.collect(b, ~flow=itY.flow, inner.value)
   let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  // Collect itX inner (holding y), itY outer — per y, the list over x.
+  expectOutput(p, "out", array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]))
+  // The completion is reported as an insertion addressed to the combine's node.
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion inserted exactly one Cross for the sibling combine")
+    } else {
+      fail("expected one inserted Cross, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail("sibling-opens program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+header("complete: a non-invariant sibling cross is NOT completed (stays a witness)")
+{
+  // Two independent opens, but itY's SOURCE is derived from itX's element via a
+  // hand-drawn (invalid) Cross — a dependent nesting, not a product. Completion
+  // must not paper over it; the invariance check still witnesses.
+  let b = Build.make()
+  let mkRange = Build.raw(b, "n => Array.from({length: n}, (_, i) => i)")
+  let xs = Build.lit(b, array_([int_(2), int_(3)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let ys = Build.app(b, mkRange.value, [itX.element])
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
   switch Pipeline.compile(p) {
   | Error(ws) =>
-    if ws->Array.some(w => w.rule === "time-travel") {
-      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
-      pass("time-travel witness produced (completion will insert a Cross here, phase 4)")
+    if ws->Array.some(w => w.rule === "invariance") {
+      pass("dependent nesting still witnessed as non-invariant (not silently completed)")
     } else {
-      fail(
-        "expected a time-travel witness, got:\n  " ++
-        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-      )
+      fail("expected an invariance witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
     }
-  | Ok(_) => fail("sibling-flow combination compiled without a witness")
+  | Ok(_) => fail("dependent cross was wrongly completed")
   }
 }
 
