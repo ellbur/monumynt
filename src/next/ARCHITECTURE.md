@@ -402,3 +402,15 @@ backend). `src/Expr.res`, `src/Compile.res`, `src/ExprPrint.res`,
 semantic record (80 tests, `npm start`), the Bridge's target, and the
 spec for every Codegen emitter (named per stub) — retired at worklist
 item 7, not before.
+
+**Planned end state: no legacy/next separation.** The `next` generation
+is meant to fully supersede the previous one, not sit beside it forever.
+Once Codegen has no `Todo` stubs (the Bridge's whole reason to exist),
+the intent is to collapse the split entirely: retire `LegacyBridge` and
+the `Pipeline` fallback, migrate the legacy suite's coverage into the
+`next` pipeline (the `Main.res` tests become `next` programs — this is
+also where its remaining `double`/`triple` AST fixtures get rewritten as
+real inline operators), delete `Expr`/`Compile`/`ExprPrint`/`Main`, and
+move `src/next/` up to `src/`. Until then the two coexist by design (the
+legacy suite is the spec the rebuild is checked against); the note is
+here so the coexistence stays a transition, not a permanent shape.
