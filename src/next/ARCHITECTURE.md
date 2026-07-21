@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 113 checks.
+Currently 122 checks.
 
 ## The two engines (the migration harness)
 
@@ -255,10 +255,16 @@ line tells you which tests are waiting.
    climb + `StBinop`; `TextResolve.opToJs`). The double/triple test
    stand-ins are now real inline multiplication (NextMain 2–6b). The
    canonical printer does not yet re-emit infix (design open question
-   5), so a round-trip prints the desugared App form. Still ahead of the
-   parser: fused lanes, `commute out of`, prefix application, `;`
-   multi-resume. Each remaining form has a pointed "not yet parsed" error
-   today.
+   5), so a round-trip prints the desugared App form. **Prefix
+   application DONE** — `f(x, y)` (and nested / curried `f(x)(y)`, and
+   mixed with infix `f(x) * 2`) parses as a term via `TextAst.TApp` /
+   `TextParse.parseApplied` / `TextResolve`'s `TApp` arm, building the
+   same App the postfix stage `x, y -> f` does (the permissive grammar's
+   other authoring path converging on one reading). The canonical printer
+   emits the postfix form, so a round-trip prints `x, y -> f` (NextMain
+   1c, with a prefix≡postfix wiring-identity check). Still ahead of the
+   parser: fused lanes, `commute out of`, `;` multi-resume. Each remaining
+   form has a pointed "not yet parsed" error today.
 4. **Printer round** (`TextPrint.res`): chain compression — DONE
    (single-consumer runs fuse into postfix `->`/`-~>` chains; a flow a
    chain opens *and* closes is implicit — no `~name`, the bare `collect`

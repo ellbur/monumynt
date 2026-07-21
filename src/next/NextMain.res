@@ -164,6 +164,56 @@ out rem
 }
 
 // ============================================================================
+// 1c. Prefix application: `f(x, y)` is the same App the postfix `x, y -> f`
+//     builds — the permissive grammar's other authoring path
+//     (textual-representation-design.md, "parse accepts prefix (`f(x, y)`)").
+//     Nesting and mixing with infix both work; the round-trip prints the
+//     postfix form (App-node wiring is identical either way).
+// ============================================================================
+
+header("prefix application: f(x, y) desugars to App, one reading with postfix")
+{
+  let src = `
+add = js "(a, b) => a + b"
+mul = js "(a, b) => a * b"
+add(3, 4) => seven
+mul(add(1, 2), 5) => fifteen
+add(mul(2, 3), 4) * 2 => twenty
+out seven
+out fifteen
+out twenty
+`
+  let fromText = TextResolve.parseProgram(src)
+  expectOutput(fromText, "seven", int_(7))
+  expectOutput(fromText, "fifteen", int_(15)) // (1 + 2) * 5
+  expectOutput(fromText, "twenty", int_(20)) // (2 * 3 + 4) * 2
+  expectRoundTrip(fromText)
+
+  // Prefix `add(x, y)` and postfix `x, y -> add` build identical wiring — the
+  // permissive grammar's two authoring paths converge on one App (P4).
+  let prefix = TextResolve.parseProgram(`
+add = js "(a, b) => a + b"
+add(3, 4) => s
+out s
+`)
+  let postfix = TextResolve.parseProgram(`
+add = js "(a, b) => a + b"
+3, 4 -> add => s
+out s
+`)
+  if Program.equal(prefix, postfix) {
+    pass("prefix f(x, y) and postfix x, y -> f build identical wiring")
+  } else {
+    fail(
+      "prefix vs postfix wiring differs\n-- prefix --\n" ++
+      Program.dump(prefix) ++
+      "\n-- postfix --\n" ++
+      Program.dump(postfix),
+    )
+  }
+}
+
+// ============================================================================
 // 2. Multiply each element by 2 — text (inline `* 2`) and handles agree
 // ============================================================================
 
