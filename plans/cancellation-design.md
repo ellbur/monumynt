@@ -484,7 +484,10 @@ handler body's brackets release; in-flight foreign work under the
 handler is cancelled through its catalog translations. Nothing is
 lazily minted, wired onward, or checked-then-subscribed by hand. (The
 dual leg — the body fails, what does the requester receive — stays
-with the served flow's own round.)
+with the served flow's own round; *now worked there*,
+`served-flow-design.md`: the response lane is failable per-exchange,
+and the wire-level translation is the serving block's catalog-row
+policy beside this round's cancel-in translation.)
 
 **The abandoned waiter (undici 5, sketched).** A pool's waiter queue
 is pending pulls on permit cells; a waiter whose requester gives up

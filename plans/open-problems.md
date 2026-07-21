@@ -273,23 +273,46 @@ fairness relocated to the chooser family); source openers and pacing
 (`source-openers-design.md` — the self-driven opener as a bare
 flow-minting node, the external pull source as a catalog block minting
 a failable stream, pacing as a binary flow operation `paced` that puts
-the retry composite's floor on paper); and the concurrent collect
+the retry composite's floor on paper); the concurrent collect
 (`concurrent-collect-design.md` — the species menu fully dissolved:
 serial = the nested drawing, keyed = the keyed partition instantiated,
 unbounded = one primitive "settle" node minting the **completions
 flow** in settlement order, its settled result a per-firing discharged
 sum with no main-result port, a drain termination law, `bounded(n)`
 split into a width expressible now and shared permits that are
-bracket-shaped and fenced to Tier 1; six dead ends).
+bracket-shaped and fenced to Tier 1; six dead ends); and now the
+served flow (`served-flow-design.md` — **one construct, two ends**:
+the exchange pair whose client end is late-bound operations' `op`
+pair and whose server end is a provider diagram, so "which one is the
+server" is a property of a *binding*, the network an FFI client end
+and the test harness another — servers testable as pure programs;
+the exchange law port-structural (exactly-once = one wire into the
+response half; exhaustiveness over exchanges; the responding collect
+placeable on any 1–1-corresponding flow by provenance, making the
+serial/overlapped/keyed seam free); the dual failure leg answered
+(the response lane failable per-exchange, edge policy on the serving
+block's catalog row — failure-out, cancel-in, admission); "served" is
+*not* a flow kind (pair content, not kind content); the k-operation
+provider is a **pre-split bundle** (no dispatch, because no union was
+packed); the recursive provider is **the link in exchange costume**
+(unmemoized = the divide flow's tree with its measure discipline);
+the keyed cache is a partition-plus-lane-register middleware that
+turns the tree into a DAG, with cycle detection as a provenance
+witness — left recursion's cousin; the server-program question
+largely dissolved (a server is a provider; the standing run is a
+binding; the node-set consequence's second client); five dead ends,
+including exchange-as-two-messages, whose field witness is the
+correlation ID as hand-rolled provenance).
 
-Remaining: the served flow (with its recursive-provider and
-keyed-cache demands — and now a second waiting client from outside
-the row: late-bound operations, whose provider side is identified as
-the served flow's server end, `late-bound-operations-design.md`),
-the chooser family (also owning merge fairness),
-the server-program question (`tough-use-cases-design.md` question 7),
-and pacing's per-consumer/per-source bit under multi-close (joint with
-end-when's coexistence question). Demanded by three of the five tough
+Remaining: the adoption conversation (joint with the late-bound
+round's — one construct's two ends); the chooser family (also owning
+merge fairness *and now cross-client arbitration* — a serving
+provider bound at two boundaries has no cross-client order, the
+served round's question 2); pacing's per-consumer/per-source bit
+under multi-close (joint with end-when's coexistence question); and
+the served round's own residue (the serving blocks' catalog rows,
+cacheability's witness property, when-does-a-server-end — each filed
+to a named owner). Demanded by three of the five tough
 use cases; the event-loop breadth item (7) is the area's acceptance
 test in miniature.
 
@@ -308,7 +331,8 @@ distinction and its select-union note (a tagged union crossing the
 race is the sum bottleneck the barrier form dissolves) sharpen the
 concurrent collect and race rounds. See `race-barrier-design.md`,
 `source-openers-design.md`, `concurrent-collect-design.md`,
-`translation-exercise.md`, `effekt-comparison.md`, `flix-comparison.md`,
+`served-flow-design.md`, `translation-exercise.md`,
+`effekt-comparison.md`, `flix-comparison.md`,
 `xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
 
 **Failability's residue — I 3, W 4.**
@@ -396,7 +420,9 @@ residue: the adoption conversation; the spellings (`op`, `serve`,
 binding, splice), owed jointly with the level boundary — the divide
 flow's demand — and the textual catch-up (one decision, three
 clients); region-scoped rebinding; the serving provider's multi-lane
-form (co-locates with barrier-value-crossing's criterion);
+form — now worked (`served-flow-design.md`: the pre-split bundle —
+one serving context in handle order, k static lanes, registers on
+the parent flow, no dispatch because no union was packed);
 default-override scope against completion's pick-late rule. And the
 rest of the remaining list, untouched: **extensible alternation**
 (Raku's proto regexes; the complete alternative set must stay
@@ -613,9 +639,14 @@ discipline is necessary, not sufficient; leaning is nothing static,
 divergence flagged); **provenance/explanation as a derived view** (a
 highlighted sub-DAG of the deriving firings — the most novel residue, a
 leaning only); **stratified negation** as a fixed nesting of saturations
-under no-time-travel (sketched); and the **served-flow duality**
-(top-down demand-driven vs bottom-up saturation, the seen-set/memo hinge
-named — to be worked jointly once the served flow is worked). W = 3 as a
+under no-time-travel (sketched); and the **served-flow duality** —
+now with its first joint working (`served-flow-design.md`: the memo
+table and the seen-set are one construct, a keyed collect, written by
+opposite drivers; which construct a program draws is which end names
+the extent — the goal's cone vs the closure, different drawn programs,
+not lowerings of one another; magic sets located as a recognition
+between the two drawings; provenance's explanation sub-DAG and the
+provider's demand cone identified as one derived view). W = 3 as a
 breadth obligation: absent from all three random surveys, everyday
 clients domain-concentrated (package/build/import tooling, analysis,
 graph features); the frequency question stays on the evidence-owed list.

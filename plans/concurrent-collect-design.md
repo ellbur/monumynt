@@ -613,6 +613,13 @@ The language hasn't decided these yet.
    collect over completions) is this design's guess at the seam; the
    served flow's own round (exchanges, failure legs, the recursive
    provider, the keyed cache) is still owed and may reshape it.
+   *Worked in `served-flow-design.md`:* the seam is confirmed and
+   explained — the exchange law is per-exchange and
+   provenance-carried, so the responding collect may close any flow
+   whose firings correspond 1–1 to the exchanges (the exchange flow,
+   this node's completions flow, a partition readout), and rerouting
+   through settle changes nothing about what is owed to whom. A
+   leaning, not adopted.
 7. **Spec and text.** Spec entries for the settle node (and the
    partition's async instantiation), plus textual spellings
    (`textual-representation-design.md`), are owed on adoption.
