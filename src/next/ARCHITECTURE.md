@@ -18,8 +18,8 @@ Representation and authoring:
 |---|---|---|
 | `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
 | `Build.res` | working | Typed handles over `Program` ("strings below, typed handles above"). The builder also *collects the node set* — that is how root-unreachable write halves stay in the program. |
-| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise, until products land. (The poset-round successor is `Poset.res`; wiring Context onto it is the next sub-step.) |
-| `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and `merge` (comparable → the deeper; siblings → the **exact-axis** constructed product, not a covering superset — `leq` is monotone `⊆` but a combine's home is `==`, since a flat cross builds no sub-products; else `Incomparable`, the completion gap — an under-determined cross is just another time-travel program). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. Not yet wired into Context. |
+| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise on the linear path. **First Poset wiring landed**: `pathToPoset` / `crossProduct` / `productsIndex` lift the sibling-combine question to `Poset` — a program's Cross nodes build the product index `Poset.merge` consults. The linear model stays primary for every consumer (the full poset-valued context, e.g. a collect over a crossed axis reporting `{Y}` not `[]`, is the deeper poset round with the emitter). |
+| `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and `merge` (comparable → the deeper; siblings → the **exact-axis** constructed product, not a covering superset — `leq` is monotone `⊆` but a combine's home is `==`, since a flat cross builds no sub-products; else `Incomparable`, the completion gap — an under-determined cross is just another time-travel program). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. **Wired into Context** for the alignment admit (`Context.productsIndex`); the full context-model migration (Cross output ports, poset-valued contexts everywhere) is the rest of the poset round. |
 
 The compile pipeline (`compile-strategy-design.md`; each pass a pure
 function with a printable output):
@@ -27,7 +27,7 @@ function with a printable output):
 | pass | module | status |
 |---|---|---|
 | 0 derive | `Derive.res` | honest identity (no abstract node species exist, so every program is level-0). The catalog architecture — pattern/expansion/correspondence, composite ids, the origins map — is recorded in its header for when reduce-close arrives. |
-| 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ `time-travel`), **join-adjacency**, **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
+| 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ a time-travel candidate that is **admitted iff a constructed Cross covers its exact axes** — `Context.productsIndex` + `Poset.merge` — else ⇒ `time-travel`), **join-adjacency**, **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
 | 2 complete | `Complete.res` | **pass shape real** — `harvest` → `solve` → `realise` with contracts stated and the constraint vocabulary typed — all bodies v0-trivial (no constraints harvested ⇒ identity). Heuristic table reserved as versioned data. |
 | 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
 | 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo`/deferred, each citing its design doc: commute, cross (the poset round); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 75 checks.
+Currently 78 checks.
 
 ## The two engines (the migration harness)
 
@@ -298,12 +298,19 @@ line tells you which tests are waiting.
    *complete* model rather than a convenient restriction. The `≤`
    primitive (`axes-⊆ + order-extends`) and the LUB `merge` (least
    *constructed* product above two siblings, else `Incomparable`) are
-   implemented and unit-tested (NextMain test 14). Next sub-step: wire
-   `Context.res` onto `Poset` (build the product index from the Cross
-   nodes, give Cross two corresponding output ports in `Program`, let
-   `checkAlignment` admit a valid sibling Cross while still witnessing
-   time-travel/diamond). Still deferred (the context-model generalization
-   proper): the **Cross** emitter (point-indexed table,
+   implemented and unit-tested (NextMain test 14). **First wiring
+   landed**: `Context.productsIndex` builds the product index from the
+   program's Cross nodes (`crossProduct` = `Poset.parallel` of the two
+   operands' full contexts), and `checkAlignment` now consults
+   `Poset.merge` so a valid sibling Cross ADMITS its combine while a
+   wrong-axes / missing / bundle-mixing clash still witnesses (NextMain
+   test 13b). Next sub-step of the wiring: give Cross two corresponding
+   output ports in `Program` (the barrier shape — each axis its own
+   output at the product) and make Context report the full poset-valued
+   context (a collect over a crossed axis reports `{Y}`, not the linear
+   model's `[]`) — both land with the emitter. Still deferred (the
+   context-model generalization proper): the **Cross** emitter
+   (point-indexed table,
    `product-flows-design.md`), which also lets Check admit products
    instead of raising `Incomparable`; **commute** (transpose over a
    Cross — lawful only there, `lazy-stream-commute-design.md`); and

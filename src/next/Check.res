@@ -206,6 +206,10 @@ let classifyClash = (left: array<flowRef>, right: array<flowRef>): clash => {
 
 let checkAlignment = (p: program): array<witness> => {
   let out: array<witness> = []
+  // The program's constructed Cross products — the index that turns a sibling
+  // combine from a time-travel gap into a well-formed product combine
+  // (product-flows-design.md, "The context model").
+  let products = Context.productsIndex(p)
   p.nodes->Array.forEach(n => {
     // Probe the node's own output ports: computing a port's context is
     // what merges the input contexts (an App's args, a Cross's operands),
@@ -219,27 +223,48 @@ let checkAlignment = (p: program): array<witness> => {
       })
     } catch {
     | Context.Incomparable({left, right, where: _}) =>
-      let (rule, message) = switch classifyClash(left, right) {
-      | Mixing({split, cellA, cellB}) => (
-          "bundle-mixing",
-          "values live in mutually exclusive cells \"" ++
-          cellA ++
-          "\" and \"" ++
-          cellB ++
-          "\" of case split node " ++
-          Int.toString(split.id) ++
-          "; no execution produces both (sibling cells meet only at a collect)",
+      switch classifyClash(left, right) {
+      | Mixing({split, cellA, cellB}) =>
+        // Bundle mixing is untouched by Cross: sibling cells never coexist, so
+        // no product can host the combine (product-flows-design.md, "bundle
+        // mixing — untouched, as ever; the missing fact there is an execution").
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "bundle-mixing",
+            message: "values live in mutually exclusive cells \"" ++
+            cellA ++
+            "\" and \"" ++
+            cellB ++
+            "\" of case split node " ++
+            Int.toString(split.id) ++
+            "; no execution produces both (sibling cells meet only at a collect)",
+          },
         )
-      | TimeTravel({openA, openB}) => (
-          "time-travel",
-          "combining values from unrelated flows " ++
-          Context.flowKey(openA) ++
-          " and " ++
-          Context.flowKey(openB) ++
-          " with no correspondence between their firings (completion inserts a Cross)",
-        )
+      | TimeTravel({openA, openB}) =>
+        // A constructed Cross may make this sibling combine well-formed: the two
+        // values meet at the product context, deeper than each axis. Consult the
+        // poset — if a Cross product covers EXACTLY these axes the combine has a
+        // home; otherwise it is a (completable) time-travel gap that completion
+        // fills by inserting the exact Cross.
+        switch Poset.merge(~products, Context.pathToPoset(left), Context.pathToPoset(right)) {
+        | _ => () // admitted — a constructed Cross covers this combine
+        | exception Poset.Incomparable(_, _) =>
+          Array.push(
+            out,
+            {
+              nodeId: n.id,
+              rule: "time-travel",
+              message: "combining values from unrelated flows " ++
+              Context.flowKey(openA) ++
+              " and " ++
+              Context.flowKey(openB) ++
+              " with no correspondence between their firings (completion inserts a Cross)",
+            },
+          )
+        }
       }
-      Array.push(out, {nodeId: n.id, rule, message})
     }
   })
   out

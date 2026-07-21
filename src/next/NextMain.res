@@ -715,6 +715,89 @@ header("check: crossing an axis with a flow derived from its element is witnesse
 }
 
 // ============================================================================
+// 13b. Context wired onto Poset: a Cross ADMITS a sibling combine. The same
+//      two-lists program that witnessed time travel in test 10 (add x, y over
+//      two independent opens) is now well-formed once a Cross constructs their
+//      product — the combine has a home at {X || Y} (product-flows-design.md,
+//      "The context model"). Checked at the Check level, not compiled: the
+//      point-indexed-table emitter is still the deferred poset round, so the
+//      collects here would trip Codegen — the well-formedness gate is what
+//      advances, exactly as with the invariance demand (test 13).
+// ============================================================================
+
+let noAlignmentWitness = (label, ws: array<Check.witness>) =>
+  if ws->Array.some(w => w.rule === "time-travel" || w.rule === "invariance") {
+    fail(label ++ " — unexpected witness:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  } else {
+    pass(label)
+  }
+
+header("check: a Cross admits the sibling combine that was time travel without it")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // The Cross that gives {X, Y} a home. Without it, this is test 10's time travel.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let outer = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  noAlignmentWitness("the Cross gives the sibling combine a home at {X || Y}", Check.check(p))
+}
+
+header("check: siblings sharing an outer loop cross and combine cleanly (L > {X || Y})")
+{
+  // The product's exterior is the shared loop L; the two axes go parallel inside
+  // it. Exercises crossProduct's series-prefix-then-parallel construction.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let ls = Build.lit(b, array_([int_(0), int_(1)]))
+  let itL = Build.uncollectList(b, ls.value)
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, ~nesting=itL.flow, xs.value)
+  let itY = Build.uncollectList(b, ~nesting=itL.flow, ys.value)
+  let _ = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", ls.value)])
+  noAlignmentWitness("shared-outer siblings combine at L > {X || Y}", Check.check(p))
+}
+
+header("check: a Cross of the WRONG axes does not admit the combine (still time travel)")
+{
+  // Three independent opens; combine x with y, but the only Cross is (x, z). Its
+  // product is {X || Z}, which does not host the {X, Y} combine — a combine's
+  // home is exact, not a covering-or-adjacent product. So the clash still stands.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1)]))
+  let ys = Build.lit(b, array_([int_(10)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itZ.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let outer = Build.collect(b, ~flow=itY.flow, inner.value)
+  let _ = itZ
+  let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "time-travel") {
+    pass("a {X || Z} cross does not host the {X, Y} combine — still time travel")
+  } else {
+    fail(
+      "expected the {X,Y} combine to stay time travel, got:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+}
+
+// ============================================================================
 // 14. The series-parallel context algebra (Poset.res) — the Fork-A `≤` primitive
 //     and the LUB merge, unit-tested against the cases worked on paper. Products
 //     + nesting only (cells arrive with partial-collect's merged context).
