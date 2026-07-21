@@ -283,7 +283,11 @@ let checkJoinAdjacency = (p: program): array<witness> => {
     | Join({outer, inner}) | Commute({outer, inner}) =>
       try {
         let innerExterior = Context.flowContext(inner)
-        let expected = Array.concat(Context.flowContext(outer), [outer])
+        // The interior the inner must open at is the outer flow's INTERIOR, which
+        // for a Join is its flattened interior (through stacked joins), not a
+        // single `[outer]` layer — otherwise a nested flatten (flatten a
+        // list-of-lists, then filter/flatten again) is wrongly rejected.
+        let expected = Context.flowInterior(outer)
         if Context.contextToString(innerExterior) !== Context.contextToString(expected) {
           Array.push(
             out,

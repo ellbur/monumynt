@@ -360,6 +360,35 @@ a -~> collect ~keep => evens
 }
 
 // ============================================================================
+// 7d. Nested flatten + filter — join(join(list, list), case-alt). Flatten a
+//     list-of-lists and keep the evens. The join whose OUTER is itself a join
+//     stacks two list layers before the filter: Codegen's per-level spine walk
+//     compiles it (emitFilterCollect loops its leading list levels), but the
+//     join-adjacency check formerly rejected it — it compared the alt's exterior
+//     (two layers) against a single-layer `[outer]` interior of the inner join.
+//     Fixed by Context.flowInterior computing a Join's flattened interior.
+// ============================================================================
+
+header("nested flatten + filter: join(join(list, list), case-alt) is adjacent")
+{
+  let b = Build.make()
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3), int_(4)])]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let i2 = Build.uncollectList(b, i1.element)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i2.element)
+  let ev = Build.alt(cs, "Even")
+  // Flatten the two list layers (j1), then join the per-element Even cell (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j2.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("evens", out.value)])
+  // The flattened evens across both inner lists: [2, 4].
+  expectOutput(p, "evens", array_([int_(2), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 7b. Partial collect — the merged flow of two covered cells, terminated by a
 //     join (a multi-cell filter: "keep the A's and B's, drop the C's").
 //     Beyond the bridge (its case close is exhaustive-or-throw), so validated

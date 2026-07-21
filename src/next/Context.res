@@ -179,6 +179,25 @@ and flowContext = (r: flowRef): array<flowRef> =>
     }
   }
 
+// The INTERIOR context of a flow: the context at its innermost element, i.e.
+// where a nesting-adjacent inner flow opens. For an Uncollect (list/option/alt)
+// this is its own layer over its exterior — `flowContext(f) ++ [f]`. For a Join
+// it is the interior of the *inner* operand: a join flattens outer and inner
+// into one flow whose elements live at the inner's full depth, so a subsequent
+// adjacent flow opens there, NOT at a single "join layer". Recurses through
+// stacked joins. (The join-adjacency check uses this; without it a join whose
+// outer is itself a join — a nested flatten, e.g. flatten-then-filter — is
+// wrongly rejected as non-adjacent, though Codegen's per-level spine walk
+// compiles it fine.)
+let rec flowInterior = (r: flowRef): array<flowRef> =>
+  switch r {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Join({inner}) => flowInterior(inner)
+    | _ => Array.concat(flowContext(r), [r])
+    }
+  }
+
 // The product context a Cross node constructs: the PARALLEL composition of its
 // two operands' full contexts (each operand's exterior plus its own axis). For
 // two top-level sibling opens this is `{X || Y}`; for siblings sharing an outer
