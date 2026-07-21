@@ -44,7 +44,7 @@
 //               | 'split' term 'of' NAME (',' NAME)*
 //               | 'collect' ('~' flowName)?
 //               | 'join' ('into' '~' flowName)?
-//               | 'commute'
+//               | 'commute' ('out' 'of' '~' flowName)?
 //               | 'delay' 'init' term
 //               | 'step' 'of' NAME
 //               | OP primary                      -- operator section (`-> * 2`)
@@ -63,8 +63,7 @@
 // statement; a line starting with '|' begins a new chain sourced from the
 // antecedent line's taps (ordinal binding). A line starting with '~flow:'
 // begins a lane group (the flow-ref-labeled form). Not yet parsed (printer
-// may still emit them): fused lane groups, 'commute out of' / 'cross with'
-// standalone forms, '+' completion lines (recognised and skipped — they are
+// may still emit them): fused lane groups, '+' completion lines (recognised and skipped — they are
 // derived, never stored), '~'/'~^' anaphora, ';' multi-resume, 'diagram
 // ... end' wrappers, '@id' suffixes.
 
@@ -111,7 +110,12 @@ type stage =
   | StCollect({flowArg: option<flowTerm>})
   | StJoin({into: option<flowTerm>})
   | StCross({with_: flowTerm}) // ~left ~> cross with ~right => ~flow
-  | StCommute
+  // Bare `commute` (`outOf: None`) swaps the chain's two innermost open
+  // flow layers; the standalone `~inner ~> commute out of ~outer => cN`
+  // (`outOf: Some(outer)`) names the two-port Commute node explicitly,
+  // mirroring `join into` / `cross with`. The printer emits the standalone
+  // form (its output ports are referenced as ~cN.outer / ~cN.inner).
+  | StCommute({outOf: option<flowTerm>})
   | StDelay({init: term})
   | StStepOf(string) // step of <register binder>
   | StTap // '|' mid-chain: mint a junction here
