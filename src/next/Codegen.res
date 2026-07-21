@@ -937,17 +937,19 @@ and emitFilterCollect = (
 // action. NON-exhaustive: an uncovered alt makes the merged flow not fire —
 // dropped for a list, left unset for an option (the any-list rule again).
 //
-//   for (const x of feed) {                  // leading list levels (from a Join)
-//     const elem = __lazyDone__(x);
+//   for (const x of feed) {                  // leading levels (from a Join):
+//     const elem = __lazyDone__(x);           // list ⇒ for-of, option ⇒ if-defined
 //     const s = force(disc)(force(input));
 //     if (s.tag === alt1) { const p1 = __lazyDone__(s.value); …v1…; out.push(force(v1)) }
 //     else if (s.tag === alt2) { … }         // no else — uncovered alts drop
 //   }
 //
-// With no leading list level (the collected-alone reading) the accumulator is
-// the option `let out;` and the arms assign. Mirrors emitFilterCollect for the
-// leading levels and emitCaseCollect for the per-arm payload, minus
-// exhaustiveness. DEFERRED to the poset round: computation AT the merged
+// Leading levels may be list or option (an absent option skips its firing,
+// contributing nothing — mirrors emitFilterCollect); the any-list rule decides
+// the accumulator (any list ⇒ push, else the option `let out;` and the arms
+// assign, which is also the no-leading-level collected-alone reading). Mirrors
+// emitFilterCollect for the leading levels and emitCaseCollect for the per-arm
+// payload, minus exhaustiveness. DEFERRED to the poset round: computation AT the merged
 // context (the doc's logAndFallback step) lives at a cell-set context the
 // linear model cannot represent, so the terminating value must reference the
 // merged value directly (its structural context is the merged flow, which does
@@ -968,11 +970,9 @@ and emitPartialCollect = (
   let iterLevels = levels->Array.slice(~start=0, ~end=n - 1)
   iterLevels->Array.forEach(l =>
     switch l {
-    | IterLevel({isList: true}) => ()
-    | IterLevel({isList: false}) =>
-      throw(Todo("partial collect nested under an option level — not in the direct slice"))
+    | IterLevel(_) => () // list or option leading level — both are looped below
     | AltLevel(_) | PartialLevel(_) =>
-      throw(Todo("partial collect with a non-list leading level — mirror emitFilterCollect's shape"))
+      throw(Todo("partial collect with a dispatch leading level — mirror emitFilterCollect's shape"))
     }
   )
   let (discriminator, csInput) = switch split.kind {
@@ -1108,7 +1108,10 @@ and emitPartialCollect = (
     },
   )
 
-  // Wrap in the leading loops, innermost-out; the dispatch is the innermost payload.
+  // Wrap in the leading levels, innermost-out; the dispatch is the innermost
+  // payload. A list level loops (for-of); an option level is a single
+  // defined-check — an absent option skips its body, so that firing contributes
+  // nothing (mirrors emitFilterCollect).
   let nested = ref(dispatch)
   for i in Array.length(plans) - 1 downto 0 {
     let p = plans->Array.getUnsafe(i)
@@ -1117,7 +1120,15 @@ and emitPartialCollect = (
       [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))],
       Array.concat(bucket, nested.contents),
     )
-    nested := [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+    nested :=
+      if p.isList {
+        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+      } else {
+        [
+          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
+          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+        ]
+      }
   }
   let accDecl = if anyList {
     JsBuild.const(outName, JsBuild.array_([]))
