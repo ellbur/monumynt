@@ -884,6 +884,104 @@ header("poset: merge (a combine's home is the EXACT constructed product)")
 }
 
 // ============================================================================
+// 15. The whole-table Cross emitter (product-flows-design.md, "Compile" and
+//     "smallest first step" 2). The two-lists program compiled in BOTH orders:
+//     one shared point-indexed table, built once in the Cross's stored
+//     orientation, indexed by each consumer in its own order — the transpose is
+//     free, and the user's `add` runs once. Beyond the bridge (Cross), so
+//     validated against hand-built tables, and a golden check pins add-once.
+// ============================================================================
+
+let countOccurrences = (haystack: string, needle: string): int =>
+  Array.length(String.split(haystack, needle)) - 1
+
+header("cross: the two-lists product, both orders, one shared table")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // The Cross gives the {X, Y} combine a home (test 13b); its stored orientation
+  // (left = x outer, right = y inner) is the table's build order.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Order 1: collect x inner (holding y), y outer — per y, the list over x.
+  let inner1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itY.flow, inner1.value)
+  // Order 2: the transpose — collect y inner (holding x), x outer.
+  let inner2 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out2 = Build.collect(b, ~flow=itX.flow, inner2.value)
+  let p = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  // out1: grouped per y — [[1+10,2+10,3+10],[1+20,2+20,3+20]].
+  expectOutput(
+    p,
+    "out1",
+    array_([
+      array_([int_(11), int_(12), int_(13)]),
+      array_([int_(21), int_(22), int_(23)]),
+    ]),
+  )
+  // out2: the transpose — grouped per x.
+  expectOutput(
+    p,
+    "out2",
+    array_([
+      array_([int_(11), int_(21)]),
+      array_([int_(12), int_(22)]),
+      array_([int_(13), int_(23)]),
+    ]),
+  )
+
+  // Golden: the user's add appears exactly once in a compiled output — the two
+  // orders share the table rather than each recomputing the product.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out1") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b")
+      if n === 1 {
+        pass("add's work appears once (both orders share the table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out1 to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("product program failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+header("cross: a single-order product still compiles (the direct table read)")
+{
+  // Just one consumer chain — the table is built and read once. This is the
+  // exact program test 13b only checked; now it compiles and runs.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20), int_(30)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let out = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // per y: [1+y, 2+y]
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([int_(11), int_(12)]),
+      array_([int_(21), int_(22)]),
+      array_([int_(31), int_(32)]),
+    ]),
+  )
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++

@@ -30,7 +30,7 @@ function with a printable output):
 | 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ a time-travel candidate that is **admitted iff a constructed Cross covers its exact axes** — `Context.productsIndex` + `Poset.merge` — else ⇒ `time-travel`), **join-adjacency**, **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
 | 2 complete | `Complete.res` | **pass shape real** — `harvest` → `solve` → `realise` with contracts stated and the constraint vocabulary typed — all bodies v0-trivial (no constraints harvested ⇒ identity). Heuristic table reserved as versioned data. |
 | 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
-| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs). `Todo`/deferred, each citing its design doc: commute, cross (the poset round); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
+| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt); conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs), **cross, whole-table** (the binary product of two top-level list axes: one shared point-indexed table built once in the Cross's stored orientation, both collect orders indexing it — the transpose is free, the user's computation runs once per cell; `product-flows-design.md`'s "Compile" / "smallest first step" 2). `Todo`/deferred, each citing its design doc: commute; n-ary cross (three-plus axes) and cross of non-top-level / non-list axes (the rest of the poset round); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
 | (stand-in) | `LegacyBridge.res` | **disposable**: translates `Program` → legacy `Expr` and reuses `src/Compile.res`. Now the *fallback engine* (below). Must never grow features; deleted at retirement. |
 | entry | `Pipeline.res` | derive → check → complete → annotate → **two engines** → `JsPrint`. Witnesses come back as data (`result`), engine gaps as exceptions (`Codegen.Todo` / bridge `Failure`). |
@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 78 checks.
+Currently 85 checks.
 
 ## The two engines (the migration harness)
 
@@ -104,14 +104,20 @@ list/option chains with binary Join, multi-close, single-module
 multi-output compilation (outputs share one memo), **case collects**,
 **filters** (join with a case-alt inner operand), **partial collects**
 (the direct slice — a merged flow of k covered cells feeding a filter or
-an option), and **registers** (the Delay pair over a single-level
+an option), **registers** (the Delay pair over a single-level
 driving flow — the first non-legacy construct to run, so beyond the
 bridge and validated against the design docs rather than by the
-differential). Via the Bridge: nothing among the smoke tests still falls
-back. Representable-but-not-compilable (prints, checks): commute, cross,
-explicit `in` nesting, partial collects whose merged value is *computed
-at the merged context* (needs the cell-set/poset round), and registers
-over joined/nested/case flows (the Delay ontology open problem).
+differential), and the **whole-table Cross** (a binary product of two
+top-level list axes, consumed by a two-collect chain in either order —
+one shared point-indexed table, both orders indexing it, the user's
+computation run once per cell; also beyond the bridge, validated against
+hand-built tables and a golden add-once check). Via the Bridge: nothing
+among the smoke tests still falls back. Representable-but-not-compilable
+(prints, checks): commute, n-ary / non-top-level-list cross (the rest of
+the poset round), explicit `in` nesting, partial collects whose merged
+value is *computed at the merged context* (needs the cell-set/poset
+round), and registers over joined/nested/case flows (the Delay ontology
+open problem).
 
 ## Decisions taken here (all cheap to revisit; recorded so they are
 decisions, not accidents)
@@ -304,15 +310,27 @@ line tells you which tests are waiting.
    operands' full contexts), and `checkAlignment` now consults
    `Poset.merge` so a valid sibling Cross ADMITS its combine while a
    wrong-axes / missing / bundle-mixing clash still witnesses (NextMain
-   test 13b). Next sub-step of the wiring: give Cross two corresponding
-   output ports in `Program` (the barrier shape — each axis its own
-   output at the product) and make Context report the full poset-valued
-   context (a collect over a crossed axis reports `{Y}`, not the linear
-   model's `[]`) — both land with the emitter. Still deferred (the
-   context-model generalization proper): the **Cross** emitter
-   (point-indexed table,
-   `product-flows-design.md`), which also lets Check admit products
-   instead of raising `Incomparable`; **commute** (transpose over a
+   test 13b). **The whole-table emitter landed** (Cross's "smallest first
+   step" 2): `Codegen.res` `emitProductChain` / `getOrBuildTable`
+   compiles the binary product of two top-level list axes consumed by a
+   two-collect chain — one shared point-indexed table built once in the
+   Cross's stored orientation (index-based loops, `cForArr`), both
+   collect orders indexing the same `force(table)[i][j]`, so the
+   transpose is free and the user's computation runs once per cell
+   (`product-flows-design.md`'s "Compile"; NextMain test 15, with a
+   golden add-once check and hand-built expected tables — beyond the
+   bridge). The routing is `matchProductChain` (recognises
+   `collect(fOuter, collect(fInner, s))` over one product with `s`
+   spanning both axes); non-product programs are untouched, and a
+   product value's App — whose args are on incomparable sibling axes, so
+   `Context.valueContext` raises `Incomparable` — is placed at the
+   current (product) context rather than asserting. Still deferred (the
+   context-model generalization proper): **n-ary products** (three-plus
+   axes) and cross of **non-top-level / non-list axes** (both raise
+   `Todo` today — the general poset-valued context, Cross output ports
+   for the barrier shape, and the "collect over a crossed axis reports
+   `{Y}`" context report land with them); Check admitting products in
+   more shapes; **commute** (transpose over a
    Cross — lawful only there, `lazy-stream-commute-design.md`); and
    partial collect's **merged-context computation** (the cell-set /
    subset-lattice segment, the *same* non-tree feature — `product-flows-
