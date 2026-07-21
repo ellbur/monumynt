@@ -333,9 +333,11 @@ and `types-design.md`.
   Saturation pushes: seeds derive consequences *upward*,
   exhaustively, deduped. Same graph discovered at runtime, opposite
   direction; the served flow's memo table is saturation's seen-set.
-  The served flow is unworked; the two demands should be worked
-  **aware of each other**, and the seen-set/memo correspondence is
-  the concrete hinge.
+  *The served flow is now worked* (`served-flow-design.md`), and the
+  joint working confirms the hinge: memo and seen-set are one
+  construct (a keyed collect) written by opposite drivers; the
+  uncached recursive provider is the divide flow's tree, and the
+  cache is exactly what turns it into this round's dedup DAG.
 - **End-when — supplies the reading, not the construct.** "Stop when
   no change" is end-when's shape (`end-when-design.md`), but end-when
   shortens a flow from the consumer side over a per-firing alt;
@@ -416,6 +418,15 @@ The language hasn't decided any of these yet.
    no-time-travel; the phase-ordering and the check are unworked.
 5. **The served-flow duality** — the seen-set/memo hinge is named;
    the joint design is owed once the served flow is worked.
+   *First joint working in `served-flow-design.md`:* memo and
+   seen-set as keyed collects written by opposite drivers; which
+   construct a program draws is which end names the extent (the
+   goal's cone vs the closure — different drawn programs, not
+   lowerings of one another); magic sets located as a *recognition*
+   between the two drawings (transformation-levels territory, never
+   a mode); the explanation sub-DAG and the demand cone identified
+   as one derived view read from opposite ends. Leanings, not
+   adopted.
 6. **Frequency** — evidence owed (a domain sample:
    package/build/import tooling, program analysis, graph features),
    already on the list; informs W, does not gate the design.

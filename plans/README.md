@@ -295,6 +295,17 @@ case/option are implemented; the rest are designed:
   a scraper fetching URLs). One primitive (settle) mints a *completions
   flow*: one firing per body that settles, in settlement order,
   failures carried as data. *Exploration.*
+- [`served-flow-design.md`](served-flow-design.md) — the served flow:
+  flows whose firings are *exchanges* — a request in, a response owed
+  back, the collect supplying the answer. One construct with two ends:
+  the client end is late-bound operations' `op` pair; the server end is
+  a provider diagram, and "which one is the server" is a property of a
+  binding (an HTTP server is a provider bound to the network; the same
+  provider bound to a scripted requester is a test). Also the
+  k-operation provider as a pre-split bundle, the recursive provider as
+  the link in exchange costume, the keyed cache as a
+  partition-plus-lane-register middleware, and the first joint working
+  of the top-down/bottom-up duality with saturation. *Exploration.*
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
   values into a "necessity frontier."

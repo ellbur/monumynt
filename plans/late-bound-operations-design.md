@@ -448,7 +448,14 @@ drawing, and the choosing is visible routing among them.
   flow's law and species; it does not work the served flow's open
   list (the recursive provider, the keyed cache, question 7's
   what-is-a-program-for-a-server). Those stay on the concurrency
-  row, now with a second client waiting on them.
+  row, now with a second client waiting on them. *That round now
+  exists* (`served-flow-design.md`): it commits to the two-ends
+  reading this round opened (one construct, the exchange pair;
+  "which one is the server" is a property of a binding), works the
+  recursive provider (the link in exchange costume), the keyed
+  cache (a partition-plus-lane-register middleware), and the
+  program-for-a-server question, and its adoption conversation is
+  declared joint with this round's.
 - **The rest of the functions row.** Extensible alternation, the
   decorated tree, and the `across`-style authoring gesture are
   untouched; the function boundary's spelling (the level boundary,
@@ -545,7 +552,13 @@ Recorded so they are not re-proposed:
    the *provider's* side too, and probably co-locates with the
    barrier-value-crossing co-location criterion. Leaning: k lanes,
    one shared serving context, register scope = the serving context;
-   not worked.
+   not worked. *Now worked in `served-flow-design.md`:* the serving
+   end of a k-operation facet is a **pre-split bundle** — one
+   serving context (a flow, one firing per exchange, in handle
+   order) with k static lanes, exactly one firing per lane per
+   exchange, registers on the parent flow with per-lane steps merged
+   by the exhaustive case collect. No dispatch is drawn because no
+   union was packed. A leaning, not adopted.
 4. **Defaults and override scope.** A default binding rides the
    demand outward; can an outer caller override an inner default
    (the test overrides the production default two levels down)?

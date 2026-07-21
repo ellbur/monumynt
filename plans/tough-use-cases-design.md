@@ -877,6 +877,14 @@ where this document's motivating programs actually had their bugs.
    the dual: the body fails — what does the requester receive (connection
    reset vs a lowered error response) and is that the FFI node's policy or
    the program's?
+   *Both legs now worked:* the vanished requester in
+   `cancellation-design.md` (transport close becomes `Cancelled` on that
+   exchange's flow, delivered by the serving FFI node), and the dual leg
+   in `served-flow-design.md` (the response lane is failable like any
+   wire — the body's terminator discharges *into the exchange*,
+   per-exchange, never as a whole-flow terminator; what the wire sees is
+   the serving block's catalog-row policy, dischargeable upstream by the
+   program). Leanings, not adopted.
 4. **Divide-flow termination.** Catalog divisions with a size-measure
    check, plus warned trust for user divisions — confirm against the
    derived-iteration soundness precedent; work a non-list example (tree
@@ -911,6 +919,14 @@ where this document's motivating programs actually had their bugs.
    write-halves; long-running compositions are its second, larger client.
    What does `compileToBody` mean for a program whose value is its ongoing
    behaviour?
+   *Largely dissolved in `served-flow-design.md`:* a server program is a
+   provider diagram — its meaning sits on its boundary (the facet it
+   offers) — and the standing run is that offer *bound* to the world's
+   client end (the network FFI block); the same provider bound to a
+   scripted requester is an ordinary value-producing test program. What
+   remains is the compile residue (a bound serving program compiles to a
+   registration, not a value computation — the node-set consequence's
+   second client, as predicted). A leaning, not adopted.
 8. **Naming.** "Served flow" vs exchange/dialogue/session; "lane" vs
    key-serial; "bracket" vs with/scope; "end-when" vs take-while/until;
    "divide flow" vs recurse/split. Deferred, per tradition.

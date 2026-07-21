@@ -631,6 +631,9 @@ re-propose them without new evidence.
 - **The served flow and the server-program question.** A server is
   not just a self-driven accept loop; that design is still owed
   (with the recursive provider and keyed cache demands filed on it).
+  *Now worked in `served-flow-design.md`* — and it confirms the
+  fence: a served flow's firings are minted by external exchanges,
+  not asserted by the program, so neither opener here is a server.
 - **Entry opens** (a program's own inputs as sources) — sibling edge
   vocabulary, still with the translation exercise's items.
 - **Push-source retention/windowing** — async round, untouched.
