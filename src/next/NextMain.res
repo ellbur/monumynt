@@ -497,6 +497,34 @@ header("filter over an option level: join(join(list, option), case-alt)")
 }
 
 // ============================================================================
+// 7f. Filter over ONLY option levels — join(option, case-alt), no list. The
+//     any-list rule (lazy-compile-design.md) makes the output an OPTION, not a
+//     list: `let out;` set only when the option fires and the alt matches — the
+//     single-alt case of the partial collect's collected-alone reading (7c).
+//     Beyond the bridge (its filter close needs a ListIter input), so validated
+//     against a hand-computed value.
+// ============================================================================
+
+header("filter over only options: join(option, case-alt) yields an option")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let v = Build.lit(b, int_(4))
+  let optIn = Build.app(b, optSrc.value, [v.value])
+  let i = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i.element)
+  let ev = Build.alt(cs, "Even")
+  // join the per-value Even cell onto the option; no list in the chain.
+  let j = Build.join(b, ~outer=i.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("even", out.value)])
+  // 4 -> Some(4) (>= 2), Even -> kept -> the option holds 4.
+  expectOutput(p, "even", int_(4))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 7b. Partial collect — the merged flow of two covered cells, terminated by a
 //     join (a multi-cell filter: "keep the A's and B's, drop the C's").
 //     Beyond the bridge (its case close is exhaustive-or-throw), so validated
