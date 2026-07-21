@@ -22,7 +22,11 @@ type token =
   | TokPipe
   | TokTilde // ~
   | TokTildeUp // ~^
-  | TokPlus // + (completion-line prefix; parser skips those lines)
+  | TokPlus // + (infix add; also the completion-line prefix, disambiguated by position)
+  | TokMinus // - (infix subtract; the arrow forms -> -~> -- are matched first)
+  | TokStar // * (infix multiply)
+  | TokSlash // / (infix divide)
+  | TokPercent // % (infix remainder)
   | TokSemi
   | TokNewline
   | TokEof
@@ -63,6 +67,10 @@ let lex = (src: string): array<positioned> => {
     } else if ch === "-" && peekAt(1) === "~" && peekAt(2) === ">" {
       push(TokArrowVF)
       i := i.contents + 3
+    } else if ch === "-" {
+      // bare '-': infix subtraction (the arrow / comment forms above win first)
+      push(TokMinus)
+      i := i.contents + 1
     } else if ch === "~" && peekAt(1) === ">" {
       push(TokArrowF)
       i := i.contents + 2
@@ -104,6 +112,15 @@ let lex = (src: string): array<positioned> => {
       i := i.contents + 1
     } else if ch === "+" {
       push(TokPlus)
+      i := i.contents + 1
+    } else if ch === "*" {
+      push(TokStar)
+      i := i.contents + 1
+    } else if ch === "/" {
+      push(TokSlash)
+      i := i.contents + 1
+    } else if ch === "%" {
+      push(TokPercent)
       i := i.contents + 1
     } else if ch === ";" {
       push(TokSemi)
@@ -185,6 +202,10 @@ let tokenToString = (t: token): string =>
   | TokTilde => "'~'"
   | TokTildeUp => "'~^'"
   | TokPlus => "'+'"
+  | TokMinus => "'-'"
+  | TokStar => "'*'"
+  | TokSlash => "'/'"
+  | TokPercent => "'%'"
   | TokSemi => "';'"
   | TokNewline => "newline"
   | TokEof => "end of input"

@@ -67,11 +67,37 @@ let skipNewlines = (st: p): unit =>
 
 // --- terms ------------------------------------------------------------------
 
-let rec parseTerm = (st: p): term =>
+// Infix operators, as (symbol, precedence). Higher precedence binds tighter;
+// all left-associative. `+` doubles as the completion-line prefix, but only at
+// statement start (parseStatement), never mid-term, so it is unambiguous here.
+let opInfo = (t: token): option<(string, int)> =>
+  switch t {
+  | TokStar => Some(("*", 2))
+  | TokSlash => Some(("/", 2))
+  | TokPercent => Some(("%", 2))
+  | TokPlus => Some(("+", 1))
+  | TokMinus => Some(("-", 1))
+  | _ => None
+  }
+
+let rec parsePrimary = (st: p): term =>
   switch peek(st) {
   | TokNum(f) => {
       advance(st)
       TNum(f)
+    }
+  | TokMinus =>
+    // A leading '-' folds into a negative number literal. Unary negation of a
+    // non-literal is not supported yet (write `0 - x`); the design's infix is
+    // about value leaves, and no current program needs general unary minus.
+    switch peek2(st) {
+    | TokNum(f) => {
+        advance(st)
+        advance(st)
+        TNum(-.f)
+      }
+    | other =>
+      fail(st, "unary '-' is only supported on number literals, found " ++ tokenToString(other))
     }
   | TokStr(s) => {
       advance(st)
@@ -81,10 +107,10 @@ let rec parseTerm = (st: p): term =>
       advance(st)
       let elems: array<term> = []
       if peek(st) != TokRBracket {
-        Array.push(elems, parseTerm(st))
+        Array.push(elems, parsePrimary(st))
         while peek(st) == TokComma {
           advance(st)
-          Array.push(elems, parseTerm(st))
+          Array.push(elems, parsePrimary(st))
         }
       }
       expect(st, TokRBracket, "']'")
@@ -113,6 +139,27 @@ and parseNameTerm = (st: p): term => {
     TName(name)
   }
 }
+
+// A full value term: primaries joined by infix operators, precedence-climbed.
+// Operators never span an arrow (arrows are separate tokens), so a term parse
+// stops cleanly at the chain's next stage.
+let rec parseBinop = (st: p, minPrec: int): term => {
+  let left = ref(parsePrimary(st))
+  let continue = ref(true)
+  while continue.contents {
+    switch opInfo(peek(st)) {
+    | Some((sym, prec)) if prec >= minPrec => {
+        advance(st)
+        let right = parseBinop(st, prec + 1)
+        left := TBinop(left.contents, sym, right)
+      }
+    | _ => continue := false
+    }
+  }
+  left.contents
+}
+
+let parseTerm = (st: p): term => parseBinop(st, 1)
 
 let parseFlowTerm = (st: p): flowTerm => {
   // caller has consumed the '~'
@@ -207,6 +254,18 @@ let parseStage = (st: p): stage =>
       advance(st)
       expect(st, TokName("of"), "'of' after 'step'")
       StStepOf(expectName(st, "a register name"))
+    }
+  | tok if opInfo(tok) != None => {
+      // operator section: `-> * 2` applies the operator to the running topic
+      // (left) and this single operand (right). Chain more stages for more
+      // operations (`-> * 2 -> + 1`); the right operand is a primary, so
+      // precedence never crosses a stage boundary.
+      let op = switch opInfo(tok) {
+      | Some((sym, _)) => sym
+      | None => fail(st, "not an operator")
+      }
+      advance(st)
+      StBinop({op, rhs: parsePrimary(st)})
     }
   | TokName(_) => {
       // application stage: NAME or NAME(extraArgs)

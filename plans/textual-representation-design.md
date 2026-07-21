@@ -191,6 +191,43 @@ forward form admits, because a group reads forward too. Provisional
 restriction: no taps, marks, or lanes minted inside a group; a
 sub-chain that complex should be its own line (a mark) or named.
 
+## Infix operators
+
+The operators conventionally written between their operands — `+`,
+`-`, `*`, `/`, `%` — are accepted infix (`a * a`, `x + 1`), the
+permissive-grammar clause of "many authoring paths, few readings."
+An infix expression is **sugar for an App of the operator's function**
+to its two operands: `a + b` is `a, b -> add` with `add` the extern
+`(a, b) => a + b`. So infix earns no new node kind and no new
+semantics — squaring is `a * a` (a name used twice is fan-out from one
+port, so the two operands are the same wire), and the fan-in noise
+that a comma-source list forces (`a2, b2 -> add` demanding a name per
+operand) dissolves into `a2 + b2`. Standard precedence, left-
+associative; there is no `**`, and unary minus is only a negative
+number literal (`-5`), not general negation (write `0 - x`).
+
+In **chain position** an operator is a *section* on the running topic,
+mirroring the topic-first rule for every value operation: `-> * 2`
+takes the chain's value as the left operand and `2` as the right —
+`(* 2)` in the Haskell-section sense, "multiply the thing flowing by
+two." So the doubling loop needs no bespoke `double` extern:
+
+```
+[1, 2, 3] -> open list -> * 2 -~> collect => out
+```
+
+The section's right operand is a single primary, so precedence never
+crosses a stage boundary; sequence more operations by chaining more
+sections (`-> * 2 -> + 1` is `(topic * 2) + 1`).
+
+The printer's side of this — emitting a small pure-value leaf back as
+infix rather than as the desugared App — is open question 5 (the
+implicitness thresholds); until it lands, a round-trip prints the
+App form (`n1 = js "(a, b) => a * b"` / `-> n1(2)`), which reparses to
+identical wiring. Parsing infix is implemented (`TextParse`'s `opInfo`
+precedence climb + the operator-section stage; `TextResolve.opToJs`
+maps each symbol to its extern).
+
 ## Ports and projections
 
 A binder names the *node*. The bare name stands for the node's

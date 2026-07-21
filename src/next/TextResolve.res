@@ -51,6 +51,21 @@ let bindName = (st: r, name: string, e: entry): unit => {
   Map.set(st.env, name, e)
 }
 
+// --- infix operators --------------------------------------------------------
+
+// The JS extern each infix operator desugars to. Kept in one place (the
+// resolver) so TextAst/TextParse stay surface-level; the arrows match the
+// `add = js "(a, b) => a + b"` externs the tests already write by hand.
+let opToJs = (op: string): string =>
+  switch op {
+  | "*" => "(a, b) => a * b"
+  | "/" => "(a, b) => a / b"
+  | "%" => "(a, b) => a % b"
+  | "+" => "(a, b) => a + b"
+  | "-" => "(a, b) => a - b"
+  | other => err("unknown infix operator '" ++ other ++ "'")
+  }
+
 // --- leaf terms to JsAst -----------------------------------------------------
 
 let rec leafToJs = (t: term): JsAst.expr =>
@@ -61,13 +76,22 @@ let rec leafToJs = (t: term): JsAst.expr =>
   | TArr(elems) => JsAst.EArray(elems->Array.map(e => JsAst.AElem(leafToJs(e))))
   | TName(n) => err("'" ++ n ++ "' is not a literal (leaf definitions take literals)")
   | TProj(n, p) => err("'" ++ n ++ "." ++ p ++ "' is not a literal")
+  | TBinop(_, op, _) => err("an infix '" ++ op ++ "' expression is not a literal (leaf definitions take literals)")
   }
 
 // --- reference resolution ------------------------------------------------------
 
-let resolveValueTerm = (st: r, t: term): valueRef =>
+let rec resolveValueTerm = (st: r, t: term): valueRef =>
   switch t {
   | TNum(_) | TStr(_) | TArr(_) | TJs(_) => Build.lit(st.bld, leafToJs(t)).value
+  | TBinop(l, op, r) => {
+      // a OP b — sugar for App(opFn, [a, b]); each occurrence mints its own
+      // operator extern (sharing is opt-in via naming, like every other node).
+      let left = resolveValueTerm(st, l)
+      let right = resolveValueTerm(st, r)
+      let fn = Build.lit(st.bld, JsAst.ERaw(opToJs(op))).value
+      Build.app(st.bld, fn, [left, right]).value
+    }
   | TName(name) =>
     switch Map.get(st.env, name) {
     | Some(EValue(v)) => v
@@ -221,6 +245,18 @@ let resolveChain = (
         }
         let allArgs = Array.concat(args, extraArgs->Array.map(t => resolveValueTerm(st, t)))
         let h = Build.app(st.bld, fnRef, allArgs)
+        cs.cur = Some(h.value)
+        cs.pendingArgs = []
+        cs.lastFlows = []
+      }
+    | StBinop({op, rhs}) => {
+        if arrow != AValue {
+          err("an operator section takes '->' (value arrow)")
+        }
+        let topic = theValue(cs, "an operator section")
+        let right = resolveValueTerm(st, rhs)
+        let fn = Build.lit(st.bld, JsAst.ERaw(opToJs(op))).value
+        let h = Build.app(st.bld, fn, [topic, right])
         cs.cur = Some(h.value)
         cs.pendingArgs = []
         cs.lastFlows = []

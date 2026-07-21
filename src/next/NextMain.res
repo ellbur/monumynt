@@ -136,22 +136,52 @@ ten, ten -> add => twenty
 }
 
 // ============================================================================
-// 2. Double each element — text and handles build the same program
+// 1b. Infix operators in source position: `a * a` is App of the `*` extern to
+//     two operands, so squaring is fan-out from one named port; precedence is
+//     standard (`*` binds tighter than `+`), left-associative.
+// ============================================================================
+
+header("infix: source-position operators desugar to App (fan-in, precedence)")
+{
+  let src = `
+a = 3
+b = 4
+a * a => sq
+a + b * a => mixed
+b - a => diff
+b % a => rem
+out sq
+out mixed
+out diff
+out rem
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "sq", int_(9)) // 3 * 3
+  expectOutput(p, "mixed", int_(15)) // 3 + (4 * 3), not (3 + 4) * 3
+  expectOutput(p, "diff", int_(1)) // 4 - 3; '-' does not collide with the arrows
+  expectOutput(p, "rem", int_(1)) // 4 % 3
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 2. Multiply each element by 2 — text (inline `* 2`) and handles agree
 // ============================================================================
 
 header("list flow: text and handles agree")
 {
   let src = `
-double = js "x => x * 2"
-[1, 2, 3] -> open list -> double -~> collect => out
+[1, 2, 3] -> open list -> * 2 -~> collect => out
 `
   let fromText = TextResolve.parseProgram(src)
 
+  // The handle-built twin: `* 2` desugars to App of the binary `*` extern to
+  // the element and the literal 2.
   let b = Build.make()
-  let dbl = Build.raw(b, "x => x * 2")
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
   let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
   let it = Build.uncollectList(b, xs.value)
-  let doubled = Build.app(b, dbl.value, [it.element])
+  let doubled = Build.app(b, mul.value, [it.element, two.value])
   let out = Build.collect(b, ~flow=it.flow, doubled.value)
   let fromHandles = Build.finish(b, ~outputs=[("out", out.value)])
 
@@ -176,8 +206,7 @@ double = js "x => x * 2"
 header("flatten: implicit flow stack, binary join")
 {
   let src = `
-double = js "x => x * 2"
-[[1, 2], [3]] -> open list -> open list -> double -~> join -~> collect => flat
+[[1, 2], [3]] -> open list -> open list -> * 2 -~> join -~> collect => flat
 `
   let p = TextResolve.parseProgram(src)
   expectOutput(p, "flat", array_([int_(2), int_(4), int_(6)]))
@@ -191,10 +220,8 @@ double = js "x => x * 2"
 header("multi-close: taps desugar to shared references")
 {
   let src = `
-double = js "x => x * 2"
-triple = js "x => x * 3"
-[1, 2, 3] -> open list -> | double -~> collect => doubled
-| -> triple -~> collect => tripled
+[1, 2, 3] -> open list -> | * 2 -~> collect => doubled
+| -> * 3 -~> collect => tripled
 out doubled
 out tripled
 `
@@ -211,9 +238,8 @@ out tripled
 header("option flow")
 {
   let src = `
-double = js "x => x * 2"
 five = js "5"
-five -> open option -> double -~> collect => out
+five -> open option -> * 2 -~> collect => out
 `
   let p = TextResolve.parseProgram(src)
   expectOutput(p, "out", int_(10))
@@ -247,14 +273,14 @@ header("printer: a multi-stage value chain fuses onto one line")
 {
   let src = `
 inc = js "x => x + 1"
-dbl = js "x => x * 2"
-[10, 20, 30] -> open list -> inc -> dbl -~> collect => out
+[10, 20, 30] -> open list -> inc -> * 2 -~> collect => out
 `
   let p = TextResolve.parseProgram(src)
   expectOutput(p, "out", array_([int_(22), int_(42), int_(62)]))
   expectRoundTrip(p)
-  // whole chain — source list through the two apps to the bare collect — on one
-  // line (names are the printer's own, so assert the stable structural markers).
+  // whole chain — source list through the named app and the `* 2` operator
+  // section to the bare collect — on one line (names are the printer's own, so
+  // assert the stable structural markers).
   expectFusedLine(p, ["[10, 20, 30]", "open list", "-~> collect", "=> out"], "source..collect")
 }
 
@@ -301,13 +327,14 @@ header("case split: alt ports, exhaustive collect")
     b,
     "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
   )
-  let dbl = Build.raw(b, "x => x * 2")
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
   let maybes = Build.lit(b, array_([int_(1), undefined, int_(5)]))
   let it = Build.uncollectList(b, maybes.value)
   let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, it.element)
   let just = Build.alt(cs, "Just")
   let nothing = Build.alt(cs, "Nothing")
-  let doubled = Build.app(b, dbl.value, [just.altValue])
+  let doubled = Build.app(b, mul.value, [just.altValue, two.value])
   let zero = Build.lit(b, int_(0))
   let perElem = Build.collectCases(
     b,
@@ -327,10 +354,9 @@ header("case collect: lane group parses, compiles, round-trips")
 {
   let src = `
 classify = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
-dbl = js "x => x * 2"
 [1, 2, 3, 4] -> open list => a, ~L
 a -> split classify of Even, Odd => cs
-cs.Odd -> dbl => doubled
+cs.Odd -> * 2 => doubled
 ~cs.Even: cs.Even
 ~cs.Odd: doubled
 -~> collect => perElem
