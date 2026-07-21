@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 122 checks.
+Currently 127 checks.
 
 ## The two engines (the migration harness)
 
@@ -122,7 +122,9 @@ Check, so Check validates the completed program), then compiles via the
 whole-table emitter to the same values as the hand-drawn form
 (product-flows-design.md's "smallest first step" 3). Via the Bridge: nothing
 among the smoke tests still falls back. Representable-but-not-compilable
-(prints, checks): commute, n-ary / non-top-level-list cross (the rest of
+(prints, checks, and now round-trips through the text surface): commute
+(its standalone `commute out of` form authorable in text — NextMain 15c),
+n-ary / non-top-level-list cross (the rest of
 the poset round), explicit `in` nesting, partial collects whose merged
 value is *computed at the merged context* (needs the cell-set/poset
 round), and registers over joined/nested/case flows (the Delay ontology
@@ -262,9 +264,20 @@ line tells you which tests are waiting.
    same App the postfix stage `x, y -> f` does (the permissive grammar's
    other authoring path converging on one reading). The canonical printer
    emits the postfix form, so a round-trip prints `x, y -> f` (NextMain
-   1c, with a prefix≡postfix wiring-identity check). Still ahead of the
-   parser: fused lanes, `commute out of`, `;` multi-resume. Each remaining
-   form has a pointed "not yet parsed" error today.
+   1c, with a prefix≡postfix wiring-identity check). **`commute out of`
+   DONE** — the standalone swap statement (`~inner ~> commute out of
+   ~outer => cN`, `TextParse.parseStage`'s `commute` case gaining the
+   optional `out of ~outer` clause → `TextAst.StCommute({outOf})` →
+   `TextResolve`'s flow-source combine, mirroring `join into`) parses,
+   resolves, and round-trips; the two-port Commute node binds by name
+   (`ECommute`) so its swapped flows resolve as `~cN.outer` / `~cN.inner`
+   (a case split's `~cN.<Alt>` projection generalized). Bare `commute`
+   stays the chain-position swap of the two innermost open layers.
+   Commute is still representable-but-not-compilable (the emitter is the
+   poset round's), so NextMain 15c validates by wiring identity, a clean
+   check, and the round-trip, not by evaluation. Still ahead of the
+   parser: fused lanes, `;` multi-resume. Each remaining form has a
+   pointed "not yet parsed" error today.
 4. **Printer round** (`TextPrint.res`): chain compression — DONE
    (single-consumer runs fuse into postfix `->`/`-~>` chains; a flow a
    chain opens *and* closes is implicit — no `~name`, the bare `collect`

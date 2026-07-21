@@ -266,7 +266,19 @@ let parseStage = (st: p): stage =>
     }
   | TokName("commute") => {
       advance(st)
-      StCommute
+      // Standalone form: ~inner ~> commute out of ~outer => cN. Mirrors
+      // 'join into' — a flow-source combine — but yields the two-port
+      // Commute node (its swapped outer/inner flows referenced as
+      // ~cN.outer / ~cN.inner). Bare `commute` stays the chain-position
+      // swap of the two innermost open layers.
+      let outOf = if peekIsKeyword(st, "out") {
+        advance(st)
+        expect(st, TokName("of"), "'of' after 'commute out'")
+        Some(expectTildeFlowTerm(st, "the outer flow of 'commute out of'"))
+      } else {
+        None
+      }
+      StCommute({outOf: outOf})
     }
   | TokName("delay") => {
       advance(st)

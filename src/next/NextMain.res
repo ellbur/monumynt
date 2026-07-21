@@ -1216,6 +1216,69 @@ out out2
   expectRoundTrip(fromText)
 }
 
+// 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser
+//      catch-up — the last of the standalone flow-combine forms). A commute
+//      swaps a list opened inside an option's absent-or-present flow: the
+//      two-port Commute node is a standalone `~inner ~> commute out of ~outer
+//      => cN` statement, its swapped flows referenced as ~cN.outer / ~cN.inner.
+//      Commute is representable-but-not-compilable (the poset round owns its
+//      emitter), so this validates the surface by wiring identity, a clean
+//      check, and the round-trip — not by evaluation.
+// ============================================================================
+
+header("commute: the swap authored in text (`commute out of`), round-trips")
+{
+  let src = `
+[1, 2, 3] -> open list => ~xs, x
+x -> open option in ~xs => ~opt, ov
+~opt ~> commute out of ~xs => c
+ov -~> collect ~c.inner -~> collect ~c.outer => out
+out out
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The same program, built via handles.
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let opt = Build.uncollectOption(b, ~nesting=it.flow, it.element)
+  let cm = Build.commute(b, ~outer=it.flow, ~inner=opt.flow)
+  let lst = Build.collect(b, ~flow=cm.innerFlow, opt.element)
+  let res = Build.collect(b, ~flow=cm.outerFlow, lst.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out", res.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("text `commute out of` and handles build identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  // The fully-collected commute passes the implemented checks (both swapped
+  // flows are collected, so nothing is left flow-borne at the boundary).
+  let ws = Check.check(fromText)
+  if Array.length(ws) === 0 {
+    pass("commute program passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // Representable and checkable, but the commute emitter is still Todo — the
+  // poset round owns it (neither NextCodegen nor the disposable bridge compiles
+  // it). NextCodegen declines with a Todo rather than a bad emit, so force that
+  // engine and confirm the gap (Pipeline.compile would fall through to the
+  // bridge, which raises Failure on commute — an engine gap, not the point here).
+  switch Pipeline.compileVia(NextCodegen, fromText) {
+  | exception Codegen.Todo(_) => pass("commute declines to compile via NextCodegen (poset round owns the emitter)")
+  | Ok(_) => fail("commute unexpectedly compiled — its emitter was Todo")
+  | Error(ws) =>
+    fail("commute program failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(fromText)
+}
+
 // ============================================================================
 
 Console.log(

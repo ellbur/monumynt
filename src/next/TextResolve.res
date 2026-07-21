@@ -33,6 +33,7 @@ type entry =
   | EValue(valueRef)
   | EFlow(flowRef)
   | ESplit(Build.splitHandle)
+  | ECommute(Build.commuteHandle) // its two swapped flows project as ~name.outer / ~name.inner
 
 type tapPoint = {tapValue: valueRef, tapStack: array<flowRef>}
 
@@ -107,6 +108,8 @@ let rec resolveValueTerm = (st: r, t: term): valueRef =>
     | Some(EFlow(_)) => err("'" ++ name ++ "' names a flow; a value is needed here (did you mean ~" ++ name ++ " somewhere else?)")
     | Some(ESplit(_)) =>
       err("'" ++ name ++ "' names a case split; project an alt payload: " ++ name ++ ".<Alt>")
+    | Some(ECommute(_)) =>
+      err("'" ++ name ++ "' names a commute (a flow node), not a value")
     | None => err("unknown name '" ++ name ++ "'")
     }
   | TProj(name, port) =>
@@ -125,12 +128,21 @@ let resolveFlowTerm = (st: r, ft: flowTerm): flowRef =>
     | Some(EValue(_)) => err("'~" ++ name ++ "': '" ++ name ++ "' names a value, not a flow")
     | Some(ESplit(_)) =>
       err("'~" ++ name ++ "' names a case split; project an alt flow: ~" ++ name ++ ".<Alt>")
+    | Some(ECommute(_)) =>
+      err("'~" ++ name ++ "' names a commute; project a swapped flow: ~" ++ name ++ ".outer or ~" ++ name ++ ".inner")
     | None => err("unknown flow name '~" ++ name ++ "'")
     }
   | FProj(name, port) =>
     switch Map.get(st.env, name) {
     | Some(ESplit(h)) => Build.alt(h, port).altFlow
-    | Some(_) => err("'~" ++ name ++ "." ++ port ++ "': '" ++ name ++ "' is not a case split")
+    | Some(ECommute(h)) =>
+      switch port {
+      | "outer" => h.outerFlow
+      | "inner" => h.innerFlow
+      | other =>
+        err("'~" ++ name ++ "." ++ other ++ "': a commute has ports ~" ++ name ++ ".outer and ~" ++ name ++ ".inner")
+      }
+    | Some(_) => err("'~" ++ name ++ "." ++ port ++ "': '" ++ name ++ "' is not a case split or commute")
     | None => err("unknown name '" ++ name ++ "'")
     }
   }
@@ -155,6 +167,7 @@ type chainState = {
   mutable stack: array<flowRef>, // the implicit flow stack
   mutable lastFlows: array<flowRef>, // flows minted by the latest stage, for ~binders
   mutable newSplit: option<Build.splitHandle>,
+  mutable newCommute: option<Build.commuteHandle>, // standalone `commute out of`, bound by node name
   mutable newTaps: array<tapPoint>,
 }
 
@@ -178,6 +191,7 @@ let resolveChain = (
     stack: [],
     lastFlows: [],
     newSplit: None,
+    newCommute: None,
     newTaps: [],
   }
 
@@ -369,21 +383,45 @@ let resolveChain = (
         cs.lastFlows = [h.flow]
         cs.flowSource = Some(h.flow)
       }
-    | StCommute => {
-        if arrow != AValueFlow {
-          err("'commute' takes '-~>' (the value rides through)")
+    | StCommute({outOf}) =>
+      switch outOf {
+      | Some(outerFt) => {
+          // standalone form: ~inner ~> commute out of ~outer => cN. Mirrors
+          // 'join into' (a flow-source combine) but yields the two-port
+          // Commute node, bound by name so ~cN.outer / ~cN.inner reference
+          // its swapped flows. Its output does not seed the implicit stack
+          // (both flows are named projections), matching how the printer
+          // emits it.
+          if arrow != AFlow {
+            err("'commute out of' takes '~>' (flow arrow) from a flow source")
+          }
+          let inner = switch cs.flowSource {
+          | Some(f) => f
+          | None => err("'commute out of' needs a flow source (~inner ~> commute out of ~outer)")
+          }
+          let outer = resolveFlowTerm(st, outerFt)
+          let h = Build.commute(st.bld, ~outer, ~inner)
+          cs.newCommute = Some(h)
+          cs.flowSource = None
+          cs.lastFlows = []
         }
-        let len = Array.length(cs.stack)
-        if len < 2 {
-          err("'commute' needs two open flow layers on the chain")
+      | None => {
+          // chain form: swap the two innermost open layers.
+          if arrow != AValueFlow {
+            err("bare 'commute' takes '-~>' (the value rides through)")
+          }
+          let len = Array.length(cs.stack)
+          if len < 2 {
+            err("bare 'commute' needs two open flow layers on the chain")
+          }
+          let inner = cs.stack->Array.getUnsafe(len - 1)
+          let outer = cs.stack->Array.getUnsafe(len - 2)
+          let h = Build.commute(st.bld, ~outer, ~inner)
+          cs.stack = cs.stack->Array.slice(~start=0, ~end=len - 2)
+          Array.push(cs.stack, h.outerFlow)
+          Array.push(cs.stack, h.innerFlow)
+          cs.lastFlows = [h.outerFlow, h.innerFlow]
         }
-        let inner = cs.stack->Array.getUnsafe(len - 1)
-        let outer = cs.stack->Array.getUnsafe(len - 2)
-        let h = Build.commute(st.bld, ~outer, ~inner)
-        cs.stack = cs.stack->Array.slice(~start=0, ~end=len - 2)
-        Array.push(cs.stack, h.outerFlow)
-        Array.push(cs.stack, h.innerFlow)
-        cs.lastFlows = [h.outerFlow, h.innerFlow]
       }
     | StDelay({init}) => {
         if arrow != AFlow {
@@ -427,12 +465,16 @@ let resolveChain = (
   binders->Array.forEach(b =>
     switch b {
     | BValue(name) =>
-      switch cs.newSplit {
-      | Some(h) => {
+      switch (cs.newSplit, cs.newCommute) {
+      | (Some(h), _) => {
           bindName(st, name, ESplit(h))
           cs.newSplit = None
         }
-      | None => {
+      | (None, Some(h)) => {
+          bindName(st, name, ECommute(h))
+          cs.newCommute = None
+        }
+      | (None, None) => {
           if valueBound.contents {
             err("more than one value binder on a chain is not supported yet")
           }
