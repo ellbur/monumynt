@@ -99,7 +99,12 @@ they change how everything else is read.
   its "next iteration" when more than one is in reach. Most of the
   original fork has dissolved; the hard residue is how several readers
   of one order-sensitive register over a multi-axis product each pick a
-  reading order.
+  reading order. The per-kind half — which flow kinds supply a "next
+  iteration" at all — is worked as the owned-order criterion (a flow
+  supplies one exactly when its firings carry a total order the flow's
+  meaning owns, not one that merely happens at run time), cashing the
+  register checks the incremental, concurrent-collect, async, and
+  served rounds had written. *Exploration.*
 
 ## Representation and checking
 

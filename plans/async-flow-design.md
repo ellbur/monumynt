@@ -825,12 +825,15 @@ remains genuinely open, and what has since been resolved:
   long-running process — is the reactive-systems bread and butter and
   probably composes without new design (the register lives in the
   walk), but it deserves its own worked examples once the
-  iteration-state candidates settle. Note the unpaid check: the Delay
-  ontology — the account of what a Delay *is* — holds that async
-  flows apparently supply no "next iteration"
-  (`delay-ontology-design.md`, per-kind open item), while an async
-  *stream* is exactly the boundary case — reconciling this is that
-  row's owed work, and this chapter's deferral rides on it.
+  iteration-state candidates settle. The check this deferral rode on
+  is since paid (`delay-ontology-design.md`, "Per-kind \"next
+  iteration\": the owned-order criterion", exploration, not
+  adopted): the async *value* supplies only a degenerate "next" (one
+  firing — the bar was cardinality, not async-ness), while an async
+  *stream* owns its arrival order and so supplies a real one — the
+  "probably composes" above is confirmed at the meaning level, with
+  the productivity clock the event-loop turn. The worked examples
+  are still owed here.
 - **Scheduling and priorities.** Beyond fairness (open question 7),
   nothing here about prioritising one thread's progress over
   another's.

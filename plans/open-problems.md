@@ -202,11 +202,23 @@ orders, the recompute-vs-explicit-axis-reference trade. Effects
 sharpen that residue from the other side (`effects-design.md`): a
 spanning IO handle under a nested loop makes the linearization
 *observable* and removes the commutative-monoid escape hatch. The
-ontology doc also carries the row's most concrete owed work: the
-per-kind "next iteration" question, on which several rounds
-(incremental, concurrent collect, async, effects) are already writing
-checks. The row's center, the surface decision, is untouched by all
-of these.
+per-kind "next iteration" question — formerly the row's most
+concrete owed work, with several rounds writing checks on it — is
+now worked (`delay-ontology-design.md`, "Per-kind \"next
+iteration\": the owned-order criterion", exploration): a flow
+supplies a "next iteration" exactly when its firings carry an
+**owned total order** — stated by the constructs that minted or
+shaped the flow, not merely present at run time — and the clients'
+checks cash one for one (event stream and completions flow yes;
+concurrent bodies, sibling instances, saturation members, unordered
+facets no — one **order-demand check**, productivity's structural
+complement; async value degenerate — cardinality, not async-ness;
+the var's recomputation order incidental, so state lives on
+`changes`; the IO handle a wire, not a flow). Extent-fixedness is
+refined to a termination account only; the productivity check
+becomes one check with a clock parameter; `hold` is identified
+(leaning) as the register whose step ignores `prev`. The row's
+center, the surface decision, is untouched by all of these.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
