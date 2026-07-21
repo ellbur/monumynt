@@ -186,6 +186,14 @@ let parseStage = (st: p): stage =>
       }
       StJoin({into: into})
     }
+  | TokName("cross") => {
+      advance(st)
+      // Standalone product form: ~left ~> cross with ~right => ~flow. The
+      // chain's flow source is the left axis; `with ~right` is the other.
+      expect(st, TokName("with"), "'with' after 'cross'")
+      let right = expectTildeFlowTerm(st, "the other flow of 'cross with'")
+      StCross({with_: right})
+    }
   | TokName("commute") => {
       advance(st)
       StCommute
