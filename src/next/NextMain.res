@@ -544,6 +544,44 @@ picked -~> collect ~pf => out
 }
 
 // ============================================================================
+// 7d. Partial collect over an option leading level —
+//     join(join(list, option), <partial>). Per list element, open an option
+//     (present iff n >= 2); per present value, dispatch a covered subset {A, B}
+//     of the split and drop the uncovered C. The option level is a defined-check
+//     nested inside the list's for-of (an absent option skips), the innermost
+//     dispatch is the k-arm non-exhaustive if-chain. Any-list ⇒ list output.
+//     Beyond the bridge (a partial collect is not a legacy shape), so validated
+//     against a hand-computed value, like 7b/7c and the filter option level 7e.
+// ============================================================================
+
+header("partial collect: option leading level — join(join(list, option), partial)")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4), int_(5), int_(6)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let optIn = Build.app(b, optSrc.value, [i1.element])
+  let i2 = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, i2.element)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  // Partial collect over the covered subset {A, B}; C drops.
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // Flatten the option into the list (j1), then join the partial's merged flow (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=pf)
+  let out = Build.collect(b, ~flow=j2.flow, picked.value)
+  let p = Build.finish(b, ~outputs=[("picked", out.value)])
+  // 1 -> option absent (skip); 2 -> Some(2) C (drop); 3 -> Some(3) A (keep 3);
+  // 4 -> Some(4) B (keep 4); 5 -> Some(5) C (drop); 6 -> Some(6) A (keep 6).
+  // Result [3, 4, 6].
+  expectOutput(p, "picked", array_([int_(3), int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 8. Registers: a running sum via the Delay pair — the first non-legacy
 //    construct to run (beyond the bridge, so no differential is possible)
 // ============================================================================
