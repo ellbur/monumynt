@@ -283,7 +283,10 @@ split into a width expressible now and shared permits that are
 bracket-shaped and fenced to Tier 1; six dead ends).
 
 Remaining: the served flow (with its recursive-provider and
-keyed-cache demands), the chooser family (also owning merge fairness),
+keyed-cache demands — and now a second waiting client from outside
+the row: late-bound operations, whose provider side is identified as
+the served flow's server end, `late-bound-operations-design.md`),
+the chooser family (also owning merge fairness),
 the server-program question (`tough-use-cases-design.md` question 7),
 and pacing's per-consumer/per-source bit under multi-close (joint with
 end-when's coexistence question). Demanded by three of the five tough
@@ -351,31 +354,58 @@ indices); "this hole demands a pure filler" is added as demands/offers
 vocabulary; `@Terminates` is prior art for declared, checked
 termination. See `flix-comparison.md`.
 
-**Functions, reuse, and facets — I 4, W 4.**
-Narrative-stage: the function boundary (flow skeleton with data holes,
-`functions-design.md`), its conjectured relationship to
-summaries-as-generalized-programs (`types-design.md` read-out 2),
-completion's boundary residue (`time-travel-programs-design.md`
-question 5), and facets. A useful language eventually needs reuse; the
-deferral is deliberate but should not become permanent by inertia.
+**Functions, reuse, and facets — I 3, W 4.**
+The row's center — the demand the record could previously not answer
+at all — is now worked: **late-bound operations and the test double**
+(`late-bound-operations-design.md`, exploration). An unbound
+operation is a request/response port pair on the diagram boundary,
+and binding a meaning is wiring a provider onto it at a boundary; the
+round is a unification of three worked pieces rather than a new
+mechanism. Its two load-bearing results: **the pair is the client end
+of a served flow** (a provider is the server end — exactly-once is
+the collect's existing law, provider concurrency is the collect
+species on the provider's side, and the build-system demands stay
+filed on the served flow's round), and **orderedness and provider
+state are the same bit** (a facet's handle is the ordering
+commitment; a provider may hold cross-exchange state exactly when
+the facet is sequenced, and unordered facets get an
+exchange-stateless structural check of the registers-under-
+concurrent-collect species). The test double is a small ordinary
+program (the from-list lexer double = `serve` + a register); the
+**policy layer** lands with it as middleware-as-splice — a diagram
+offering the facet upward and demanding it downward, stack order
+drawn as nesting (handler-land's invisible stack-order hazard
+dissolved); fault injection is a configured double
+(`FailingAllocator` = value port + exchange-counting register);
+demand propagation through nested calls is the placeholder story's
+residual demand, with the Zig-style threading noise absorbed by
+completion (derived, faint, excludable). Five dead ends recorded
+(dynamic scope; provider-as-value-on-a-wire; the tagged-request
+single pair as the sum bottleneck; binding by structural match as
+search; the bare value hole). Retry middleware inherits the pacing
+block; reverse-mode AD is fenced out honestly
+(continuation-as-tape is not a provider — if wanted, it is a
+transformation-levels derived view).
 
-The remaining list has grown concrete demands. **Late-bound
-operations** — a diagram written against operations whose meaning is
-wired in per use; the inside-out form is a request/response port pair
-on the boundary, connecting to the served flow — and its everyday
-face, **the test double** ("run a diagram that does IO against fake
-IO"), which the record currently cannot answer at all. **Extensible
-alternation** — extend a case vocabulary without editing its defining
-site (Raku's proto regexes; the complete alternative set must stay
-viewable somewhere, a facets-flavored derived view). **The policy
-layer** — middleware (retry, circuit-break, throttle, sandbox,
-atomicity, audit) interposed at the operation boundary; in the row's
-leaning, a sub-diagram spliced into the provider wiring, stack order
-visible as nesting. **The decorated tree** — one tree, stacked
-per-node decorations, consumers demanding only what they read. And an
-**authoring gesture** — dplyr's `across` over a static schema is
-k-fold repetition of drawn structure; the demand is one gesture
-producing k readable nodes, not a runtime construct.
+Still narrative-stage or open: the function boundary itself (flow
+skeleton with data holes, `functions-design.md`), its conjectured
+relationship to summaries-as-generalized-programs (`types-design.md`
+read-out 2), and completion's boundary residue
+(`time-travel-programs-design.md` question 5). The new round's own
+residue: the adoption conversation; the spellings (`op`, `serve`,
+binding, splice), owed jointly with the level boundary — the divide
+flow's demand — and the textual catch-up (one decision, three
+clients); region-scoped rebinding; the serving provider's multi-lane
+form (co-locates with barrier-value-crossing's criterion);
+default-override scope against completion's pick-late rule. And the
+rest of the remaining list, untouched: **extensible alternation**
+(Raku's proto regexes; the complete alternative set must stay
+viewable somewhere, a facets-flavored derived view); **the decorated
+tree** — one tree, stacked per-node decorations, consumers demanding
+only what they read; the **authoring gesture** — dplyr's `across` is
+k-fold repetition of drawn structure, one gesture producing k
+readable nodes; and facets' attachment representation
+(`facets-design-notes.md` open edge 3).
 
 Facets now have a recorded statement of intent (`facets-design-notes.md`):
 authorable, attachable abstractions (the struct → interface → facet
@@ -400,10 +430,14 @@ function being passed); React Query and Zig allocator wrappers
 Allocator/Io as ordinary parameters — the flattest late-bound
 mechanism, supporting the provider-on-a-port leaning over any
 dynamic-scope reading — and `FailingAllocator` as fault-injection-as-
-configuration on the test double. See `effekt-comparison.md`,
-`facets-design-notes.md`, `raku-grammars-comparison.md`,
-`flix-comparison.md`, `apl-family-comparison.md`, `reactive-comparison.md`,
-`zig-comparison.md`, `tidyverse-comparison.md`, `collect-family-design.md`.
+configuration on the test double. The four witnesses' mechanisms are
+now consumed by the round (each capability kept, each mechanism
+clash-recorded). See `late-bound-operations-design.md`,
+`effekt-comparison.md`, `facets-design-notes.md`,
+`raku-grammars-comparison.md`, `flix-comparison.md`,
+`apl-family-comparison.md`, `reactive-comparison.md`,
+`zig-comparison.md`, `tidyverse-comparison.md`,
+`collect-family-design.md`.
 
 **Products: the table, zip, and the unexamined interactions —
 I 3, W 4.**

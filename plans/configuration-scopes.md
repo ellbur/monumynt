@@ -109,13 +109,15 @@ functions, for sort/filter/group-by as much as for callbacks.
 ## Where this pattern sits now
 
 The general question this pattern answers — an operation whose
-meaning is wired in per use — has since grown a broader framing:
-**late-bound operations** (a request/response port pair on the
-diagram boundary, with the test double as its everyday face; the
-functions/reuse/facets row of `open-problems.md`). Configuration
-scopes are the special case where the operation is a catalog block
-like sort or filter; read that row for the provider-on-a-port
-direction before extending this pattern to new ground.
+meaning is wired in per use — has since grown a broader framing,
+now worked as its own round: **late-bound operations**
+(`late-bound-operations-design.md`, exploration — a request/response
+port pair on the diagram boundary, binding as wiring a provider on,
+with the test double as its everyday face). Configuration scopes
+are the special case where the operation is a catalog block like
+sort or filter and the provider is spliced inline at the one use
+site — demand and binding coinciding at one place. Read that round
+before extending this pattern to new ground.
 
 ## Not decided yet: checking a scope's signature
 

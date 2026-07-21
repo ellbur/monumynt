@@ -118,6 +118,12 @@ computations abstracted to holes. A caller sees that an IO flow
 gets joined and that a value is consumed; it does not see how that
 value was formatted.
 
+A third thing survives on the interface beside the skeleton and the
+holes: the function's **open operation pairs** — operations it uses
+but does not define (`late-bound-operations-design.md`). A caller
+either binds each pair (wires a provider on) or leaves it open, in
+which case the demand projects onto the caller's own boundary.
+
 Keeping flow structure visible through a function boundary is
 load-bearing, not a display nicety. It is what preserves the
 no-time-travel guarantee across calls, and what lets validity
