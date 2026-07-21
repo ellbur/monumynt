@@ -751,8 +751,11 @@ let print = (p: program): string => {
         }
       | Cross({left, right}) => {
           mark(n)
-          // Textual spelling for Cross is still owed at the design level
-          // (product-flows-design.md); this placeholder keeps the printer total.
+          // The standalone product form, parsed by TextParse / resolved by
+          // TextResolve (round-trips — NextMain 15/15b). The `cross with`
+          // surface spelling itself is still provisional at the design level
+          // (product-flows-design.md's textual form is owed); the wiring it
+          // denotes is settled.
           Array.push(
             lines,
             "~" ++

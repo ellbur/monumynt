@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 85 checks.
+Currently 94 checks.
 
 ## The two engines (the migration harness)
 
@@ -214,9 +214,15 @@ line tells you which tests are waiting.
    `TextResolve.resolveLaneCollect` → `Build.collectCases`). Case
    collects now parse, compile, and round-trip (NextMain test 6b); the
    partial form's `~flow` remainder binder is wired but untested (needs
-   the partial-collect emitter). Still ahead of the parser: fused lanes,
-   `commute out of` / `cross with`, prefix application, `;` multi-resume.
-   Each remaining form has a pointed "not yet parsed" error today.
+   the partial-collect emitter). **`cross with` DONE** — the standalone
+   product statement (`~left ~> cross with ~right => ~flow`,
+   `TextParse.parseStage`'s `cross` case → `TextAst.StCross` →
+   `TextResolve`'s flow-source combine, mirroring `join into`) parses,
+   resolves, compiles (via the whole-table emitter), and round-trips
+   (NextMain 15b, both collect orders authored in text). Still ahead of
+   the parser: fused lanes, `commute out of`, prefix application, `;`
+   multi-resume. Each remaining form has a pointed "not yet parsed" error
+   today.
 4. **Printer round** (`TextPrint.res`): chain compression — DONE
    (single-consumer runs fuse into postfix `->`/`-~>` chains; a flow a
    chain opens *and* closes is implicit — no `~name`, the bare `collect`

@@ -306,6 +306,24 @@ let resolveChain = (
           cs.lastFlows = [h.flow]
         }
       }
+    | StCross({with_}) => {
+        // Standalone product form: ~left ~> cross with ~right => ~flow. Mirrors
+        // 'join into' — a flow-source combine — but yields a sibling product
+        // (Cross), not a nesting flatten (Join). The two axes stay independent;
+        // consumers collect over each axis flow directly (the Cross sits in the
+        // node set giving their combine a home — product-flows-design.md).
+        if arrow != AFlow {
+          err("'cross with' takes '~>' (flow arrow) from a flow source")
+        }
+        let left = switch cs.flowSource {
+        | Some(f) => f
+        | None => err("'cross with' needs a flow source (~L ~> cross with ~R)")
+        }
+        let right = resolveFlowTerm(st, with_)
+        let h = Build.cross(st.bld, ~left, ~right)
+        cs.lastFlows = [h.flow]
+        cs.flowSource = Some(h.flow)
+      }
     | StCommute => {
         if arrow != AValueFlow {
           err("'commute' takes '-~>' (the value rides through)")

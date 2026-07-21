@@ -87,6 +87,7 @@ type stage =
   | StSplit({disc: term, alts: array<string>})
   | StCollect({flowArg: option<flowTerm>})
   | StJoin({into: option<flowTerm>})
+  | StCross({with_: flowTerm}) // ~left ~> cross with ~right => ~flow
   | StCommute
   | StDelay({init: term})
   | StStepOf(string) // step of <register binder>

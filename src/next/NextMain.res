@@ -979,6 +979,72 @@ header("cross: a single-order product still compiles (the direct table read)")
       array_([int_(31), int_(32)]),
     ]),
   )
+  // The standalone product prints and reparses (the `cross with` surface form).
+  expectRoundTrip(p)
+}
+
+// 15b. The `cross with` text surface (ARCHITECTURE worklist item 3, parser
+//      catch-up). A product program authored directly in text — the Cross node
+//      is a standalone `~left ~> cross with ~right => ~flow` statement, and the
+//      two axis flows are collected in either order. Text and handles build the
+//      identical wiring, and the text compiles to the same shared-table output.
+// ============================================================================
+
+header("cross: the product authored in text (`cross with`), both orders")
+{
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2, 3] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+~fx ~> cross with ~fy => ~fxy
+ex, ey -> add => s
+s -~> collect ~fx => inner1
+inner1 -~> collect ~fy => out1
+s -~> collect ~fy => inner2
+inner2 -~> collect ~fx => out2
+out out1
+out out2
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The same program, built via handles (mirrors test 15's structure).
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itY.flow, inner1.value)
+  let inner2 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out2 = Build.collect(b, ~flow=itX.flow, inner2.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("text `cross with` and handles build identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  // out1: grouped per y — [[1+10,2+10,3+10],[1+20,2+20,3+20]].
+  expectOutput(
+    fromText,
+    "out1",
+    array_([array_([int_(11), int_(12), int_(13)]), array_([int_(21), int_(22), int_(23)])]),
+  )
+  // out2: the transpose — grouped per x.
+  expectOutput(
+    fromText,
+    "out2",
+    array_([array_([int_(11), int_(21)]), array_([int_(12), int_(22)]), array_([int_(13), int_(23)])]),
+  )
+  expectRoundTrip(fromText)
 }
 
 // ============================================================================
