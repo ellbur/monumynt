@@ -415,6 +415,38 @@ header("nested flatten + filter: join(join(list, list), case-alt) is adjacent")
 }
 
 // ============================================================================
+// 7e. Filter over an option leading level — join(join(list, option), case-alt).
+//     Per list element, open an option (present iff n >= 2); per present value,
+//     dispatch by parity and keep the evens. The option level is a defined-check
+//     nested inside the list's for-of: an absent option skips (contributes
+//     nothing), a present-but-Odd value is dropped by the filter, a present Even
+//     is pushed. Beyond the bridge (its filter close is list-only), so validated
+//     against a hand-computed value, like the partial collects.
+// ============================================================================
+
+header("filter over an option level: join(join(list, option), case-alt)")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let optIn = Build.app(b, optSrc.value, [i1.element])
+  let i2 = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i2.element)
+  let ev = Build.alt(cs, "Even")
+  // Flatten the option into the list (j1), then join the per-value Even cell (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j2.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("evens", out.value)])
+  // 1 -> option absent (skip); 2 -> Some(2) Even (keep); 3 -> Some(3) Odd (drop);
+  // 4 -> Some(4) Even (keep). Result [2, 4].
+  expectOutput(p, "evens", array_([int_(2), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 7b. Partial collect — the merged flow of two covered cells, terminated by a
 //     join (a multi-cell filter: "keep the A's and B's, drop the C's").
 //     Beyond the bridge (its case close is exhaustive-or-throw), so validated

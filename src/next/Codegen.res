@@ -735,10 +735,11 @@ and emitCaseCollect = (
   }
 }
 
-// The filter shape: an iter chain (`join`ed lists) whose innermost operand is
-// a case-alt flow — `join(list, case-alt)`. One thunk = a list accumulator,
-// the leading Iter levels' for-of loops, and at the innermost body a
-// discriminator dispatch that pushes only in the matching alt:
+// The filter shape: an iter chain (`join`ed lists/options) whose innermost
+// operand is a case-alt flow — `join(list, case-alt)`. One thunk = a list
+// accumulator, the leading Iter levels' for-of / if-defined loops (option
+// levels skip when absent, contributing nothing to the list), and at the
+// innermost body a discriminator dispatch that pushes only in the matching alt:
 //
 //   const s = force(disc)(force(elem));
 //   if (s.tag === alt) { const payload = __lazyDone__(s.value); …value…;
@@ -768,15 +769,25 @@ and emitFilterCollect = (
   let iterLevels = levels->Array.slice(~start=0, ~end=n - 1)
   iterLevels->Array.forEach(l =>
     switch l {
-    | IterLevel({isList: true}) => ()
-    | IterLevel({isList: false}) =>
-      throw(Todo("filter over an option level — not covered by Compile.emitFilterClose"))
+    | IterLevel(_) => () // list or option leading level — both are looped below
     | AltLevel(_) | PartialLevel(_) =>
       throw(Todo("filter chain with a non-trailing dispatch level — mirror Compile.emitFilterClose"))
     }
   )
   if Array.length(iterLevels) === 0 {
     failwith("Codegen.emitFilterCollect: a filter needs a list to iterate — Check should have witnessed")
+  }
+  // The output is a list (push per kept firing), so at least one list level must
+  // drive it. An all-option filter's accumulator shape (a list-of-0-or-1 vs an
+  // option) is the any-list-rule question in a different guise — a separate round.
+  let anyList = iterLevels->Array.some(l =>
+    switch l {
+    | IterLevel({isList}) => isList
+    | AltLevel(_) | PartialLevel(_) => false
+    }
+  )
+  if !anyList {
+    throw(Todo("filter over only option levels — the accumulator-shape (list vs option) question, a separate round"))
   }
   let (discriminator, csInput) = switch split.kind {
   | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
@@ -886,6 +897,8 @@ and emitFilterCollect = (
   ]
 
   // Assemble the loops innermost-out; the dispatch is the innermost payload.
+  // A list level loops (for-of); an option level is a single defined-check —
+  // an absent option skips its body, so that firing pushes nothing.
   let nested = ref(dispatch)
   for i in Array.length(plans) - 1 downto 0 {
     let p = plans->Array.getUnsafe(i)
@@ -894,7 +907,15 @@ and emitFilterCollect = (
       [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))],
       Array.concat(bucket, nested.contents),
     )
-    nested := [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+    nested :=
+      if p.isList {
+        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+      } else {
+        [
+          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
+          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+        ]
+      }
   }
   let thunkBody = Array.concat(
     [JsBuild.const(outName, JsBuild.array_([]))],
