@@ -102,6 +102,11 @@ section by section:
 - **The product, re-read**: the surviving residue localized — a
   missing *order* in the update half, with the pure-`final` corner
   closed.
+- **Per-kind "next iteration"**: the owned-order criterion — a flow
+  supplies a "next iteration" exactly when its firings carry a total
+  order *owned by the flow's meaning*; the kinds table cashed, the
+  clients' register checks unified into one order-demand check, and
+  `hold` identified as the register whose step ignores `prev`.
 - **Open**: the current state of every strand.
 
 Where it stands after all of that: the collect-vs-ancestor label is
@@ -112,7 +117,9 @@ several running-view consumers of one non-commutative register
 reading in different orders — the recompute-vs-explicit-
 axis-reference trade. Everything else has either coincided, been
 answered by provenance (update) and the consumer (read), or been
-closed.
+closed. The per-kind question — which kinds supply a "next
+iteration" at all — is since worked below (the owned-order
+criterion), with leanings, unadopted.
 
 ## Firm ground: a Delay is a feature of the flow
 
@@ -127,10 +134,11 @@ supplies one:
   iteration" to carry to;
 - **not** outside any flow — nothing to be "next" of.
 
-(Which kinds actually supply a "next iteration" — list and stream
-clearly; async/IO apparently not; incremental unexamined — wants
-the kinds table's attention, since it bounds where Delay is even
-meaningful.)
+(Which kinds actually supply a "next iteration" is worked below, in
+§"Per-kind \"next iteration\": the owned-order criterion" — where
+"async/IO apparently not" gets its honest refinement: the async
+*value*'s no-next is cardinality, not async-ness — an async *stream*
+supplies one — and IO's is that the handle is a wire, not a flow.)
 
 One more firm point, visible in the running-sum program: though a
 Delay is *drawn* as a computation step (`prev + element`), it is
@@ -1035,6 +1043,369 @@ single sharp trade already isolated — recompute per consumer
 (collect-binding) versus fix the axis at the Delay and transpose
 (ancestor-reference) — one construct, one decision.
 
+## Per-kind "next iteration": the owned-order criterion
+
+Status: worked with leanings, **not adopted** — a candidate
+criterion and the case for it. This section takes up the per-kind
+question the firm-ground section left parenthetical — *which flow
+kinds supply a "next iteration"* — which bounds where a Delay means
+anything at all. It stopped being idle taxonomy a while ago:
+several rounds now draw or bar registers over non-list flows, each
+writing a check this document had not cashed, and their checks do
+not obviously agree with the record's firmest prior boundary
+statement. This section reconciles them, and the reconciliation
+lands on a criterion none of them quite stated.
+
+### The clients, and the statement they strain
+
+What the record already does with registers off the list walk:
+
+- `incremental-flow-design.md` steps a register over an event
+  stream (scan-then-hold) and re-clocks the productivity check to
+  the event-loop turn ("same check, new clock").
+- `concurrent-collect-design.md` bars a register threading state
+  *between* concurrent bodies (structurally: a Delay whose flow
+  feeds a settle node's body operand) while placing one on the
+  **completions flow**, stepping in settlement order.
+- `late-bound-operations-design.md` / `served-flow-design.md` let a
+  provider hold cross-exchange state exactly when its facet is
+  sequenced — a register on the exchange flow of an *unordered*
+  facet is ill-formed (the exchange-stateless check).
+- `async-flow-design.md` defers "a Delay inside an async stream
+  flow" as probably-composing, riding this row.
+- `divide-flow-design.md` rules registers over sibling instances
+  ill-formed ("there is no time among sibling instances") while the
+  recursive-descent parser's position register rides an ordinary
+  self-driven children walk *inside* one instance.
+
+The firmest prior boundary statement is `flix-comparison.md`'s: a
+register feeds a value back along one walk whose **extent is
+fixed** by the opened data — offered as why async/IO supply no
+"next." Hold it against the clients and it fails in both
+directions. An event stream's extent is not fixed at open (no one
+knows how many clicks are coming), yet the incremental round steps
+a register over it. A completions flow's extent *is* fixed (n
+bodies, n settlements) and its register is legal — but so is the
+*async value's* extent fixed (one), and it supplies no next worth
+the name. Extent-fixedness sorts these flows one way; the record's
+registers sort them another. The criterion must be something else.
+
+### Work backwards from the two lists
+
+Flows the record lets a register ride: the list walk; the stream;
+the self-driven flow (the Fibonacci opener of
+`source-openers-design.md` — there the register is usually the
+*point*); the split-when segment flow and the filtered sub-flow
+(`~O`, the straddle section — a register on a nested flow
+reinitialises per outer firing, `variable-rate-consumption-design.md`);
+the async stream; the completions flow; the event stream; the
+sequenced facet's exchange flow; the serial inside of one keyed
+lane (`served-flow-design.md`'s keyed cache). Flows where it bars
+one: concurrent bodies between the sever and the settle; sibling
+divide-flow instances; the members of a saturation round; an
+unordered facet's exchanges — and, differently, the product grid.
+
+What do all the hosts share that every barred flow lacks? Not
+extent-fixedness — both lists have it both ways, as above. Not
+synchronicity — the completions flow and the async stream are
+event-loop flows and host registers, while the barred lists have
+synchronous members. What the hosts share is exactly this: **their
+firings carry a total order that is part of the flow's meaning.**
+Walk order, demand order, arrival order, settlement order (made
+meaning by settle — below), handle order, a lane's serial order: in
+every case the order is *drawn* — stated by the constructs that
+minted or shaped the flow — and a reader can say which firing is
+previous without asking the scheduler. In every barred case there
+is no such order to read.
+
+### The criterion
+
+A flow supplies a "next iteration" exactly when its firings are
+totally ordered *by the flow's own meaning* — call that an **owned
+order**. And with it, this document's one-sentence answer to the
+per-kind half of "what is a Delay":
+
+> **A Delay is a demand for the previous firing under its flow's
+> owned total order.**
+
+The sentence says where a Delay means anything (wherever an owned
+total order exists), what the read half reads (the value as of the
+order's predecessor), and what the write half writes (the value
+carried to the order's successor). In the cursor vocabulary of the
+value-in-context section it shortens further: a wire's cursor has a
+unique predecessor iff its flow owns a total order. (Which order a
+*grid* linearizes to is the other half of the ontology question,
+and this section leaves it exactly where the previous section put
+it — untouched.)
+
+A flow can relate to the criterion four ways, and the kinds sort
+cleanly into them:
+
+1. **Owned order — Delay legal.** The host list above. The order's
+   *source* differs per kind (walked data, demand, arrival,
+   settlement, the handle), and that difference is real but shows
+   up only in the clock (below), never in the register's meaning.
+
+2. **No order — Delay ill-formed.** Concurrent bodies between sever
+   and settle; sibling divide-flow instances; an unordered facet's
+   exchanges; a saturation round's members (a set has no firing
+   order). Each ban already exists in its own round as "the same
+   species of structural check"; the species now has a statement —
+   see "The order-demand check, named," below.
+
+3. **Incidental order — Delay ill-formed, for a sharper reason.**
+   This is the clause the criterion earns its keep with: it is not
+   enough that an order *happens*; the order must be *drawn*.
+   Before the settle node, bodies do settle in some real-time
+   order — the runtime just has no license to let a program observe
+   it (observing it is what `concurrent-collect-design.md`'s dead
+   end 3 rejected). A saturation round's members get processed in
+   *some* order by whichever lowering runs — but naive and
+   semi-naive are lowerings of one drawing (`saturation-design.md`),
+   and a register over the member walk would make the lowering
+   observable, promoting an implementation schedule into meaning —
+   exactly what abstraction-is-the-source-of-truth forbids. The
+   incremental *var* flow is the third instance: a var recomputes
+   when the runtime decides (cutoffs skip, necessity gates —
+   `incremental-flow-design.md`), so "previous recomputation" is
+   schedule, not meaning, and a Delay over the var flow proper
+   would observe cutoffs. That is *why* the incremental round's
+   register rides `changes` — the event stream, whose arrival
+   order is owned — and never a var. A register is a reader of
+   order; where the order is incidental, what it would read is the
+   scheduler.
+
+4. **Degenerate order — Delay well-formed but inert.** A bare
+   option or case alt, the async value, a race's settled output:
+   totally ordered, trivially, because there is at most one firing.
+   A Delay there never steps; `prev` only ever reads the seed. This
+   dissolves the old firm-ground bullet's *reason*: the async value
+   supplies no next **because it is one firing, not because it is
+   async** — the same reason a bare option doesn't, and nobody ever
+   felt a need to write "Delay is meaningless over options" as a
+   kind fact. What async-ness itself changes is only the clock. So
+   the async *stream* composes, cashing `async-flow-design.md`'s
+   deferral at the meaning level: its firings arrive in arrival
+   order — owned, serialised by the event loop — so "the register
+   lives in the walk" is confirmed, with worked examples still owed
+   there.
+
+The product is none of the four exactly: it is **surplus order** —
+every axis order is real and none is privileged. Not disorder but
+an embarrassment of orders; the register's demand for *one* is the
+linearization residue, located by this classification as the
+surplus cell, not a new species.
+
+### Serializers: where owned order comes from
+
+Owned order is not free-floating; some construct states it, and
+following the record's registers shows a small taxonomy of where:
+
+- **Inherited** — the flow restricts or re-delivers an order that
+  already exists: a filter's surviving sub-flow, a split-when
+  segment, a stream pulled off a list, a keyed lane's serial
+  interior. The sub-order of a sequence is a sequence.
+- **Minted** — a construct *creates* the order as its content. The
+  settle node is the paradigm: settlement order exists incidentally
+  before it, and settle's whole meaning is to convert it into a
+  drawn flow — the completions flow — whereupon a register is
+  legal. A sequenced facet's handle is the same move for exchanges
+  (a handle is an ordering commitment,
+  `within-firing-effects-design.md`); a merge's output owns an
+  order (the order the merge settles its firings in) with the
+  *choice law* among admissible interleavings being fairness, the
+  chooser family's question — owning an order and choosing it are
+  separate. The self-driven opener mints its own firing order
+  outright.
+- **Ambient** — the event loop serialises delivery, and an event
+  stream's kind says "one firing per event, in arrival order," so
+  arrival order is kind content with the loop as its deliverer.
+
+This generalises `concurrent-collect-design.md`'s answer into a
+rule: **a register is legal exactly downstream of the point where
+order becomes owned, and the order-minting construct is where the
+diagram shows the synchronisation.** The register-on-completions
+was that rule's first instance; the sequenced facet's stateful
+provider is its second.
+
+It also makes the criterion checkable with machinery the record
+already has. Every flow constructor states what its output's order
+is: inherits one, mints one, states none (the sever's body flow,
+instance siblings, set members, an unordered serve), or states
+several (Cross — the axes, none privileged). So "does this flow own
+an order" is a **provenance walk** — the same species of walk that
+availability and the flow laws already use — and the check is
+structural, no analysis.
+
+### The kinds table, cashed
+
+| flow | next? | whose order |
+|---|---|---|
+| list walk | yes | walk order of the opened data |
+| stream | yes | the same order, delivered on demand |
+| self-driven flow | yes | the opener's own firing order |
+| segment / filtered sub-flow | yes | the parent's order, restricted |
+| async stream | yes | arrival order (clock: event-loop turn) |
+| completions flow | yes | settlement order, minted by settle |
+| event stream (`changes`) | yes | arrival order (clock: event-loop turn) |
+| exchange flow, sequenced facet | yes | handle order |
+| keyed lane, within | yes | the lane's serial order |
+| case / option, bare | degenerate | ≤1 firing; `prev` reads the seed |
+| async value; race's settlement | degenerate | one firing |
+| var (recomputations) | no | incidental — the runtime's schedule |
+| exchange flow, unordered facet | no | none owned |
+| concurrent bodies (sever→settle) | no | settlement order not yet minted |
+| sibling divide-flow instances | no | "no time among siblings" |
+| saturation round's members | no | a set; lowering order is incidental |
+| product {X, Y} | surplus | every axis order real, none privileged |
+| IO / effect handle | — | a wire, not a flow (below) |
+
+Two rows deserve their sentence. The **incremental kind splits**:
+the var flow proper supplies no next (incidental recomputation
+order), its `changes` stream supplies one (owned arrival order) —
+which cashes "incremental unexamined" and explains, rather than
+merely reports, where the incremental round put its register. And
+the **IO handle is not a flow at all**: its order is real and
+total — order along the segment — but it is an order *of
+operations on a wire*, not of firings of a walk; there is no
+uncollect minting per-firing values along it, so there is nothing
+for a Delay to be a feature *of*. That is the effects round's
+dissolution ("No register appears," `effects-design.md`) restated
+as a kinds fact: a register on the handle carries nothing because
+the handle's order needs no carrier — the wire-threading *is* the
+order. The firm-ground rule gains its converse: IO threads its
+wire because its order lives on a wire; Delay must not thread
+because its order lives on a flow.
+
+### What extent-fixedness was doing
+
+`flix-comparison.md`'s statement was doing two jobs, and splitting
+them resolves the strain rather than refuting the sentence.
+Extent-fixedness is the **termination** account: a walk over opened
+data terminates by construction, whatever the carried value does —
+true where stated, and still the right contrast with saturation's
+fed-back extent. It was never the **next-supplying** account: the
+event stream and the self-driven flow have no fixed extent and
+honest nexts (and honest possible non-termination, which
+`source-openers-design.md` already owns — "an infinite producer is
+a real program"; termination arrives separately, from end-when),
+while the async value has a fixed extent of one and only a
+degenerate next. The two properties are independent, with
+counterexamples in every quadrant that needs one. The refinement is
+recorded here; the flix sentence stands, as a termination account.
+
+### One check, one clock
+
+The productivity check is order-generic and needs no per-kind
+restatement. "Every cycle crosses a Delay" makes firing *n*'s
+inputs be firing *n−1*'s outputs **under the flow's owned order** —
+and the *clock*, the thing that makes firing *n−1* complete before
+firing *n* begins, is whatever delivers that order: the walk step
+(list), the pull (stream), the event-loop turn (async stream,
+completions, `changes`), the handle's exchange (a sequenced facet).
+`incremental-flow-design.md`'s "same check, new clock" is the
+general statement, not an incremental special: **one check, the
+clock a parameter supplied by the flow's order-deliverer.** Each
+client's re-clocking is the one check instantiated; nothing is owed
+per kind.
+
+### The order-demand check, named
+
+The record kept writing "the same species of structural check as…"
+without naming the species: the register-between-concurrent-bodies
+ban, the exchange-stateless check on unordered facets, the
+registers-over-sibling-instances ban. The species is one check with
+one statement:
+
+> **The order-demand check: a Delay's flow must own a total order.**
+
+Its complement is the productivity check, and together they are the
+whole discipline of drawn state: productivity says a cycle must
+cross a Delay; the order demand says a Delay must sit on an
+order-owning flow. State is legal exactly where a drawn order can
+carry it. Like productivity, the check is structural — the
+order-provenance walk above — and, like productivity, it is a
+property of the graph, not of any single node.
+
+One extension follows from the value-in-context section and rides
+its adoption: the transpose-cost criterion there ("does this value
+read flow-context") generalised the recompute cost from registers
+to *any* context-read; the order demand generalises the same way. A
+raw `prev` on a wire whose flow owns no order is exactly as
+ill-formed as a register there — if the cursor model is adopted,
+the order-demand check covers context-reads, of which the Delay is
+the seeded, fed-back instance.
+
+### The hold identification
+
+Beside the per-kind question sat the degenerate-register question
+from the reactive side: is a `hold` a register whose step ignores
+`prev`? (`incremental-flow-design.md` asserts the parallel and
+stops short.) With the straddle split and the criterion in hand the
+identification can be made, and the leaning is to make it:
+
+**`hold(init, events)` is the register on the event stream whose
+step is the projection onto the new value** — `prev` ignored — read
+on any containing frame per the straddle section's read-range rule.
+Two facts check it. First, its initial value plays exactly the
+register seed's double duty (starting point for the non-empty case,
+complete answer for no-events-yet) — a correspondence the
+incremental round already noticed arriving from the temporal side.
+Second — the confirmation the criterion wanted — although hold's
+step reads no history, it is **not order-free**: last-write-wins
+reads the order (replacement is non-commutative), so even the state
+that carries nothing still demands an owned order, because "latest"
+is an order word. Hold demands one thing less than a scan — the
+carried history — and the same crucial thing: the order. So `hold`
+(step = newest) and the scan (step reads `prev`) are two steps of one
+construct, and "hold keeps the latest; a counter needs the latest
+plus history folded in" is the difference between their step
+functions, not between two kinds of thing. The identification is
+semantic; the compile may still treat the mutation boundary
+specially (`incremental-flow-design.md`'s root cell), as any
+lowering may.
+
+### What this section does not settle
+
+The linearization residue is untouched — the product stays the
+surplus-order cell, and the recompute-vs-explicit-axis trade stands
+exactly as the previous sections left it. Adoption is owed with the
+row's own conversation, not here. The fairness of a *merged* flow's
+owned order is the chooser family's question, not this one's. And
+the context-read extension of the order-demand check is conditional
+on the value-in-context model's adoption, which this section does
+not advance.
+
+### Dead ends of this round
+
+Recorded so they are not re-proposed:
+
+1. **Extent-fixedness as the next-supplying criterion.** Fails in
+   both directions (event stream: no fixed extent, hosts a
+   register; async value: fixed extent, degenerate next). It is the
+   termination account, and stands as that.
+2. **Async-ness as the criterion.** The completions flow and the
+   async stream are event-loop flows and host registers; the async
+   value's bar is cardinality. Asynchrony changes the clock, never
+   the meaning.
+3. **Runtime serialisation as sufficient.** Incidental order is the
+   counterexample family: pre-settle settlement order, a saturation
+   lowering's worklist order, a var's recomputation order are all
+   serialised at run time and all barred — the order must be drawn,
+   not merely present. (This is the criterion's load-bearing
+   clause; weakening it re-opens
+   `concurrent-collect-design.md`'s dead end 3 and breaks
+   naive/semi-naive as lowerings.)
+4. **Per-kind register modes.** A "register mode" per kind (arrival
+   mode, settlement mode, …) would fork every row of the kinds
+   table for a construct whose meaning is kind-generic — the same
+   knife that rejected "list-with-state" as a flow kind
+   (`source-openers-design.md`). One construct, one check, one
+   clock parameter.
+5. **A Delay on the IO handle.** Already dissolved in
+   `effects-design.md` ("No register appears"); restated here as a
+   kinds fact — the handle is a wire, not a flow — not re-opened.
+
 ## Open
 
 The language has not decided any of the following. Here is the
@@ -1139,31 +1510,34 @@ current state of every strand:
   uncollected value is a cursor" is a whole-language claim to be
   weighed at the core-model level, not from inside this round.
 - **Is Delay the right abstraction at all?** Argument 3, held open.
-- **Per-kind "next iteration."** Which flow kinds supply one (list
-  and stream yes; async/IO apparently not; incremental unexamined)
-  wants the kinds table, since it bounds where Delay means anything
-  at all. This is no longer an idle taxonomy question: several
-  rounds already *use* registers over non-list flows, writing
-  checks this row has not cashed. `incremental-flow-design.md`
-  steps a register over an event stream (scan-then-hold) and
-  re-clocks the productivity check to the event-loop turn ("same
-  check, new clock"); `concurrent-collect-design.md` rules a
-  register threading state *between* concurrent bodies ill-formed
-  (a new structural check — a Delay whose flow feeds a settle
-  node's body operand) while putting a register on the
-  **completions flow**, which the event loop serialises, so it
-  steps in settlement order; and `async-flow-design.md` defers "a
-  Delay inside an async stream flow" as probably-composing.
-  (`effects-design.md` was on this client list while it threaded a
-  marker register; the sequencing-commute re-reading removed it —
-  one fewer check to cash.) Each of these presupposes an answer to
-  which kinds supply a "next" — the firmest boundary statement so
-  far is `flix-comparison.md`'s: a register is value feedback along
-  a walk whose **extent is fixed** by the opened data, which is
-  *why* async/IO (extent not fixed at open) supply no "next" — yet
-  a completions flow serialised by the event loop plausibly does.
-  Reconciling these clients with the kinds table is this row's most
-  concrete owed work. Beside it sits the degenerate-register
-  question from the reactive side: is a `hold` a register whose
-  step ignores `prev`? (`incremental-flow-design.md` asserts the
-  parallel, stops short of the identification.)
+- **Per-kind "next iteration."** Now **worked with leanings**
+  (§"Per-kind \"next iteration\": the owned-order criterion"): a
+  flow supplies a "next iteration" exactly when its firings carry
+  an **owned total order** — an order stated by the constructs that
+  minted or shaped the flow, not one that merely happens at run
+  time — and a Delay is a demand for the previous firing under
+  that order. The clients' checks cash against it one for one: the
+  event stream and the completions flow supply a next (arrival and
+  settlement order, owned — `incremental-flow-design.md`'s
+  scan-then-hold and `concurrent-collect-design.md`'s
+  register-on-completions are licensed); the async stream composes
+  (`async-flow-design.md`'s deferral confirmed at the meaning
+  level, worked examples still owed there); concurrent bodies,
+  sibling instances, saturation members, and unordered facets own
+  none — their register bans are one species, the **order-demand
+  check** (a Delay's flow must own a total order), productivity's
+  structural complement; the async value and the bare option own a
+  degenerate one (≤1 firing — `prev` only ever reads the seed, so
+  "async supplies no next" was cardinality, not async-ness); the
+  var flow's recomputation order is *incidental* (state lives on
+  `changes`, never on a var); and the IO handle is a wire, not a
+  flow. `flix-comparison.md`'s extent-fixedness is refined to the
+  termination account only — independent of next-supplying, with
+  counterexamples both ways. The productivity check is one check
+  with a clock parameter (whatever delivers the owned order), and
+  `hold` is identified (leaning) as the register whose step
+  ignores `prev` — still order-demanding, since "latest" is an
+  order word. Remaining: adoption (with the row's conversation);
+  the fairness of a merged flow's owned order stays the chooser
+  family's; extending the order-demand check from Delays to raw
+  context-reads rides the value-in-context model's adoption.

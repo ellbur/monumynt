@@ -558,14 +558,18 @@ Three observations:
   ```
 
   Every var derived from `count` follows. The iteration-state design
-  and this chapter compose at exactly this point — with one check
-  still to cash: the Delay design's account of what a Delay *is*
-  currently lists async flows as apparently supplying no "next
-  iteration" and incremental as unexamined (`delay-ontology-design.md`,
-  per-kind open item), so the register over an event stream drawn
-  here is a client of that row, not something it has established. The
-  same goes for re-clocking the productivity check to the event-loop
-  turn (below).
+  and this chapter compose at exactly this point — a composition the
+  Delay row has since worked (`delay-ontology-design.md`, "Per-kind
+  \"next iteration\": the owned-order criterion", exploration, not
+  adopted): an event stream *owns* its arrival order, so it supplies
+  a "next iteration" and the register drawn here is licensed; the
+  re-clocked productivity check (below) is that section's one check
+  with the clock parameterised by whatever delivers the flow's owned
+  order — here the event-loop turn. The var flow itself, by
+  contrast, supplies no "next": recomputation order is the runtime's
+  business (cutoffs skip recomputations), incidental rather than
+  owned, which is why state rides the event side (`changes`, this
+  scan) and never a var.
 
 The productivity story carries over. A cycle in the incremental graph
 — a var whose value depends on itself — is ill-formed by the same
