@@ -77,6 +77,7 @@ let rec leafToJs = (t: term): JsAst.expr =>
   | TName(n) => err("'" ++ n ++ "' is not a literal (leaf definitions take literals)")
   | TProj(n, p) => err("'" ++ n ++ "." ++ p ++ "' is not a literal")
   | TBinop(_, op, _) => err("an infix '" ++ op ++ "' expression is not a literal (leaf definitions take literals)")
+  | TApp(_, _) => err("a function application is not a literal (leaf definitions take literals)")
   }
 
 // --- reference resolution ------------------------------------------------------
@@ -91,6 +92,14 @@ let rec resolveValueTerm = (st: r, t: term): valueRef =>
       let right = resolveValueTerm(st, r)
       let fn = Build.lit(st.bld, JsAst.ERaw(opToJs(op))).value
       Build.app(st.bld, fn, [left, right]).value
+    }
+  | TApp(fn, args) => {
+      // f(x, y) — the same App the postfix stage `x, y -> f` builds. The fn is
+      // an ordinary value (usually a `js "..."` extern or a named function);
+      // args resolve left to right.
+      let fnV = resolveValueTerm(st, fn)
+      let argVs = args->Array.map(a => resolveValueTerm(st, a))
+      Build.app(st.bld, fnV, argVs).value
     }
   | TName(name) =>
     switch Map.get(st.env, name) {

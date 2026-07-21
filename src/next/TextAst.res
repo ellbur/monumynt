@@ -33,7 +33,8 @@
 //   sources     := source (',' source)* | tap+    -- leading '|'s resume taps
 //   source      := term | '~' flowName
 //   term        := primary | term OP term          -- infix; OP in * / % + -
-//   primary     := NAME | NAME '.' NAME | leafTerm | '-' NUMBER
+//   primary     := applied | leafTerm | '-' NUMBER
+//   applied     := (NAME | NAME '.' NAME) ('(' term,* ')')*  -- prefix application
 //   flowName    := NAME ('.' NAME)?
 //   arrow       := '->' | '~>' | '-~>'
 //   tap         := '|'
@@ -79,6 +80,14 @@ type rec term =
   // grammar is permissive"). The middle field is the operator symbol; the
   // resolver maps it to the extern. Not a literal — leafToJs rejects it.
   | TBinop(term, string, term)
+  // Prefix application `f(x, y)`: the fn term applied to the arg terms. Sugar
+  // for an App node, exactly as the postfix stage `x, y -> f` builds — the
+  // design's permissive grammar accepts both, one reading
+  // (textual-representation-design.md, "parse accepts prefix (`f(x, y)`)").
+  // Not a literal — leafToJs rejects it. The canonical printer emits the
+  // postfix form, so a round-trip prints `x, y -> f` (App-node wiring is
+  // identical either way).
+  | TApp(term, array<term>)
 
 // A flow reference after its '~' sigil: ~L or ~cs.Just.
 type flowTerm =

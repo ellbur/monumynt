@@ -140,11 +140,34 @@ and parseNameTerm = (st: p): term => {
   }
 }
 
-// A full value term: primaries joined by infix operators, precedence-climbed.
-// Operators never span an arrow (arrows are separate tokens), so a term parse
-// stops cleanly at the chain's next stage.
-let rec parseBinop = (st: p, minPrec: int): term => {
-  let left = ref(parsePrimary(st))
+// A primary optionally in prefix-application position: `f(x, y)`, or curried
+// `f(x)(y)`. A bare primary with no following '(' passes straight through, so
+// this is transparent to every existing term. Application args are full terms
+// (`f(a + b, c)` works), delimited by ',' and ')' — neither an operator, so the
+// arg parse stops cleanly.
+let rec parseApplied = (st: p): term => {
+  let base = ref(parsePrimary(st))
+  while peek(st) == TokLParen {
+    advance(st)
+    let args: array<term> = []
+    if peek(st) != TokRParen {
+      Array.push(args, parseBinop(st, 1))
+      while peek(st) == TokComma {
+        advance(st)
+        Array.push(args, parseBinop(st, 1))
+      }
+    }
+    expect(st, TokRParen, "')' closing a prefix application")
+    base := TApp(base.contents, args)
+  }
+  base.contents
+}
+
+// A full value term: primaries (optionally applied) joined by infix operators,
+// precedence-climbed. Operators never span an arrow (arrows are separate
+// tokens), so a term parse stops cleanly at the chain's next stage.
+and parseBinop = (st: p, minPrec: int): term => {
+  let left = ref(parseApplied(st))
   let continue = ref(true)
   while continue.contents {
     switch opInfo(peek(st)) {
