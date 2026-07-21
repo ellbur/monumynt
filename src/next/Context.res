@@ -64,6 +64,20 @@ let merge = (~where: string, a: array<flowRef>, b: array<flowRef>): array<flowRe
     throw(Incomparable({left: a, right: b, where}))
   }
 
+// --- Poset wiring (product-flows-design.md, "The context model") -------------
+//
+// The linear path model above is the all-nesting (all-Series) special case of
+// the series-parallel poset (Poset.res). A Cross constructs a PRODUCT context —
+// two sibling axes with no order between them — which no linear path can hold.
+// These functions lift the linear machinery to the poset for exactly the one
+// question the alignment check asks of a sibling combine: does a constructed
+// Cross give it a home? (`crossProduct` is defined below `flowContext`, since it
+// needs the operands' exteriors.)
+
+// A linear context path is a chain: outer axes first, keyed by flowKey.
+let pathToPoset = (path: array<flowRef>): Poset.t =>
+  Poset.series(path->Array.map(f => Poset.Axis(flowKey(f))))
+
 let rec valueContext = (r: valueRef): array<flowRef> =>
   switch r {
   | ValuePort(n, port) =>
@@ -164,3 +178,29 @@ and flowContext = (r: flowRef): array<flowRef> =>
       )
     }
   }
+
+// The product context a Cross node constructs: the PARALLEL composition of its
+// two operands' full contexts (each operand's exterior plus its own axis). For
+// two top-level sibling opens this is `{X || Y}`; for siblings sharing an outer
+// loop L it is `L > {X || Y}` — the shared prefix stays series, the divergent
+// axes go parallel (Poset's axis-set/order-set algebra makes the redundant L in
+// both operands wash out). Raises Incomparable if an operand's exterior is
+// itself a product — the deeper poset round — so `productsIndex` skips it.
+let crossProduct = (left: flowRef, right: flowRef): Poset.t => {
+  let full = (f: flowRef) => pathToPoset(Array.concat(flowContext(f), [f]))
+  Poset.parallel([full(left), full(right)])
+}
+
+// Every product context a Cross node in the program constructs — the index
+// `Poset.merge` consults to decide whether a sibling combine has an exact home
+// (a combine's home is exact, not a covering superset — product-flows-design.md).
+let productsIndex = (p: program): array<Poset.t> =>
+  p.nodes->Array.filterMap(n =>
+    switch n.kind {
+    | Cross({left, right}) =>
+      try {Some(crossProduct(left, right))} catch {
+      | Incomparable(_) => None // operand exterior is itself a product: poset round
+      }
+    | _ => None
+    }
+  )
