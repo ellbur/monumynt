@@ -46,13 +46,25 @@ type compiled = {
 }
 
 // Passes 0-2, shared by both engines. Error = the program's own witnesses.
+//
+// Complete runs BEFORE Check, and Check validates the COMPLETED program.
+// Completion commits an under-determined program (inserting a Cross for a
+// sibling-opens combine, product-flows-design.md's "smallest first step" 3);
+// checking the committed form is what lets that combine pass — the inserted
+// Cross gives it a product home. Completion is identity for already-committed
+// programs, so every other witness (bundle mixing, dependent nesting,
+// coverage, flow-borne, invariance) is reported exactly as before; only the
+// genuinely completable time-travel gap now compiles instead of witnessing.
+// (Completion harvests its own demands rather than reading Check's — the two
+// keep distinct outputs, compile-strategy-design.md open question 6.)
 let frontHalf = (p: Program.program): result<Complete.completed, array<Check.witness>> => {
   let core = Derive.derive(p)
-  let witnesses = Check.check(core)
+  let completed = Complete.complete(core)
+  let witnesses = Check.check(completed.program)
   if Array.length(witnesses) > 0 {
     Error(witnesses)
   } else {
-    Ok(Complete.complete(core))
+    Ok(completed)
   }
 }
 
