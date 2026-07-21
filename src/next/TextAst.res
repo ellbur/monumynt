@@ -32,7 +32,8 @@
 //   chain       := sources? (arrow tap* stage)* naming?
 //   sources     := source (',' source)* | tap+    -- leading '|'s resume taps
 //   source      := term | '~' flowName
-//   term        := NAME | NAME '.' NAME | leafTerm
+//   term        := primary | term OP term          -- infix; OP in * / % + -
+//   primary     := NAME | NAME '.' NAME | leafTerm | '-' NUMBER
 //   flowName    := NAME ('.' NAME)?
 //   arrow       := '->' | '~>' | '-~>'
 //   tap         := '|'
@@ -45,9 +46,17 @@
 //               | 'commute'
 //               | 'delay' 'init' term
 //               | 'step' 'of' NAME
+//               | OP primary                      -- operator section (`-> * 2`)
 //               | NAME ('(' term,* ')')?          -- application
 //   naming      := '=>' binder (',' binder)*
 //   binder      := NAME | '~' NAME
+//
+// Infix operators (OP: * / % + -, standard precedence, left-associative) are
+// accepted input per the design doc's permissive grammar; they desugar to App
+// of the operator's JS extern (a + b => App((a,b)=>a+b, [a, b])). In chain
+// position an operator is a section on the running topic (-> * 2 is topic*2).
+// The canonical printer does not yet re-emit infix (design open question 5),
+// so a round-trip prints the desugared App form.
 //
 // A physical line starting with an arrow or '=>' continues the previous
 // statement; a line starting with '|' begins a new chain sourced from the
@@ -65,6 +74,11 @@ type rec term =
   | TJs(string) // js "..." extern
   | TName(string)
   | TProj(string, string) // cs.Just — value port projection
+  // Infix binary operator (a + b, x * 2): sugar for an App of the operator's
+  // JS function to the two operands (textual-representation-design.md, "the
+  // grammar is permissive"). The middle field is the operator symbol; the
+  // resolver maps it to the extern. Not a literal — leafToJs rejects it.
+  | TBinop(term, string, term)
 
 // A flow reference after its '~' sigil: ~L or ~cs.Just.
 type flowTerm =
@@ -92,6 +106,10 @@ type stage =
   | StDelay({init: term})
   | StStepOf(string) // step of <register binder>
   | StTap // '|' mid-chain: mint a junction here
+  // Chain-position infix operator (`-> * 2`): the running topic is the left
+  // operand, `rhs` the right — an operator section applied to the chain value
+  // (like `(* 2)`). Resolves to App(opFn, [topic, rhs]).
+  | StBinop({op: string, rhs: term})
 
 type binder =
   | BValue(string)

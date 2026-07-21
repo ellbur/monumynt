@@ -240,8 +240,15 @@ line tells you which tests are waiting.
    `TextParse.parseStage`'s `cross` case → `TextAst.StCross` →
    `TextResolve`'s flow-source combine, mirroring `join into`) parses,
    resolves, compiles (via the whole-table emitter), and round-trips
-   (NextMain 15b, both collect orders authored in text). Still ahead of
-   the parser: fused lanes, `commute out of`, prefix application, `;`
+   (NextMain 15b, both collect orders authored in text). **Infix
+   operators DONE** — `+ - * / %` parse as accepted input (source infix
+   `a * b` and the chain-position operator section `-> * 2`), desugaring
+   to an App of the operator's extern (`TextParse.opInfo` precedence
+   climb + `StBinop`; `TextResolve.opToJs`). The double/triple test
+   stand-ins are now real inline multiplication (NextMain 2–6b). The
+   canonical printer does not yet re-emit infix (design open question
+   5), so a round-trip prints the desugared App form. Still ahead of the
+   parser: fused lanes, `commute out of`, prefix application, `;`
    multi-resume. Each remaining form has a pointed "not yet parsed" error
    today.
 4. **Printer round** (`TextPrint.res`): chain compression — DONE
