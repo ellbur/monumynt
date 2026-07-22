@@ -160,12 +160,40 @@ let productAxisOf = (f: flowRef): option<productAxis> =>
   | _ => None
   }
 
-// The product a Cross node constructs, when both operands are supported axes.
+// The axes a Cross operand contributes: a single supported axis, or — for a
+// nested Cross (`cross(cross(x, y), z)`) — the flattened axes of the whole
+// sub-product, left-first (the stored orientation). None if any leaf is not a
+// supported axis. This is why a rank-n product is authored by nesting binary
+// Crosses: the meaning is the flat, order-free axis set (product-flows-design.md,
+// "Associativity: the nesting tree is how you wrote it; the axis set is what it
+// means").
+let rec productAxesOf = (f: flowRef): option<array<productAxis>> =>
+  switch productAxisOf(f) {
+  | Some(a) => Some([a])
+  | None =>
+    switch f {
+    | FlowPort(n, "flow") =>
+      switch n.kind {
+      | Cross({left, right}) =>
+        switch (productAxesOf(left), productAxesOf(right)) {
+        | (Some(la), Some(ra)) => Some(Array.concat(la, ra))
+        | _ => None
+        }
+      | _ => None
+      }
+    | _ => None
+    }
+  }
+
+// The product a Cross node constructs, when all its leaf operands are supported
+// axes. A nested cross flattens to its full axis set; a two-of-three-axis inner
+// cross is ALSO a product in its own right (the author naming a sub-product), so
+// every Cross node in the tree contributes one entry to `st.products`.
 let productOf = (n: node): option<product> =>
   switch n.kind {
-  | Cross({left, right}) =>
-    switch (productAxisOf(left), productAxisOf(right)) {
-    | (Some(la), Some(ra)) => Some({crossId: n.id, axes: [la, ra]})
+  | Cross(_) =>
+    switch productAxesOf(FlowPort(n, "flow")) {
+    | Some(axes) if Array.length(axes) >= 2 => Some({crossId: n.id, axes})
     | _ => None
     }
   | _ => None
@@ -302,53 +330,96 @@ let cForArr = (iv: string, arrName: string, body: array<JsAst.stmt>): JsAst.stmt
     body: JsAst.SBlock(body),
   })
 
-// A recognized product-consumer chain: two nested collects over the two axes of
-// one product, terminating in a value that spans exactly that product.
+// A recognized product-consumer chain: k nested collects over the k axes of one
+// product, terminating in a value that spans exactly that product. `chainAxes`
+// is outer-first — one axis per collect in the chain, the order the consumer
+// traverses (its own reading of the shared table).
 type productMatch = {
   product: product,
-  outerAxis: productAxis, // the outer collect's axis
-  innerAxis: productAxis, // the inner collect's axis
-  sVal: valueRef, // the product-spanning value both collects carry through
+  chainAxes: array<productAxis>, // outer-first, one per collect in the chain
+  sVal: valueRef, // the product-spanning value the chain carries through
 }
 
+// Unwind a nested single-branch collect chain: gather each collect's flow
+// (outer-first) and the terminal non-collect value it carries.
+let rec chainFlows = (v: valueRef): (array<flowRef>, valueRef) =>
+  switch v {
+  | ValuePort(n, "value") =>
+    switch n.kind {
+    | Collect({branches: [{flow, value}]}) =>
+      let (rest, term) = chainFlows(value)
+      (Array.concat([flow], rest), term)
+    | _ => ([], v)
+    }
+  | _ => ([], v)
+  }
+
+let sameKeySet = (a: array<string>, b: array<string>): bool =>
+  a->Array.every(k => b->Array.includes(k)) && b->Array.every(k => a->Array.includes(k))
+
 // Does this collect head a product-consumer chain the whole-table emitter
-// handles? It must be `collect(fOuter, collect(fInner, s))` where fOuter and
-// fInner are the two axes of one constructed product and s varies over exactly
-// that product (both axes). Returns None for every other shape — including
-// ordinary linear collects, whose value never spans a sibling axis.
+// handles? It must be `collect(f0, collect(f1, … collect(f_{k-1}, s)))` where
+// f0…f_{k-1} are the k DISTINCT axes of one constructed product and s varies
+// over EXACTLY that product (all k axes). Returns None for every other shape —
+// ordinary linear collects (whose value never spans a sibling axis), and partial
+// consumers that collect only some of a product's axes (holding the rest), which
+// the direct whole-table emitter does not yet handle.
 let matchProductChain = (st: state, cn: node): option<productMatch> =>
   switch cn.kind {
-  | Collect({branches: [{flow: fOuter, value: ValuePort(innerNode, "value")}]}) =>
-    switch innerNode.kind {
-    | Collect({branches: [{flow: fInner, value: sVal}]}) =>
-      let ko = Context.flowKey(fOuter)
-      let ki = Context.flowKey(fInner)
-      if ko === ki {
-        None
-      } else {
-        st.products
-        ->Array.find(p => {
-          let keys = p.axes->Array.map(a => a.axisKey)
-          keys->Array.includes(ko) && keys->Array.includes(ki)
-        })
-        ->Option.flatMap(p => {
-          // s must vary over exactly the product's two axes.
-          let need = p.axes->Array.map(a => a.axisKey)
-          let sAxes = Annotate.valueAxes(sVal)
-          let spans =
-            need->Array.every(k => sAxes->Array.includes(k)) &&
-              sAxes->Array.every(k => need->Array.includes(k))
-          let axisFor = k => p.axes->Array.find(a => a.axisKey === k)
-          switch (spans, axisFor(ko), axisFor(ki)) {
-          | (true, Some(outerAxis), Some(innerAxis)) =>
-            Some({product: p, outerAxis, innerAxis, sVal})
-          | _ => None
+  | Collect({branches: [{flow: f0, value: v1}]}) =>
+    let (rest, sVal) = chainFlows(v1)
+    let flows = Array.concat([f0], rest)
+    let keys = flows->Array.map(Context.flowKey)
+    // Distinct axes only — a chain that revisits an axis is not a product read.
+    let distinct = keys->Array.everyWithIndex((k, i) => keys->Array.indexOf(k) === i)
+    if !distinct {
+      None
+    } else {
+      st.products
+      ->Array.find(p => sameKeySet(keys, p.axes->Array.map(a => a.axisKey)))
+      ->Option.flatMap(p => {
+        // s must vary over exactly the product's axes (the full-table consumer).
+        let need = p.axes->Array.map(a => a.axisKey)
+        let sAxes = Annotate.valueAxes(sVal)
+        if sameKeySet(need, sAxes) {
+          // The chain's axes in traversal order (outer-first), each resolved
+          // against the product's stored axis records.
+          let chainAxes = flows->Array.filterMap(f => {
+            let k = Context.flowKey(f)
+            p.axes->Array.find(a => a.axisKey === k)
+          })
+          if Array.length(chainAxes) === Array.length(flows) {
+            Some({product: p, chainAxes, sVal})
+          } else {
+            None
           }
-        })
-      }
-    | _ => None
+        } else {
+          None
+        }
+      })
     }
   | _ => None
+  }
+
+// A single-branch collect chain whose terminal value has NO linear context — its
+// args live on incomparable sibling axes — but which `matchProductChain` did not
+// resolve to a full constructed product. That is an under-determined or
+// partially-covered n-ary consumer (only a sub-product was crossed, or the chain
+// collects some axes while holding others): the whole-table emitter needs the
+// EXACT product spanning the chain's axes, which does not exist. Compiling it
+// would reach a sibling element port outside its flow (a raw failwith); this
+// predicate lets the router decline with a clean Todo instead, leaving the case
+// to the poset round's context-model check. A value with a linear context (an
+// ordinary nested collect) returns false and compiles normally.
+let underCoveredProduct = (cn: node): bool =>
+  switch cn.kind {
+  | Collect({branches: [{value}]}) =>
+    let (_, terminal) = chainFlows(value)
+    switch Context.valueContext(terminal) {
+    | _ => false
+    | exception Context.Incomparable(_) => true
+    }
+  | _ => false
   }
 
 // --- The compile ------------------------------------------------------------
@@ -365,7 +436,19 @@ let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
       | Collect({branches}) =>
         switch matchProductChain(st, n) {
         | Some(m) => emitProductChain(st, ctx, n, m)
-        | None => emitCollect(st, ctx, n, branches)
+        | None =>
+          if underCoveredProduct(n) {
+            throw(
+              Todo(
+                "an under-determined / partially-covered n-ary product consumer — the " ++
+                "whole-table emitter needs an exact constructed product spanning the " ++
+                "chain's axes (product-flows-design.md's N-ary section; the poset " ++
+                "round's context-model check owns witnessing it)",
+              ),
+            )
+          } else {
+            emitCollect(st, ctx, n, branches)
+          }
         }
       | Uncollect(_) =>
         // Flow-borne ports (the per-iteration element / per-alt payload)
@@ -1426,49 +1509,51 @@ and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<pl
       }
     )
 
-    // Assemble innermost-out. This emitter handles the binary product only;
-    // n-ary is the poset round's remaining generalisation.
-    if Array.length(p.axes) !== 2 {
-      throw(Todo("n-ary product table (three or more crossed axes) — product-flows-design.md's flat axis sets"))
-    }
-    let a0 = arrNames->Array.getUnsafe(0)
-    let a1 = arrNames->Array.getUnsafe(1)
-    let i0 = idxVars->Array.getUnsafe(0)
-    let i1 = idxVars->Array.getUnsafe(1)
-    let e0 = elemNames->Array.getUnsafe(0)
-    let e1 = elemNames->Array.getUnsafe(1)
-    let feed0 = feedCs->Array.getUnsafe(0)
-    let feed1 = feedCs->Array.getUnsafe(1)
-    let bucket0 = Map.get(buckets, ctxPathKey(segs->Array.slice(~start=0, ~end=1)))->Option.getOr([])
-    let bucket1 = Map.get(buckets, ctxPathKey(segs))->Option.getOr([])
-
-    let rowName = st.fresh()
+    // Assemble the n-dimensional cube innermost-out. Each axis j contributes a
+    // level: the outer levels accumulate rows, the innermost pushes force(val).
+    // `product-flows-design.md`, N-ary: "The table indexing generalises verbatim
+    // … a point-indexed structure, one entry per point" — the two-axis nested
+    // for-of becomes n nested index-loops over the same shape.
+    let n = Array.length(p.axes)
     let tName = st.fresh()
-    let innerBody = Array.concat(
+    let bucketFor = (i: int): array<JsAst.stmt> =>
+      Map.get(buckets, ctxPathKey(segs->Array.slice(~start=0, ~end=i + 1)))->Option.getOr([])
+    // buildLevel(j, accName): the loop over axis j, pushing into `accName`. At the
+    // innermost axis it pushes the computed value; otherwise it opens a fresh row,
+    // builds the next axis into it, and pushes that row.
+    let rec buildLevel = (j: int, accName: string): JsAst.stmt => {
+      let aj = arrNames->Array.getUnsafe(j)
+      let ij = idxVars->Array.getUnsafe(j)
+      let ej = elemNames->Array.getUnsafe(j)
+      let head = Array.concat(
+        [JsBuild.const(ej, Runtime.lazyDoneOf(JsBuild.index(JsBuild.id(aj), JsBuild.id(ij))))],
+        bucketFor(j),
+      )
+      let tail = if j === n - 1 {
+        [
+          JsBuild.exprStmt(
+            JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [Runtime.forceOf(JsBuild.id(valC.name))]),
+          ),
+        ]
+      } else {
+        let childAcc = st.fresh()
+        [
+          JsBuild.const(childAcc, JsBuild.array_([])),
+          buildLevel(j + 1, childAcc),
+          JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [JsBuild.id(childAcc)])),
+        ]
+      }
+      cForArr(ij, aj, Array.concat(head, tail))
+    }
+    let thunkBody = Array.concat(
       Array.concat(
-        [JsBuild.const(e1, Runtime.lazyDoneOf(JsBuild.index(JsBuild.id(a1), JsBuild.id(i1))))],
-        bucket1,
+        feedCs->Array.mapWithIndex((c, j) =>
+          JsBuild.const(arrNames->Array.getUnsafe(j), Runtime.forceOf(JsBuild.id(c.name)))
+        ),
+        [JsBuild.const(tName, JsBuild.array_([])), buildLevel(0, tName)],
       ),
-      [JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(rowName), "push"), [Runtime.forceOf(JsBuild.id(valC.name))]))],
+      [JsBuild.ret(JsBuild.id(tName))],
     )
-    let outerBody = Array.concat(
-      Array.concat(
-        [JsBuild.const(e0, Runtime.lazyDoneOf(JsBuild.index(JsBuild.id(a0), JsBuild.id(i0))))],
-        bucket0,
-      ),
-      [
-        JsBuild.const(rowName, JsBuild.array_([])),
-        cForArr(i1, a1, innerBody),
-        JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(tName), "push"), [JsBuild.id(rowName)])),
-      ],
-    )
-    let thunkBody = [
-      JsBuild.const(a0, Runtime.forceOf(JsBuild.id(feed0.name))),
-      JsBuild.const(a1, Runtime.forceOf(JsBuild.id(feed1.name))),
-      JsBuild.const(tName, JsBuild.array_([])),
-      cForArr(i0, a0, outerBody),
-      JsBuild.ret(JsBuild.id(tName)),
-    ]
 
     let tableName = st.fresh()
     Map.set(st.tableMemo, tkey, tableName)
@@ -1479,59 +1564,68 @@ and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<pl
   }
 }
 
-// A product-consumer chain: two nested collects reading one shared table in a
+// A product-consumer chain: k nested collects reading one shared table in a
 // chosen order (product-flows-design.md, "each consumer traverses the shared
-// table in its own order"). Both axes are traversed by index so out1 and its
-// transpose out2 index the same [i0][i1] table. Output is a list of lists (the
-// any-list rule: two list axes ⇒ nested lists).
+// table in its own order"). Every axis is traversed by index, so all k! readings
+// of the product index the same point-indexed table — the transpose (and, at
+// rank 3+, every permutation) is free. Output is k-deep nested lists (the
+// any-list rule: k list axes ⇒ k nesting levels).
 and emitProductChain = (st: state, ctx: ctxPath, cn: node, m: productMatch): compiled => {
   let floatedAcc: array<placed> = []
   let (tableName, tableFloated) = getOrBuildTable(st, m.product, m.sVal)
   tableFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  // The consumer's outer/inner feeds — the same list sources, memo-shared with
-  // the table build, so they compile once.
-  let feedOuterC = compileValue(st, ctx, m.outerAxis.feed)
-  feedOuterC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-  let feedInnerC = compileValue(st, ctx, m.innerAxis.feed)
-  feedInnerC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  let iOuter = st.fresh()
-  let iInner = st.fresh()
+  let k = Array.length(m.chainAxes)
+  // The consumer's per-axis feeds, in traversal order — the same list sources,
+  // memo-shared with the table build, so they compile once.
+  let feedCs = m.chainAxes->Array.map(a => {
+    let c = compileValue(st, ctx, a.feed)
+    c.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    c
+  })
+  let idxVars = m.chainAxes->Array.map(_ => st.fresh())
+  let arrNames = m.chainAxes->Array.map(_ => st.fresh())
   let tbl = st.fresh()
-  let aOuter = st.fresh()
-  let aInner = st.fresh()
 
-  // Index the table in its stored orientation: each product axis contributes
-  // the loop index of whichever collect iterates it.
-  let indexFor = (a: productAxis): string =>
-    if a.axisKey === m.outerAxis.axisKey {
-      iOuter
-    } else {
-      iInner
-    }
+  // Index the table in its STORED orientation: each stored product axis is
+  // indexed by whichever chain loop iterates it (so this chain's order is just a
+  // different indexing of the one shared table).
+  let indexFor = (a: productAxis): JsAst.expr => {
+    let j = m.chainAxes->Array.findIndex(ca => ca.axisKey === a.axisKey)
+    JsBuild.id(idxVars->Array.getUnsafe(j))
+  }
   let lookup = m.product.axes->Array.reduce(JsBuild.id(tbl), (acc, a) =>
-    JsBuild.index(acc, JsBuild.id(indexFor(a)))
+    JsBuild.index(acc, indexFor(a))
   )
 
-  let innerName = st.fresh()
+  // buildLevel(j, accName): the loop over chain axis j, pushing into `accName` —
+  // the table lookup at the innermost level, an accumulated row otherwise.
+  let rec buildLevel = (j: int, accName: string): JsAst.stmt => {
+    let aj = arrNames->Array.getUnsafe(j)
+    let ij = idxVars->Array.getUnsafe(j)
+    let body = if j === k - 1 {
+      [JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [lookup]))]
+    } else {
+      let childAcc = st.fresh()
+      [
+        JsBuild.const(childAcc, JsBuild.array_([])),
+        buildLevel(j + 1, childAcc),
+        JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [JsBuild.id(childAcc)])),
+      ]
+    }
+    cForArr(ij, aj, body)
+  }
+
   let outName = st.fresh()
-  let innerBody = [
-    JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(innerName), "push"), [lookup])),
-  ]
-  let outerBody = [
-    JsBuild.const(innerName, JsBuild.array_([])),
-    cForArr(iInner, aInner, innerBody),
-    JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(outName), "push"), [JsBuild.id(innerName)])),
-  ]
-  let thunkBody = [
-    JsBuild.const(tbl, Runtime.forceOf(JsBuild.id(tableName))),
-    JsBuild.const(aOuter, Runtime.forceOf(JsBuild.id(feedOuterC.name))),
-    JsBuild.const(aInner, Runtime.forceOf(JsBuild.id(feedInnerC.name))),
-    JsBuild.const(outName, JsBuild.array_([])),
-    cForArr(iOuter, aOuter, outerBody),
-    JsBuild.ret(JsBuild.id(outName)),
-  ]
+  let thunkBody = Array.concat(
+    Array.concat(
+      [JsBuild.const(tbl, Runtime.forceOf(JsBuild.id(tableName)))],
+      feedCs->Array.mapWithIndex((c, j) =>
+        JsBuild.const(arrNames->Array.getUnsafe(j), Runtime.forceOf(JsBuild.id(c.name)))
+      ),
+    ),
+    [JsBuild.const(outName, JsBuild.array_([])), buildLevel(0, outName), JsBuild.ret(JsBuild.id(outName))],
+  )
 
   let name = st.fresh()
   recordMemo(st, cn.id, "value", ctx, name)
