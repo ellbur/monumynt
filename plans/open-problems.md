@@ -91,7 +91,10 @@ round's own first answer (register on a marker wire — dissolved:
 every register port is inert for a marker).
 One sharpening that round contributed: effects over a product make the
 loop-carried-state row's linearization residue *observable* (writes are
-non-commutative, removing the commutative-monoid escape hatch).
+non-commutative, removing the commutative-monoid escape hatch) — a
+filing since consumed by that residue's worked round
+(`product-linearization-design.md`, exploration: the spanning handle
+reads the drawn orientation, no escape hatch needed).
 *Cancellation and bracket* (`cancellation-design.md`): **stopping is
 drawn, cancelling is delivered** — a program only ceases demand through
 drawn constructs (a race settles, an interrupt or end-when fires, a
@@ -201,7 +204,22 @@ consumers of one non-commutative register reading in different
 orders, the recompute-vs-explicit-axis-reference trade. Effects
 sharpen that residue from the other side (`effects-design.md`): a
 spanning IO handle under a nested loop makes the linearization
-*observable* and removes the commutative-monoid escape hatch. The
+*observable* and removes the commutative-monoid escape hatch. That
+residue now carries a worked round of its own
+(`product-linearization-design.md`, exploration, unadopted): the
+trade dissolves with no new construct — order-freedom at consumers
+is licensed by confluence and void at order-observing consumers
+(register, context-read, spanning handle); the axis is the drawn
+orientation Cross already stores, read as ordinary nesting; the one
+cost is an **orientation-pinning demand** (authored to the observed
+depth, discharged by commutativity); "one register read in two
+orders" becomes unrepresentable, which the round argues is the
+truth (two scans are two computations sharing one context-free
+base). If its conversation adopts it, the collect-vs-ancestor fork
+closes outright. It owes a frequency check (non-commutative scans
+and spanning effects over genuine grids — invisible to loop
+sampling by construction) before the demand's ergonomic cost is
+weighed. The
 per-kind "next iteration" question — formerly the row's most
 concrete owed work, with several rounds writing checks on it — is
 now worked (`delay-ontology-design.md`, "Per-kind \"next

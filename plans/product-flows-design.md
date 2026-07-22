@@ -945,7 +945,14 @@ Delay* — the ancestor-uncollect candidate. The ontology round weighs
 this as a real cost on collect-binding rather than a knockout
 (recompute-per-consumer is a legitimate implementation), so the fork
 stays balanced. Recorded there as open; below, "the register's axis"
-means whichever flow that question settles on.
+means whichever flow that question settles on. (The question has
+since been worked in its own round —
+`product-linearization-design.md`, exploration, unadopted — whose
+claim is that the axis is *neither* candidate: it is the drawn
+orientation this chapter already stores on the Cross node, read
+through "represent A, read B," with an orientation-pinning demand
+where an order-observing consumer sits downstream. Everything in this
+section is independent of that outcome and transfers verbatim.)
 
 ### The program that demands it
 
@@ -1299,9 +1306,16 @@ along with what remains.
    The linearized whole-cube fold is a *different* program — Join the
    product (question 4, committing an orientation) then an ordinary
    register — so question 5 needs no linearization of its own.
-   Residue: the state thread's *visual* tiling over a product (the
-   layout repo's), and the axis-naming's textual spelling (the
-   textual-form row).
+   The reopened Delay question is since worked in
+   `product-linearization-design.md` (exploration, unadopted): the
+   axis is the stored orientation itself — this chapter's own
+   represent-A lean, firmed into meaning exactly where an
+   order-observing consumer makes it observable (the
+   orientation-pinning demand) — dissolving the shared-grid argument
+   (two consumers in two orders are honestly two drawn registers over
+   one shared context-free base). Residue: the state thread's
+   *visual* tiling over a product (the layout repo's), and the
+   axis-naming's textual spelling (the textual-form row).
 6. **Mixed-kind axes.** `cross(list, option)` is a table with a
    0-or-1 axis — is that a construct anyone wants directly, or just a
    degenerate case the theorems cover? Cross over stream axes gives a
