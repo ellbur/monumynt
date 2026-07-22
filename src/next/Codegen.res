@@ -736,10 +736,10 @@ and emitCaseCollect = (
 }
 
 // The filter shape: an iter chain (`join`ed lists/options) whose innermost
-// operand is a case-alt flow — `join(list, case-alt)`. One thunk = a list
+// operand is a case-alt flow — `join(list, case-alt)`. One thunk = an
 // accumulator, the leading Iter levels' for-of / if-defined loops (option
-// levels skip when absent, contributing nothing to the list), and at the
-// innermost body a discriminator dispatch that pushes only in the matching alt:
+// levels skip when absent, contributing nothing), and at the innermost body a
+// discriminator dispatch that keeps only the matching alt:
 //
 //   const s = force(disc)(force(elem));
 //   if (s.tag === alt) { const payload = __lazyDone__(s.value); …value…;
@@ -747,7 +747,10 @@ and emitCaseCollect = (
 //
 // The alt payload port is pre-memoised at the alt's context so the value
 // subtree resolves it; loop-invariant work floats out of the thunk. Mirrors
-// Compile.emitFilterClose (output is always a list — push, not assign).
+// Compile.emitFilterClose for the any-list shapes; the any-list rule
+// (lazy-compile-design.md) decides the accumulator — any list level ⇒ a list
+// (push), an all-option filter ⇒ an option (`let out;` assign), the single-alt
+// case of emitPartialCollect's collected-alone reading.
 and emitFilterCollect = (
   st: state,
   ctx: ctxPath,
@@ -775,20 +778,20 @@ and emitFilterCollect = (
     }
   )
   if Array.length(iterLevels) === 0 {
-    failwith("Codegen.emitFilterCollect: a filter needs a list to iterate — Check should have witnessed")
+    failwith("Codegen.emitFilterCollect: a filter needs a leading flow to iterate — Check should have witnessed")
   }
-  // The output is a list (push per kept firing), so at least one list level must
-  // drive it. An all-option filter's accumulator shape (a list-of-0-or-1 vs an
-  // option) is the any-list-rule question in a different guise — a separate round.
+  // The any-list rule (lazy-compile-design.md) decides the accumulator, exactly
+  // as in emitPartialCollect: any list level ⇒ a list output (push per kept
+  // firing); an all-option filter ⇒ an option output (`let out;` assigned only
+  // when every option fires and the alt matches). A single-alt filter over
+  // options is the single-arm case of emitPartialCollect's collected-alone
+  // reading (test 7c), so the two emitters stay consistent.
   let anyList = iterLevels->Array.some(l =>
     switch l {
     | IterLevel({isList}) => isList
     | AltLevel(_) | PartialLevel(_) => false
     }
   )
-  if !anyList {
-    throw(Todo("filter over only option levels — the accumulator-shape (list vs option) question, a separate round"))
-  }
   let (discriminator, csInput) = switch split.kind {
   | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
   | _ => failwith("Codegen.emitFilterCollect: alt level's node is not a case split — placement bug")
@@ -870,20 +873,24 @@ and emitFilterCollect = (
 
   let outName = st.fresh()
   let splitName = st.fresh()
+  // Any list ⇒ push per kept firing; all options ⇒ assign the single kept value.
+  let payloadAction = if anyList {
+    JsBuild.exprStmt(
+      JsBuild.call(
+        JsBuild.member(JsBuild.id(outName), "push"),
+        [Runtime.forceOf(JsBuild.id(valueC.name))],
+      ),
+    )
+  } else {
+    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
+  }
   let altBucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
   let altBody = Array.concat(
     Array.concat(
       [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")))],
       altBucket,
     ),
-    [
-      JsBuild.exprStmt(
-        JsBuild.call(
-          JsBuild.member(JsBuild.id(outName), "push"),
-          [Runtime.forceOf(JsBuild.id(valueC.name))],
-        ),
-      ),
-    ],
+    [payloadAction],
   )
   let dispatch = [
     JsBuild.const(
@@ -917,8 +924,13 @@ and emitFilterCollect = (
         ]
       }
   }
+  let accDecl = if anyList {
+    JsBuild.const(outName, JsBuild.array_([]))
+  } else {
+    JsBuild.letDecl(outName)
+  }
   let thunkBody = Array.concat(
-    [JsBuild.const(outName, JsBuild.array_([]))],
+    [accDecl],
     Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
   )
 

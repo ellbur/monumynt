@@ -49,7 +49,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results (with the engine used
 printed per output), automatic differential checks, round-trips, witness
 demos, and a register program that prints but declines to compile.
-Currently 127 checks.
+Currently 133 checks.
 
 ## The two engines (the migration harness)
 
@@ -106,7 +106,10 @@ multi-output compilation (outputs share one memo), **case collects**,
 flatten-then-filter — a Join whose outer is itself a Join stacks its
 leading list levels before the dispatch — and **option leading levels**,
 where a `join(join(list, option), case-alt)` loops the list, skips the
-absent option per firing, and pushes the kept alt), **partial collects**
+absent option per firing, and pushes the kept alt; an **all-option
+filter** `join(option, case-alt)` has no list, so the any-list rule
+makes its output an option — `let out;` set only when the option fires
+and the alt matches), **partial collects**
 (the direct slice — a merged flow of k covered cells feeding a filter or
 an option, its leading levels list or option just like the filter's),
 **registers** (the Delay pair over a single-level
@@ -235,11 +238,15 @@ line tells you which tests are waiting.
    discriminator dispatch. Leading levels may be **list or option** (an
    absent option skips its firing, contributing nothing — mirrors
    `emitIterCollect`'s per-level for-of / if-defined branch; NextMain
-   test 7e, beyond the bridge so hand-validated); at least one list
-   level must drive the list output. Non-trailing alt levels, and the
-   all-option filter (its accumulator shape — list-of-0-or-1 vs option —
-   is the any-list-rule question), still raise `Todo`. Flips test 7;
-   differential validates the list-only shapes.
+   test 7e, beyond the bridge so hand-validated). The **all-option
+   filter** (no list level) is now handled too: the any-list rule
+   (`lazy-compile-design.md`) makes its output an **option** (`let out;`
+   + assign, set only when the option fires and the alt matches) rather
+   than a list — the single-alt case of `emitPartialCollect`'s
+   collected-alone reading (test 7c), so the two emitters stay
+   consistent (NextMain test 7f, hand-validated). Only **non-trailing
+   alt levels** still raise `Todo`. Flips test 7; differential validates
+   the list-only shapes.
 3. **Parser catch-up** (`TextParse.res`): flow-ref lane groups — DONE
    for the labeled form (`~flow: value` lanes + `-~> collect =>` binder;
    `TextParse.parseLaneCollect` → `TextAst.LaneCollect` →
