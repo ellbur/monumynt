@@ -119,7 +119,12 @@ axis-reference trade. Everything else has either coincided, been
 answered by provenance (update) and the consumer (read), or been
 closed. The per-kind question — which kinds supply a "next
 iteration" at all — is since worked below (the owned-order
-criterion), with leanings, unadopted.
+criterion), with leanings, unadopted. And the linearization residue
+itself has since been worked in its own round
+(`product-linearization-design.md`, exploration, unadopted): the
+axis is the *drawn orientation* of the flow the register rides —
+neither candidate — and the trade reduces to an orientation-pinning
+demand; see the Open list's endnotes.
 
 ## Firm ground: a Delay is a feature of the flow
 
@@ -1490,7 +1495,25 @@ current state of every strand:
   family's footgun (`tidyverse-comparison.md`) — field support for
   ordering attaching to the operation's walk rather than to ambient
   state, i.e. for the branch where the consumer's stated
-  orientation supplies the axis.
+  orientation supplies the axis. **The residue is since worked in
+  its own round** (`product-linearization-design.md`, exploration,
+  unadopted), which claims it dissolves with no new construct:
+  order-freedom at consumers is licensed by confluence (Option B's
+  own defence), the license is void at order-observing consumers
+  (register, raw context-read, spanning handle), and there the axis
+  is the **drawn orientation of the flow itself** — Cross's stored
+  (outer, inner) operands plus authored commutes, ordinary nesting
+  from there — neither the binding collect (a downstream operand
+  must not select upstream values, and consumer orientation
+  conflates fold axis with read order) nor the ancestor. "One
+  register read in two orders" becomes unrepresentable — visibly two
+  registers sharing the context-free base — and the whole residual
+  cost is the *orientation-pinning demand* (authored to the observed
+  depth, discharged by commutativity, never triggered by per-firing
+  handles). If adopted, the fork closes on this list's "a specified
+  third flow." That round also re-reads the dplyr datum: `order_by`
+  and arrange-then-scan vote for the order being *stated* at or
+  above the observer, which is the drawn-orientation shape.
 - **Is "value wire in context" the right model of an uncollected
   value?** Argument 2's reframing — every per-iteration value
   carries a previous and a next — reaches beyond Delay into what

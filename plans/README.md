@@ -105,6 +105,15 @@ they change how everything else is read.
   meaning owns, not one that merely happens at run time), cashing the
   register checks the incremental, concurrent-collect, async, and
   served rounds had written. *Exploration.*
+- [`product-linearization-design.md`](product-linearization-design.md)
+  — the doc above's one hard residue, worked: which order an
+  order-sensitive register (or a spanning effect) walks a multi-axis
+  grid in. The claim: no new construct — order-freedom at consumers is
+  licensed by confluence and void where order is observed; the axis is
+  the orientation Cross already stores, read as ordinary nesting; the
+  one cost is an orientation-pinning demand (authored where observed,
+  discharged by commutativity). If adopted, the collect-vs-ancestor
+  fork closes. *Exploration.*
 
 ## Representation and checking
 

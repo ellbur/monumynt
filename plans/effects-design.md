@@ -398,7 +398,16 @@ is not commutative. So effects do not open a new question here; they
 residue, and make settling it load-bearing for any program that
 writes under nested iteration. Filed back to the loop-carried-state
 and products rows as the observable-stakes version of a question they
-already own.
+already own. (The filing has since been consumed:
+`product-linearization-design.md` — exploration, unadopted — works
+the residue with the spanning handle as one of its three
+order-observing clients. Its answer for this section's case: the
+grid's concatenation order is the *drawn orientation* of the crossed
+flows — Cross's stored operands plus authored commutes — which
+converts the grid case into the nested case this section already
+calls fine; an unpinned orientation under a spanning handle fails an
+orientation-pinning demand with the handle as witness, and the
+never-drawn commute stays never-drawn.)
 
 ## What this no longer feeds the open question of what a Delay *is*
 
