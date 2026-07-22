@@ -525,6 +525,38 @@ header("filter over only options: join(option, case-alt) yields an option")
 }
 
 // ============================================================================
+// 7g. Filter-then-flatmap — join(join(list, case-alt), inner-list). The
+//     dispatch is NON-trailing: an inner list opens inside the kept alt and is
+//     flattened out. For each outer element, dispatch by tag; for a "Just",
+//     iterate its payload list and emit each element; a "Nothing" contributes
+//     nothing. The emitted thunk nests a for-of INSIDE the alt guard's if —
+//     the shape the legacy filter close cannot express (its dispatch is always
+//     innermost). Beyond the bridge, so validated against a hand-computed value.
+// ============================================================================
+
+header("filter-then-flatmap: join(join(list, case-alt), inner-list) flattens the kept alt")
+{
+  let b = Build.make()
+  // The discriminator drops n === 2 (Nothing) and tags the rest as Just whose
+  // payload is a two-element list to flatten out.
+  let disc = Build.raw(b, "n => n === 2 ? {tag: 'Nothing'} : {tag: 'Just', value: [n, n * 10]}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let outer = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, outer.element)
+  let just = Build.alt(cs, "Just")
+  // The inner list opens over the kept alt's payload (nested under the alt flow).
+  let inner = Build.uncollectList(b, ~nesting=just.altFlow, just.altValue)
+  // join the alt cell onto the outer list (j1), then flatten the inner list (j2).
+  let j1 = Build.join(b, ~outer=outer.flow, ~inner=just.altFlow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=inner.flow)
+  let out = Build.collect(b, ~flow=j2.flow, inner.element)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // 1 -> Just([1,10]); 2 -> Nothing (skip); 3 -> Just([3,30]). Flattened: [1,10,3,30].
+  expectOutput(p, "out", array_([int_(1), int_(10), int_(3), int_(30)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 7b. Partial collect — the merged flow of two covered cells, terminated by a
 //     join (a multi-cell filter: "keep the A's and B's, drop the C's").
 //     Beyond the bridge (its case close is exhaustive-or-throw), so validated
