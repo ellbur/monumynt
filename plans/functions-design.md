@@ -15,10 +15,13 @@ call is, what is per-call and what is shared — is now worked as its
 own round (`function-boundary-design.md`, exploration): a function is
 a **remembered cut** through the wiring, not a container; ports are
 the wires the cut crosses, membership is derived (a node is per-call
-iff downstream of an in-port), the call and the divide flow's link
-are one node species, and the interface below is the cut's derived
-summary. Read that round for the construct; this doc remains the
-tutorial voice and the record of the settled rejections below.
+iff downstream of an in-port), and the interface below is the cut's
+derived summary. Functions per se are about *reuse* — sameness
+across sites; recursion is the divide flow's link, which shares the
+cut's substrate while staying its own anonymous construct (that
+round's first design conversation settled the separation). Read
+that round for the construct; this doc remains the tutorial voice
+and the record of the settled rejections below.
 
 ## Your first function
 

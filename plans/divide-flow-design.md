@@ -629,13 +629,19 @@ The language hasn't decided any of these.
    the level boundary, and its spelling should be decided jointly
    with that row and the textual catch-up. The examples' `diagram`
    wrapper is the provisional stand-in. *The boundary round now
-   exists* (`function-boundary-design.md`, exploration): a boundary
-   is a remembered cut whose ports are the crossing wires, **the
-   link and the call are one node species** (recursion is a cycle of
-   boundary references, the measure discipline attaching to
-   call-graph cycles), and `level of` survives as the anonymous
-   self-reference. If adopted, this question reduces to the textual
-   catch-up's spelling pass.
+   exists* (`function-boundary-design.md`, exploration, revised in
+   its first design conversation): a boundary is a remembered cut
+   whose ports are the crossing wires, and the link **stands on
+   that substrate without becoming a call** — instancing,
+   membership, and the measure are defined once over the boundary
+   object, but the link stays its own page-local, anonymous
+   construct (recursion never routes through a named function; the
+   recorded reasons are the guard family's register symmetry and
+   the extract-to-recurse cliff). `level of` stays this round's
+   spelling; mutual recursion gets page-local *level labels* (the
+   loop-label precedent), not function names. If adopted, the
+   anchor question is answered by the substrate and what remains is
+   the label's spelling, jointly with the textual catch-up.
 2. **Mutual recursion.** Expression/statement grammars link *two*
    levels each into the other. Structurally nothing above forbids a
    link naming a sibling level's boundary; the measure must then be

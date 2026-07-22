@@ -273,12 +273,17 @@ consumes, and whether it needs an input list at all:
   extraction, never declared), membership is derived (per-call iff
   downstream of an in-port), closure capture dissolves into the prefix
   rule, and reusability is a derived check with a drawable witness.
-  The call and the divide flow's link are one node species (recursion
-  is a cycle of boundary references, guarded by a measure — the third
-  member of "every cycle crosses a guard"); the spec's slot dissolves
-  into the op pair; function, recursive level, provider, and the
-  top-level program are one species under four bindings.
-  *Exploration.*
+  Functions per se are about *reuse* (sameness across sites — the
+  honest form exactly where a manufactured shared flow would be a
+  lie); the divide flow's link shares the cut's substrate while
+  staying its own anonymous construct (recursion never routes through
+  a named function — settled in the round's first design
+  conversation), with the measure guarding reference cycles of any
+  species. Partial cuts give local functions (uncut wires are free
+  wires; the prefix rule derives the validity region; linear values
+  force port-ification); the spec's slot dissolves into the op pair;
+  function, level, provider, and the top-level program share one
+  substrate under four bindings. *Exploration.*
 - [`configuration-scopes.md`](configuration-scopes.md) — the replacement
   for higher-order arguments (comparators, predicates): instead of
   passing a function, open the operation as a scope and wire the
