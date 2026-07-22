@@ -374,7 +374,17 @@ inferred error sets are not well-founded over recursion
 payload-set inference must stop — the leaning is that a link
 crossing demands a *declared* payload set, the way Zig's recursive
 functions demand explicit error sets. Filed with failability's
-payload-composition residue.
+payload-composition residue. *That round now exists*
+(`failure-payloads-design.md`, exploration) and relocates the
+reason: the inventory fixpoint over a link cycle is monotone on a
+finite domain (minting sites are drawn), so inference is
+well-founded here — Zig's breakage is type-level genericity and
+does not transfer. The declared set survives with its role changed
+from necessity to boundary summary: the link is a reuse boundary,
+its inventory belongs in the principal property signature, and
+*pinning* it by declaration is a checked documentation choice
+(too-small declared set = clash with the extra site as witness),
+not a demand.
 
 ## Deep rewrite: the unfold client
 

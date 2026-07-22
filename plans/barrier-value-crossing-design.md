@@ -584,7 +584,10 @@ The language hasn't decided these yet:
    crossing story.
 5. **Terminator payload composition** (`E1`/`E2` across chained
    failability) — unchanged from the async residuals, and clearly a
-   value-level question, not a port question.
+   value-level question, not a port question. *Now worked*
+   (`failure-payloads-design.md`, exploration): the inventory is a
+   derived property, composed by propagation — confirming it never
+   touches this round's port story.
 6. **Merged-flow identity** (partial-collect open question 4) —
    unchanged; the m-siblings answer adds a place it could matter (m
    redundant merged flows over one cell set, if stream chain sharing

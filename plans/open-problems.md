@@ -140,7 +140,8 @@ permit-pool block (now unblocked by bracket); the threaded op's and the
 release half's spellings; the `Cancelled` payload (joint with
 failability's composition residue); multi-close — one spanning handle's
 single threading consumer, and frontier accounting at walk granularity;
-bodies-raise / lightweight failure stays owned by failability.
+bodies-raise / lightweight failure stays owned by failability (now
+worked there — `failure-payloads-design.md`).
 
 W = 5 because ~42% of sampled loops exist to cause effects; roughly
 eight of thirty orchestration sites touch
@@ -364,28 +365,6 @@ concurrent collect and race rounds. See `race-barrier-design.md`,
 `served-flow-design.md`, `translation-exercise.md`,
 `effekt-comparison.md`, `flix-comparison.md`,
 `xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
-
-**Failability's residue — I 3, W 4.**
-The core is worked (terminator payloads, propagate-by-default,
-discharge at a whole-flow collect — `async-flow-design.md`). Residue:
-payload-type composition is unexamined; "do bodies raise?" is flagged
-genuinely open; the discharging collect's ports fold into the
-barrier-crossing row (Tier 3, now worked with leanings); the
-option/async convergence is sharpened but undecided. End-when's readout
-composition leans entirely on discharge, so adoption pressure now
-arrives from the everyday side too.
-
-Prior art gives both flagged residues field answers. Zig's `try` is
-propagate-by-default shipped (bodies-raise: yes, at one keyword's cost
-— the strongest witness for the lightweight `fail` direction; a
-seven-statement end-when encoding of a raise is not viable as the
-everyday form). Error-set algebra: union at merge points, subset→
-superset coercion along propagation, inference by default with a named
-escape to explicit sets, and the warning that inference breaks on
-recursion (a constraint to carry to the divide flow and feedback
-forms). `catch |e| switch` with exhaustive error switches is the
-discharge + split-on-tag idiom in the mainstream. See `zig-comparison.md`,
-`async-flow-design.md`.
 
 **Checking: the deferred design rounds — I 3, W 4.**
 The stance is settled (demands/offers, no search, drawable witnesses —
@@ -748,6 +727,59 @@ spec-side reconciliation (its Join's value ports re-read as drawn
 availability), and the concurrent join × Cross unification question it
 strengthened.
 
+**Failability's residue — I 2, W 4.**
+The core is worked (terminator payloads, propagate-by-default,
+discharge at a whole-flow collect — `async-flow-design.md`), and the
+two flagged residues now carry a worked round of their own
+(`failure-payloads-design.md`, exploration; moved down from Tier 2 by
+this index's maintenance rule). **Failure is drawn, not thrown**:
+bodies never raise ambiently — the raise is `fail`, the
+terminator-writing family's third member (one wiring, three
+consumers: join keeps an alt's firings, end-when stops before them,
+fail aborts at them; exclusive always, no bit; the once-context
+degenerate fills the now-column result-as-flow row), with the JS edge
+converting *declared* throws by catalog row and undeclared throws
+staying edge breaches — so failability is derived and readable (a
+flow is failable iff its inventory is nonempty), never annotated.
+And **payload composition is neither unification nor mapping**: a
+terminator lane is a set of drawn minting sites grouped by tag; the
+inventory at any consumer derives by the same monotone propagation as
+every other property (union along stacks, nesting, and chained
+closes; discharge exhaustiveness = alt matching over the derived
+inventory; every lane carries a minting-site witness; the fixpoint is
+finite even over recursion), and re-tagging is drawn only where
+meaning changes (discharge, transform, re-fail). The round cashes the
+checks other rows wrote on it: `Cancelled` carries no payload
+(nothing in hand at delivery — the cancellation lean confirmed
+structurally); the subset-merge payload stays the bare fact (a
+winner's value belongs to the winner's lane); speculation's aggregate
+is ordinary data construction over already-discharged payloads; the
+divide-flow link's declared sets survive as boundary summaries with
+the well-foundedness worry dissolved (Zig's recursion warning is
+type-level genericity and does not transfer); the served flow's
+response lane and the fault-injecting double are consumed as failable
+catalog rows. Five dead ends recorded (ambient bodies-raise; nominal
+sets with coercion; mandatory declared sets; the dynamic catch-all as
+the model; cause-chain wrapping).
+
+Residue: the adoption conversation (joint with the async round's
+failability section and end-when — the terminator-writing family is
+one family); tag identity across reuse boundaries (touches the
+catalog schema, question 4); the option/async convergence, sharpened
+again (an option is the `{Nil}` inventory) but undecided; the
+spellings, owed to the textual round jointly with end-when's.
+End-when's readout composition leans entirely on discharge, so
+adoption pressure arrives from the everyday side too.
+
+Prior art, now consumed by the round rather than pending: Zig's `try`
+(propagate-by-default at one keyword) and its error-set algebra
+(union at merges, subset coercion, inference by default with a named
+escape) are re-derived as property propagation rather than type
+algebra; Java's checked exceptions and the dynamic `catch (e)` are
+the two negative poles the derived-with-optional-pinning posture
+sits between. See `failure-payloads-design.md`, `zig-comparison.md`,
+`async-flow-design.md`, `translation-exercise.md` (findings B2/C2).
+
 **Speculation: ordered alternatives with rollback — I 3, W 3.**
 Try alternatives in drawn order; an attempt can fail; the world is
 restored between attempts. Now worked in `speculation-design.md`: the
@@ -773,7 +805,10 @@ conflation).
 Remaining: the adoption conversation; primitive-barrier-vs-catalog-block
 (shared with race); commit's exact form and its nesting behavior;
 diagnosis payload composition (joint with failability's residue and
-end-when's discharge); the heuristic-order rung's membership in the
+end-when's discharge — the failability side is now worked,
+`failure-payloads-design.md`: the aggregate is ordinary data
+construction over already-discharged payloads, so what remains here
+is only *which* aggregate, a catalog choice); the heuristic-order rung's membership in the
 chooser family; release-of-effectful-attempts (waits on the Tier-1 IO
 round — only the trigger is named). W = 3 as a breadth obligation:
 parsing and search are rare-but-breaking; the evidence-owed domain

@@ -738,7 +738,10 @@ are small construct candidates with new pressure.
    abort walk costs seven statements via pure end-when; failability's
    propagate-by-default plus a one-word `fail` stage brings it to par
    with the source. Concrete demand for the failability-residue row's
-   open question.
+   open question. *That row's round now exists*
+   (`failure-payloads-design.md`, exploration): `fail` is worked as
+   end-when's failure-tagged sibling, and B2/C2 are its opening
+   evidence.
 3. **Sources: external pulls and bare repetition have no opener** (B4,
    C2). Survey classes 4 and 5 — six of sixty loops — cannot start on
    the page. The FFI stream source and the self-driven flow need at

@@ -232,7 +232,10 @@ representation — the blocker the ports document dissolves, though the
 barrier constructs still need their own Expr shape round). Decisions
 implementation will force: "do bodies raise?" (JS auto-converts throws
 to rejections, erasing the infallible/failable distinction — genuinely
-open), event-source retention policy, and the test-runner story (the
+open; now carrying a worked exploration, `failure-payloads-design.md`:
+failure is drawn, declared throws convert by catalog row, undeclared
+throws are edge breaches), event-source retention policy, and the
+test-runner story (the
 current `eval` + `JSON.stringify` harness is synchronous; async tests
 need an awaited variant). Incremental's pure-pull first implementation
 is deliberately the degenerate case of the hybrid; the push machinery

@@ -497,7 +497,10 @@ not rejected. The reasons matter, so here they are in full.
   effects (a failed write should propagate) but is owned by
   failability, not decided here. This chapter assumes the effect
   operation succeeds, or that failure is handled by the existing
-  terminator machinery.
+  terminator machinery. *The owning round now exists*
+  (`failure-payloads-design.md`, exploration): failure is drawn, and
+  a failable effect operation is a failable catalog row — its lanes
+  enter the inventory like any source's, nothing effect-specific.
 
 ## Open questions this round leaves
 
