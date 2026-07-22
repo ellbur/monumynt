@@ -7,7 +7,7 @@
 //   - Check: flow-context alignment (combining values from incomparable
 //     contexts is the time-travel / bundle-mixing clash).
 //   - Annotate: the flow-variable set handed to codegen (the
-//     generalisation of the legacy compiler's `deeper`).
+//     generalisation of the `deeper` placement rule).
 //   - TextResolve: seeding a chain's implicit flow stack from a named
 //     value's context.
 //

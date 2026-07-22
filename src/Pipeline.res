@@ -5,47 +5,25 @@
 //     1. check      — Check.res (witnesses or proceed)
 //     2. complete   — Complete.res (harvest/solve/realise; v0 trivial)
 //     3. annotate   — Annotate.res (write index, species)
-//     4. codegen    — TWO ENGINES, see below
+//     4. codegen    — Codegen.res
 //     5. print      — the existing JsPrint
 //
-// The two engines, and the migration harness they form:
-//
-//   - NextCodegen (Codegen.res) — the rebuild. Emitters land one at a
-//     time; an unimplemented one raises Codegen.Todo.
-//   - Bridge (LegacyBridge.res -> src/Compile.res) — the disposable
-//     stand-in, compiling one legacy IIFE per output.
-//
-//   `compile` tries NextCodegen and falls back to the Bridge on Todo, so
-//   every program compiles by the best engine available today and tests
-//   switch engines silently as emitters land. `codegenGap` reports which
-//   missing emitter caused a fallback — the successor's to-do signal.
-//   `compileVia` forces one engine; NextMain's differential check uses it
-//   to prove both engines agree wherever both can compile (the legacy
-//   suite is the rebuild's spec). When Codegen.Todo can no longer be
-//   raised, the Bridge, the legacy modules, and this fallback all retire.
-//
 // The pipeline returns witnesses as data (result type), never throws for
-// user-level problems. Engine gaps DO throw out of `compileVia`
-// (Codegen.Todo / Failure from the bridge) — they are compiler gaps, not
-// program errors, and the test runner reports them as such.
-
-type engine = NextCodegen | Bridge
+// user-level problems. A missing emitter DOES throw (Codegen.Todo) — that is a
+// compiler gap, not a program error, and the test runner reports it as such.
 
 type compiledOutput = {
   outputName: string,
   iife: JsAst.expr,
   js: string,
-  engine: engine,
 }
 
 type compiled = {
   outputs: array<compiledOutput>,
   insertions: array<Complete.insertion>,
-  // Some(msg) when NextCodegen raised Todo and the Bridge stood in.
-  codegenGap: option<string>,
 }
 
-// Passes 0-2, shared by both engines. Error = the program's own witnesses.
+// Passes 0-2. Error = the program's own witnesses.
 //
 // Complete runs BEFORE Check, and Check validates the COMPLETED program.
 // Completion commits an under-determined program (inserting a Cross for a
@@ -79,48 +57,18 @@ let codegenOutputs = (ann: Annotate.annotations, committed: Program.program): ar
   g.outputs->Array.map(((name, valueExpr)) => {
     let body = Array.concat(g.stmts, [JsBuild.ret(valueExpr)])
     let iife = JsBuild.call(JsBuild.arrow([], body), [])
-    {outputName: name, iife, js: JsPrint.printExpr(iife), engine: NextCodegen}
+    {outputName: name, iife, js: JsPrint.printExpr(iife)}
   })
 }
 
-let bridgeOutputs = (committed: Program.program): array<compiledOutput> => {
-  // One shared translation ctx so legacy node identity mirrors new node
-  // identity; still one independent legacy compile (and IIFE) per output.
-  let ctx = LegacyBridge.makeCtx()
-  committed.outputs->Array.map(o => {
-    let root = LegacyBridge.outputRoot(ctx, committed, o.name)
-    let iife = Compile.compileToIIFE(root.node)
-    {outputName: o.name, iife, js: JsPrint.printExpr(iife), engine: Bridge}
-  })
-}
-
-// Force a specific engine. Raises Codegen.Todo (NextCodegen) or Failure
-// (Bridge) when that engine cannot compile the program — compiler gaps,
-// not program errors.
-let compileVia = (eng: engine, p: Program.program): result<compiled, array<Check.witness>> =>
-  switch frontHalf(p) {
-  | Error(ws) => Error(ws)
-  | Ok({program: committed, insertions}) => {
-      let ann = Annotate.annotate(committed)
-      let outputs = switch eng {
-      | NextCodegen => codegenOutputs(ann, committed)
-      | Bridge => bridgeOutputs(committed)
-      }
-      Ok({outputs, insertions, codegenGap: None})
-    }
-  }
-
-// The default: the rebuild where it reaches, the bridge where it doesn't.
+// Compile a program. Returns witnesses as data; raises Codegen.Todo when an
+// emitter is not yet written (a compiler gap, not a program error).
 let compile = (p: Program.program): result<compiled, array<Check.witness>> =>
   switch frontHalf(p) {
   | Error(ws) => Error(ws)
   | Ok({program: committed, insertions}) => {
       let ann = Annotate.annotate(committed)
-      switch codegenOutputs(ann, committed) {
-      | outputs => Ok({outputs, insertions, codegenGap: None})
-      | exception Codegen.Todo(gap) =>
-        Ok({outputs: bridgeOutputs(committed), insertions, codegenGap: Some(gap)})
-      }
+      Ok({outputs: codegenOutputs(ann, committed), insertions})
     }
   }
 

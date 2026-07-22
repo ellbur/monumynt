@@ -1,11 +1,9 @@
 // The emitted runtime: the prelude every compiled output carries, plus the
 // builders generated code uses to reference it.
 //
-// Today this is the eager fragment's three lazy helpers, byte-identical to
-// the ones the legacy compiler emits (they are the piece of src/Compile.res
-// that compile-strategy-design.md says survives the rebuild). They are
-// duplicated here rather than aliased so that retiring the legacy modules
-// (growth-path: retirement) is pure deletion.
+// Today this is the eager fragment's three lazy helpers — the piece of the
+// runtime that compile-strategy-design.md says survives every later growth of
+// the compiler.
 //
 // Growth: when stream cells land (Delayed with iterative force, zipStream,
 // cell constructors — lazy-stream-* design docs), they are added HERE, and

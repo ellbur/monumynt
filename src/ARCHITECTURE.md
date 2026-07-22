@@ -1,14 +1,13 @@
-# src/next — the next-generation scaffolding
+# src — the compiler, architecture
 
-This directory is the **architecture of the rebuild, written as code**:
-types, working building blocks, and typed stubs. It exists so the design
-in `plans/` can be played with and its problems discovered, not to be
-right the first time. Design questions stay in `plans/`; this file only
-records how the *code* is shaped and which decisions it took.
+This file is the **architecture of the compiler, written as code**:
+types, working building blocks, and the passes. Design questions stay
+in `plans/`; this file records how the *code* is shaped and which
+decisions it took.
 
 It follows the sequencing of `plans/implementation-strategy.md`:
 representation first (ports, node set), text surface early (test
-leverage), compiler rebuilt as pure passes against that representation.
+leverage), the compiler as pure passes against that representation.
 
 ## Module map
 
@@ -32,8 +31,7 @@ function with a printable output):
 | 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
 | 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). An **under-covered** n-ary consumer (only a sub-product crossed, or a chain collecting some axes while holding others) declines with a clean `Todo` rather than crashing (soundly witnessing it is the poset round's context-model check). `Todo`/deferred, each citing its design doc: filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes and the partial/sub-product consumer (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
-| (stand-in) | `LegacyBridge.res` | **disposable**: translates `Program` → legacy `Expr` and reuses `src/Compile.res`. Now the *fallback engine* (below). Must never grow features; deleted at retirement. |
-| entry | `Pipeline.res` | derive → check → complete → annotate → **two engines** → `JsPrint`. Witnesses come back as data (`result`), engine gaps as exceptions (`Codegen.Todo` / bridge `Failure`). |
+| entry | `Pipeline.res` | derive → complete → check → annotate → codegen → `JsPrint`. Witnesses come back as data (`result`); a not-yet-written emitter raises `Codegen.Todo` (a compiler gap, surfaced to the caller). |
 
 The text surface (`textual-representation-design.md`):
 
@@ -45,40 +43,30 @@ The text surface (`textual-representation-design.md`):
 | `TextResolve.res` | working (v0 subset) | TextAst → `Program` via `Build`. Pronouns desugar here (P8): single-assignment global names, ordinal taps, the implicit flow stack as chain-local state. No semantic checks — those stay in `Check`, shared with every authoring path. |
 | `TextPrint.res` | working (total + chains) | `Program` → text. Total (registers, commute, cross print today). First pretty round DONE: single-consumer runs fuse into postfix chains, implicit flows drop their `~name`, single-use data literals inline, statements are topologically ordered by name dependency. Still deferred: junction taps (named fan-out stands in), bare `join` in a chain (joins print standalone), derived indentation and the span lint. |
 
-`NextMain.res` (`npm run next`) is the smoke suite / playground: text and
-handles building identical wiring, eval'd results (with the engine used
-printed per output), automatic differential checks, round-trips, witness
-demos, and a register program that prints but declines to compile.
-Currently 149 checks.
+`Main.res` (`npm start`) is the smoke suite / playground: text and
+handles building identical wiring, eval'd results validated against
+author-written expected values, round-trips, witness demos, and
+programs that print and check but decline to compile (the poset-round
+gaps). Currently 138 checks.
 
-## The two engines (the migration harness)
+## The single engine
 
-Pass 4 has two implementations, and the harness between them is how the
-rebuild lands **one emitter at a time with every test running**:
+Pass 4 is `Codegen.res`. An emitter that is not written yet raises
+`Codegen.Todo(msg)` — strictly for gaps (`failwith` remains reserved for
+compiler bugs and ill-formed programs Check should have witnessed).
+`Pipeline.compile` surfaces a `Todo` to its caller; the smoke suite
+(`Main.res`) either compiles a program and validates its eval'd value
+against an author-written expected, or asserts that a poset-round program
+declines with a clean `Todo`.
 
-- **NextCodegen** (`Codegen.res`) — the rebuild. An emitter that is not
-  written yet raises `Codegen.Todo(msg)`. `Todo` is strictly for gaps;
-  `failwith` remains reserved for compiler bugs and ill-formed programs
-  Check should have witnessed.
-- **Bridge** (`LegacyBridge.res` → `src/Compile.res`) — the disposable
-  stand-in, one legacy IIFE per output.
-
-`Pipeline.compile` tries NextCodegen and falls back to the Bridge on
-`Todo`, reporting the gap message in `compiled.codegenGap` — so the test
-log names exactly which emitter a fallback is waiting on.
-`Pipeline.compileVia` forces one engine; `NextMain.expectOutput` uses it
-to run the **differential check** automatically: whenever NextCodegen
-compiled an output and the Bridge can also compile the program, both are
-eval'd and must agree. The legacy suite (80 tests, `npm start`) plus this
-differential is the rebuild's spec — write an emitter, watch its tests
-flip engines, and agreement is checked without writing new tests.
-
-**Retirement** (was growth-path "codegen rebuild"): when no reachable
-program raises `Todo`, delete the fallback arm, `LegacyBridge.res`, and
-the legacy modules (`Expr`, `Compile`, `ExprPrint`, most of `Main` —
-first snapshot their emitted JS as golden files if output-shape review is
-wanted). `Runtime.res` already duplicates the lazy helpers, so retirement
-is pure deletion.
+Until 2026-07, codegen ran beside a disposable bridge into an earlier
+lazy compiler (`Expr`/`Compile`/`ExprPrint`), with `Pipeline.compile`
+falling back to it on `Todo` and a differential check proving the two
+engines agreed wherever both compiled. That migration is done: the bridge
+and the earlier modules are deleted, the emitters that were validated
+differentially now stand on the suite's independent oracles, and the
+shapes that only the bridge could never express (a partial collect, a
+register, a Cross) are validated against hand-computed values.
 
 ## What runs today
 
@@ -87,19 +75,14 @@ text ──TextLex/Parse──> TextAst ──TextResolve──> Program (node s
                                        │
 Build handles ─────────────────────────┤
                                        ▼
-        Derive(id) ─> Complete ─> Check ─> Annotate
-                                       │
-                      ┌────────────────┴───────┐
-                      ▼            Todo ⇒      ▼
-                 Codegen.res ─────────► LegacyBridge ─> src/Compile.res
-                      │                        │
-                      └───────────┬────────────┘
-                                  ▼
-                          JsPrint ─> eval (+ differential when both compile)
+        Derive(id) ─> Complete ─> Check ─> Annotate ─> Codegen.res
+                                                            │
+                                                            ▼
+                                                  JsPrint ─> eval
 ```
 
-Via NextCodegen today: the value fragment (including **computed
-functions** — App's fn is a wire, which the bridge cannot express),
+What compiles today: the value fragment (including **computed
+functions** — App's fn is a wire, so it can be another node's output),
 list/option chains with binary Join, multi-close, single-module
 multi-output compilation (outputs share one memo), **case collects**,
 **filters** (join with a case-alt inner operand, including nested
@@ -111,22 +94,21 @@ filter** `join(option, case-alt)` has no list, so the any-list rule
 makes its output an option — `let out;` set only when the option fires
 and the alt matches; and a **non-trailing dispatch** — a filter-then-
 flatmap `join(join(list, case-alt), inner-list)` that nests a for-of
-inside the alt guard to flatten the kept alt's payload, the one filter
-shape the legacy close cannot express), **partial collects**
+inside the alt guard to flatten the kept alt's payload, a dispatch that
+is not the innermost level), **partial collects**
 (the direct slice — a merged flow of k covered cells feeding a filter or
 an option, its leading levels list, option, or a case-alt dispatch — the
 filter-then-partial `join(join(list, case-alt), partial)` — just like the
 filter's),
 **registers** (the Delay pair over a single-level
-driving flow — the first non-legacy construct to run, so beyond the
-bridge and validated against the design docs rather than by the
-differential), and the **whole-table Cross of any rank** (a
+driving flow — validated against the design docs and hand-computed
+values), and the **whole-table Cross of any rank** (a
 product of n top-level list axes — the binary two-axis product consumed
 by a two-collect chain in either order, and the rank-3 cube authored by
 nesting binary Crosses `cross(cross(x,y),z)` consumed by a three-collect
 chain in any order — one shared point-indexed table/cube, every order
-indexing it, the user's computation run once per point; also beyond the
-bridge, validated against hand-built tables/cubes and a golden add-once
+indexing it, the user's computation run once per point; validated against
+hand-built tables/cubes and a golden add-once
 check. An under-covered n-ary consumer, where no constructed product
 spans the chain's axes, declines with a clean `Todo`), and the
 **completion of a
@@ -134,10 +116,9 @@ sibling-opens time-travel program** — the two-lists combine with no
 hand-drawn Cross has one inserted by `Complete` (which now runs *before*
 Check, so Check validates the completed program), then compiles via the
 whole-table emitter to the same values as the hand-drawn form
-(product-flows-design.md's "smallest first step" 3). Via the Bridge: nothing
-among the smoke tests still falls back. Representable-but-not-compilable
+(product-flows-design.md's "smallest first step" 3). Representable-but-not-compilable
 (prints, checks, and now round-trips through the text surface): commute
-(its standalone `commute out of` form authorable in text — NextMain 15c),
+(its standalone `commute out of` form authorable in text — Main 15c),
 non-top-level-list cross and the partial/sub-product consumer (the rest of
 the poset round; the flat rank-n top-level product now compiles — 15d/15e),
 explicit `in` nesting, partial collects whose merged
@@ -177,11 +158,13 @@ Representation and surface (from the first scaffolding round):
 
 Compile pipeline (this round):
 
-- **Engine fallback + differential is the migration structure.**
-  `Codegen.Todo` (gap; Pipeline falls back) vs `failwith` (bug /
-  should-have-been-witnessed; never falls back) is a load-bearing
-  distinction — a fallback that swallowed bugs would let the two engines
-  drift apart silently.
+- **`Codegen.Todo` (a not-yet-written emitter) vs `failwith` (a bug /
+  should-have-been-witnessed) is a load-bearing distinction.** It was
+  load-bearing during the bridge migration — a `Todo` fell back, a
+  `failwith` never did, so a fallback that swallowed bugs could not let
+  the two engines drift apart silently. The bridge is gone, but the
+  distinction stays: `Todo` is a clean compiler gap surfaced to the
+  caller, `failwith` is never reachable for a well-formed program.
 - **Complete runs before Check; Check validates the completed program.**
   The pipeline is derive → **complete → check** → annotate → codegen (not
   derive → check → complete). Completion commits an under-determined
@@ -206,8 +189,8 @@ Compile pipeline (this round):
   tagged by the collect whose emitted thunk owns that JS scope. Two
   sibling collects over one flow open structurally identical paths but
   distinct scopes; the tag is what stops a binding emitted inside one
-  thunk from being memo-reused in the other (the legacy compiler used
-  bodyRef object identity for this; tags are the pure spelling).
+  thunk from being memo-reused in the other (bodyRef object identity
+  would do this imperatively; tags are the pure spelling).
   Consequence kept intentionally: per-iteration work still re-emits per
   consuming thunk — the documented cost of the eager model.
 - **Memo keys on (node id, port); entries store the instantiated context
@@ -222,9 +205,8 @@ Compile pipeline (this round):
   pure interface** — the explicitly-allowed spelling in
   compile-strategy-design.md; `codegen` stays a function of
   (annotations, program).
-- **The runtime lives in `Runtime.res`**, duplicated from the legacy
-  compiler (not aliased) so retirement is pure deletion. Packaging
-  (inline prelude vs imported module) is deferred until streams make the
+- **The runtime lives in `Runtime.res`** as the emitted prelude.
+  Packaging (inline prelude vs imported module) is deferred until streams make the
   prelude non-trivial; meanwhile Pipeline wraps one IIFE per output,
   each carrying the whole module's statements (unused lazies never run)
   — real ES-module packaging is compile-strategy open q.3.
@@ -232,15 +214,17 @@ Compile pipeline (this round):
 ## Fill-in worklist (each item small, suite kept green; written for
 whoever picks this up next)
 
-The tracks are independent — any order works. For every codegen emitter:
-the legacy function named at the `Todo` is the spec, the differential
-check verifies agreement automatically, and the test log's `codegen gap`
-line tells you which tests are waiting.
+The tracks are independent — any order works. Most items below are DONE
+and kept as a build log (they record how each emitter landed — some of
+that history mentions the now-deleted bridge and its differential check,
+the harness that validated emitters against an earlier compiler as they
+were written; that migration is complete, see "The single engine"). The
+live work is item 8, the poset round.
 
 1. **Case collect emitter** — DONE (`Codegen.res`, `emitCaseCollect`,
    the `CaseFull` arm; spec: `Compile.emitCaseClose`). Pre-memoises the
    alt payload port (split id, alt name) at `exterior ++ [alt flow
-   tagged with this collect]`; NextMain test 6 runs via NextCodegen and
+   tagged with this collect]`; Main test 6 runs via NextCodegen and
    the differential validates it.
 2. **Filter collect emitter** — DONE (`Codegen.res`,
    `emitFilterCollect`, the `hasAlt` arm of `IterCollect`; spec:
@@ -250,17 +234,17 @@ line tells you which tests are waiting.
    **any order**, assembled innermost-out. Leading levels may be **list
    or option** (an absent option skips its firing, contributing nothing
    — mirrors `emitIterCollect`'s per-level for-of / if-defined branch;
-   NextMain test 7e, beyond the bridge so hand-validated). The
+   Main test 7e, beyond the bridge so hand-validated). The
    **all-option filter** (no list level) is handled too: the any-list
    rule (`lazy-compile-design.md`) makes its output an **option** (`let
    out;` + assign, set only when the option fires and the alt matches)
    rather than a list — the single-alt case of `emitPartialCollect`'s
    collected-alone reading (test 7c), so the two emitters stay
-   consistent (NextMain test 7f, hand-validated). The **non-trailing
+   consistent (Main test 7f, hand-validated). The **non-trailing
    dispatch** — an iter level nested *inside* a dispatch, i.e.
    `join(join(list, case-alt), inner-list)`, filter-then-flatmap: for
    each kept alt the emitter nests a for-of inside the alt guard's `if`,
-   flattening the alt's payload list (NextMain test 7g, hand-validated —
+   flattening the alt's payload list (Main test 7g, hand-validated —
    a shape the legacy filter close cannot express, its dispatch is always
    innermost). No `Todo` remains in `emitFilterCollect`. Flips test 7;
    differential validates the list-only trailing shapes.
@@ -268,19 +252,19 @@ line tells you which tests are waiting.
    for the labeled form (`~flow: value` lanes + `-~> collect =>` binder;
    `TextParse.parseLaneCollect` → `TextAst.LaneCollect` →
    `TextResolve.resolveLaneCollect` → `Build.collectCases`). Case
-   collects now parse, compile, and round-trip (NextMain test 6b); the
+   collects now parse, compile, and round-trip (Main test 6b); the
    partial form's `~flow` remainder binder is wired but untested (needs
    the partial-collect emitter). **`cross with` DONE** — the standalone
    product statement (`~left ~> cross with ~right => ~flow`,
    `TextParse.parseStage`'s `cross` case → `TextAst.StCross` →
    `TextResolve`'s flow-source combine, mirroring `join into`) parses,
    resolves, compiles (via the whole-table emitter), and round-trips
-   (NextMain 15b, both collect orders authored in text). **Infix
+   (Main 15b, both collect orders authored in text). **Infix
    operators DONE** — `+ - * / %` parse as accepted input (source infix
    `a * b` and the chain-position operator section `-> * 2`), desugaring
    to an App of the operator's extern (`TextParse.opInfo` precedence
    climb + `StBinop`; `TextResolve.opToJs`). The double/triple test
-   stand-ins are now real inline multiplication (NextMain 2–6b). The
+   stand-ins are now real inline multiplication (Main 2–6b). The
    canonical printer does not yet re-emit infix (design open question
    5), so a round-trip prints the desugared App form. **Prefix
    application DONE** — `f(x, y)` (and nested / curried `f(x)(y)`, and
@@ -288,7 +272,7 @@ line tells you which tests are waiting.
    `TextParse.parseApplied` / `TextResolve`'s `TApp` arm, building the
    same App the postfix stage `x, y -> f` does (the permissive grammar's
    other authoring path converging on one reading). The canonical printer
-   emits the postfix form, so a round-trip prints `x, y -> f` (NextMain
+   emits the postfix form, so a round-trip prints `x, y -> f` (Main
    1c, with a prefix≡postfix wiring-identity check). **`commute out of`
    DONE** — the standalone swap statement (`~inner ~> commute out of
    ~outer => cN`, `TextParse.parseStage`'s `commute` case gaining the
@@ -299,7 +283,7 @@ line tells you which tests are waiting.
    (a case split's `~cN.<Alt>` projection generalized). Bare `commute`
    stays the chain-position swap of the two innermost open layers.
    Commute is still representable-but-not-compilable (the emitter is the
-   poset round's), so NextMain 15c validates by wiring identity, a clean
+   poset round's), so Main 15c validates by wiring identity, a clean
    check, and the round-trip, not by evaluation. Still ahead of the
    parser: fused lanes, `;` multi-resume. Each remaining form has a
    pointed "not yet parsed" error today.
@@ -313,7 +297,7 @@ line tells you which tests are waiting.
    ~jN` or a referenced fn literal can end up before the statement that
    binds it — statements are therefore topologically sorted by name
    dependency (a "unit" = head node + the nodes it fuses; edges from any
-   cross-unit input; Kahn, ties by node order). NextMain has golden
+   cross-unit input; Kahn, ties by node order). Main has golden
    assertions (`expectFusedLine`) beside the round-trips. Still deferred
    (kept out to keep the round focused): junction TAPS (`|`) — named
    fan-out is the total, round-tripping stand-in; bare `join` in a chain
@@ -322,7 +306,7 @@ line tells you which tests are waiting.
 5. **Checks** (`Check.res`): **coverage** — DONE (`checkCoverage`):
    mixed-split / non-alt-multi-branch collects (via `classifyCollect`)
    plus duplicate-alt coverage, turning a case-emitter crash into a
-   witness (NextMain test 11). **productivity** — unreachable today (the
+   witness (Main test 11). **productivity** — unreachable today (the
    object graph is a DAG by construction; the only cycle is the register
    pairing itself), so left stubbed with that rationale recorded; it
    becomes load-bearing once a representation admits foreign cycles.
@@ -332,7 +316,7 @@ line tells you which tests are waiting.
    two flow *paths*, and `classifyClash` walks them to their first
    divergent step — sibling cells of one case split ⇒ `bundle-mixing`
    (hard error, names the split and both cells), otherwise ⇒
-   `time-travel` (completable — completion inserts a Cross). NextMain
+   `time-travel` (completable — completion inserts a Cross). Main
    tests 10 (`time-travel`) and 10b (`bundle-mixing`). `checkProvenance`
    now carries only the deferred cell-set / subset-lattice remainder
    (the poset round, item 8), where the not-≤ branch splits by the MEET:
@@ -346,7 +330,7 @@ line tells you which tests are waiting.
    than Codegen's "flow-borne port reached outside its flow" failwith —
    exact for element / alt-payload interiors (the branch flow targets an
    Uncollect), with Join/Commute/Cross interiors left to the poset round
-   (`branchInterior` returns None). NextMain test 12. Remaining: none in
+   (`branchInterior` returns None). Main test 12. Remaining: none in
    this pass — these turned the remaining Codegen asserts into
    user-facing witnesses.
 6. **Registers** — DONE for the self-driven case (`Codegen.res`,
@@ -354,7 +338,7 @@ line tells you which tests are waiting.
    half doubles as the feedback collect: it emits its own loop skeleton
    with a mutable accumulator (`let reg = force(init)`; `const prev =
    lazyDone(reg)` at body top; `reg = force(step)` at bottom; `return
-   reg`). NextMain test 8's decline flipped to a real compile (running
+   reg`). Main test 8's decline flipped to a real compile (running
    sum = 6, empty list = init). Remaining: (a) the **productivity
    check** (`Check.res` stub) — currently unreachable, since the object
    graph is a DAG by construction and the only cycle is the register
@@ -368,14 +352,18 @@ line tells you which tests are waiting.
    outside the write half's loop). (c) Registers over a joined / nested
    / case driving flow — the Delay ontology open problem
    (iteration-with-state-design.md); raises `Todo`.
-7. **Retirement** (see "The two engines"): when `Todo` is unreachable,
-   delete the fallback, the bridge, and the legacy modules.
+7. **Retirement** — DONE (2026-07). No reachable smoke program fell back
+   to the bridge, so the bridge, the `Pipeline` fallback, and the earlier
+   modules (`Expr`/`Compile`/`ExprPrint` and the old `Main`) were deleted,
+   the gap tests from the earlier value suite ported into the smoke suite
+   first (Codegen compiles all of them), and `src/next/` moved up to
+   `src/`. Codegen is now the only engine.
 8. **The poset round** (deferred together, because they are one
    context-model generalization — linear prefix → a genuine poset with
    non-tree segments). **Front half started**: Cross's "smallest first
    step" 1 — the **invariance fact** — is DONE (`Annotate.res` flow-
    variable sets: `introducedAxes`/`sourceAxes`/`valueAxes`; `Check.res`
-   `checkCross`, rule `invariance`; NextMain test 13). Pure non-merging
+   `checkCross`, rule `invariance`; Main test 13). Pure non-merging
    walks, so the demand is answerable on the two *incomparable* flows a
    Cross combines — the one fact the linear context model can't supply.
    A dependent nesting (inner source varies with the outer element) is
@@ -390,7 +378,7 @@ line tells you which tests are waiting.
    *complete* model rather than a convenient restriction. The `≤`
    primitive (`axes-⊆ + order-extends`) and the LUB `merge` (least
    *constructed* product above two siblings, else `Incomparable`) are
-   implemented and unit-tested (NextMain test 14). **First wiring
+   implemented and unit-tested (Main test 14). **First wiring
    landed**: `Context.productsIndex` builds the product index from the
    program's Cross nodes (`crossProduct` = `Poset.parallel` of the two
    operands' full contexts, via `fullPoset` — which **recurses into a
@@ -398,7 +386,7 @@ line tells you which tests are waiting.
    `{X||Y||Z}` rather than an opaque axis), and `checkAlignment` now
    consults `Poset.merge` so a valid sibling Cross ADMITS its combine
    while a wrong-axes / missing / bundle-mixing clash still witnesses
-   (NextMain test 13b). **The whole-table emitter landed at ANY rank**
+   (Main test 13b). **The whole-table emitter landed at ANY rank**
    (Cross's "smallest first step" 2, then the N-ary section): `Codegen.res`
    `emitProductChain` / `getOrBuildTable` compiles the product of **n**
    top-level list axes consumed by a **k-collect** chain — one shared
@@ -407,7 +395,7 @@ line tells you which tests are waiting.
    collect order indexing the same `force(table)[i][j][…]`, so all k!
    permutations are free and the user's computation runs once per point
    (`product-flows-design.md`'s "Compile" and N-ary, "the table indexing
-   generalises verbatim … more indices"; NextMain tests 15 (binary) and
+   generalises verbatim … more indices"; Main tests 15 (binary) and
    15d/15e (rank-3, handle- and text-authored), each with a golden
    add-once check and hand-built expected tables/cubes — beyond the
    bridge). The routing is `matchProductChain` (unwinds a k-deep
@@ -438,7 +426,7 @@ line tells you which tests are waiting.
    lattice"). The Delay-over-products case rides on this too.
    **Completion inserts a Cross** (Cross's "smallest first step" 3) is
    DONE for the binary sibling-opens case (`Complete.res`
-   `harvest`/`solve`/`realise`; NextMain test 10): the two-lists combine
+   `harvest`/`solve`/`realise`; Main test 10): the two-lists combine
    authored with no Cross now has the exact `Cross(X, Y)` inserted and
    compiles via the whole-table emitter, the same values as the
    hand-drawn form. `Complete` runs before Check (Pipeline), so Check
@@ -458,10 +446,10 @@ line tells you which tests are waiting.
    unified `filterPlan` (`FIter`/`FAlt`) shared with `emitFilterCollect`,
    so a `join(join(list, option), partial)` nests the dispatch inside the
    list's for-of and the option's defined-check (skipping an absent option
-   per firing; NextMain test 7d), and a `join(join(list, case-alt),
+   per firing; Main test 7d), and a `join(join(list, case-alt),
    partial)` is a **filter-then-partial** — keep the alt, then partial-
    collect a subset of a second split over the kept payload, the k-arm
-   dispatch nested inside the kept-alt guard (NextMain test 7h). NextMain
+   dispatch nested inside the kept-alt guard (Main test 7h). Main
    tests 7b/7c/7d/7h; beyond the bridge, so validated against hand-computed
    values. Still `Todo`: a leading `PartialLevel` (a partial feeding a
    partial — the merged-flow-into-merged-flow shape, the cell-set / poset
@@ -470,23 +458,18 @@ line tells you which tests are waiting.
    species in `Annotate` + cells in `Runtime.res` + an emitter, not a
    restructuring.
 
-## Relation to the legacy modules
+## The JS backend
 
-`src/JsAst.res`, `src/JsPrint.res`, `src/JsBuild.res` are keepers (the JS
-backend). `src/Expr.res`, `src/Compile.res`, `src/ExprPrint.res`,
-`src/Main.res` are the previous generation: they remain the running
-semantic record (80 tests, `npm start`), the Bridge's target, and the
-spec for every Codegen emitter (named per stub) — retired at worklist
-item 7, not before.
+`src/JsAst.res`, `src/JsPrint.res`, `src/JsBuild.res` are the JS backend:
+the typed AST, the precedence-aware printer, and the smart constructors.
+Codegen emits `JsAst`, `JsPrint` renders it, and the smoke suite `eval`s
+the result. They predate the current compiler and outlived the earlier
+one unchanged — the one stable layer under everything above.
 
-**Planned end state: no legacy/next separation.** The `next` generation
-is meant to fully supersede the previous one, not sit beside it forever.
-Once Codegen has no `Todo` stubs (the Bridge's whole reason to exist),
-the intent is to collapse the split entirely: retire `LegacyBridge` and
-the `Pipeline` fallback, migrate the legacy suite's coverage into the
-`next` pipeline (the `Main.res` tests become `next` programs — this is
-also where its remaining `double`/`triple` AST fixtures get rewritten as
-real inline operators), delete `Expr`/`Compile`/`ExprPrint`/`Main`, and
-move `src/next/` up to `src/`. Until then the two coexist by design (the
-legacy suite is the spec the rebuild is checked against); the note is
-here so the coexistence stays a transition, not a permanent shape.
+There is no longer a legacy/next separation. Until 2026-07 an earlier
+lazy compiler (`Expr`/`Compile`/`ExprPrint` and an old `Main`) ran
+beside this one as the migration's spec, reached through a disposable
+bridge and cross-checked by a differential; once Codegen compiled every
+smoke program without falling back, the bridge and those modules were
+deleted, `src/next/` moved up to `src/`, and this became the whole
+compiler (worklist item 7).
