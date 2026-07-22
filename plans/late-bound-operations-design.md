@@ -413,7 +413,10 @@ Two notes with owners:
   as failability's terminator payloads, which means the *response
   lane of an operation pair is failable* like any other wire — the
   payload-type composition residue on failability's row applies here
-  and is not re-answered.
+  and is not re-answered. (*Now worked* —
+  `failure-payloads-design.md`: the response lane is a failable
+  catalog row, its lanes entering the client's inventory like any
+  source's.)
 - **Retry is blocked on pacing.** The one middleware everyone wants
   first sleeps between attempts; sleeping is pacing, the concurrency
   row's named hole, and this round inherits the block rather than

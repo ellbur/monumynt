@@ -300,6 +300,15 @@ case/option are implemented; the rest are designed:
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   values that arrive later, racing as a barrier, failure as a terminator
   payload.
+- [`failure-payloads-design.md`](failure-payloads-design.md) — the
+  failability dimension's two flagged residues, worked: lightweight
+  failure (`fail`, the raise as a drawn node — bodies never throw; the
+  JS edge converts declared throws by catalog row) and payload
+  composition (a flow's possible endings as a derived *inventory* of
+  drawn minting sites — union by propagation, exhaustive discharge
+  with witnesses, re-tagging drawn only where meaning changes). Cashes
+  the payload checks the cancellation, race, speculation, divide-flow,
+  and served-flow rounds had filed here. *Exploration.*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

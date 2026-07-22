@@ -518,7 +518,14 @@ The language hasn't decided any of these yet.
 4. **Diagnosis payload.** The aggregate-of-alternatives on all-fail
    and the pass-through of a committed diagnosis; decide jointly
    with failability's payload composition and end-when's discharge
-   readout.
+   readout. *The failability side is now worked*
+   (`failure-payloads-design.md`, exploration): the barrier
+   discharges each contender's soft-fail to advance, so the aggregate
+   is ordinary data construction over payloads already in hand — no
+   new composition mode — and the hard-fail lanes pass through under
+   the ordinary union rule. What remains here is only *which*
+   aggregate (list, merged set, furthest-position), a value-level
+   catalog choice for the parsing domain.
 5. **The heuristic-order rung and the chooser family.** Whether
    heuristic-ordered speculation is a member of the decision-driven
    family (`tough-use-cases-design.md`, item 4) or a separate rung;
@@ -560,7 +567,10 @@ The language hasn't decided any of these yet.
   `tough-use-cases-design.md`, item 4.
 - **Failability's payload composition** — how terminator payloads
   combine is `async-flow-design.md`'s residue; speculation adds the
-  aggregate-of-alternatives as a client, not a design.
+  aggregate-of-alternatives as a client, not a design. *The round now
+  exists* (`failure-payloads-design.md`, exploration) and consumes
+  the client: the aggregate is data construction over
+  already-discharged payloads, no new composition mode.
 - **Visual depiction** — barrier lines, how a contender fan reads,
   and whether `commit` has a glyph are the layout side's, out of
   scope in this repo.

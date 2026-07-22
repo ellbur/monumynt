@@ -564,14 +564,25 @@ what replaced them is the uniform dimension above.)
 - **Payload type composition.** Chaining closes over flows with
   different payload types `E1`, `E2` needs either payload unification
   at joins of failability or an error-mapping operation on the
-  terminator. Probably small; not worked out.
+  terminator. Probably small; not worked out. *Now worked*
+  (`failure-payloads-design.md`, exploration): neither, as posed —
+  the payload sets are derived, not artifacts; a terminator lane is a
+  set of drawn minting sites grouped by tag, the inventory at any
+  consumer computed by property propagation (union along stacks,
+  nesting, chained closes), with an error-mapping stage drawn only
+  where meaning changes (discharge, transform, re-fail).
 - **Do bodies raise?** A JS `async` function converts thrown
   exceptions into rejections automatically. If compiled bodies
   inherit that, *every* async close is failable whether declared or
   not — JS-honest, but it erases the infallible/failable distinction
   the table draws. The alternative — bodies are total, failure enters
   only at declared sources — is cleaner and less honest. Genuinely
-  open.
+  open. *Now worked* (`failure-payloads-design.md`, exploration): the
+  cleaner side, with the honesty bill paid at the edge — failure is
+  drawn (`fail`, end-when's failure-tagged sibling), declared throws
+  enter by catalog row, undeclared throws are edge breaches, and the
+  infallible/failable distinction becomes derived and readable rather
+  than declared.
 - **Port structure.** The discharging close's two value outputs
   (prefix + terminator) is more port structure than current close
   nodes carry — the same pressure as the race barrier. Worked with
@@ -738,7 +749,10 @@ remains genuinely open, and what has since been resolved:
    termination event; propagate by default, discharge to a data sum
    at a whole-flow close). Residual sub-questions — payload type
    composition, whether bodies raise, the discharging close's port
-   structure — are recorded at the end of that section.
+   structure — are recorded at the end of that section. The first two
+   now carry their own worked round (`failure-payloads-design.md`,
+   exploration); the port structure stays with
+   `barrier-value-crossing-design.md`.
 
 2. **Cancellation.** Deferred to the IO design, with the constraint
    recorded above: the async cell must be able to carry a
