@@ -982,11 +982,15 @@ and emitFilterCollect = (
 //   }
 //
 // Leading levels may be list or option (an absent option skips its firing,
-// contributing nothing — mirrors emitFilterCollect); the any-list rule decides
-// the accumulator (any list ⇒ push, else the option `let out;` and the arms
-// assign, which is also the no-leading-level collected-alone reading). Mirrors
-// emitFilterCollect for the leading levels and emitCaseCollect for the per-arm
-// payload, minus exhaustiveness. DEFERRED to the poset round: computation AT the merged
+// contributing nothing — mirrors emitFilterCollect) or a case-alt dispatch (a
+// filter-then-partial, `join(join(list, case-alt), partial)`: keep the alt, then
+// partial-collect a subset of a second split over its payload). The any-list
+// rule decides the accumulator (any list ⇒ push, else the option `let out;` and
+// the arms assign, which is also the no-leading-level collected-alone reading).
+// Mirrors emitFilterCollect for the leading levels and emitCaseCollect for the
+// per-arm payload, minus exhaustiveness. A leading PartialLevel (a partial
+// feeding a partial) still raises Todo — the merged-flow-into-merged-flow shape
+// is the cell-set / poset round's. DEFERRED to the poset round: computation AT the merged
 // context (the doc's logAndFallback step) lives at a cell-set context the
 // linear model cannot represent, so the terminating value must reference the
 // merged value directly (its structural context is the merged flow, which does
@@ -1004,12 +1008,22 @@ and emitPartialCollect = (
   | IterLevel(_) | AltLevel(_) =>
     failwith("Codegen.emitPartialCollect: innermost level is not a PartialLevel")
   }
-  let iterLevels = levels->Array.slice(~start=0, ~end=n - 1)
-  iterLevels->Array.forEach(l =>
+  let leadingLevels = levels->Array.slice(~start=0, ~end=n - 1)
+  // Leading levels are the list / option loops and case-alt dispatches feeding
+  // the terminal partial, in any order — walked exactly as emitFilterCollect's
+  // levels (a filter-then-partial: `join(join(list, case-alt), partial)`). A
+  // leading PartialLevel (a partial feeding a partial) is the merged-flow-into-
+  // merged-flow shape the cell-set / poset round owns.
+  leadingLevels->Array.forEach(l =>
     switch l {
-    | IterLevel(_) => () // list or option leading level — both are looped below
-    | AltLevel(_) | PartialLevel(_) =>
-      throw(Todo("partial collect with a dispatch leading level — mirror emitFilterCollect's shape"))
+    | IterLevel(_) | AltLevel(_) => ()
+    | PartialLevel(_) =>
+      throw(
+        Todo(
+          "partial collect fed by another partial collect — the merged-flow-into-" ++
+          "merged-flow shape (the cell-set / poset round, product-flows-design.md)",
+        ),
+      )
     }
   )
   let (discriminator, csInput) = switch split.kind {
@@ -1023,12 +1037,17 @@ and emitPartialCollect = (
     ctx,
   )
 
-  // Walk the leading list levels (from a Join), exactly as emitFilterCollect.
+  // Walk the leading levels outermost-in, exactly as emitFilterCollect: a list /
+  // option iter level or a case-alt dispatch, interleaved in any order. Each
+  // opens its body context (tagged with this collect) and pre-memoises the
+  // binding its interior resolves (an iter element, an alt payload).
   let floatedAcc: array<placed> = []
-  let plans: array<levelPlan> = []
+  let plans: array<filterPlan> = []
   let parentCtx = ref(exterior)
-  iterLevels->Array.forEach(l =>
+  leadingLevels->Array.forEach(l =>
     switch l {
+    | PartialLevel(_) =>
+      failwith("Codegen.emitPartialCollect: leading PartialLevel — guarded above")
     | IterLevel({uncollect, isList}) => {
         let input = switch uncollect.kind {
         | Uncollect({input}) => input
@@ -1049,20 +1068,38 @@ and emitPartialCollect = (
         let iterVar = st.fresh()
         let elemName = st.fresh()
         recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-        Array.push(plans, {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName})
+        Array.push(plans, FIter({uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName}))
         parentCtx := bodyCtx
       }
-    | AltLevel(_) | PartialLevel(_) =>
-      failwith("Codegen.emitPartialCollect: non-iter level in the leading prefix — guarded above")
+    | AltLevel({split: aSplit, alt}) => {
+        let (aDisc, aInput) = switch aSplit.kind {
+        | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
+        | _ => failwith("Codegen.emitPartialCollect: alt level's node is not a case split — placement bug")
+        }
+        let inputC = compileValue(st, parentCtx.contents, aInput)
+        inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let discC = compileValue(st, parentCtx.contents, aDisc)
+        discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let altFlow = FlowPort(aSplit, alt)
+        let altCtx = Array.concat(parentCtx.contents, [{flow: altFlow, thunkOf: cn.id}])
+        let payloadName = st.fresh()
+        recordMemo(st, aSplit.id, alt, altCtx, payloadName)
+        let splitName = st.fresh()
+        Array.push(
+          plans,
+          FAlt({split: aSplit, alt, altCtx, splitName, discName: discC.name, inputName: inputC.name, payloadName}),
+        )
+        parentCtx := altCtx
+      }
     }
   )
   let innerCtx = parentCtx.contents
 
-  // The split input feeds the dispatch (once per innermost firing); the
-  // discriminator extern is loop-invariant.
+  // The terminal partial's split input feeds the dispatch (once per innermost
+  // firing); the discriminator extern is loop-invariant.
   let inputC = compileValue(st, innerCtx, csInput)
   inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-  let discC = compileValue(st, exterior, discriminator)
+  let discC = compileValue(st, innerCtx, discriminator)
   discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
   let splitName = st.fresh()
@@ -1088,7 +1125,12 @@ and emitPartialCollect = (
   // Partition: each leading level body and each arm claim what is addressed to
   // them; everything at the exterior or shallower floats out of the thunk.
   let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  plans->Array.forEach(p =>
+    switch p {
+    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
+    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
+    }
+  )
   arms->Array.forEach(((_, armCtx, _, _)) => Map.set(buckets, ctxPathKey(armCtx), []))
   let escaped: array<placed> = []
   floatedAcc->Array.forEach(pl =>
@@ -1103,7 +1145,12 @@ and emitPartialCollect = (
     }
   )
 
-  let anyList = plans->Array.some(p => p.isList)
+  let anyList = plans->Array.some(p =>
+    switch p {
+    | FIter({isList}) => isList
+    | FAlt(_) => false
+    }
+  )
   let outName = st.fresh()
   let payloadAction = (termName: string): JsAst.stmt =>
     if anyList {
@@ -1145,27 +1192,48 @@ and emitPartialCollect = (
     },
   )
 
-  // Wrap in the leading levels, innermost-out; the dispatch is the innermost
-  // payload. A list level loops (for-of); an option level is a single
-  // defined-check — an absent option skips its body, so that firing contributes
-  // nothing (mirrors emitFilterCollect).
+  // Wrap in the leading levels, innermost-out; the terminal partial's dispatch is
+  // the innermost payload. A list level loops (for-of); an option level is a
+  // single defined-check (an absent option skips its body, contributing nothing);
+  // a case-alt dispatch computes `s = disc(input)` then guards its alt, binding
+  // the payload for anything nested inside (mirrors emitFilterCollect).
   let nested = ref(dispatch)
   for i in Array.length(plans) - 1 downto 0 {
-    let p = plans->Array.getUnsafe(i)
-    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
-    let body = Array.concat(
-      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))],
-      Array.concat(bucket, nested.contents),
-    )
-    nested :=
-      if p.isList {
-        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
-      } else {
-        [
-          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
-          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+    switch plans->Array.getUnsafe(i) {
+    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
+        let body = Array.concat(
+          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))],
+          Array.concat(bucket, nested.contents),
+        )
+        nested :=
+          if isList {
+            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
+          } else {
+            [
+              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
+              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
+            ]
+          }
+      }
+    | FAlt({alt, altCtx, splitName: aSplitName, discName, inputName, payloadName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
+        let altBody = Array.concat(
+          [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value")))],
+          Array.concat(bucket, nested.contents),
+        )
+        nested := [
+          JsBuild.const(
+            aSplitName,
+            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
+          ),
+          JsBuild.if_(
+            JsBuild.eq(JsBuild.member(JsBuild.id(aSplitName), "tag"), JsBuild.str(alt)),
+            altBody,
+          ),
         ]
       }
+    }
   }
   let accDecl = if anyList {
     JsBuild.const(outName, JsBuild.array_([]))
