@@ -12,8 +12,10 @@ The code is ReScript 12 compiled to ES modules and run on Node.
 ## Design documents
 
 The design work has run well ahead of the code. The code implements
-list iteration, case splits, option iteration, join, and filter;
-everything else in the design documents is design-only so far.
+list/option iteration, case splits, join and filter, partial collects,
+registers (the Delay pair), the whole-table Cross, and a textual
+surface that round-trips; everything else in the design documents is
+design-only so far.
 
 **Start with [`plans/README.md`](plans/README.md)** — the index, with
 reading order and per-document status. The shortest path in:
@@ -41,52 +43,48 @@ implementation sequencing.
 The pipeline:
 
 ```
-visual-language Expr   →   JsAst   →   JavaScript source string
-   (built in ReScript)    (typed)        (pretty-printed, eval'd in tests)
+text  ─lex/parse/resolve─┐
+                         ├─→  Program (node set + outputs)  ─→  JsAst  ─→  JavaScript source
+handles (Build)  ────────┘        derive → complete → check → annotate → codegen
 ```
 
 - `src/JsAst.res` — typed AST for a useful subset of JavaScript.
 - `src/JsPrint.res` — precedence-aware pretty-printer.
 - `src/JsBuild.res` — smart constructors so building JsAst reads like
   the JS it produces.
-- `src/Expr.res` — the visual-language expressions: `Lit`, `App`,
-  `Open` (list iter / case split / option iter), `Close`, `Branch`,
-  value-port references (`ValuePort` — every value input position
-  takes one; smart constructors return `{node, value}` handles),
-  and flow references (`NodeFlow`, `Joined`, `Filtered`). Sharing is
-  opt-in via node identity: bind once in ReScript, reference twice.
-  The file's header comment is the reference for how the pieces fit.
-  (The design-level names are uncollect/collect. Step 1 of the
-  first-class-ports migration is in; under its later steps the
-  wrapper flow references become binary Join nodes and Branch
-  dissolves into per-alt ports.)
-- `src/Compile.res` — compiles an Expr to JS. Every node becomes a
-  lazy binding; every reference forces; runtime laziness handles
-  "compute only when needed" and "compute only once". Design
-  rationale in `plans/lazy-compile-design.md`; mechanics in the
-  source comments.
-- `src/ExprPrint.res` — human-readable, time-forward rendering of an
-  Expr for test logs (`->` chains, `#N` labels for shared nodes).
-- `src/Main.res` — the test runner: 80 tests that build an Expr,
-  print it, compile it to an IIFE, `eval` it, and compare against an
-  expected value. Coverage spans the value-only fragment, sharing,
-  list flows (multi-close, nested, joined, mixed), case splits,
-  filters, option flows, and mixed case+filter closes on one split.
+- `src/Program.res` — **the program of record**: the ports-first
+  representation. A program is a node set plus distinguished outputs
+  (no root expression). Node kinds are `Lit`, `App`, `Uncollect`
+  (list / option / case — the opener), `Collect` (the consumer),
+  binary `Join`, `Commute`, `Cross`, and the `DelayRead`/`DelayWrite`
+  register pair; ports are named value/flow refs, with per-alt ports
+  on a case split (no Branch node). Sharing is opt-in via node
+  identity: bind once in ReScript, reference twice.
+- `src/Build.res` — typed handles over `Program` (strings below,
+  typed handles above); also collects the node set, closed by
+  `finish(~outputs)`.
+- The compile pipeline as pure passes
+  (`plans/compile-strategy-design.md`): `Derive` → `Complete`
+  (inserts a Cross for a sibling-opens combine) → `Check`
+  (well-formedness witnesses returned as data) → `Annotate` →
+  `Codegen`, wired by `Pipeline.res`. `Codegen` is a pure
+  let-floating placer with a (node, port, context) memo; every node
+  becomes a lazy binding and every reference forces, so runtime
+  laziness handles "compute only when needed" and "compute only
+  once". Rationale in `plans/lazy-compile-design.md`.
+- `src/Text*.res` — the textual surface: lexer, parser, resolver
+  (into `Build`), and a total printer that round-trips.
+- `src/Runtime.res` — the emitted prelude (three lazy helpers).
+- `src/Main.res` — the smoke suite (`npm start`): 138 checks that
+  build programs from text and handles, compile them, `eval` the
+  output, and compare against author-written expected values, plus
+  text round-trips. Coverage spans the value fragment, sharing and
+  placement, list/option/join flows (multi-collect, nested, flatten),
+  case splits and filters, partial collects, registers, and the
+  whole-table Cross.
 
-## The next generation (`src/next/`)
-
-The rebuild the design record calls for has started under `src/next/`:
-the ports-first representation (program = node set + outputs, binary
-Join, per-alt ports, the Delay pair), a parser and a total printer for
-the textual form, and the compile pipeline as typed passes (check with
-witnesses; derive/complete as honest v0 skeletons). Code generation
-runs on **two engines**: the new pure codegen (value fragment and
-list/option/join collects today, including computed functions the old
-compiler cannot express) with automatic fallback to a disposable bridge
-into the legacy compiler for the emitters not yet written — and a
-differential check that both engines agree wherever both compile.
-**`src/next/ARCHITECTURE.md`** is the map: module status, the decisions
-taken, and the fill-in worklist. `npm run next` runs its smoke suite.
+**[`src/ARCHITECTURE.md`](src/ARCHITECTURE.md)** is the deep map:
+module status, the decisions taken, and the worklist.
 
 ## Running
 
@@ -102,33 +100,15 @@ npm start           # node lib/es6/src/Main.res.mjs — runs the test suite
 
 None committed to.
 
-- **First-class ports, steps 2–4.** Step 1 (`ValuePort` refs in
-  every value input position, `{node, value}` handles) landed
-  2026-07-10. Remaining, per the staged migration in
-  `plans/first-class-ports-design.md`: per-alt ports dissolving
-  Branch (step 2), binary Join nodes dissolving the
-  `Joined`/`Filtered` wrappers (step 3), and the cheap validity /
-  join-adjacency checks (step 4) — the enablers for compile-time
-  well-formedness checks and cleaner case-split flows.
-- **Well-formedness checks.** Time-travel detection (`deeper` on
-  unrelated scopes) and closed-scope leakage are currently trusted,
-  not checked. (Per `plans/time-travel-programs-design.md`, detection
-  is also the front half of *completion* — some findings become
-  insertions rather than errors.)
-- **Partial conditionals.** Design worked out in
-  `plans/partial-collect-design.md` (no new open construct needed;
-  the new node is the partial collect); implementation lands after
-  first-class-ports migration step 2.
+- **The poset round** — the context-model generalisation (linear
+  prefix → a genuine series-parallel poset) that the remaining
+  `Codegen.Todo` gaps wait on: commute (transpose over a Cross),
+  cross of non-top-level / non-list axes and the partial/sub-product
+  consumer, partial collect's merged-context computation, and
+  registers over a joined/nested/case flow. `Poset.res` has the
+  algebra; `src/ARCHITECTURE.md` worklist item 8 is the map.
 - **`Aggregate`/`Disaggregate`** for struct construction and field
   projection.
-- **Loop-carried state** — implement the register pair from
-  `plans/iteration-with-state-design.md`. (The 2026-07-10
-  equivalence round there showed the two candidates are one
-  construct at the result level, so the pair serves both; the
-  authoring-surface choice stays open.) The back-edge construction
-  is worked out there ("The Delay back-edge: the write half is a
-  node"): the object graph stays a DAG, and the pair
-  supplies the previously missing `final` readout.
 - **Diagrams as the top-level structure** — the spec's `Diagram`
   type, compiling to a JS function per diagram. Now has a forcing
   argument beyond spec fidelity: a Delay write half can be
@@ -136,22 +116,28 @@ None committed to.
   is a node set, not a root expression
   (`plans/iteration-with-state-design.md`, "What it forces to the
   surface: the program is a node set").
-- **Structural tests** — pin outer-stmt counts, golden-file the
-  generated JS.
+- **Streams, async, incremental** — each a new species in `Annotate`
+  + cells in `Runtime.res` + an emitter, per
+  `plans/implementation-strategy.md`.
+- **Structural tests** — golden-file the generated JS.
 
 ## Layout
 
 ```
 plans/                               design docs — see plans/README.md
 src/
+  ARCHITECTURE.md                    the compiler map — read this first
   JsAst.res                          typed JS AST
   JsPrint.res                        precedence-aware printer
   JsBuild.res                        smart constructors
-  Expr.res                           visual-language expressions
-  ExprPrint.res                      human-readable Expr rendering
-  Compile.res                        Expr → JS
-  Main.res                           test runner + examples
-  next/                              the next-generation rebuild — see src/next/ARCHITECTURE.md
+  Program.res                        the program of record (ports-first node set)
+  Build.res                          typed handles over Program
+  Context.res  Poset.res             flow-context (linear path + SP poset)
+  Derive.res  Complete.res  Check.res  Annotate.res  Codegen.res   the pipeline passes
+  Pipeline.res                       pass orchestration
+  Runtime.res                        the emitted prelude
+  TextLex.res  TextParse.res  TextAst.res  TextResolve.res  TextPrint.res   the textual surface
+  Main.res                           the smoke suite + examples
 rescript.json                        ESM output, lib/es6/, .res.mjs suffix
 package.json                         "type": "module"
 ```

@@ -3,16 +3,14 @@
 //
 // STATUS: the machinery is real and running — pure let-floating placement,
 // the (node, port, context) memo with prefix reuse, per-thunk context
-// instantiation — with emitters for the value fragment (Lit, App) and iter
-// collects (list/option chains with binary Join). The remaining emitters
-// raise `Todo`, which Pipeline catches to fall back to the LegacyBridge:
-// that is the migration harness. Implement one emitter, and the tests that
-// need it silently switch from the bridge to this pass — with NextMain's
-// differential check comparing both engines' eval results wherever the
-// bridge can also compile. The legacy compiler (src/Compile.res) is the
-// SPEC for every emitter here: mirror its emitted shapes (its function
-// names are cited at each stub), let the differential harness prove
-// agreement, then the shapes can diverge deliberately later.
+// instantiation. Emitters cover the value fragment (Lit, App), iter collects
+// (list/option chains with binary Join), case and filter collects, partial
+// collects, registers (the Delay pair), and the whole-table Cross at any rank.
+// The emitters that still raise `Todo` are genuine gaps owned by the poset
+// round (commute, cross of non-top-level / non-list axes and the
+// partial/sub-product consumer, partial's merged-context computation,
+// registers over a joined/nested/case flow) — a `Todo` means "no emitter yet",
+// not "fall back elsewhere": there is no other engine.
 //
 // The architecture, pinned by the working machinery:
 //
@@ -32,14 +30,14 @@
 //     (`thunkOf`). Two sibling collects over one flow open structurally
 //     identical contexts, but their thunks are separate JS scopes — the
 //     tag is what keeps a binding emitted in one thunk from being
-//     memo-reused in the other (the legacy compiler used bodyRef object
-//     identity for this; tags are the pure spelling). Cross-thunk sharing
+//     memo-reused in the other (bodyRef object identity would do this
+//     imperatively; tags are the pure spelling). Cross-thunk sharing
 //     of per-iteration work is therefore still not preserved — the
 //     documented cost of the eager model, unchanged.
 //   - MEMO keys on (node id, port); each entry stores the instantiated
 //     context the binding was placed in. Lookup reuses an entry whose
-//     context is a PREFIX of the requesting one (the legacy isAncestor
-//     scan, re-plumbed). Lits memoise at the empty context, so they are
+//     context is a PREFIX of the requesting one (an ancestor scan, plumbed
+//     as a prefix check). Lits memoise at the empty context, so they are
 //     shared by every consumer everywhere.
 //   - REQUIRED CONTEXT is a pure check-and-tag: a node's structural
 //     context (Context.valueContext — later handed down by Annotate) is
@@ -58,8 +56,8 @@
 //     codegen is a function of (annotations, program) — same input, same
 //     output — and nothing outside one call observes the mutation.
 //
-// Error discipline: `Todo` = an emitter that is not written yet (Pipeline
-// falls back to the bridge). `failwith` = a compiler bug or an ill-formed
+// Error discipline: `Todo` = an emitter that is not written yet (surfaced to
+// the caller as a compiler gap). `failwith` = a compiler bug or an ill-formed
 // program that pass 1 should have witnessed — never user-facing.
 
 open Program
@@ -490,9 +488,8 @@ and emitLit = (st: state, n: node, js: JsAst.expr): compiled => {
 
 and emitApp = (st: state, ctx: ctxPath, n: node, fn: valueRef, args: array<valueRef>): compiled => {
   // fn is a wire like any argument (functions are values); the emitted
-  // call forces it. This is the one deliberate divergence from the legacy
-  // shape (which embedded the fn expression) — it is what lets an App
-  // apply a computed function, which the bridge cannot express.
+  // call forces it. Treating fn as a wire rather than an embedded expression
+  // is what lets an App apply a computed function, not just a named extern.
   let fnC = compileValue(st, ctx, fn)
   let argCs = args->Array.map(a => compileValue(st, ctx, a))
   // A product-context value (its args live on incomparable sibling axes) has no
@@ -696,8 +693,8 @@ and emitIterCollect = (
 // binding at the alt's context, compiles the branch value there, and assigns
 // `out`. Statements addressed to an alt body are bucketed into it; loop-
 // invariant work (the discriminator extern, exterior-context bindings) floats
-// out of the thunk. Mirrors Compile.emitCaseClose — with the discriminator a
-// wire that is forced at the call, like emitApp forces fn.
+// out of the thunk. The discriminator is a wire forced at the call, like
+// emitApp forces fn.
 and emitCaseCollect = (
   st: state,
   ctx: ctxPath,
@@ -853,8 +850,8 @@ and emitCaseCollect = (
 // rule (lazy-compile-design.md) decides the accumulator — any list level ⇒ a
 // list (push per kept firing), an all-option filter ⇒ an option (`let out;`
 // assign, the single-alt case of emitPartialCollect's collected-alone reading).
-// Mirrors Compile.emitFilterClose for the trailing any-list shapes; the
-// non-trailing dispatch and option levels are beyond the legacy filter close.
+// The non-trailing dispatch and option levels go beyond a dispatch-innermost
+// filter close (where the dispatch is always the deepest level).
 and emitFilterCollect = (
   st: state,
   ctx: ctxPath,
@@ -1657,8 +1654,7 @@ let codegen = (ann: Annotate.annotations, p: Program.program): generated => {
   let st: state = {fresh, ann, memo: Map.make(), products, tableMemo: Map.make()}
   let topStmts: array<JsAst.stmt> = []
   // Outputs share one state, so a node consumed by several outputs
-  // compiles once — single-module multi-output compilation, which the
-  // bridge (one legacy compile per output) could not do.
+  // compiles once — single-module multi-output compilation.
   let outputs = p.outputs->Array.map(o => {
     let c = compileValue(st, [], o.source)
     c.floated->Array.forEach(pl =>

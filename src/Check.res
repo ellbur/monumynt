@@ -416,8 +416,8 @@ let checkCoverage = (p: program): array<witness> => {
 }
 
 // A per-iteration (flow-borne) value referenced from outside its flow
-// (types-design.md; replaces the legacy compiler's memo-ancestor guard as a
-// stated check). Two rules, one property — "every reference's context must be
+// (types-design.md; the memo-ancestor placement guard restated as an explicit
+// check). Two rules, one property — "every reference's context must be
 // contained in its consumer's":
 //
 //   - the PROGRAM BOUNDARY: a distinguished output is read outside every
@@ -426,10 +426,10 @@ let checkCoverage = (p: program): array<witness> => {
 //     interior of the flow it iterates, so the value's context must be a
 //     prefix of (contained in) that interior. A value borne on a flow the
 //     collect does NOT iterate — a sibling alt's payload, an element of an
-//     unrelated open — cannot be read at the branch. This is the legacy
-//     compiler's memo-ancestor miss, which Codegen surfaces as a "flow-borne
-//     port reached outside its flow" failwith ("Check's flow-borne rule
-//     should have witnessed this"); stating it here turns that crash into a
+//     unrelated open — cannot be read at the branch. This is the memo-ancestor
+//     miss, which Codegen surfaces as a "flow-borne port reached outside its
+//     flow" failwith ("Check's flow-borne rule should have witnessed this");
+//     stating it here turns that crash into a
 //     witness.
 //
 // The interior is computed only where it is EXACT: a list/option element or a

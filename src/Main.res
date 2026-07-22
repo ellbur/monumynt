@@ -1,23 +1,13 @@
-// Test runner for Expr -> JS compilation.
+// Smoke tests / playground for the compiler.
 //
-// Each test builds an Expr, compiles it to a self-contained JS expression
-// (an IIFE), evaluates the JS, and compares the result against an expected
-// value supplied as a separate JS expression. Comparison is done via
-// JSON.stringify on both sides, which is sufficient for the kinds of
-// values (numbers, strings, booleans, arrays, plain objects) we exercise.
+//   npm start             (build first: npm run build)
 //
-// The test header shows the number of outer-level statements the compiler
-// emitted for the test (const bindings + for-of statements). Differences
-// across versions of the same logical computation make sharing, hoisting,
-// and joining visible at a glance — a "shared" version typically emits
-// fewer outer stmts than its "unshared" counterpart, and a joined nested
-// loop emits fewer than its non-joined sibling.
-//
-// Tests build programs through the smart-constructor handles: `x.value`
-// wires a node's value port, `NodeFlow(x.node)` its flow port.
+// Deliberately narrative rather than exhaustive: each test prints the
+// textual form and the generated JS so the pieces can be *seen* working
+// together. `expectOutput` is an independent oracle: it evals the compiled
+// output and compares against an author-written expected value.
 
 open JsBuild
-open Expr
 
 @val external evalJs: string => 'a = "eval"
 @val external jsonStringify: 'a => string = "JSON.stringify"
@@ -27,1574 +17,1773 @@ let evalExpression = (code: string): 'a => evalJs("(" ++ code ++ ")")
 let passCount = ref(0)
 let failCount = ref(0)
 
-let runTest = (~name: string, ~expr: Expr.handle, ~expected: JsAst.expr) => {
-  let (stmts, _) = Compile.compileToBody(expr.node)
-  let stmtCount = Array.length(stmts)
-  let exprRendering = ExprPrint.render(expr.node)
-  let iife = Compile.compileToIIFE(expr.node)
-  let jsCode = JsPrint.printExpr(iife)
-  let expectedCode = JsPrint.printExpr(expected)
-  Console.log(
-    "--- " ++ name ++ "  (" ++ Int.toString(stmtCount) ++ " outer stmts) ---",
-  )
-  Console.log("EXPR:")
-  Console.log(exprRendering)
-  Console.log("JS:")
-  Console.log(jsCode)
-  let actualVal = evalExpression(jsCode)
-  let expectedVal = evalExpression(expectedCode)
-  let actualStr = jsonStringify(actualVal)
-  let expectedStr = jsonStringify(expectedVal)
-  if actualStr == expectedStr {
-    Console.log("PASS: " ++ actualStr)
-    passCount := passCount.contents + 1
+let pass = (msg: string) => {
+  passCount := passCount.contents + 1
+  Console.log("PASS: " ++ msg)
+}
+
+let fail = (msg: string) => {
+  failCount := failCount.contents + 1
+  Console.log("FAIL: " ++ msg)
+}
+
+let header = (name: string) => Console.log("\n=== " ++ name ++ " ===")
+
+// Compile one named output and compare its eval'd value against expected JS.
+let expectOutput = (p: Program.program, name: string, expected: JsAst.expr): unit =>
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(gap) => fail("expected output '" ++ name ++ "' but codegen has no emitter: " ++ gap)
+  | Error(ws) =>
+    fail(
+      "expected output '" ++
+      name ++
+      "' but check failed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === name) {
+    | None => fail("no output named " ++ name)
+    | Some(o) => {
+        Console.log("JS (" ++ name ++ "):")
+        Console.log(o.js)
+        let actual = jsonStringify(evalExpression(o.js))
+        let want = jsonStringify(evalExpression(JsPrint.printExpr(expected)))
+        if actual === want {
+          pass(name ++ " = " ++ actual)
+        } else {
+          fail(name ++ ": expected " ++ want ++ ", got " ++ actual)
+        }
+      }
+    }
+  }
+
+// Round-trip: print -> parse -> same wiring; and the print is stable.
+let expectRoundTrip = (p: Program.program): unit => {
+  let text = TextPrint.print(p)
+  Console.log("TEXT:")
+  Console.log(text)
+  let reparsed = TextResolve.parseProgram(text)
+  if Program.equal(p, reparsed) {
+    pass("round-trip: parse(print(p)) has identical wiring")
   } else {
-    Console.log("FAIL")
-    Console.log("  expected: " ++ expectedStr)
-    Console.log("  actual:   " ++ actualStr)
-    failCount := failCount.contents + 1
+    fail("round-trip: wiring changed\n-- original --\n" ++ Program.dump(p) ++ "\n-- reparsed --\n" ++ Program.dump(reparsed))
   }
-  Console.log("")
+  let text2 = TextPrint.print(reparsed)
+  if text === text2 {
+    pass("round-trip: print is stable")
+  } else {
+    fail("round-trip: print not stable\n-- first --\n" ++ text ++ "\n-- second --\n" ++ text2)
+  }
 }
 
-// --- Helpers for building Expr literals ---
+// ============================================================================
+// 1. Value fragment, sharing by name
+// ============================================================================
 
-let litI = (n: int): Expr.handle => lit(int_(n))
-let litS = (s: string): Expr.handle => lit(str(s))
-let litB = (b: bool): Expr.handle => lit(bool_(b))
-
-// --- Bundling helpers used by tests to package multiple results into
-//     one named-field object via a JS arrow function. `bundle2("a", "b")`
-//     is `(a, b) => ({a: a, b: b})` (renamed if labels differ). ---
-
-let bundle2 = (l1: string, l2: string): JsAst.expr =>
-  arrowExpr([p("a"), p("b")], obj([(l1, id("a")), (l2, id("b"))]))
-
-let bundle3 = (l1: string, l2: string, l3: string): JsAst.expr =>
-  arrowExpr(
-    [p("a"), p("b"), p("c")],
-    obj([(l1, id("a")), (l2, id("b")), (l3, id("c"))]),
-  )
-
-// --- JS functions referenced by examples ---
-
-let jsAdd = arrowExpr([p("a"), p("b")], add(id("a"), id("b")))
-let jsMul = arrowExpr([p("a"), p("b")], mul(id("a"), id("b")))
-let jsSub = arrowExpr([p("a"), p("b")], sub(id("a"), id("b")))
-// String concatenation shares the JS `+` operator.
-let jsConcat = arrowExpr([p("a"), p("b")], add(id("a"), id("b")))
-// (a, b) => a < b ? a : b
-let jsMinOfTwo = arrowExpr(
-  [p("a"), p("b")],
-  cond(lt(id("a"), id("b")), id("a"), id("b")),
-)
-
-let mathSqrt = member(id("Math"), "sqrt")
-let mathMax = member(id("Math"), "max")
-let mathAbs = member(id("Math"), "abs")
-let mathPow = member(id("Math"), "pow")
-let arrayOf = member(id("Array"), "of")
-
-let makePoint = arrowExpr(
-  [p("x"), p("y")],
-  obj([("x", id("x")), ("y", id("y"))]),
-)
-
-// =====================================================================
-// Baseline tests: every Expr node compiles to one binding. No sharing.
-// =====================================================================
-
-runTest(~name="literal int", ~expr=litI(5), ~expected=int_(5))
-runTest(~name="literal string", ~expr=litS("hello"), ~expected=str("hello"))
-runTest(~name="literal bool true", ~expr=litB(true), ~expected=bool_(true))
-runTest(
-  ~name="literal array",
-  ~expr=lit(array_([int_(1), int_(2), int_(3)])),
-  ~expected=array_([int_(1), int_(2), int_(3)]),
-)
-runTest(
-  ~name="literal object",
-  ~expr=lit(obj([("x", int_(1)), ("y", int_(2))])),
-  ~expected=obj([("x", int_(1)), ("y", int_(2))]),
-)
-runTest(
-  ~name="literal Math.PI reference",
-  ~expr=lit(member(id("Math"), "PI")),
-  ~expected=member(id("Math"), "PI"),
-)
-
-runTest(
-  ~name="add(2, 3)",
-  ~expr=app(jsAdd, [litI(2).value, litI(3).value]),
-  ~expected=int_(5),
-)
-runTest(
-  ~name="Math.sqrt(16)",
-  ~expr=app(mathSqrt, [litI(16).value]),
-  ~expected=int_(4),
-)
-runTest(
-  ~name="Math.max(3, 7, 2, 5)",
-  ~expr=app(mathMax, [litI(3).value, litI(7).value, litI(2).value, litI(5).value]),
-  ~expected=int_(7),
-)
-runTest(
-  ~name="Math.abs(-42)",
-  ~expr=app(mathAbs, [litI(-42).value]),
-  ~expected=int_(42),
-)
-runTest(
-  ~name="string concat",
-  ~expr=app(jsConcat, [litS("hello ").value, litS("world").value]),
-  ~expected=str("hello world"),
-)
-runTest(
-  ~name="Array.of(1, 2, 3)",
-  ~expr=app(arrayOf, [litI(1).value, litI(2).value, litI(3).value]),
-  ~expected=array_([int_(1), int_(2), int_(3)]),
-)
-runTest(
-  ~name="makePoint(3, 4)",
-  ~expr=app(makePoint, [litI(3).value, litI(4).value]),
-  ~expected=obj([("x", int_(3)), ("y", int_(4))]),
-)
-runTest(
-  ~name="2*3 + 4*5",
-  ~expr=app(jsAdd, [
-    app(jsMul, [litI(2).value, litI(3).value]).value,
-    app(jsMul, [litI(4).value, litI(5).value]).value,
-  ]),
-  ~expected=int_(26),
-)
-runTest(
-  ~name="sqrt(7 + 9)",
-  ~expr=app(mathSqrt, [app(jsAdd, [litI(7).value, litI(9).value]).value]),
-  ~expected=int_(4),
-)
-runTest(
-  ~name="Math.pow(2, 8)",
-  ~expr=app(mathPow, [litI(2).value, litI(8).value]),
-  ~expected=int_(256),
-)
-runTest(
-  ~name="sqrt(3*3 + 4*4)",
-  ~expr=app(mathSqrt, [
-    app(jsAdd, [
-      app(jsMul, [litI(3).value, litI(3).value]).value,
-      app(jsMul, [litI(4).value, litI(4).value]).value,
-    ]).value,
-  ]),
-  ~expected=int_(5),
-)
-runTest(
-  ~name="minOfTwo(minOfTwo(7, 4), 10)",
-  ~expr=app(jsMinOfTwo, [
-    app(jsMinOfTwo, [litI(7).value, litI(4).value]).value,
-    litI(10).value,
-  ]),
-  ~expected=int_(4),
-)
-runTest(
-  ~name="sub(5, 8) -> -3",
-  ~expr=app(jsSub, [litI(5).value, litI(8).value]),
-  ~expected=int_(-3),
-)
-
-let getX = arrowExpr([p("p")], member(id("p"), "x"))
-runTest(
-  ~name="getX(makePoint(add(1, 2), add(3, 4)))",
-  ~expr=app(getX, [
-    app(makePoint, [
-      app(jsAdd, [litI(1).value, litI(2).value]).value,
-      app(jsAdd, [litI(3).value, litI(4).value]).value,
-    ]).value,
-  ]),
-  ~expected=int_(3),
-)
-
-let const42 = arrowExpr([], int_(42))
-runTest(
-  ~name="zero-arg function () => 42",
-  ~expr=app(const42, []),
-  ~expected=int_(42),
-)
-
-// =====================================================================
-// Sharing tests. These pair a "no sharing" version (each subexpression
-// constructed afresh) with a "shared" version (one Expr value bound and
-// reused). Both produce the same value; the shared version emits fewer
-// bindings, which the binding count in the test header makes visible.
-// =====================================================================
-
-// (1) (2*3) + (2*3), each sub-expression constructed twice.
-runTest(
-  ~name="unshared: (2*3) + (2*3) — two independent sub-trees",
-  ~expr=app(jsAdd, [
-    app(jsMul, [litI(2).value, litI(3).value]).value,
-    app(jsMul, [litI(2).value, litI(3).value]).value,
-  ]),
-  ~expected=int_(12),
-)
-
-// (1') Same expression, but 2*3 built once and shared as both args.
+header("value fragment: sharing is opt-in via naming")
 {
-  let twoThree = app(jsMul, [litI(2).value, litI(3).value])
-  runTest(
-    ~name="shared: (2*3) + (2*3) — single 2*3 bound and reused",
-    ~expr=app(jsAdd, [twoThree.value, twoThree.value]),
-    ~expected=int_(12),
-  )
+  let src = `
+add = js "(a, b) => a + b"
+ten = 10
+ten, ten -> add => twenty
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "twenty", int_(20))
+  expectRoundTrip(p)
 }
 
-// (2) Diamond: a literal node feeds two siblings of an outer node.
+// ============================================================================
+// 1b. Infix operators in source position: `a * a` is App of the `*` extern to
+//     two operands, so squaring is fan-out from one named port; precedence is
+//     standard (`*` binds tighter than `+`), left-associative.
+// ============================================================================
+
+header("infix: source-position operators desugar to App (fan-in, precedence)")
 {
-  let x = litI(7)
-  runTest(
-    ~name="diamond: add(x, x) where x = lit(7)",
-    ~expr=app(jsAdd, [x.value, x.value]),
-    ~expected=int_(14),
-  )
+  let src = `
+a = 3
+b = 4
+a * a => sq
+a + b * a => mixed
+b - a => diff
+b % a => rem
+out sq
+out mixed
+out diff
+out rem
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "sq", int_(9)) // 3 * 3
+  expectOutput(p, "mixed", int_(15)) // 3 + (4 * 3), not (3 + 4) * 3
+  expectOutput(p, "diff", int_(1)) // 4 - 3; '-' does not collide with the arrows
+  expectOutput(p, "rem", int_(1)) // 4 % 3
+  expectRoundTrip(p)
 }
 
-// (3) Three uses of the same literal.
+// ============================================================================
+// 1c. Prefix application: `f(x, y)` is the same App the postfix `x, y -> f`
+//     builds — the permissive grammar's other authoring path
+//     (textual-representation-design.md, "parse accepts prefix (`f(x, y)`)").
+//     Nesting and mixing with infix both work; the round-trip prints the
+//     postfix form (App-node wiring is identical either way).
+// ============================================================================
+
+header("prefix application: f(x, y) desugars to App, one reading with postfix")
 {
-  let x = litI(5)
-  let triple = arrowExpr(
-    [p("a"), p("b"), p("c")],
-    add(id("a"), add(id("b"), id("c"))),
-  )
-  runTest(
-    ~name="triangle: triple(x, x, x) — one literal bound, three uses",
-    ~expr=app(triple, [x.value, x.value, x.value]),
-    ~expected=int_(15),
-  )
-}
+  let src = `
+add = js "(a, b) => a + b"
+mul = js "(a, b) => a * b"
+add(3, 4) => seven
+mul(add(1, 2), 5) => fifteen
+add(mul(2, 3), 4) * 2 => twenty
+out seven
+out fifteen
+out twenty
+`
+  let fromText = TextResolve.parseProgram(src)
+  expectOutput(fromText, "seven", int_(7))
+  expectOutput(fromText, "fifteen", int_(15)) // (1 + 2) * 5
+  expectOutput(fromText, "twenty", int_(20)) // (2 * 3 + 4) * 2
+  expectRoundTrip(fromText)
 
-// (4) A non-trivial shared literal: Math.PI used twice.
-{
-  let pi = lit(member(id("Math"), "PI"))
-  runTest(
-    ~name="shared Math.PI: Math.PI + Math.PI",
-    ~expr=app(jsAdd, [pi.value, pi.value]),
-    ~expected=bin(Mul, int_(2), member(id("Math"), "PI")),
-  )
-}
-
-// (5) Larger example: circle area and circumference, both depending on
-//     a shared `pi` and a shared radius `r`. The output bundles them in
-//     one object via a small JS helper.
-{
-  let pi = lit(member(id("Math"), "PI"))
-  let r = litI(3)
-  let two = litI(2)
-  let rsq = app(jsMul, [r.value, r.value])
-  let area = app(jsMul, [pi.value, rsq.value])
-  let twoPi = app(jsMul, [two.value, pi.value])
-  let circumference = app(jsMul, [twoPi.value, r.value])
-  runTest(
-    ~name="circle metrics: area and circumference share pi and r",
-    ~expr=app(bundle2("area", "circ"), [area.value, circumference.value]),
-    ~expected=obj([
-      ("area", bin(Mul, member(id("Math"), "PI"), int_(9))),
-      (
-        "circ",
-        bin(
-          Mul,
-          bin(Mul, int_(2), member(id("Math"), "PI")),
-          int_(3),
-        ),
-      ),
-    ]),
-  )
-}
-
-// (6) Deep diamond: a single shared root used by a tree of consumers.
-{
-  let leaf = app(jsMul, [litI(2).value, litI(3).value]) // = 6, computed once
-  let plusOne = arrowExpr([p("a")], add(id("a"), int_(1)))
-  let timesTwo = arrowExpr([p("a")], mul(id("a"), int_(2)))
-  let combine = arrowExpr(
-    [p("a"), p("b"), p("c")],
-    add(id("a"), add(id("b"), id("c"))),
-  )
-  runTest(
-    ~name="deep diamond: combine(leaf, plusOne(leaf), timesTwo(leaf))",
-    ~expr=app(combine, [
-      leaf.value,
-      app(plusOne, [leaf.value]).value,
-      app(timesTwo, [leaf.value]).value,
-    ]),
-    ~expected=int_(6 + (6 + 1) + 6 * 2), // 25
-  )
-}
-
-// =====================================================================
-// Flow tests. Single-open / single-close list iteration only — Open is
-// always ListIter, Close is a list close. The compiled output is
-// a `for…of` loop that builds an array and pushes per-iteration values
-// into it. Loop-invariant computations are hoisted to the outer level.
-// =====================================================================
-
-// (1) Identity map — a sanity check that opening + closing alone does the
-//     right thing.
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  runTest(
-    ~name="list iter: identity map of [1,2,3]",
-    ~expr=close_(NodeFlow(opened.node), opened.value),
-    ~expected=array_([int_(1), int_(2), int_(3)]),
-  )
-}
-
-// (2) Map double — a single transformation applied per element.
-let double = arrowExpr([p("x")], mul(id("x"), int_(2)))
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  runTest(
-    ~name="list iter: map double over [1,2,3]",
-    ~expr=close_(NodeFlow(opened.node), app(double, [opened.value]).value),
-    ~expected=array_([int_(2), int_(4), int_(6)]),
-  )
-}
-
-// (3) Empty input — the loop body simply doesn't run.
-{
-  let input = lit(array_([]))
-  let opened = open_(ListIter, input.value)
-  runTest(
-    ~name="list iter: map double over []",
-    ~expr=close_(NodeFlow(opened.node), app(double, [opened.value]).value),
-    ~expected=array_([]),
-  )
-}
-
-// (4) Element shared inside the loop body — the per-iteration element is
-//     used twice in `square = elem * elem`. The `square` binding lives
-//     inside the loop, but the element is referenced (not recomputed) for
-//     each use.
-{
-  let input = lit(array_([int_(2), int_(3), int_(4)]))
-  let opened = open_(ListIter, input.value)
-  let square = app(jsMul, [opened.value, opened.value])
-  runTest(
-    ~name="list iter: square — element shared inside body",
-    ~expr=close_(NodeFlow(opened.node), square.value),
-    ~expected=array_([int_(4), int_(9), int_(16)]),
-  )
-}
-
-// (5) Loop-invariant Lit — a literal used only inside the body but which
-//     does not depend on the iteration element should be hoisted to the
-//     outer level so it is computed once. The compiled JS shows the
-//     `const v_ten = 10;` outside the for-of, with the body referencing
-//     `v_ten`.
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let ten = lit(int_(10))
-  runTest(
-    ~name="list iter: loop-invariant constant hoisted out",
-    ~expr=close_(
-      NodeFlow(opened.node),
-      app(jsAdd, [ten.value, opened.value]).value,
-    ),
-    ~expected=array_([int_(11), int_(12), int_(13)]),
-  )
-}
-
-// (6) Value shared between inside and outside the loop. `k` is used both
-//     in the loop body (added to each element) and outside (paired with
-//     the resulting list). It is bound once at the outer level and both
-//     uses reference that binding — no recomputation.
-{
-  let k = lit(int_(100))
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let mapped = close_(
-    NodeFlow(opened.node),
-    app(jsAdd, [k.value, opened.value]).value,
-  )
-  runTest(
-    ~name="list iter: shared k=100 used both inside and outside loop",
-    ~expr=app(bundle2("base", "mapped"), [k.value, mapped.value]),
-    ~expected=obj([
-      ("base", int_(100)),
-      ("mapped", array_([int_(101), int_(102), int_(103)])),
-    ]),
-  )
-}
-
-// (7) The Close's output is a normal value downstream — feed it to a
-//     plain function call after the loop has run.
-{
-  let lengthOf = arrowExpr([p("a")], member(id("a"), "length"))
-  let input = lit(array_([int_(5), int_(10), int_(15), int_(20)]))
-  let opened = open_(ListIter, input.value)
-  let mapped = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  runTest(
-    ~name="list iter: post-process — length of mapped result",
-    ~expr=app(lengthOf, [mapped.value]),
-    ~expected=int_(4),
-  )
-}
-
-// =====================================================================
-// Multi-close tests. One Open can be closed by several Closes; all of
-// them share a single for-of loop and each pushes into its own output
-// array. This is meaningful for lists because each iteration can
-// contribute to several outputs at once.
-// =====================================================================
-
-let triple = arrowExpr([p("x")], mul(id("x"), int_(3)))
-
-// (1) Two Closes from one Open. The compiled JS should contain a single
-//     for-of loop with two pushes (one per Close) and two output arrays
-//     declared at the outer level.
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
-  runTest(
-    ~name="multi-close: doubled and tripled, one loop two pushes",
-    ~expr=app(bundle2("doubled", "tripled"), [doubled.value, tripled.value]),
-    ~expected=obj([
-      ("doubled", array_([int_(2), int_(4), int_(6)])),
-      ("tripled", array_([int_(3), int_(6), int_(9)])),
-    ]),
-  )
-}
-
-// (2) Three Closes from one Open. One loop, three pushes.
-{
-  let plusOne = arrowExpr([p("x")], add(id("x"), int_(1)))
-  let input = lit(array_([int_(10), int_(20), int_(30)]))
-  let opened = open_(ListIter, input.value)
-  let asIs = close_(NodeFlow(opened.node), opened.value)
-  let dbl = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  let inc = close_(NodeFlow(opened.node), app(plusOne, [opened.value]).value)
-  runTest(
-    ~name="multi-close: identity + double + +1, one loop three pushes",
-    ~expr=app(bundle3("a", "b", "c"), [asIs.value, dbl.value, inc.value]),
-    ~expected=obj([
-      ("a", array_([int_(10), int_(20), int_(30)])),
-      ("b", array_([int_(20), int_(40), int_(60)])),
-      ("c", array_([int_(11), int_(21), int_(31)])),
-    ]),
-  )
-}
-
-// (3) Two Closes that share an intermediate computation. `square = x*x`
-//     is referenced by both bodies; it should be computed exactly once
-//     per iteration (a single binding in the loop body, used by both
-//     pushes).
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let square = app(jsMul, [opened.value, opened.value])
-  let one = lit(int_(1))
-  let two = lit(int_(2))
-  let close1 = close_(
-    NodeFlow(opened.node),
-    app(jsAdd, [square.value, one.value]).value,
-  )
-  let close2 = close_(
-    NodeFlow(opened.node),
-    app(jsMul, [square.value, two.value]).value,
-  )
-  runTest(
-    ~name="multi-close: shared intermediate (square computed once per iter)",
-    ~expr=app(bundle2("plusOne", "timesTwo"), [close1.value, close2.value]),
-    ~expected=obj([
-      ("plusOne", array_([int_(2), int_(5), int_(10)])),
-      ("timesTwo", array_([int_(2), int_(8), int_(18)])),
-    ]),
-  )
-}
-
-// (4) Each Close has its own loop-invariant Lit (different constants).
-//     Both should be hoisted to the outer level (declared once each,
-//     used inside the loop body for each Close's body).
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let ten = lit(int_(10))
-  let hundred = lit(int_(100))
-  let plus10 = close_(
-    NodeFlow(opened.node),
-    app(jsAdd, [ten.value, opened.value]).value,
-  )
-  let plus100 = close_(
-    NodeFlow(opened.node),
-    app(jsAdd, [hundred.value, opened.value]).value,
-  )
-  runTest(
-    ~name="multi-close: each Close has its own loop-invariant constant",
-    ~expr=app(bundle2("p10", "p100"), [plus10.value, plus100.value]),
-    ~expected=obj([
-      ("p10", array_([int_(11), int_(12), int_(13)])),
-      ("p100", array_([int_(101), int_(102), int_(103)])),
-    ]),
-  )
-}
-
-// (5) Two independent loops in sequence (different Opens). They should
-//     compile to two for-of loops, each with their own loop variable
-//     and output array — no interference.
-{
-  let inputA = lit(array_([int_(1), int_(2), int_(3)]))
-  let openedA = open_(ListIter, inputA.value)
-  let resultA = close_(
-    NodeFlow(openedA.node),
-    app(double, [openedA.value]).value,
-  )
-  let inputB = lit(array_([int_(10), int_(20)]))
-  let openedB = open_(ListIter, inputB.value)
-  let resultB = close_(
-    NodeFlow(openedB.node),
-    app(triple, [openedB.value]).value,
-  )
-  runTest(
-    ~name="two independent loops in sequence",
-    ~expr=app(bundle2("first", "second"), [resultA.value, resultB.value]),
-    ~expected=obj([
-      ("first", array_([int_(2), int_(4), int_(6)])),
-      ("second", array_([int_(30), int_(60)])),
-    ]),
-  )
-}
-
-// (6) The same Close referenced in two places downstream — should
-//     compile only once (memo hit on the second reference). Combined
-//     with multi-close: two Closes sharing an Open, and one of them
-//     used twice downstream.
-{
-  let input = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, input.value)
-  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
-  runTest(
-    ~name="multi-close: one Close used twice downstream + sibling Close",
-    ~expr=app(bundle3("d1", "d2", "t"), [
-      doubled.value,
-      doubled.value,
-      tripled.value,
-    ]),
-    ~expected=obj([
-      ("d1", array_([int_(2), int_(4), int_(6)])),
-      ("d2", array_([int_(2), int_(4), int_(6)])),
-      ("t", array_([int_(3), int_(6), int_(9)])),
-    ]),
-  )
-}
-
-// =====================================================================
-// Nested list flows. Iterate over a list of lists: open the outer list,
-// open each inner list, transform each inner element, close the inner
-// flow back to a list, close the outer flow to a list of lists.
-// =====================================================================
-
-// (1) Plain nested map — double each element of [[1,2],[3,4]].
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3), int_(4)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  let innerClosed = close_(
-    NodeFlow(innerOpened.node),
-    app(double, [innerOpened.value]).value,
-  )
-  let outerClosed = close_(NodeFlow(outerOpened.node), innerClosed.value)
-  runTest(
-    ~name="nested list flows: double each elem of [[1,2],[3,4]]",
-    ~expr=outerClosed,
-    ~expected=array_([
-      array_([int_(2), int_(4)]),
-      array_([int_(6), int_(8)]),
-    ]),
-  )
-}
-
-// (2) An empty inner list among non-empty ones — the inner loop simply
-//     doesn't execute for that outer iteration, producing an empty
-//     inner result.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([]),
-    array_([int_(3)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  let innerClosed = close_(
-    NodeFlow(innerOpened.node),
-    app(double, [innerOpened.value]).value,
-  )
-  let outerClosed = close_(NodeFlow(outerOpened.node), innerClosed.value)
-  runTest(
-    ~name="nested list flows: with an empty inner list",
-    ~expr=outerClosed,
-    ~expected=array_([
-      array_([int_(2), int_(4)]),
-      array_([]),
-      array_([int_(6)]),
-    ]),
-  )
-}
-
-// (3) Nesting combined with multi-close on the inner loop. For each
-//     outer element, run the inner loop once but produce two inner
-//     output lists (doubled and tripled) bundled into an object. The
-//     inner for-of contains two pushes; everything is inside the outer
-//     for-of body.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  let innerDoubled = close_(
-    NodeFlow(innerOpened.node),
-    app(double, [innerOpened.value]).value,
-  )
-  let innerTripled = close_(
-    NodeFlow(innerOpened.node),
-    app(triple, [innerOpened.value]).value,
-  )
-  let perOuter = app(bundle2("d", "t"), [innerDoubled.value, innerTripled.value])
-  let outerClosed = close_(NodeFlow(outerOpened.node), perOuter.value)
-  runTest(
-    ~name="nested + multi-close on inner: each outer elem -> {d, t}",
-    ~expr=outerClosed,
-    ~expected=array_([
-      obj([
-        ("d", array_([int_(2), int_(4)])),
-        ("t", array_([int_(3), int_(6)])),
-      ]),
-      obj([("d", array_([int_(6)])), ("t", array_([int_(9)]))]),
-    ]),
-  )
-}
-
-// =====================================================================
-// Join (list flow). `Join` wraps an opener; closing on a joined opener
-// flattens one level on output. The loops are still nested (one for
-// each Open in the chain), the computation still happens in the
-// innermost body, but the output array is allocated above the
-// outermost loop instead of in its parent's body.
-// =====================================================================
-
-// (1) Basic join: nested map flattened — [[1,2],[3,4]] → [2,4,6,8].
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3), int_(4)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  runTest(
-    ~name="join: nested map flattened — [[1,2],[3,4]] -> [2,4,6,8]",
-    ~expr=close_(
-      join_(NodeFlow(innerOpened.node)),
-      app(double, [innerOpened.value]).value,
-    ),
-    ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
-  )
-}
-
-// (2) Identity join: just flatten the input — [[1,2],[],[3]] → [1,2,3].
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([]),
-    array_([int_(3)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  runTest(
-    ~name="join: flatten of [[1,2],[],[3]] -> [1,2,3]",
-    ~expr=close_(join_(NodeFlow(innerOpened.node)), innerOpened.value),
-    ~expected=array_([int_(1), int_(2), int_(3)]),
-  )
-}
-
-// (3) Empty outer — no inner iterations happen at all, result is [].
-{
-  let input = lit(array_([]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  runTest(
-    ~name="join: empty outer -> []",
-    ~expr=close_(join_(NodeFlow(innerOpened.node)), innerOpened.value),
-    ~expected=array_([]),
-  )
-}
-
-// (4) Loop-invariant Lit hoisted; join still gets a flat list. The
-//     `ten` constant should appear once at the very top, before either
-//     loop, even though it's only referenced from inside the inner body.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3)]),
-  ]))
-  let outerOpened = open_(ListIter, input.value)
-  let innerOpened = open_(ListIter, outerOpened.value)
-  let ten = lit(int_(10))
-  runTest(
-    ~name="join: with hoisted constant — flat list of x+10",
-    ~expr=close_(
-      join_(NodeFlow(innerOpened.node)),
-      app(jsAdd, [ten.value, innerOpened.value]).value,
-    ),
-    ~expected=array_([int_(11), int_(12), int_(13)]),
-  )
-}
-
-// (5) Triply nested with two joins — flatten two levels.
-//     [[[1,2],[3]],[[4]]] → [2,4,6,8].
-{
-  let input = lit(array_([
-    array_([array_([int_(1), int_(2)]), array_([int_(3)])]),
-    array_([array_([int_(4)])]),
-  ]))
-  let l1 = open_(ListIter, input.value)
-  let l2 = open_(ListIter, l1.value)
-  let l3 = open_(ListIter, l2.value)
-  runTest(
-    ~name="join x2: flatten of [[[1,2],[3]],[[4]]] mapped *2 -> [2,4,6,8]",
-    ~expr=close_(
-      join_(join_(NodeFlow(l3.node))),
-      app(double, [l3.value]).value,
-    ),
-    ~expected=array_([int_(2), int_(4), int_(6), int_(8)]),
-  )
-}
-
-// (6) Compare side by side: same input, joined vs unjoined, paired.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3)]),
-  ]))
-  let openOuter1 = open_(ListIter, input.value)
-  let openInner1 = open_(ListIter, openOuter1.value)
-  let nested = close_(
-    NodeFlow(openOuter1.node),
-    close_(
-      NodeFlow(openInner1.node),
-      app(double, [openInner1.value]).value,
-    ).value,
-  )
-  let openOuter2 = open_(ListIter, input.value)
-  let openInner2 = open_(ListIter, openOuter2.value)
-  let flat = close_(
-    join_(NodeFlow(openInner2.node)),
-    app(double, [openInner2.value]).value,
-  )
-  runTest(
-    ~name="join vs nested side-by-side on the same input",
-    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
-    ~expected=obj([
-      (
-        "nested",
-        array_([
-          array_([int_(2), int_(4)]),
-          array_([int_(6)]),
-        ]),
-      ),
-      ("flat", array_([int_(2), int_(4), int_(6)])),
-    ]),
-  )
-}
-
-// =====================================================================
-// Mixed joinCounts on a single opener. Both joined and unjoined closes
-// share the same inner Open and the same loops; each produces its own
-// output array at its own joined-out scope.
-// =====================================================================
-
-// (1) Mixed unjoined + joined inner closes, with an outer close that
-//     consumes the unjoined per-iter list. Expected JS structure:
-//     - unjoined out (per outer iter) inside outer body.
-//     - joined out at top level.
-//     - outer-close out at top level (collecting the per-iter lists).
-//     - Both pushes inside the inner body.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3), int_(4)]),
-  ]))
-  let outer = open_(ListIter, input.value)
-  let inner = open_(ListIter, outer.value)
-  let unjoined = close_(NodeFlow(inner.node), app(double, [inner.value]).value)
-  let flat = close_(
-    join_(NodeFlow(inner.node)),
-    app(double, [inner.value]).value,
-  )
-  let nested = close_(NodeFlow(outer.node), unjoined.value)
-  runTest(
-    ~name="mixed: unjoined + joined on one opener; nested wraps unjoined",
-    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
-    ~expected=obj([
-      ("nested", array_([
-        array_([int_(2), int_(4)]),
-        array_([int_(6), int_(8)]),
-      ])),
-      ("flat", array_([int_(2), int_(4), int_(6), int_(8)])),
-    ]),
-  )
-}
-
-// (2) Same as above but the per-element computation is *shared* between
-//     the unjoined and joined closes (same node, not two equivalent
-//     ones). The compiled JS should compute `double(elem)` exactly once
-//     per inner iteration and push the same binding into both arrays.
-{
-  let input = lit(array_([
-    array_([int_(1), int_(2)]),
-    array_([int_(3)]),
-  ]))
-  let outer = open_(ListIter, input.value)
-  let inner = open_(ListIter, outer.value)
-  let body = app(double, [inner.value]) // shared between both closes
-  let unjoined = close_(NodeFlow(inner.node), body.value)
-  let flat = close_(join_(NodeFlow(inner.node)), body.value)
-  let nested = close_(NodeFlow(outer.node), unjoined.value)
-  runTest(
-    ~name="mixed (shared body): one double per iter, two pushes",
-    ~expr=app(bundle2("nested", "flat"), [nested.value, flat.value]),
-    ~expected=obj([
-      ("nested", array_([
-        array_([int_(2), int_(4)]),
-        array_([int_(6)]),
-      ])),
-      ("flat", array_([int_(2), int_(4), int_(6)])),
-    ]),
-  )
-}
-
-// =====================================================================
-// Case-split flow. `Open CaseSplit({alts, discriminator})` opens an
-// alternative-typed value into one value port + one flow port per alt.
-// `Branch({source, alt})` selects a port. A case `Close` collects the
-// branches back together. The compile target is an `if/else if/else`
-// chain with a `let v_close` per Close, assigned in each branch.
-// =====================================================================
-
-// A do-nothing discriminator that assumes the input is already
-// `{tag, value}`-shaped.
-let identity = arrowExpr([p("x")], id("x"))
-
-// (1) Maybe-double: if Just, double the int; if Nothing, return 0.
-//     Test both alternatives.
-let maybeDouble = (input: JsAst.expr): Expr.handle => {
-  let inputE = lit(input)
-  let opened = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE.value,
-  )
-  let justB = branch_(NodeFlow(opened.node), "Just")
-  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
-  caseClose([
-    {
-      altName: Some("Just"),
-      flow: NodeFlow(justB.node),
-      value: app(double, [justB.value]).value,
-    },
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(int_(0)).value,
-    },
-  ])
-}
-
-runTest(
-  ~name="case-split: Maybe-double of Just(42)",
-  ~expr=maybeDouble(obj([("tag", str("Just")), ("value", int_(42))])),
-  ~expected=int_(84),
-)
-
-runTest(
-  ~name="case-split: Maybe-double of Nothing",
-  ~expr=maybeDouble(obj([("tag", str("Nothing"))])),
-  ~expected=int_(0),
-)
-
-// (2) Either-with-different-result-types: take an Either<string, int>;
-//     for Left return its length, for Right return it doubled.
-{
-  let inputE = lit(obj([("tag", str("Left")), ("value", str("hello"))]))
-  let opened = open_(
-    CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
-    inputE.value,
-  )
-  let leftB = branch_(NodeFlow(opened.node), "Left")
-  let rightB = branch_(NodeFlow(opened.node), "Right")
-  let lengthFn = arrowExpr([p("s")], member(id("s"), "length"))
-  runTest(
-    ~name="case-split: Either<string,int> — Left.length / Right * 2",
-    ~expr=caseClose([
-      {
-        altName: Some("Left"),
-        flow: NodeFlow(leftB.node),
-        value: app(lengthFn, [leftB.value]).value,
-      },
-      {
-        altName: Some("Right"),
-        flow: NodeFlow(rightB.node),
-        value: app(double, [rightB.value]).value,
-      },
-    ]),
-    ~expected=int_(5),
-  )
-}
-
-// (3) Multi-close on a case-split: produce two outputs from the same
-//     CaseSplit Open. One returns "tag-or-zero", another returns the
-//     payload-or-empty-string. Both share the same if/else chain.
-{
-  let inputE = lit(obj([("tag", str("Just")), ("value", int_(7))]))
-  let opened = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE.value,
-  )
-  let justB = branch_(NodeFlow(opened.node), "Just")
-  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
-  let valOrZero = caseClose([
-    {altName: Some("Just"), flow: NodeFlow(justB.node), value: justB.value},
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(int_(0)).value,
-    },
-  ])
-  let tagOnly = caseClose([
-    {
-      altName: Some("Just"),
-      flow: NodeFlow(justB.node),
-      value: lit(str("present")).value,
-    },
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(str("absent")).value,
-    },
-  ])
-  runTest(
-    ~name="case-split: multi-close — value-or-zero + tag",
-    ~expr=app(bundle2("v", "tag"), [valOrZero.value, tagOnly.value]),
-    ~expected=obj([("v", int_(7)), ("tag", str("present"))]),
-  )
-}
-
-// (4) Case-split on a sign predicate: positive → x*x, negative → -x.
-//     The discriminator is a real function (not identity) that maps the
-//     raw int into a tagged shape.
-{
-  let signDisc = arrowExpr(
-    [p("x")],
-    cond(
-      gte(id("x"), int_(0)),
-      obj([("tag", str("Pos")), ("value", id("x"))]),
-      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
-    ),
-  )
-  let mkProg = (n: int): Expr.handle => {
-    let inputE = lit(int_(n))
-    let opened = open_(
-      CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-      inputE.value,
+  // Prefix `add(x, y)` and postfix `x, y -> add` build identical wiring — the
+  // permissive grammar's two authoring paths converge on one App (P4).
+  let prefix = TextResolve.parseProgram(`
+add = js "(a, b) => a + b"
+add(3, 4) => s
+out s
+`)
+  let postfix = TextResolve.parseProgram(`
+add = js "(a, b) => a + b"
+3, 4 -> add => s
+out s
+`)
+  if Program.equal(prefix, postfix) {
+    pass("prefix f(x, y) and postfix x, y -> f build identical wiring")
+  } else {
+    fail(
+      "prefix vs postfix wiring differs\n-- prefix --\n" ++
+      Program.dump(prefix) ++
+      "\n-- postfix --\n" ++
+      Program.dump(postfix),
     )
-    let posB = branch_(NodeFlow(opened.node), "Pos")
-    let negB = branch_(NodeFlow(opened.node), "Neg")
-    let square = arrowExpr([p("x")], mul(id("x"), id("x")))
-    caseClose([
-      {
-        altName: Some("Pos"),
-        flow: NodeFlow(posB.node),
-        value: app(square, [posB.value]).value,
-      },
-      // -x is already in the value port via the disc
-      {altName: Some("Neg"), flow: NodeFlow(negB.node), value: negB.value},
-    ])
   }
-  runTest(
-    ~name="case-split: sign disc — Pos(5) -> 25",
-    ~expr=mkProg(5),
-    ~expected=int_(25),
-  )
-  runTest(
-    ~name="case-split: sign disc — Neg(-7) -> 7",
-    ~expr=mkProg(-7),
-    ~expected=int_(7),
-  )
 }
 
-// (5) Case-split inside a list iteration: for each element of a list of
-//     Maybes, return either `value*2` or `0`, collecting into a list.
+// ============================================================================
+// 2. Multiply each element by 2 — text (inline `* 2`) and handles agree
+// ============================================================================
+
+header("list flow: text and handles agree")
 {
-  let input = lit(array_([
-    obj([("tag", str("Just")), ("value", int_(1))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(5))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  // Per element: case-split.
-  let inner = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
-  )
-  let justB = branch_(NodeFlow(inner.node), "Just")
-  let nothingB = branch_(NodeFlow(inner.node), "Nothing")
-  let perElemResult = caseClose([
-    {
-      altName: Some("Just"),
-      flow: NodeFlow(justB.node),
-      value: app(double, [justB.value]).value,
-    },
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(int_(0)).value,
-    },
-  ])
-  runTest(
-    ~name="case-split inside list iter: [Just(1), Nothing, Just(5)] -> [2, 0, 10]",
-    ~expr=close_(NodeFlow(opened.node), perElemResult.value),
-    ~expected=array_([int_(2), int_(0), int_(10)]),
-  )
+  let src = `
+[1, 2, 3] -> open list -> * 2 -~> collect => out
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The handle-built twin: `* 2` desugars to App of the binary `*` extern to
+  // the element and the literal 2.
+  let b = Build.make()
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let doubled = Build.app(b, mul.value, [it.element, two.value])
+  let out = Build.collect(b, ~flow=it.flow, doubled.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out", out.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("text-built and handle-built programs have identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  expectOutput(fromText, "out", array_([int_(2), int_(4), int_(6)]))
+  expectRoundTrip(fromText)
 }
 
-// (6) Shared computation across branches: both branches reference a
-//     value computed once outside the if. Verify it's emitted once at
-//     the parent scope.
+// ============================================================================
+// 3. Flatten: nested opens, bare join in chain position
+// ============================================================================
+
+header("flatten: implicit flow stack, binary join")
 {
-  let inputE = lit(obj([("tag", str("Just")), ("value", int_(10))]))
-  let bonus = lit(int_(100)) // shared between Just and Nothing
-  let opened = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE.value,
-  )
-  let justB = branch_(NodeFlow(opened.node), "Just")
-  let nothingB = branch_(NodeFlow(opened.node), "Nothing")
-  runTest(
-    ~name="case-split: shared `bonus` used in both branches",
-    ~expr=caseClose([
-      {
-        altName: Some("Just"),
-        flow: NodeFlow(justB.node),
-        value: app(jsAdd, [justB.value, bonus.value]).value,
-      },
-      {
-        altName: Some("Nothing"),
-        flow: NodeFlow(nothingB.node),
-        value: bonus.value,
-      },
-    ]),
-    ~expected=int_(110),
-  )
+  let src = `
+[[1, 2], [3]] -> open list -> open list -> * 2 -~> join -~> collect => flat
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "flat", array_([int_(2), int_(4), int_(6)]))
+  expectRoundTrip(p)
 }
 
-// (7) Nested case-splits: outer split of a Maybe<Either<…>>. Just
-//     branch contains another split.
+// ============================================================================
+// 4. Multi-close via junction taps
+// ============================================================================
+
+header("multi-close: taps desugar to shared references")
 {
-  let inputE = lit(obj([
-    ("tag", str("Just")),
-    ("value", obj([("tag", str("Right")), ("value", int_(7))])),
-  ]))
-  let outerSplit = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inputE.value,
-  )
-  let justB = branch_(NodeFlow(outerSplit.node), "Just")
-  let nothingB = branch_(NodeFlow(outerSplit.node), "Nothing")
-  // Inside Just: split again.
-  let innerSplit = open_(
-    CaseSplit({alts: ["Left", "Right"], discriminator: identity}),
-    justB.value,
-  )
-  let leftB = branch_(NodeFlow(innerSplit.node), "Left")
-  let rightB = branch_(NodeFlow(innerSplit.node), "Right")
-  let innerResult = caseClose([
-    {
-      altName: Some("Left"),
-      flow: NodeFlow(leftB.node),
-      value: lit(int_(-1)).value,
-    },
-    {
-      altName: Some("Right"),
-      flow: NodeFlow(rightB.node),
-      value: app(double, [rightB.value]).value,
-    },
-  ])
-  let outerResult = caseClose([
-    {
-      altName: Some("Just"),
-      flow: NodeFlow(justB.node),
-      value: innerResult.value,
-    },
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(int_(0)).value,
-    },
-  ])
-  runTest(
-    ~name="case-split: nested Maybe<Either<_, int>> — Just(Right(7)) -> 14",
-    ~expr=outerResult,
-    ~expected=int_(14),
-  )
+  let src = `
+[1, 2, 3] -> open list -> | * 2 -~> collect => doubled
+| -> * 3 -~> collect => tripled
+out doubled
+out tripled
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "doubled", array_([int_(2), int_(4), int_(6)]))
+  expectOutput(p, "tripled", array_([int_(3), int_(6), int_(9)]))
+  expectRoundTrip(p)
 }
 
-// =====================================================================
-// Filter — the case-split-in-list analogue of Join. Wraps a Branch and
-// tells the consuming Close to push inside that alt's if-body, putting
-// the output array at the surrounding list's parent scope. Lets you
-// keep only the elements whose case matches the filtered alt.
-// =====================================================================
+// ============================================================================
+// 5. Option flow
+// ============================================================================
 
-// (1) Basic filter: keep only Justs from a list of Maybes, doubled.
+header("option flow")
 {
-  let input = lit(array_([
-    obj([("tag", str("Just")), ("value", int_(1))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(5))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(3))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
-  )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  runTest(
-    ~name="filter: keep only Justs, doubled",
-    ~expr=close_(
-      filter_(NodeFlow(justB.node)),
-      app(double, [justB.value]).value,
-    ),
-    ~expected=array_([int_(2), int_(10), int_(6)]),
-  )
+  let src = `
+five = js "5"
+five -> open option -> * 2 -~> collect => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", int_(10))
+  expectRoundTrip(p)
 }
 
-// (2) Filter to identity: just collect the inner values of all Justs.
-{
-  let input = lit(array_([
-    obj([("tag", str("Just")), ("value", int_(7))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(11))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
-  )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  runTest(
-    ~name="filter: identity — extract Just values",
-    ~expr=close_(filter_(NodeFlow(justB.node)), justB.value),
-    ~expected=array_([int_(7), int_(11)]),
-  )
+// ============================================================================
+// 5c. Printer chain compression (ARCHITECTURE.md worklist item 4)
+// ============================================================================
+// Single-consumer runs fuse into one postfix chain; the flow a chain opens and
+// closes itself is implicit (no `~name`); single-use data literals inline. The
+// round-trip check is the correctness spec — these add a golden assertion that
+// the fused shape is actually produced, not just that it reparses.
+
+// Assert some printed line contains every needle (the fused chain landed on one
+// line rather than being split across named statements).
+let expectFusedLine = (p: Program.program, needles: array<string>, label: string): unit => {
+  let text = TextPrint.print(p)
+  let hit =
+    text
+    ->String.split("\n")
+    ->Array.some(line => needles->Array.every(nd => line->String.includes(nd)))
+  if hit {
+    pass("print fuses: " ++ label)
+  } else {
+    fail("print did not fuse (" ++ label ++ "):\n" ++ text)
+  }
 }
 
-// (3) Filter with no matches: input has no Justs.
+header("printer: a multi-stage value chain fuses onto one line")
 {
-  let input = lit(array_([
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Nothing"))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
-  )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  runTest(
-    ~name="filter: no Justs in input -> []",
-    ~expr=close_(
-      filter_(NodeFlow(justB.node)),
-      app(double, [justB.value]).value,
-    ),
-    ~expected=array_([]),
-  )
+  let src = `
+inc = js "x => x + 1"
+[10, 20, 30] -> open list -> inc -> * 2 -~> collect => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(22), int_(42), int_(62)]))
+  expectRoundTrip(p)
+  // whole chain — source list through the named app and the `* 2` operator
+  // section to the bare collect — on one line (names are the printer's own, so
+  // assert the stable structural markers).
+  expectFusedLine(p, ["[10, 20, 30]", "open list", "-~> collect", "=> out"], "source..collect")
 }
 
-// (4) Filter with a real predicate: keep only positive numbers from a
-//     list of ints. Discriminator splits Pos vs Neg; we filter to Pos
-//     and square.
+header("printer: an application stage carries an inlined extra argument")
 {
-  let signDisc = arrowExpr(
-    [p("x")],
-    cond(
-      gte(id("x"), int_(0)),
-      obj([("tag", str("Pos")), ("value", id("x"))]),
-      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
-    ),
-  )
-  let input = lit(array_([int_(3), int_(-2), int_(5), int_(0), int_(-7), int_(4)]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-    opened.value,
-  )
-  let posB = branch_(NodeFlow(split.node), "Pos")
-  let square = arrowExpr([p("x")], mul(id("x"), id("x")))
-  runTest(
-    ~name="filter: positives only, squared (Pos/Neg disc, [3,-2,5,0,-7,4] -> [9,25,0,16])",
-    ~expr=close_(
-      filter_(NodeFlow(posB.node)),
-      app(square, [posB.value]).value,
-    ),
-    ~expected=array_([int_(9), int_(25), int_(0), int_(16)]),
-  )
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2, 3] -> open list -> add(100) -~> collect => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(101), int_(102), int_(103)]))
+  expectRoundTrip(p)
+  // the extra argument literal inlines into the call: `-> nN(100)`.
+  expectFusedLine(p, ["open list", "(100)", "-~> collect", "=> out"], "inlined extra arg")
 }
 
-// (5) Multi-filter — partition: one filter per alt. Two output lists,
-//     one for each branch. Single for-of with an if/else-if chain
-//     pushing to the right output per alt.
+// ============================================================================
+// 5b. A computed function — App's fn is a wire
+// ============================================================================
+// App's fn is a wire like any argument; here it is another App's output (a
+// computed function), not just a named extern.
+
+header("computed function: fn is a wire")
 {
-  let input = lit(array_([
-    obj([("tag", str("Just")), ("value", int_(1))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(5))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(3))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
-  )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  let nothingB = branch_(NodeFlow(split.node), "Nothing")
-  let justs = close_(
-    filter_(NodeFlow(justB.node)),
-    app(double, [justB.value]).value,
-  )
-  let nothings = close_(filter_(NodeFlow(nothingB.node)), lit(int_(99)).value)
-  runTest(
-    ~name="multi-filter: partition Maybes into doubled-Justs and 99-per-Nothing",
-    ~expr=app(bundle2("justs", "nothings"), [justs.value, nothings.value]),
-    ~expected=obj([
-      ("justs", array_([int_(2), int_(10), int_(6)])),
-      ("nothings", array_([int_(99), int_(99)])),
-    ]),
-  )
+  let b = Build.make()
+  let makeAdder = Build.raw(b, "a => b => a + b")
+  let three = Build.lit(b, int_(3))
+  let ten = Build.lit(b, int_(10))
+  let add3 = Build.app(b, makeAdder.value, [three.value])
+  let out = Build.app(b, add3.value, [ten.value])
+  let p = Build.finish(b, ~outputs=[("thirteen", out.value)])
+  expectOutput(p, "thirteen", int_(13))
 }
 
-// (5b) Filter under joined nested lists. The case-split's input is a
-//      Join-wrapped inner list iter, so the filter close compiles to
-//      two nested for-ofs followed by an if. The output is a single
-//      flat list, filtered to only the Justs and doubled.
+// ============================================================================
+// 6. Case split with per-alt ports (no Branch node anywhere)
+// ============================================================================
+
+header("case split: alt ports, exhaustive collect")
 {
-  let input = lit(array_([
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
+  )
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let maybes = Build.lit(b, array_([int_(1), undefined, int_(5)]))
+  let it = Build.uncollectList(b, maybes.value)
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, it.element)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  let doubled = Build.app(b, mul.value, [just.altValue, two.value])
+  let zero = Build.lit(b, int_(0))
+  let perElem = Build.collectCases(
+    b,
+    [(just.altFlow, doubled.value), (nothing.altFlow, zero.value)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+
+  expectOutput(p, "out", array_([int_(2), int_(0), int_(10)]))
+}
+
+// ============================================================================
+// 6b. Case collect from text — lane groups now parse and round-trip
+// ============================================================================
+
+header("case collect: lane group parses, compiles, round-trips")
+{
+  let src = `
+classify = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
+[1, 2, 3, 4] -> open list => a, ~L
+a -> split classify of Even, Odd => cs
+cs.Odd -> * 2 => doubled
+~cs.Even: cs.Even
+~cs.Odd: doubled
+-~> collect => perElem
+perElem -~> collect ~L => out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(2), int_(2), int_(6), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7. Filter as join(list, case-alt flow) — from text
+// ============================================================================
+
+header("filter is join with a case-alt inner operand")
+{
+  let src = `
+parity = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
+[1, 2, 3, 4] -> open list => a, ~L
+a -> split parity of Even, Odd => cs
+~cs.Even ~> join into ~L => ~keep
+a -~> collect ~keep => evens
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "evens", array_([int_(2), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7d. Nested flatten + filter — join(join(list, list), case-alt). Flatten a
+//     list-of-lists and keep the evens. The join whose OUTER is itself a join
+//     stacks two list layers before the filter: Codegen's per-level spine walk
+//     compiles it (emitFilterCollect loops its leading list levels), but the
+//     join-adjacency check formerly rejected it — it compared the alt's exterior
+//     (two layers) against a single-layer `[outer]` interior of the inner join.
+//     Fixed by Context.flowInterior computing a Join's flattened interior.
+// ============================================================================
+
+header("nested flatten + filter: join(join(list, list), case-alt) is adjacent")
+{
+  let b = Build.make()
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3), int_(4)])]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let i2 = Build.uncollectList(b, i1.element)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i2.element)
+  let ev = Build.alt(cs, "Even")
+  // Flatten the two list layers (j1), then join the per-element Even cell (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j2.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("evens", out.value)])
+  // The flattened evens across both inner lists: [2, 4].
+  expectOutput(p, "evens", array_([int_(2), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7e. Filter over an option leading level — join(join(list, option), case-alt).
+//     Per list element, open an option (present iff n >= 2); per present value,
+//     dispatch by parity and keep the evens. The option level is a defined-check
+//     nested inside the list's for-of: an absent option skips (contributes
+//     nothing), a present-but-Odd value is dropped by the filter, a present Even
+//     is pushed. Validated against a hand-computed value, like the partial
+//     collects.
+// ============================================================================
+
+header("filter over an option level: join(join(list, option), case-alt)")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let optIn = Build.app(b, optSrc.value, [i1.element])
+  let i2 = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i2.element)
+  let ev = Build.alt(cs, "Even")
+  // Flatten the option into the list (j1), then join the per-value Even cell (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j2.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("evens", out.value)])
+  // 1 -> option absent (skip); 2 -> Some(2) Even (keep); 3 -> Some(3) Odd (drop);
+  // 4 -> Some(4) Even (keep). Result [2, 4].
+  expectOutput(p, "evens", array_([int_(2), int_(4)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7f. Filter over ONLY option levels — join(option, case-alt), no list. The
+//     any-list rule (lazy-compile-design.md) makes the output an OPTION, not a
+//     list: `let out;` set only when the option fires and the alt matches — the
+//     single-alt case of the partial collect's collected-alone reading (7c).
+//     Validated against a hand-computed value.
+// ============================================================================
+
+header("filter over only options: join(option, case-alt) yields an option")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let v = Build.lit(b, int_(4))
+  let optIn = Build.app(b, optSrc.value, [v.value])
+  let i = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i.element)
+  let ev = Build.alt(cs, "Even")
+  // join the per-value Even cell onto the option; no list in the chain.
+  let j = Build.join(b, ~outer=i.flow, ~inner=ev.altFlow)
+  let out = Build.collect(b, ~flow=j.flow, ev.altValue)
+  let p = Build.finish(b, ~outputs=[("even", out.value)])
+  // 4 -> Some(4) (>= 2), Even -> kept -> the option holds 4.
+  expectOutput(p, "even", int_(4))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7g. Filter-then-flatmap — join(join(list, case-alt), inner-list). The
+//     dispatch is NON-trailing: an inner list opens inside the kept alt and is
+//     flattened out. For each outer element, dispatch by tag; for a "Just",
+//     iterate its payload list and emit each element; a "Nothing" contributes
+//     nothing. The emitted thunk nests a for-of INSIDE the alt guard's if —
+//     a dispatch that is not the innermost level. Validated against a
+//     hand-computed value.
+// ============================================================================
+
+header("filter-then-flatmap: join(join(list, case-alt), inner-list) flattens the kept alt")
+{
+  let b = Build.make()
+  // The discriminator drops n === 2 (Nothing) and tags the rest as Just whose
+  // payload is a two-element list to flatten out.
+  let disc = Build.raw(b, "n => n === 2 ? {tag: 'Nothing'} : {tag: 'Just', value: [n, n * 10]}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let outer = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, outer.element)
+  let just = Build.alt(cs, "Just")
+  // The inner list opens over the kept alt's payload (nested under the alt flow).
+  let inner = Build.uncollectList(b, ~nesting=just.altFlow, just.altValue)
+  // join the alt cell onto the outer list (j1), then flatten the inner list (j2).
+  let j1 = Build.join(b, ~outer=outer.flow, ~inner=just.altFlow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=inner.flow)
+  let out = Build.collect(b, ~flow=j2.flow, inner.element)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // 1 -> Just([1,10]); 2 -> Nothing (skip); 3 -> Just([3,30]). Flattened: [1,10,3,30].
+  expectOutput(p, "out", array_([int_(1), int_(10), int_(3), int_(30)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7b. Partial collect — the merged flow of two covered cells, terminated by a
+//     join (a multi-cell filter: "keep the A's and B's, drop the C's").
+//     Validated against a hand-computed value, like registers.
+// ============================================================================
+
+header("partial collect: merged flow of two cells drives a multi-cell filter")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+[1, 2, 3, 4, 5, 6] -> open list => a, ~L
+a -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+~pf ~> join into ~L => ~keep
+picked -~> collect ~keep => out
+`
+  let p = TextResolve.parseProgram(src)
+  // keep n where n%3 in {0,1}: 1(B) 3(A) 4(B) 6(A); drop 2,5 (C).
+  expectOutput(p, "out", array_([int_(1), int_(3), int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7c. Partial collect collected alone — the merged flow of two cells
+//     terminated at the parent as an option (0-or-1). Exercises the
+//     no-leading-level (option accumulator) path of emitPartialCollect.
+// ============================================================================
+
+header("partial collect: merged flow collected alone yields an option")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+4 -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+picked -~> collect ~pf => out
+`
+  let p = TextResolve.parseProgram(src)
+  // 4 % 3 == 1 -> B (a covered cell) -> the merged flow fires with value 4.
+  expectOutput(p, "out", int_(4))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7d. Partial collect over an option leading level —
+//     join(join(list, option), <partial>). Per list element, open an option
+//     (present iff n >= 2); per present value, dispatch a covered subset {A, B}
+//     of the split and drop the uncovered C. The option level is a defined-check
+//     nested inside the list's for-of (an absent option skips), the innermost
+//     dispatch is the k-arm non-exhaustive if-chain. Any-list ⇒ list output.
+//     Validated against a hand-computed value, like 7b/7c and the filter option
+//     level 7e.
+// ============================================================================
+
+header("partial collect: option leading level — join(join(list, option), partial)")
+{
+  let b = Build.make()
+  let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4), int_(5), int_(6)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  let optIn = Build.app(b, optSrc.value, [i1.element])
+  let i2 = Build.uncollectOption(b, optIn.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, i2.element)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  // Partial collect over the covered subset {A, B}; C drops.
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // Flatten the option into the list (j1), then join the partial's merged flow (j2).
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=pf)
+  let out = Build.collect(b, ~flow=j2.flow, picked.value)
+  let p = Build.finish(b, ~outputs=[("picked", out.value)])
+  // 1 -> option absent (skip); 2 -> Some(2) C (drop); 3 -> Some(3) A (keep 3);
+  // 4 -> Some(4) B (keep 4); 5 -> Some(5) C (drop); 6 -> Some(6) A (keep 6).
+  // Result [3, 4, 6].
+  expectOutput(p, "picked", array_([int_(3), int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7h. Partial collect with a case-alt LEADING level — filter-then-partial,
+//     join(join(list, case-alt), <partial>). Per list element, keep only the
+//     "Even" alt of a first split (an ordinary filter); for the kept payload,
+//     dispatch a second split (n % 3) and partial-collect the covered subset
+//     {A, B}, dropping C. The kept-alt guard nests the k-arm partial dispatch —
+//     the dispatch-leading-level shape, mirroring emitFilterCollect's level walk.
+//     Any-list ⇒ list output. Validated against a hand-computed value like
+//     7b/7c/7d.
+// ============================================================================
+
+header("partial collect: case-alt leading level — join(join(list, case-alt), partial)")
+{
+  let b = Build.make()
+  let parity = Build.raw(b, "n => ({tag: n % 2 === 0 ? 'Even' : 'Odd', value: n})")
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4), int_(5), int_(6)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  // First split: keep Even (an ordinary filter over the list).
+  let par = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i1.element)
+  let even = Build.alt(par, "Even")
+  // Second split over the kept payload; partial-collect the covered subset {A, B}.
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, even.altValue)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // Filter the list to its Even firings (j1), then join the partial's merged
+  // flow (j2): the leading level is a case-alt dispatch, not a loop.
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=even.altFlow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=pf)
+  let out = Build.collect(b, ~flow=j2.flow, picked.value)
+  let p = Build.finish(b, ~outputs=[("picked", out.value)])
+  // Evens: 2, 4, 6. 2%3=2 -> C (drop); 4%3=1 -> B (keep 4); 6%3=0 -> A (keep 6).
+  // Odds 1, 3, 5 are filtered out by the first split. Result [4, 6].
+  expectOutput(p, "picked", array_([int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 8. Registers: a running sum via the Delay pair
+// ============================================================================
+
+header("register pair: running sum compiles")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+
+  Console.log("TEXT:")
+  Console.log(TextPrint.print(p))
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("register program passes the implemented checks")
+  } else {
+    fail(
+      "unexpected witnesses:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+  // 0 + 1 + 2 + 3 = 6, the value after the last element (init if empty).
+  expectOutput(p, "total", int_(6))
+}
+
+// ============================================================================
+// 8b. Register empty-list case: final = init when no iteration ran
+// ============================================================================
+
+header("register pair: empty list yields init")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([]))
+  let it = Build.uncollectList(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(42)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  expectOutput(p, "total", int_(42))
+}
+
+// ============================================================================
+// 9. Witness surface: a bad port reference
+// ============================================================================
+
+header("check: bad port reference yields a witness, not a crash")
+{
+  let n0: Program.node = {id: 0, kind: Lit(int_(1))}
+  let n1: Program.node = {
+    id: 1,
+    kind: App({
+      fn: ValuePort(n0, "value"),
+      args: [ValuePort(n0, "oops")],
+    }),
+  }
+  let p: Program.program = {
+    nodes: [n0, n1],
+    outputs: [{name: "x", source: ValuePort(n1, "value")}],
+  }
+  switch Pipeline.compile(p) {
+  | Error(ws) => {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("port-exists witness produced")
+    }
+  | Ok(_) => fail("bad port ref compiled")
+  }
+}
+
+// ============================================================================
+// 10. Completion: the sibling-opens combine (the old silent time travel) is now
+//     COMPLETED — the two-lists program with no hand-drawn Cross has one
+//     inserted for it (product-flows-design.md, "smallest first step" 3;
+//     time-travel-programs-design.md, disposition 4). What test 13b checked at
+//     the Check level — a Cross admits this combine — completion now supplies
+//     automatically, and the completed program compiles via the whole-table
+//     emitter (test 15) to the same values as the hand-drawn version.
+// ============================================================================
+
+header("complete: a sibling-opens combine gets a Cross inserted, then compiles")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // No hand-drawn Cross: this is the under-committed time-travel program.
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let outer = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  // Collect itX inner (holding y), itY outer — per y, the list over x.
+  expectOutput(p, "out", array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]))
+  // The completion is reported as an insertion addressed to the combine's node.
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion inserted exactly one Cross for the sibling combine")
+    } else {
+      fail("expected one inserted Cross, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail("sibling-opens program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+header("complete: a non-invariant sibling cross is NOT completed (stays a witness)")
+{
+  // Two independent opens, but itY's SOURCE is derived from itX's element via a
+  // hand-drawn (invalid) Cross — a dependent nesting, not a product. Completion
+  // must not paper over it; the invariance check still witnesses.
+  let b = Build.make()
+  let mkRange = Build.raw(b, "n => Array.from({length: n}, (_, i) => i)")
+  let xs = Build.lit(b, array_([int_(2), int_(3)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let ys = Build.app(b, mkRange.value, [itX.element])
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "invariance") {
+      pass("dependent nesting still witnessed as non-invariant (not silently completed)")
+    } else {
+      fail("expected an invariance witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | Ok(_) => fail("dependent cross was wrongly completed")
+  }
+}
+
+// ============================================================================
+// 10b. Witness surface: combining two ALTS of one split — bundle mixing, the
+//      other clash flavor. The two values live in mutually exclusive cells of
+//      one case split, so no execution produces both; this is a hard error, not
+//      a completable time-travel gap (bundle-provenance-design.md).
+// ============================================================================
+
+header("check: combining sibling alts of one split is witnessed as bundle mixing")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
+  )
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let five = Build.lit(b, int_(5))
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, five.value)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  // Combine the Just payload with the Nothing payload directly — no collect.
+  let mixed = Build.app(b, addF.value, [just.altValue, nothing.altValue])
+  let p = Build.finish(b, ~outputs=[("bad", mixed.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "bundle-mixing") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("bundle-mixing witness produced")
+    } else {
+      fail(
+        "expected a bundle-mixing witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("sibling-alt combination compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 11. Witness surface: a malformed case collect (an alt covered twice)
+// ============================================================================
+
+header("check: covering an alt twice is witnessed, not a codegen crash")
+{
+  let b = Build.make()
+  let disc = Build.raw(b, "x => ({tag: 'A', value: x})")
+  let xs = Build.lit(b, array_([int_(1)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B"], ~discriminator=disc.value, it.element)
+  let zero = Build.lit(b, int_(0))
+  let one = Build.lit(b, int_(1))
+  // Two branches for "A", none for "B": covered-count still matches, so this
+  // would misclassify as full and crash the case emitter without a check.
+  let perElem = Build.collectCases(
+    b,
+    [(Build.alt(cs, "A").altFlow, zero.value), (Build.alt(cs, "A").altFlow, one.value)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "coverage") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("coverage witness produced")
+    } else {
+      fail("expected a coverage witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | Ok(_) => fail("malformed case collect compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 12. Witness surface: the general interior rule. A case collect whose branch
+//     for one alt reads ANOTHER alt's payload — a value borne on a sibling cell
+//     the collect does not iterate at that branch. Coverage is well-formed (one
+//     branch per alt) and no node merges the two cells, so neither the coverage
+//     nor the alignment check fires; without the interior rule this reaches
+//     Codegen and trips its "flow-borne port reached outside its flow" failwith
+//     (a crash, since Pipeline only catches Todo). The check turns it into a
+//     witness.
+// ============================================================================
+
+header("check: a case collect branch reading a sibling alt's payload is witnessed")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}",
+  )
+  let xs = Build.lit(b, array_([int_(1), undefined, int_(5)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, it.element)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  // The "Just" branch reads the "Nothing" payload — the wrong cell. Coverage is
+  // still one-branch-per-alt (well-formed), so only the interior rule catches it.
+  let perElem = Build.collectCases(
+    b,
+    [(just.altFlow, nothing.altValue), (nothing.altFlow, nothing.altValue)],
+  )
+  let out = Build.collect(b, ~flow=it.flow, perElem.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "flow-borne") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("flow-borne interior witness produced")
+    } else {
+      fail(
+        "expected a flow-borne witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("cross-cell case collect compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 13. Cross's demand: mutual invariance (product-flows-design.md, the Cross
+//     round's first step). Two sibling top-level flows are mutually invariant —
+//     a legitimate product, the two-lists program — so they raise no invariance
+//     witness (the whole-table emitter is still the deferred poset round, so we
+//     assert at the Check level, not by compiling). Crossing an axis with a
+//     flow DERIVED from its element is dependent nesting, not a product, and is
+//     witnessed.
+// ============================================================================
+
+header("check: two sibling flows cross cleanly (the invariance demand holds)")
+{
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Output something trivial; the Cross sits in the node set and the invariance
+  // check visits it regardless of downstream use.
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "sibling cross wrongly witnessed as non-invariant:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("sibling cross satisfies the invariance demand (emitter is the poset round)")
+  }
+}
+
+header("check: siblings sharing an outer loop still cross cleanly (source vs own axis)")
+{
+  // Two inner flows nested in ONE outer loop. They SHARE the outer axis, but
+  // neither's firings depend on the OTHER's element — mutually invariant within
+  // the shared loop. This is the case that would break a naive set-disjointness
+  // test (the shared outer axis is in both operands' full axis sets); the demand
+  // is source-vs-introduced, so it passes.
+  let b = Build.make()
+  let ls = Build.lit(b, array_([int_(0), int_(1)]))
+  let itL = Build.uncollectList(b, ls.value)
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, ~nesting=itL.flow, xs.value)
+  let itY = Build.uncollectList(b, ~nesting=itL.flow, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", ls.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "invariance") {
+    fail(
+      "siblings sharing an outer loop wrongly witnessed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  } else {
+    pass("shared-outer siblings cross cleanly (the demand tests source, not raw axes)")
+  }
+}
+
+header("check: crossing an axis with a flow derived from its element is witnessed")
+{
+  let b = Build.make()
+  let mkRange = Build.raw(b, "n => Array.from({length: n}, (_, i) => i)")
+  let xs = Build.lit(b, array_([int_(2), int_(3)]))
+  let itX = Build.uncollectList(b, xs.value)
+  // itY's SOURCE depends on itX's element — the inner flow's shape varies with
+  // the outer element, so the two are not mutually invariant.
+  let ys = Build.app(b, mkRange.value, [itX.element])
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "invariance") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("invariance witness produced (dependent nesting is not a product)")
+    } else {
+      fail(
+        "expected an invariance witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("dependent cross compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 13b. Context wired onto Poset: a Cross ADMITS a sibling combine. The same
+//      two-lists program that witnessed time travel in test 10 (add x, y over
+//      two independent opens) is now well-formed once a Cross constructs their
+//      product — the combine has a home at {X || Y} (product-flows-design.md,
+//      "The context model"). Checked at the Check level, not compiled: the
+//      point-indexed-table emitter is still the deferred poset round, so the
+//      collects here would trip Codegen — the well-formedness gate is what
+//      advances, exactly as with the invariance demand (test 13).
+// ============================================================================
+
+let noAlignmentWitness = (label, ws: array<Check.witness>) =>
+  if ws->Array.some(w => w.rule === "time-travel" || w.rule === "invariance") {
+    fail(label ++ " — unexpected witness:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  } else {
+    pass(label)
+  }
+
+header("check: a Cross admits the sibling combine that was time travel without it")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // The Cross that gives {X, Y} a home. Without it, this is test 10's time travel.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let outer = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  noAlignmentWitness("the Cross gives the sibling combine a home at {X || Y}", Check.check(p))
+}
+
+header("check: siblings sharing an outer loop cross and combine cleanly (L > {X || Y})")
+{
+  // The product's exterior is the shared loop L; the two axes go parallel inside
+  // it. Exercises crossProduct's series-prefix-then-parallel construction.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let ls = Build.lit(b, array_([int_(0), int_(1)]))
+  let itL = Build.uncollectList(b, ls.value)
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, ~nesting=itL.flow, xs.value)
+  let itY = Build.uncollectList(b, ~nesting=itL.flow, ys.value)
+  let _ = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let p = Build.finish(b, ~outputs=[("out", ls.value)])
+  noAlignmentWitness("shared-outer siblings combine at L > {X || Y}", Check.check(p))
+}
+
+header("check: a Cross of the WRONG axes does not admit the combine (still time travel)")
+{
+  // Three independent opens; combine x with y, but the only Cross is (x, z). Its
+  // product is {X || Z}, which does not host the {X, Y} combine — a combine's
+  // home is exact, not a covering-or-adjacent product. So the clash still stands.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1)]))
+  let ys = Build.lit(b, array_([int_(10)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itZ.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let outer = Build.collect(b, ~flow=itY.flow, inner.value)
+  let _ = itZ
+  let p = Build.finish(b, ~outputs=[("out", outer.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "time-travel") {
+    pass("a {X || Z} cross does not host the {X, Y} combine — still time travel")
+  } else {
+    fail(
+      "expected the {X,Y} combine to stay time travel, got:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+}
+
+// ============================================================================
+// 14. The series-parallel context algebra (Poset.res) — the Fork-A `≤` primitive
+//     and the LUB merge, unit-tested against the cases worked on paper. Products
+//     + nesting only (cells arrive with partial-collect's merged context).
+// ============================================================================
+
+header("poset: the ≤ primitive (axes-⊆ + order-extends)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let a = Axis("a")
+  let leqCheck = (name, s, r, expected) =>
+    if leq(s, r) === expected {
+      pass("≤ " ++ name ++ " (" ++ toString(s) ++ (expected ? " ≤ " : " ≰ ") ++ toString(r) ++ ")")
+    } else {
+      fail("≤ " ++ name ++ ": " ++ toString(s) ++ " vs " ++ toString(r) ++ " expected " ++ (expected ? "≤" : "≰"))
+    }
+
+  // table reused in a traversal: the product is available at either nesting order
+  leqCheck("product ≤ traversal", parallel([x, y]), series([y, x]), true)
+  leqCheck("product ≤ other traversal", parallel([x, y]), series([x, y]), true)
+  // no time travel: a nesting is not available at the reversed nesting
+  leqCheck("nesting ≰ reversed", series([x, y]), series([y, x]), false)
+  // a dependent (ragged) nesting is not available at the rectangular product
+  leqCheck("nesting ≰ product", series([x, y]), parallel([x, y]), false)
+  // any subset of a product's axes is a sub-product, usable in the whole
+  leqCheck("sub-product ≤ product", parallel([y, z]), parallel([x, y, z]), true)
+  // the plain prefix rule survives as the all-Series special case
+  leqCheck("prefix", a, series([a, y]), true)
+  leqCheck("reflexive", parallel([x, y]), parallel([x, y]), true)
+
+  // the depth-mismatched cross (stopwords × words-per-doc): Parallel(s, Series(d,w)),
+  // a non-graded but series-parallel context — reusable at any traversal that
+  // keeps d outside w, and only those.
+  let stop = parallel([Axis("s"), series([Axis("d"), Axis("w")])])
+  leqCheck("depth-mismatch ≤ d-outer traversal", stop, series([Axis("d"), Axis("s"), Axis("w")]), true)
+  leqCheck("depth-mismatch ≰ w-before-d traversal", stop, series([Axis("w"), Axis("d"), Axis("s")]), false)
+}
+
+header("poset: merge (a combine's home is the EXACT constructed product)")
+{
+  open Poset
+  let x = Axis("x")
+  let y = Axis("y")
+  let z = Axis("z")
+  let w = Axis("w")
+  let a = Axis("a")
+
+  // comparable operands merge to the deeper one — no product needed
+  switch merge(~products=[], a, series([a, y])) {
+  | m if leq(series([a, y]), m) && leq(m, series([a, y])) => pass("merge comparable → deeper")
+  | m => fail("merge comparable gave " ++ toString(m))
+  }
+
+  // two siblings whose EXACT product was constructed → that product
+  let prodXY = parallel([x, y])
+  switch merge(~products=[prodXY], x, y) {
+  | m if leq(prodXY, m) && leq(m, prodXY) => pass("merge siblings → exact constructed product")
+  | m => fail("merge siblings gave " ++ toString(m))
+  }
+
+  // two siblings with NO constructed product → Incomparable (the time-travel gap)
+  switch merge(~products=[], x, y) {
+  | exception Incomparable(_, _) => pass("merge siblings, no product → Incomparable (time travel)")
+  | m => fail("merge without a product should raise, gave " ++ toString(m))
+  }
+
+  // a SUPERSET product does not host a smaller combine — a flat cross builds no
+  // sub-product, so this is a completion gap, not a silent bind to {x,y,z}
+  switch merge(~products=[parallel([x, y, z])], x, y) {
+  | exception Incomparable(_, _) => pass("merge siblings, only a superset product → Incomparable (gap)")
+  | m => fail("superset product should not host the {x,y} combine, gave " ++ toString(m))
+  }
+
+  // the ambiguous cross: two incomparable products both cover {x,y} and neither
+  // IS {x,y} — exact-match refuses to silently pick; it is a time-travel program
+  // for completion to make concrete compatibly with the rest of the program
+  switch merge(~products=[parallel([x, y, z]), parallel([x, y, w])], x, y) {
+  | exception Incomparable(_, _) =>
+    pass("merge siblings, two covering supersets → Incomparable (no silent pick)")
+  | m => fail("ambiguous cross should not silently pick, gave " ++ toString(m))
+  }
+}
+
+// ============================================================================
+// 15. The whole-table Cross emitter (product-flows-design.md, "Compile" and
+//     "smallest first step" 2). The two-lists program compiled in BOTH orders:
+//     one shared point-indexed table, built once in the Cross's stored
+//     orientation, indexed by each consumer in its own order — the transpose is
+//     free, and the user's `add` runs once. Validated against hand-built
+//     tables, and a golden check pins add-once.
+// ============================================================================
+
+let countOccurrences = (haystack: string, needle: string): int =>
+  Array.length(String.split(haystack, needle)) - 1
+
+header("cross: the two-lists product, both orders, one shared table")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // The Cross gives the {X, Y} combine a home (test 13b); its stored orientation
+  // (left = x outer, right = y inner) is the table's build order.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Order 1: collect x inner (holding y), y outer — per y, the list over x.
+  let inner1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itY.flow, inner1.value)
+  // Order 2: the transpose — collect y inner (holding x), x outer.
+  let inner2 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out2 = Build.collect(b, ~flow=itX.flow, inner2.value)
+  let p = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  // out1: grouped per y — [[1+10,2+10,3+10],[1+20,2+20,3+20]].
+  expectOutput(
+    p,
+    "out1",
     array_([
-      obj([("tag", str("Just")), ("value", int_(1))]),
-      obj([("tag", str("Nothing"))]),
+      array_([int_(11), int_(12), int_(13)]),
+      array_([int_(21), int_(22), int_(23)]),
     ]),
+  )
+  // out2: the transpose — grouped per x.
+  expectOutput(
+    p,
+    "out2",
     array_([
-      obj([("tag", str("Just")), ("value", int_(5))]),
-      obj([("tag", str("Nothing"))]),
-      obj([("tag", str("Just")), ("value", int_(3))]),
-    ]),
-    array_([]),
-  ]))
-  let outer = open_(ListIter, input.value)
-  let inner = open_(ListIter, outer.value)
-  // The case-split sees the inner element. The filter close's flow
-  // is Joined(Filtered(...)) — the Joined lifts the output one level
-  // up, past the outer list.
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    inner.value,
-  )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  runTest(
-    ~name="filter under joined nested lists: flatten + filter Justs, doubled",
-    ~expr=close_(
-      join_(filter_(NodeFlow(justB.node))),
-      app(double, [justB.value]).value,
-    ),
-    ~expected=array_([int_(2), int_(10), int_(6)]),
-  )
-}
-
-// (6) Multi-filter targeting the same alt — two filter closes both
-//     filtering "Pos", producing two parallel output lists. Each push
-//     happens inside the same Pos if-body.
-{
-  let signDisc = arrowExpr(
-    [p("x")],
-    cond(
-      gte(id("x"), int_(0)),
-      obj([("tag", str("Pos")), ("value", id("x"))]),
-      obj([("tag", str("Neg")), ("value", neg(id("x")))]),
-    ),
-  )
-  let input = lit(array_([int_(2), int_(-3), int_(4), int_(-1)]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Pos", "Neg"], discriminator: signDisc}),
-    opened.value,
-  )
-  let posB = branch_(NodeFlow(split.node), "Pos")
-  let posDoubled = close_(
-    filter_(NodeFlow(posB.node)),
-    app(double, [posB.value]).value,
-  )
-  let posSquared = close_(
-    filter_(NodeFlow(posB.node)),
-    app(arrowExpr([p("x")], mul(id("x"), id("x"))), [posB.value]).value,
-  )
-  runTest(
-    ~name="multi-filter: same alt, two parallel outputs (doubled + squared)",
-    ~expr=app(bundle2("doubled", "squared"), [posDoubled.value, posSquared.value]),
-    ~expected=obj([
-      ("doubled", array_([int_(4), int_(8)])),
-      ("squared", array_([int_(4), int_(16)])),
+      array_([int_(11), int_(21)]),
+      array_([int_(12), int_(22)]),
+      array_([int_(13), int_(23)]),
     ]),
   )
+
+  // Golden: the user's add appears exactly once in a compiled output — the two
+  // orders share the table rather than each recomputing the product.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out1") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b")
+      if n === 1 {
+        pass("add's work appears once (both orders share the table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out1 to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("product program failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
 }
 
-// (7) Mixing — filter and exhaustive case-close on the SAME
-//     case-split. The case-close produces a per-iteration value
-//     (doubled if Just, 0 if Nothing); a list close on the outer
-//     iter pushes that per-iter value into a "doubled" array. The
-//     filter close on the same case-split's Just alt also pushes
-//     the just-values into a separate "justs" array. One discriminator
-//     call, one if/else-if chain shared by both, one for-of loop.
+header("cross: a single-order product still compiles (the direct table read)")
 {
-  let input = lit(array_([
-    obj([("tag", str("Just")), ("value", int_(1))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(5))]),
-    obj([("tag", str("Nothing"))]),
-    obj([("tag", str("Just")), ("value", int_(3))]),
-  ]))
-  let opened = open_(ListIter, input.value)
-  let split = open_(
-    CaseSplit({alts: ["Just", "Nothing"], discriminator: identity}),
-    opened.value,
+  // Just one consumer chain — the table is built and read once. This is the
+  // exact program test 13b only checked; now it compiles and runs.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20), int_(30)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let out = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // per y: [1+y, 2+y]
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([int_(11), int_(12)]),
+      array_([int_(21), int_(22)]),
+      array_([int_(31), int_(32)]),
+    ]),
   )
-  let justB = branch_(NodeFlow(split.node), "Just")
-  let nothingB = branch_(NodeFlow(split.node), "Nothing")
-  let perIter = caseClose([
-    {
-      altName: Some("Just"),
-      flow: NodeFlow(justB.node),
-      value: app(double, [justB.value]).value,
-    },
-    {
-      altName: Some("Nothing"),
-      flow: NodeFlow(nothingB.node),
-      value: lit(int_(0)).value,
-    },
-  ])
-  let doubledList = close_(NodeFlow(opened.node), perIter.value)
-  let justsList = close_(filter_(NodeFlow(justB.node)), justB.value)
-  runTest(
-    ~name="mix: case-close + filter on same case-split (doubled vs justs)",
-    ~expr=app(bundle2("doubled", "justs"), [doubledList.value, justsList.value]),
-    ~expected=obj([
-      ("doubled", array_([int_(2), int_(0), int_(10), int_(0), int_(6)])),
-      ("justs", array_([int_(1), int_(5), int_(3)])),
+  // The standalone product prints and reparses (the `cross with` surface form).
+  expectRoundTrip(p)
+}
+
+// 15b. The `cross with` text surface (ARCHITECTURE worklist item 3, parser
+//      catch-up). A product program authored directly in text — the Cross node
+//      is a standalone `~left ~> cross with ~right => ~flow` statement, and the
+//      two axis flows are collected in either order. Text and handles build the
+//      identical wiring, and the text compiles to the same shared-table output.
+// ============================================================================
+
+header("cross: the product authored in text (`cross with`), both orders")
+{
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2, 3] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+~fx ~> cross with ~fy => ~fxy
+ex, ey -> add => s
+s -~> collect ~fx => inner1
+inner1 -~> collect ~fy => out1
+s -~> collect ~fy => inner2
+inner2 -~> collect ~fx => out2
+out out1
+out out2
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The same program, built via handles (mirrors test 15's structure).
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let inner1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itY.flow, inner1.value)
+  let inner2 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out2 = Build.collect(b, ~flow=itX.flow, inner2.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("text `cross with` and handles build identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  // out1: grouped per y — [[1+10,2+10,3+10],[1+20,2+20,3+20]].
+  expectOutput(
+    fromText,
+    "out1",
+    array_([array_([int_(11), int_(12), int_(13)]), array_([int_(21), int_(22), int_(23)])]),
+  )
+  // out2: the transpose — grouped per x.
+  expectOutput(
+    fromText,
+    "out2",
+    array_([array_([int_(11), int_(21)]), array_([int_(12), int_(22)]), array_([int_(13), int_(23)])]),
+  )
+  expectRoundTrip(fromText)
+}
+
+// 15d. The n-ary (rank-3) product (product-flows-design.md, "N-ary products: the
+//      three-list example"). Three lists crossed side by side via nested binary
+//      Crosses — `cross(cross(x, y), z)` — flatten to one flat axis set {X,Y,Z}.
+//      A full consumer chain of three nested collects reads the shared cube in a
+//      chosen order; the transpose to a different order reads the SAME cube (the
+//      six orders are the S₃ orbit — "the table indexing generalises verbatim …
+//      f run once per point regardless of how many of the six consumers traverse
+//      in how many orders"). Validated against hand-built cubes and an
+//      add-once golden, exactly like the two-axis test.
+header("cross: the three-lists product (rank 3), two orders, one shared cube")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  // The stored orientation is the nesting tree left-to-right: cross(cross(x,y),z)
+  // ⇒ axes [x, y, z]. Both sub-products ({X,Y} and {X,Y,Z}) are constructed.
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Order A (outer→inner = z, y, x): out[iz][iy][ix] = x + y + z.
+  let a1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let a2 = Build.collect(b, ~flow=itY.flow, a1.value)
+  let outA = Build.collect(b, ~flow=itZ.flow, a2.value)
+  // Order B (outer→inner = x, y, z): the transpose — out[ix][iy][iz] = x + y + z.
+  let b1 = Build.collect(b, ~flow=itZ.flow, s.value)
+  let b2 = Build.collect(b, ~flow=itY.flow, b1.value)
+  let outB = Build.collect(b, ~flow=itX.flow, b2.value)
+  let p = Build.finish(b, ~outputs=[("outA", outA.value), ("outB", outB.value)])
+
+  // outA: grouped z, then y, then x.
+  expectOutput(
+    p,
+    "outA",
+    array_([
+      array_([array_([int_(111), int_(112), int_(113)]), array_([int_(121), int_(122), int_(123)])]),
+      array_([array_([int_(211), int_(212), int_(213)]), array_([int_(221), int_(222), int_(223)])]),
+    ]),
+  )
+  // outB: the transpose — grouped x, then y, then z. Same values, re-indexed.
+  expectOutput(
+    p,
+    "outB",
+    array_([
+      array_([array_([int_(111), int_(211)]), array_([int_(121), int_(221)])]),
+      array_([array_([int_(112), int_(212)]), array_([int_(122), int_(222)])]),
+      array_([array_([int_(113), int_(213)]), array_([int_(123), int_(223)])]),
+    ]),
+  )
+
+  // Golden: the user's f3 appears exactly once in a compiled output — both orders
+  // share the one cube rather than each recomputing the rank-3 product.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outA") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b + c")
+      if n === 1 {
+        pass("f3's work appears once (both orders share the rank-3 cube)")
+      } else {
+        fail("expected f3 once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outA to inspect for f3-once")
+    }
+  | Error(ws) =>
+    fail("rank-3 product failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15e. The rank-3 product authored directly in text: nested `cross with`
+//      statements naming the intermediate {X,Y} product, then the full
+//      {X,Y,Z}. Parses, checks, compiles via the whole-table (cube) emitter,
+//      and round-trips — the two-axis `cross with` surface (15b) generalises to
+//      nesting for free.
+header("cross: the rank-3 product authored in text (nested `cross with`)")
+{
+  let src = `
+f3 = js "(a, b, c) => a + b + c"
+[1, 2] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+[100, 200] -> open list => ~fz, ez
+~fx ~> cross with ~fy => ~fxy
+~fxy ~> cross with ~fz => ~fxyz
+ex, ey, ez -> f3 => s
+s -~> collect ~fx => a1
+a1 -~> collect ~fy => a2
+a2 -~> collect ~fz => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  // out[iz][iy][ix] = x + y + z (chain collects fx inner, fy mid, fz outer).
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(111), int_(112)]), array_([int_(121), int_(122)])]),
+      array_([array_([int_(211), int_(212)]), array_([int_(221), int_(222)])]),
+    ]),
+  )
+  expectRoundTrip(p)
+}
+
+// 15f. An under-covered rank-3 consumer: three lists combined, but only the
+//      {X,Y} sub-product was crossed (never the full {X,Y,Z}). The whole-table
+//      emitter needs the EXACT product spanning the chain's axes, which does not
+//      exist, so codegen declines with a clean Todo rather than crashing
+//      (product-flows-design.md, N-ary: "the combine is ill-formed until a Cross
+//      supplies {X,Y,Z}"). Soundly WITNESSING this is the poset round's
+//      context-model check (checkAlignment admits the first sibling pair via the
+//      {X,Y} product and does not yet re-verify the full span); until then the
+//      Todo keeps the gap disciplined, mirroring the commute decline (15c).
+header("cross: an under-covered rank-3 consumer declines cleanly (poset round)")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow) // only {X,Y} — no full product
+  let i1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let i2 = Build.collect(b, ~flow=itY.flow, i1.value)
+  let out = Build.collect(b, ~flow=itZ.flow, i2.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("under-covered rank-3 consumer declines with a Todo (poset round owns the check)")
+  | Ok(_) => fail("under-covered rank-3 consumer unexpectedly compiled")
+  | Error(ws) =>
+    fail("expected a Todo decline, got witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser
+//      catch-up — the last of the standalone flow-combine forms). A commute
+//      swaps a list opened inside an option's absent-or-present flow: the
+//      two-port Commute node is a standalone `~inner ~> commute out of ~outer
+//      => cN` statement, its swapped flows referenced as ~cN.outer / ~cN.inner.
+//      Commute is representable-but-not-compilable (the poset round owns its
+//      emitter), so this validates the surface by wiring identity, a clean
+//      check, and the round-trip — not by evaluation.
+// ============================================================================
+
+header("commute: the swap authored in text (`commute out of`), round-trips")
+{
+  let src = `
+[1, 2, 3] -> open list => ~xs, x
+x -> open option in ~xs => ~opt, ov
+~opt ~> commute out of ~xs => c
+ov -~> collect ~c.inner -~> collect ~c.outer => out
+out out
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The same program, built via handles.
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let opt = Build.uncollectOption(b, ~nesting=it.flow, it.element)
+  let cm = Build.commute(b, ~outer=it.flow, ~inner=opt.flow)
+  let lst = Build.collect(b, ~flow=cm.innerFlow, opt.element)
+  let res = Build.collect(b, ~flow=cm.outerFlow, lst.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out", res.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("text `commute out of` and handles build identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  // The fully-collected commute passes the implemented checks (both swapped
+  // flows are collected, so nothing is left flow-borne at the boundary).
+  let ws = Check.check(fromText)
+  if Array.length(ws) === 0 {
+    pass("commute program passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // Representable and checkable, but the commute emitter is still Todo — the
+  // poset round owns it. Compile declines with a clean Todo rather than a bad
+  // emit, which is what we assert here.
+  switch Pipeline.compile(fromText) {
+  | exception Codegen.Todo(_) => pass("commute declines to compile (poset round owns the emitter)")
+  | Ok(_) => fail("commute unexpectedly compiled — its emitter was Todo")
+  | Error(ws) =>
+    fail("commute program failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(fromText)
+}
+
+// ============================================================================
+// Coverage ported from the previous compiler's value-test suite. These exercise
+// distinct compiler behaviours the sections above do not: value-fragment
+// variety (object build, field access, zero-arg, ternary), multi-output and
+// cross-branch value sharing, loop-invariant placement, plain nested collects
+// (collect-of-collect, no join), deeper join flattening, option-of-option and
+// option-of-list nestings, and nested case dispatch. Each is validated against
+// an author-written expected value, like the sections above.
+// ============================================================================
+
+header("value fragment: object build, field access, zero-arg, ternary (ported)")
+{
+  let b = Build.make()
+  let makePoint = Build.raw(b, "(x, y) => ({x: x, y: y})")
+  let getX = Build.raw(b, "p => p.x")
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let minF = Build.raw(b, "(a, b) => a < b ? a : b")
+  let const42 = Build.raw(b, "() => 42")
+  let one = Build.lit(b, int_(1))
+  let two = Build.lit(b, int_(2))
+  let three = Build.lit(b, int_(3))
+  let four = Build.lit(b, int_(4))
+  let seven = Build.lit(b, int_(7))
+  let ten = Build.lit(b, int_(10))
+  // getX(makePoint(1 + 2, 3 + 4)) = 3 — object construction then field access.
+  let pt = Build.app(
+    b,
+    makePoint.value,
+    [Build.app(b, addF.value, [one.value, two.value]).value, Build.app(b, addF.value, [three.value, four.value]).value],
+  )
+  let px = Build.app(b, getX.value, [pt.value])
+  // minOfTwo(minOfTwo(7, 4), 10) = 4 — a ternary extern, nested (`four` shared).
+  let m = Build.app(b, minF.value, [Build.app(b, minF.value, [seven.value, four.value]).value, ten.value])
+  // A zero-argument call.
+  let z = Build.app(b, const42.value, [])
+  let p = Build.finish(b, ~outputs=[("px", px.value), ("m", m.value), ("z", z.value)])
+  expectOutput(p, "px", int_(3))
+  expectOutput(p, "m", int_(4))
+  expectOutput(p, "z", int_(42))
+}
+
+header("value fragment: two outputs share pi and r (multi-output memo)")
+{
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let pi = Build.lit(b, member(id("Math"), "PI"))
+  let r = Build.lit(b, int_(3))
+  let two = Build.lit(b, int_(2))
+  let rsq = Build.app(b, mulF.value, [r.value, r.value])
+  let area = Build.app(b, mulF.value, [pi.value, rsq.value])
+  let twoPi = Build.app(b, mulF.value, [two.value, pi.value])
+  let circ = Build.app(b, mulF.value, [twoPi.value, r.value])
+  let p = Build.finish(b, ~outputs=[("area", area.value), ("circ", circ.value)])
+  // pi and r are each one shared Lit feeding both outputs' subtrees.
+  expectOutput(p, "area", mul(member(id("Math"), "PI"), int_(9)))
+  expectOutput(p, "circ", mul(mul(int_(2), member(id("Math"), "PI")), int_(3)))
+}
+
+header("value fragment: deep diamond — one leaf feeds three consumers")
+{
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let plusOne = Build.raw(b, "a => a + 1")
+  let timesTwo = Build.raw(b, "a => a * 2")
+  let combine = Build.raw(b, "(a, b, c) => a + b + c")
+  let leaf = Build.app(b, mulF.value, [Build.lit(b, int_(2)).value, Build.lit(b, int_(3)).value]) // 6, once
+  let out = Build.app(
+    b,
+    combine.value,
+    [leaf.value, Build.app(b, plusOne.value, [leaf.value]).value, Build.app(b, timesTwo.value, [leaf.value]).value],
+  )
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", int_(25)) // 6 + (6 + 1) + (6 * 2)
+}
+
+header("list iter: a constant shared inside and outside the loop (placement)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let bundle = Build.raw(b, "(base, m) => ({base: base, m: m})")
+  let k = Build.lit(b, int_(100))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let mapped = Build.collect(b, ~flow=it.flow, Build.app(b, addF.value, [k.value, it.element]).value)
+  // k is used both inside the loop body (per element) and outside (paired with
+  // the result): one binding, both uses reference it — no recomputation.
+  let out = Build.app(b, bundle.value, [k.value, mapped.value])
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", obj([("base", int_(100)), ("m", array_([int_(101), int_(102), int_(103)]))]))
+}
+
+header("list iter: post-process the collected result (length of a mapped list)")
+{
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let lengthOf = Build.raw(b, "a => a.length")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([int_(5), int_(10), int_(15), int_(20)]))
+  let it = Build.uncollectList(b, xs.value)
+  let mapped = Build.collect(b, ~flow=it.flow, Build.app(b, mulF.value, [it.element, two.value]).value)
+  let out = Build.app(b, lengthOf.value, [mapped.value]) // a collect's output as an ordinary value
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", int_(4))
+}
+
+header("list iter: empty input yields an empty list")
+{
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([]))
+  let it = Build.uncollectList(b, xs.value)
+  let out = Build.collect(b, ~flow=it.flow, Build.app(b, mulF.value, [it.element, two.value]).value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", array_([]))
+}
+
+header("multi-close: a shared per-iter intermediate, one branch used twice")
+{
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let bundle = Build.raw(b, "(a, b, c) => ({a: a, b: b, c: c})")
+  let one = Build.lit(b, int_(1))
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let square = Build.app(b, mulF.value, [it.element, it.element]) // computed once per iter
+  let c1 = Build.collect(b, ~flow=it.flow, Build.app(b, addF.value, [square.value, one.value]).value)
+  let c2 = Build.collect(b, ~flow=it.flow, Build.app(b, mulF.value, [square.value, two.value]).value)
+  let out = Build.app(b, bundle.value, [c1.value, c1.value, c2.value]) // c1 twice downstream
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(
+    p,
+    "out",
+    obj([
+      ("a", array_([int_(2), int_(5), int_(10)])),
+      ("b", array_([int_(2), int_(5), int_(10)])),
+      ("c", array_([int_(2), int_(8), int_(18)])),
     ]),
   )
 }
 
-// =============================================================
-// Option-flow tests.
-// =============================================================
-//
-// Open OptionIter takes no extra payload; the input itself is the
-// option (undefined for None, anything else for the Some-value).
-
-// (1) Basic option iter: Some(5) → doubled = 10; default via `?? "none"`.
+header("nested list: plain map over a list of lists (collect-of-collect, no join)")
 {
-  let optClose = (input: JsAst.expr) => {
-    let inE = lit(input)
-    let opened = open_(OptionIter, inE.value)
-    close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  }
-  // Wrap to default undefined → "none" so jsonStringify gives a string.
-  let withDefault = (closeExpr: Expr.handle) =>
-    app(
-      arrowExpr([p("v")], nullish(id("v"), str("none"))),
-      [closeExpr.value],
-    )
-  runTest(
-    ~name="option iter: Some(5) doubled",
-    ~expr=withDefault(optClose(int_(5))),
-    ~expected=int_(10),
-  )
-  runTest(
-    ~name="option iter: None (undefined) → 'none'",
-    ~expr=withDefault(optClose(undefined)),
-    ~expected=str("none"),
-  )
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([]), array_([int_(3)])]))
+  let outer = Build.uncollectList(b, xs.value)
+  let inner = Build.uncollectList(b, ~nesting=outer.flow, outer.element)
+  let innerList = Build.collect(b, ~flow=inner.flow, Build.app(b, mulF.value, [inner.element, two.value]).value)
+  // The outer collect's per-element value is itself an inner list — the result
+  // stays a list of lists (an empty inner list among non-empty ones).
+  let out = Build.collect(b, ~flow=outer.flow, innerList.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", array_([array_([int_(2), int_(4)]), array_([]), array_([int_(6)])]))
 }
 
-// (2) Multi-close on one option: doubled and tripled in parallel.
+header("join x2: two-level flatten of a list of lists of lists")
 {
-  let inE = lit(int_(7))
-  let opened = open_(OptionIter, inE.value)
-  let doubled = close_(NodeFlow(opened.node), app(double, [opened.value]).value)
-  let tripled = close_(NodeFlow(opened.node), app(triple, [opened.value]).value)
-  runTest(
-    ~name="option iter: multi-close (doubled + tripled from Some(7))",
-    ~expr=app(bundle2("d", "t"), [doubled.value, tripled.value]),
-    ~expected=obj([("d", int_(14)), ("t", int_(21))]),
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(
+    b,
+    array_([
+      array_([array_([int_(1), int_(2)]), array_([int_(3)])]),
+      array_([array_([int_(4)])]),
+    ]),
   )
+  let i1 = Build.uncollectList(b, xs.value)
+  let i2 = Build.uncollectList(b, i1.element)
+  let i3 = Build.uncollectList(b, i2.element)
+  let doubled = Build.app(b, mulF.value, [i3.element, two.value])
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=i3.flow)
+  let out = Build.collect(b, ~flow=j2.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", array_([int_(2), int_(4), int_(6), int_(8)]))
 }
 
-// (3) Option<Option<X>> joined. Inner option's close, joined, lifts
-//     output to outer option's parent. Result is Some only if both
-//     outer and inner options fire.
+header("option of option: Some(Some(5)) flattened and doubled -> 10")
 {
-  let optOptDoubled = (input: JsAst.expr) => {
-    let inE = lit(input)
-    let outer = open_(OptionIter, inE.value)
-    let inner = open_(OptionIter, outer.value)
-    let result = close_(
-      join_(NodeFlow(inner.node)),
-      app(double, [inner.value]).value,
-    )
-    app(
-      arrowExpr([p("v")], nullish(id("v"), str("none"))),
-      [result.value],
-    )
-  }
-  runTest(
-    ~name="option<option>: Some(Some(5)) joined-inner doubled → 10",
-    ~expr=optOptDoubled(int_(5)),
-    ~expected=int_(10),
-  )
-  runTest(
-    ~name="option<option>: Some(undefined) joined-inner → 'none'",
-    ~expr=optOptDoubled(undefined),
-    ~expected=str("none"),
-  )
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let five = Build.lit(b, int_(5)) // Some(Some(5)) encodes as 5 (undefined = None)
+  let i1 = Build.uncollectOption(b, five.value)
+  let i2 = Build.uncollectOption(b, i1.element)
+  let doubled = Build.app(b, mulF.value, [i2.element, two.value])
+  let j = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let out = Build.collect(b, ~flow=j.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", int_(10)) // all-option chain -> option output (present)
 }
 
-// (4) Option<List<X>> joined: inner list close, joined, lifts output
-//     list above the if. Result is List<X> (empty if outer option
-//     didn't fire).
+header("option of list: Some([1,2,3]) flattened and doubled -> [2,4,6]")
 {
-  let optListDoubled = (input: JsAst.expr) => {
-    let inE = lit(input)
-    let outer = open_(OptionIter, inE.value)
-    let inner = open_(ListIter, outer.value)
-    close_(join_(NodeFlow(inner.node)), app(double, [inner.value]).value)
-  }
-  runTest(
-    ~name="option<list>: Some([1,2,3]) joined-inner doubled → [2,4,6]",
-    ~expr=optListDoubled(array_([int_(1), int_(2), int_(3)])),
-    ~expected=array_([int_(2), int_(4), int_(6)]),
-  )
-  runTest(
-    ~name="option<list>: None joined-inner → []",
-    ~expr=optListDoubled(undefined),
-    ~expected=array_([]),
-  )
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)])) // the Some payload is a list
+  let i1 = Build.uncollectOption(b, xs.value)
+  let i2 = Build.uncollectList(b, i1.element)
+  let doubled = Build.app(b, mulF.value, [i2.element, two.value])
+  let j = Build.join(b, ~outer=i1.flow, ~inner=i2.flow)
+  let out = Build.collect(b, ~flow=j.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", array_([int_(2), int_(4), int_(6)])) // any-list rule -> list output
 }
 
-// (5) List<Option<X>> joined: inner option close, joined past the
-//     outer list. Because the chain contains a list, the output is
-//     a list — one element per outer iter where the inner option
-//     fires, skipped when it doesn't. (Reads like filter-on-option.)
+header("nested case: Maybe<Either<string,int>> — Just(Right(7)) -> 14")
 {
-  let listOptList = (input: JsAst.expr) => {
-    let inE = lit(input)
-    let outer = open_(ListIter, inE.value)
-    let inner = open_(OptionIter, outer.value)
-    close_(join_(NodeFlow(inner.node)), app(double, [inner.value]).value)
-  }
-  runTest(
-    ~name="list<option>: [u,3,u,7,u] joined-inner doubled → [6,14]",
-    ~expr=listOptList(array_([undefined, int_(3), undefined, int_(7), undefined])),
-    ~expected=array_([int_(6), int_(14)]),
+  let b = Build.make()
+  let mulF = Build.raw(b, "(a, b) => a * b")
+  let lengthOf = Build.raw(b, "s => s.length")
+  let outerDisc = Build.raw(b, "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}")
+  let innerDisc = Build.raw(
+    b,
+    "e => e.side === 'L' ? {tag: 'Left', value: e.val} : {tag: 'Right', value: e.val}",
   )
-  runTest(
-    ~name="list<option>: [u,u,u] joined-inner → []",
-    ~expr=listOptList(array_([undefined, undefined, undefined])),
-    ~expected=array_([]),
+  let two = Build.lit(b, int_(2))
+  let zero = Build.lit(b, int_(0))
+  let input = Build.lit(b, obj([("side", str("R")), ("val", int_(7))])) // Just(Right(7))
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=outerDisc.value, input.value)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  let inner = Build.caseSplit(
+    b,
+    ~alts=["Left", "Right"],
+    ~discriminator=innerDisc.value,
+    ~nesting=just.altFlow,
+    just.altValue,
   )
+  let left = Build.alt(inner, "Left")
+  let right = Build.alt(inner, "Right")
+  let innerCollect = Build.collectCases(
+    b,
+    [
+      (left.altFlow, Build.app(b, lengthOf.value, [left.altValue]).value),
+      (right.altFlow, Build.app(b, mulF.value, [right.altValue, two.value]).value),
+    ],
+  )
+  let out = Build.collectCases(b, [(just.altFlow, innerCollect.value), (nothing.altFlow, zero.value)])
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", int_(14)) // Right(7) * 2
 }
 
-// =============================================================
-// Consumer-driven placement (sinking) tests.
-// =============================================================
-//
-// These tests check that a value used only inside a conditional
-// (option-some body, case-split alt) is sunk into that body, even
-// when its inputs would otherwise place it at a shallower scope.
-
-// (1) Per-element expensive computation that's only used inside an
-//     option-some body. The "expensive" call takes the outer list's
-//     element (loop scope), but its only use is by the option
-//     close's per-iter value — so it should sink into the if-body
-//     and run only on iterations where the option fires.
+header("case split: a value shared across both branches (placement)")
 {
-  // disc: keep only even numbers. Returns x when even, undefined when odd.
-  let evenDisc = arrowExpr(
-    [p("x")],
-    cond(eq(mod_(id("x"), int_(2)), int_(0)), id("x"), undefined),
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(b, "x => x === undefined ? {tag: 'Nothing'} : {tag: 'Just', value: x}")
+  let input = Build.lit(b, int_(42)) // Just(42)
+  let bonus = Build.app(b, addF.value, [Build.lit(b, int_(10)).value, Build.lit(b, int_(5)).value]) // 15, shared
+  let cs = Build.caseSplit(b, ~alts=["Just", "Nothing"], ~discriminator=disc.value, input.value)
+  let just = Build.alt(cs, "Just")
+  let nothing = Build.alt(cs, "Nothing")
+  let out = Build.collectCases(
+    b,
+    [
+      (just.altFlow, Build.app(b, addF.value, [just.altValue, bonus.value]).value),
+      (nothing.altFlow, bonus.value),
+    ],
   )
-  let times10 = arrowExpr([p("x")], mul(id("x"), int_(10)))
-
-  let inE = lit(array_([int_(1), int_(2), int_(3), int_(4), int_(5)]))
-  let outer = open_(ListIter, inE.value)
-  let optOnEven = app(evenDisc, [outer.value])
-  let inner = open_(OptionIter, optOnEven.value)
-  // The per-iter value uses `outer` (the list elem) directly, NOT
-  // `inner` (the option's some-value). Its eager scope is therefore
-  // the loop body — the test of sinking is whether the compiler
-  // moves the times10 call into the option's if-body, where it's
-  // computed only on Some-iters.
-  let expensive = app(times10, [outer.value])
-  let innerClose = close_(NodeFlow(inner.node), expensive.value)
-  // Wrap each per-iter result (some-value or undefined) into a list.
-  let outerClose = close_(NodeFlow(outer.node), innerClose.value)
-  runTest(
-    ~name="sink: per-elem App used only inside option-some sinks into if",
-    ~expr=outerClose,
-    // Odd elements: option fires None → undefined slot → null in JSON.
-    // Even elements: times10 → 20, 40.
-    ~expected=array_([null, int_(20), null, int_(40), null]),
-  )
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", int_(57)) // 42 + 15; bonus bound once, used in both alts
 }
 
-// (2) The flip side: an App that depends only on outer values but is
-//     used inside a loop body MUST NOT sink into the loop (that would
-//     turn a once-per-program computation into a once-per-iteration
-//     one). The loopDepth cap on the sink pass guarantees this. The
-//     generated JS for this test has the `const v_magic = ...` line
-//     OUTSIDE the for-of.
-{
-  let l1 = lit(int_(100))
-  let l2 = lit(int_(50))
-  let magic = app(jsAdd, [l1.value, l2.value])
-  let inE = lit(array_([int_(1), int_(2), int_(3)]))
-  let opened = open_(ListIter, inE.value)
-  let perIter = app(jsAdd, [magic.value, opened.value])
-  runTest(
-    ~name="sink: outer-only App used inside loop stays outside (loopDepth cap)",
-    ~expr=close_(NodeFlow(opened.node), perIter.value),
-    ~expected=array_([int_(151), int_(152), int_(153)]),
-  )
-}
+// ============================================================================
 
-Console.log("==== Summary ====")
 Console.log(
+  "\n" ++
   Int.toString(passCount.contents) ++
   " passed, " ++
   Int.toString(failCount.contents) ++ " failed",
 )
+if failCount.contents > 0 {
+  %raw(`process.exit(1)`)->ignore
+}

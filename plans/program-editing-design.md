@@ -910,11 +910,11 @@ no dependency decisions needed yet).
 ## Smallest first step
 
 No TUI in step one; the model is testable headless, in the
-`NextMain.res` style:
+`Main.res` smoke-suite style:
 
 1. **`Hole` in `Program.res`** — the kind, its inventories, `dump`
    support, the hole-listing check witness.
-2. **`src/next/Edit.res`** — the working record and the edit
+2. **`src/Edit.res`** — the working record and the edit
    inventory as pure functions with refusal witnesses; structural
    invariants stated as an internal assertion pass (debug builds
    re-verify after every edit).

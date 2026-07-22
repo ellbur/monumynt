@@ -1,8 +1,7 @@
-// The program of record — next-generation representation.
+// The program of record — the ports-first representation.
 //
-// This is the ports-first successor to src/Expr.res, built to the shape of
-// plans/first-class-ports-design.md with migration steps 2-3 done from the
-// start rather than staged:
+// Built to the shape of plans/first-class-ports-design.md, with migration
+// steps 2-3 (per-alt ports dissolving Branch, binary Join) already in place:
 //
 //   - Every wire names a *port* of a node: `ValuePort(node, name)` /
 //     `FlowPort(node, name)`. There is no Branch node (an alt's payload and
@@ -187,8 +186,8 @@ let flowPorts = (k: kind): array<string> =>
   }
 
 // Is this value port flow-borne (per-iteration / per-alt — it only exists
-// inside a body of its flow)? This is the property whose violation used to
-// surface as scattered `failwith`s in the legacy compiler; making it a
+// inside a body of its flow)? This is the property whose violation would
+// otherwise surface as scattered `failwith`s in codegen; making it a
 // port-level fact is what lets Check state the time-travel / leakage rule.
 let flowBorne = (k: kind, port: string): bool =>
   switch k {
