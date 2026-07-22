@@ -541,7 +541,13 @@ Recorded so they are not re-proposed:
    and the facet reference in a demand are all provisional; owed to
    the textual catch-up jointly with the function boundary (the
    level boundary the divide flow also demands — one decision, three
-   clients).
+   clients). *The boundary round now exists*
+   (`function-boundary-design.md`, exploration): an `op` pair is a
+   port of a cut like any other — a crossing — and "the demand
+   projects onto the caller's boundary" is literal (the pair's wires
+   keep crossing outward until bound); the spec's slot machinery is
+   proposed dissolved into the pair. The spellings themselves stay
+   owed to the joint catch-up.
 2. **Where may a binding sit?** This round binds at call boundaries.
    Whether a *region* of one diagram can be rebound (run this
    sub-graph against the double, the rest against the disk) — and

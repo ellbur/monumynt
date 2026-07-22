@@ -266,6 +266,24 @@ consumes, and whether it needs an input list at all:
   deliberately *not* for map/filter bodies (flows do that) and *not*
   first-class values (a function waiting to be called has no honest
   visual form). *Exploration.*
+- [`function-boundary-design.md`](function-boundary-design.md) — the
+  boundary construct itself, the round three worked rounds jointly
+  demanded: a function is a **remembered cut** through the wiring, not
+  a container — ports are the wires the cut crosses (read off at
+  extraction, never declared), membership is derived (per-call iff
+  downstream of an in-port), closure capture dissolves into the prefix
+  rule, and reusability is a derived check with a drawable witness.
+  Functions per se are about *reuse* (sameness across sites — the
+  honest form exactly where a manufactured shared flow would be a
+  lie); the divide flow's link shares the cut's substrate while
+  staying its own anonymous construct (recursion never routes through
+  a named function — settled in the round's first design
+  conversation), with the measure guarding reference cycles of any
+  species. Partial cuts give local functions (uncut wires are free
+  wires; the prefix rule derives the validity region; linear values
+  force port-ification); the spec's slot dissolves into the op pair;
+  function, level, provider, and the top-level program share one
+  substrate under four bindings. *Exploration.*
 - [`configuration-scopes.md`](configuration-scopes.md) — the replacement
   for higher-order arguments (comparators, predicates): instead of
   passing a function, open the operation as a scope and wire the

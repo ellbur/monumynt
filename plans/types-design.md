@@ -675,7 +675,12 @@ The language hasn't decided any of the following yet.
 3. **Slots and higher-order signatures.** Conditional signatures
    ("for any filler offering P…") — how they are represented,
    propagated, and displayed. The language's function-type question,
-   deliberately deferred.
+   deliberately deferred. One consolidation since filed: the
+   function-boundary round (`function-boundary-design.md`,
+   exploration) proposes dissolving the slot into the late-bound
+   op pair, so the conditional-signature design is owed once — for
+   the pair — and slots would inherit it. The design itself remains
+   deferred.
 4. **The catalog schema.** How primitives, operators (with their
    monoid facts), and discriminators declare demands/offers — and
    whether discriminator registrations can be made honest (e.g.

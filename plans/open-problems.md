@@ -420,15 +420,75 @@ block; reverse-mode AD is fenced out honestly
 (continuation-as-tape is not a provider — if wanted, it is a
 transformation-levels derived view).
 
-Still narrative-stage or open: the function boundary itself (flow
-skeleton with data holes, `functions-design.md`), its conjectured
-relationship to summaries-as-generalized-programs (`types-design.md`
-read-out 2), and completion's boundary residue
-(`time-travel-programs-design.md` question 5). The new round's own
-residue: the adoption conversation; the spellings (`op`, `serve`,
+The row's other center — **the function boundary itself** — is now
+worked too (`function-boundary-design.md`, exploration, the round
+three clients jointly demanded): a function is a **remembered cut**
+through the wiring, not a container — its ports are the wires the
+cut crosses (read off the drawing at extraction, never declared;
+the argument list is rejected as the product bottleneck's oldest
+costume), membership is *derived* (a node is per-call iff
+downstream of an in-port — P3 one level up, the divide flow's rule
+shared verbatim), everything else the cone reads is prefix-shared
+(closure capture dissolves; call-invariant work is shared by
+meaning, not optimisation — what the Lit memoisation already does),
+and reusability is a derived check with a drawable witness (the
+offending per-context wire surfaces as a demanded port). Its two
+load-bearing moves: **the call and the divide flow's link share
+one substrate but stay two constructs** — instancing, membership,
+and the measure discipline are defined once over the boundary
+object, while the link remains a page-local anonymous gesture
+(recursion never routes through a named function; the round's
+first design conversation settled this against its own first
+draft: the guard family's register symmetry, naming as a toll on
+recursion, and the extract-to-recurse cliff), the measure
+attaching to reference cycles of any species so mutual recursion
+is stateable (page-local *level labels*, the loop-label precedent)
+and "every cycle crosses a guard" — register / dedup collect /
+measure — lands as one family; and
+**the slot dissolves into the op pair** (SlotSignature = facet,
+SlotInvocation = exchange, slotImplementations = binding — so the
+conditional-signature design, checking question 3, is owed once
+instead of twice). The interface needed nothing new: signature =
+boundary projection, flow skeleton = read-out 2's summary at a
+display-time collapse level, ordering residue and open op pairs
+project as ports — and with the link interior to the cone,
+**recursiveness is an implementation detail** a caller cannot see.
+Function, level, provider, and the top-level program share the one
+substrate under four bindings — the node-set consequence
+completed. The same conversation added the **use-case account**
+(functions exist for reuse only: per-element work is flows,
+callbacks are served flows, behavior parameters are op pairs,
+organization is display-time collapse — a function is the honest
+form exactly where a manufactured shared flow would be a lie) and
+**partial cuts** (uncut wires are free wires: the prefix rule
+derives a local function's validity region, local → global is
+additive wire-cutting, state cadence is visible in which flow a
+register binds, and linear values force port-ification — the one
+real ownership bite, resolved by the existing fan-out ban). Six
+dead ends recorded (the scope/container; the call/link construct
+merge — settled by the conversation; the slot species; the
+obligatory declared signature; first-class functions restated; the
+argument list).
+
+Still open on the row's center: the joint adoption conversation
+(with the divide flow, the late-bound round, and the textual
+catch-up); the cut's edit gestures (editing round); boundary
+identity across versions (transformation-levels;
+`time-travel-programs-design.md` question 5 rides along); the
+conditional signature (checking question 3, unblocked not
+advanced); level labels' spelling (with the divide row); whether
+termination surfaces on a signature as an offered property
+(`@Terminates` prior art); the uncut-read lint threshold; the
+spec-side reconciliation of the Diagram record; and
+the function-unit sample (below, Evidence owed). The late-bound
+round's own residue: the spellings (`op`, `serve`,
 binding, splice), owed jointly with the level boundary — the divide
 flow's demand — and the textual catch-up (one decision, three
-clients); region-scoped rebinding; the serving provider's multi-lane
+clients; the shared referent is now proposed, so the catch-up is
+unblocked pending adoption); region-scoped rebinding (the cut
+vocabulary suggests a shape — a region is an anonymous interior
+cut — but the facet-ordering interaction stays unworked); the
+serving provider's multi-lane
 form — now worked (`served-flow-design.md`: the pre-split bundle —
 one serving context in handle order, k static lanes, registers on
 the parent flow, no dispatch because no union was packed);
@@ -693,10 +753,20 @@ precedent), traversal orders dissolve into combines, and whole-tree
 collects are order-free iff commutative (the product-round law). Five
 dead ends recorded.
 
-Remaining: the adoption conversation; the link's spelling and anchor
-— the **level boundary**, the first construct-driven demand for the
-functions row's flow skeleton, to decide jointly with that row;
-mutual recursion (a joint measure over a link group; where Zig's
+Remaining: the adoption conversation (now joint with the
+function-boundary round's); the link's spelling and anchor — the
+**level boundary**, the first construct-driven demand for the
+functions row's flow skeleton — now worked
+(`function-boundary-design.md`, revised in its first design
+conversation: the link stands on the cut substrate while staying
+its own anonymous construct — recursion never routes through a
+named function — with `level of` still the link's spelling and
+page-local *level labels* for mutual recursion; if adopted, the
+anchor question reduces to the labels' spelling in the textual
+catch-up); mutual recursion (stateable over reference cycles since
+that round, but the joint measure's fine print — which edges must
+advance, composition when cycles share edges — is still unworked;
+where Zig's
 inference warning bites hardest); the measure catalog's schema (joint
 with the checking row's question 4); whole-tree linearization (rides
 the delay-ontology/product residue); and the **zipper seam** —
@@ -941,6 +1011,17 @@ the scores above rather than carrying its own. The named next rounds
   providers?) and the recursion row's frequency question (how often
   divide-shaped recursion occurs, and in what costume — hand-rolled
   recursive functions, visitor patterns, `walk` helpers).
+- **The function-unit sample.** Functions are a sampleable unit the
+  method's own note already names; the boundary round
+  (`function-boundary-design.md`) inherits its demand evidence from
+  three curated corpora and owes a random draw of real functions
+  classified by: call-site count (once — organization only — vs
+  many), recursion (self, mutual, none), behavior parameters (would
+  be op pairs), flow threading (would be flow ports), and capture
+  patterns (would be prefix reads). Measures what the boundary's
+  ergonomics must make effortless; carries the functions row's
+  existing W-condition (does application code swap providers?)
+  alongside, which the saturation-row sample below also names.
 - **The focused-update frequency question.** The shape is invisible to
   loop sampling by construction, and its comparison corpora are
   document-domain-biased toward it; a sample of application code's
