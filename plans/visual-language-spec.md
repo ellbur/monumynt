@@ -134,8 +134,12 @@ node set").
 
 **Slots** let a diagram have "cut-outs" where caller-supplied
 sub-diagrams are inserted. This enables configuration scopes and
-similar patterns. A slot's signature says what the inserted
-sub-diagram must offer:
+similar patterns. (Status note: the function-boundary round —
+`function-boundary-design.md`, exploration — proposes dissolving the
+slot species into the late-bound op pair, SlotInvocation becoming an
+exchange use site and `slotImplementations` a binding; this section
+is unchanged until that round is adopted.) A slot's signature says
+what the inserted sub-diagram must offer:
 
 ```
 SlotSignature:

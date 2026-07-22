@@ -628,7 +628,14 @@ The language hasn't decided any of these.
    statement: the divide flow is the first construct that *needs*
    the level boundary, and its spelling should be decided jointly
    with that row and the textual catch-up. The examples' `diagram`
-   wrapper is the provisional stand-in.
+   wrapper is the provisional stand-in. *The boundary round now
+   exists* (`function-boundary-design.md`, exploration): a boundary
+   is a remembered cut whose ports are the crossing wires, **the
+   link and the call are one node species** (recursion is a cycle of
+   boundary references, the measure discipline attaching to
+   call-graph cycles), and `level of` survives as the anonymous
+   self-reference. If adopted, this question reduces to the textual
+   catch-up's spelling pass.
 2. **Mutual recursion.** Expression/statement grammars link *two*
    levels each into the other. Structurally nothing above forbids a
    link naming a sibling level's boundary; the measure must then be
