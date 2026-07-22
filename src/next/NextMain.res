@@ -642,6 +642,45 @@ header("partial collect: option leading level — join(join(list, option), parti
 }
 
 // ============================================================================
+// 7h. Partial collect with a case-alt LEADING level — filter-then-partial,
+//     join(join(list, case-alt), <partial>). Per list element, keep only the
+//     "Even" alt of a first split (an ordinary filter); for the kept payload,
+//     dispatch a second split (n % 3) and partial-collect the covered subset
+//     {A, B}, dropping C. The kept-alt guard nests the k-arm partial dispatch —
+//     the dispatch-leading-level shape, mirroring emitFilterCollect's level walk.
+//     Any-list ⇒ list output. Beyond the bridge (a partial collect is not a
+//     legacy shape), so validated against a hand-computed value like 7b/7c/7d.
+// ============================================================================
+
+header("partial collect: case-alt leading level — join(join(list, case-alt), partial)")
+{
+  let b = Build.make()
+  let parity = Build.raw(b, "n => ({tag: n % 2 === 0 ? 'Even' : 'Odd', value: n})")
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4), int_(5), int_(6)]))
+  let i1 = Build.uncollectList(b, xs.value)
+  // First split: keep Even (an ordinary filter over the list).
+  let par = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, i1.element)
+  let even = Build.alt(par, "Even")
+  // Second split over the kept payload; partial-collect the covered subset {A, B}.
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, even.altValue)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // Filter the list to its Even firings (j1), then join the partial's merged
+  // flow (j2): the leading level is a case-alt dispatch, not a loop.
+  let j1 = Build.join(b, ~outer=i1.flow, ~inner=even.altFlow)
+  let j2 = Build.join(b, ~outer=j1.flow, ~inner=pf)
+  let out = Build.collect(b, ~flow=j2.flow, picked.value)
+  let p = Build.finish(b, ~outputs=[("picked", out.value)])
+  // Evens: 2, 4, 6. 2%3=2 -> C (drop); 4%3=1 -> B (keep 4); 6%3=0 -> A (keep 6).
+  // Odds 1, 3, 5 are filtered out by the first split. Result [4, 6].
+  expectOutput(p, "picked", array_([int_(4), int_(6)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 // 8. Registers: a running sum via the Delay pair — the first non-legacy
 //    construct to run (beyond the bridge, so no differential is possible)
 // ============================================================================
