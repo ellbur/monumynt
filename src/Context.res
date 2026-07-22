@@ -229,6 +229,42 @@ let rec fullPoset = (f: flowRef): Poset.t =>
 let crossProduct = (left: flowRef, right: flowRef): Poset.t =>
   Poset.parallel([fullPoset(left), fullPoset(right)])
 
+// Poset-aware value context: like `valueContext`, but a combine of two sibling
+// axes is resolved through the program's constructed `products` (Poset.merge)
+// rather than the linear prefix rule (Context.merge, which raises on the FIRST
+// sibling pair and so never sees the rest of the combine). Because it reaches
+// EVERY combine in a value, a value spanning axes that no single constructed
+// product covers raises `Poset.Incomparable` at the uncovered step — the
+// full-span check the linear `valueContext` cannot do (it stops at the first
+// coverable pair). This is what lets `checkAlignment` witness an under-covered
+// n-ary consumer (e.g. `f(x, y, z)` with only `{X, Y}` crossed) at the Check
+// level instead of admitting it and leaving the gap to Codegen.
+//
+// Only the leaf kinds a combining value is built from are handled directly (Lit,
+// App, an Uncollect element/alt payload — the axis-bearing leaves). Any other
+// kind falls back to the linear path lifted to a poset; its own alignment is
+// checked by `valueContext` in the ordinary way, so nothing new is witnessed
+// there. A `Series` path can only widen a `merge` need, never satisfy a product
+// exactly, so the fallback is sound for the full-span question.
+let rec posetValueContext = (~products: array<Poset.t>, r: valueRef): Poset.t =>
+  switch r {
+  | ValuePort(n, port) =>
+    switch n.kind {
+    | Lit(_) => Poset.Root
+    | App({fn, args}) =>
+      args->Array.reduce(posetValueContext(~products, fn), (acc, a) =>
+        Poset.merge(~products, acc, posetValueContext(~products, a))
+      )
+    | Uncollect({flowKind}) =>
+      let ownFlow = switch flowKind {
+      | List | Option => FlowPort(n, "flow")
+      | Case(_) => FlowPort(n, port)
+      }
+      fullPoset(ownFlow)
+    | _ => pathToPoset(valueContext(r))
+    }
+  }
+
 // Every product context a Cross node in the program constructs — the index
 // `Poset.merge` consults to decide whether a sibling combine has an exact home
 // (a combine's home is exact, not a covering superset — product-flows-design.md).

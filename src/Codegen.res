@@ -401,14 +401,19 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
 
 // A single-branch collect chain whose terminal value has NO linear context — its
 // args live on incomparable sibling axes — but which `matchProductChain` did not
-// resolve to a full constructed product. That is an under-determined or
-// partially-covered n-ary consumer (only a sub-product was crossed, or the chain
-// collects some axes while holding others): the whole-table emitter needs the
-// EXACT product spanning the chain's axes, which does not exist. Compiling it
-// would reach a sibling element port outside its flow (a raw failwith); this
-// predicate lets the router decline with a clean Todo instead, leaving the case
-// to the poset round's context-model check. A value with a linear context (an
-// ordinary nested collect) returns false and compiles normally.
+// resolve to a full constructed product. Since Check's full-span alignment now
+// WITNESSES the case where no product spans the terminal's axes at all (an
+// under-covered n-ary combine, e.g. `f(x,y,z)` with only {X,Y} crossed —
+// Pipeline returns those witnesses before codegen runs), what reaches this
+// backstop is the OTHER shape: a terminal whose span IS covered by a constructed
+// product, but which the chain collects over only SOME of its axes while holding
+// the rest (a partial / sub-product traversal). The whole-table emitter needs the
+// EXACT product spanning the CHAIN's axes, which is a sub-product that a flat
+// cross never built; compiling it would reach a sibling element port outside its
+// flow (a raw failwith). This predicate lets the router decline with a clean Todo
+// instead, leaving that traversal to the rest of the poset round (the general
+// poset-valued context). A value with a linear context (an ordinary nested
+// collect) returns false and compiles normally.
 let underCoveredProduct = (cn: node): bool =>
   switch cn.kind {
   | Collect({branches: [{value}]}) =>
