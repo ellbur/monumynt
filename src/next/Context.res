@@ -198,17 +198,36 @@ let rec flowInterior = (r: flowRef): array<flowRef> =>
     }
   }
 
+// The full poset context of a flow operand of a Cross: its exterior chain plus
+// the axis (or axes) it opens. A plain Uncollect opens ONE axis, so this is the
+// linear path made into a Series (`pathToPoset(flowContext(f) ++ [f])`). A Cross
+// OUTPUT flow opens its two operands' axes side by side, so this recurses into a
+// PARALLEL — which is how a *nested* Cross (`cross(cross(x, y), z)`) flattens to
+// a flat product `{X || Y || Z}` rather than treating the inner cross's output
+// as one opaque axis. Parallel is order-free and its members carry their own
+// exteriors, so a redundant shared prefix washes out under Poset's axis/order
+// algebra, exactly as the two-operand case relied on.
+let rec fullPoset = (f: flowRef): Poset.t =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Cross({left, right}) => Poset.parallel([fullPoset(left), fullPoset(right)])
+    | _ => pathToPoset(Array.concat(flowContext(f), [f]))
+    }
+  }
+
 // The product context a Cross node constructs: the PARALLEL composition of its
-// two operands' full contexts (each operand's exterior plus its own axis). For
-// two top-level sibling opens this is `{X || Y}`; for siblings sharing an outer
-// loop L it is `L > {X || Y}` — the shared prefix stays series, the divergent
-// axes go parallel (Poset's axis-set/order-set algebra makes the redundant L in
-// both operands wash out). Raises Incomparable if an operand's exterior is
-// itself a product — the deeper poset round — so `productsIndex` skips it.
-let crossProduct = (left: flowRef, right: flowRef): Poset.t => {
-  let full = (f: flowRef) => pathToPoset(Array.concat(flowContext(f), [f]))
-  Poset.parallel([full(left), full(right)])
-}
+// two operands' full contexts (each operand's exterior plus its own axis, or its
+// own sub-product for a nested cross). For two top-level sibling opens this is
+// `{X || Y}`; for siblings sharing an outer loop L it is `L > {X || Y}` — the
+// shared prefix stays series, the divergent axes go parallel (Poset's
+// axis-set/order-set algebra makes the redundant L in both operands wash out);
+// for a nested cross `fullPoset` flattens it to the flat product of all its
+// axes. Still raises Incomparable when an operand's own EXTERIOR is a product
+// (a cross whose operand opens inside another product — the deeper poset round),
+// which `productsIndex` skips.
+let crossProduct = (left: flowRef, right: flowRef): Poset.t =>
+  Poset.parallel([fullPoset(left), fullPoset(right)])
 
 // Every product context a Cross node in the program constructs — the index
 // `Poset.merge` consults to decide whether a sibling combine has an exact home

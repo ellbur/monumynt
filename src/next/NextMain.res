@@ -1353,6 +1353,145 @@ out out2
   expectRoundTrip(fromText)
 }
 
+// 15d. The n-ary (rank-3) product (product-flows-design.md, "N-ary products: the
+//      three-list example"). Three lists crossed side by side via nested binary
+//      Crosses — `cross(cross(x, y), z)` — flatten to one flat axis set {X,Y,Z}.
+//      A full consumer chain of three nested collects reads the shared cube in a
+//      chosen order; the transpose to a different order reads the SAME cube (the
+//      six orders are the S₃ orbit — "the table indexing generalises verbatim …
+//      f run once per point regardless of how many of the six consumers traverse
+//      in how many orders"). Beyond the bridge (Cross), so validated against
+//      hand-built cubes and an add-once golden, exactly like the two-axis test.
+header("cross: the three-lists product (rank 3), two orders, one shared cube")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  // The stored orientation is the nesting tree left-to-right: cross(cross(x,y),z)
+  // ⇒ axes [x, y, z]. Both sub-products ({X,Y} and {X,Y,Z}) are constructed.
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Order A (outer→inner = z, y, x): out[iz][iy][ix] = x + y + z.
+  let a1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let a2 = Build.collect(b, ~flow=itY.flow, a1.value)
+  let outA = Build.collect(b, ~flow=itZ.flow, a2.value)
+  // Order B (outer→inner = x, y, z): the transpose — out[ix][iy][iz] = x + y + z.
+  let b1 = Build.collect(b, ~flow=itZ.flow, s.value)
+  let b2 = Build.collect(b, ~flow=itY.flow, b1.value)
+  let outB = Build.collect(b, ~flow=itX.flow, b2.value)
+  let p = Build.finish(b, ~outputs=[("outA", outA.value), ("outB", outB.value)])
+
+  // outA: grouped z, then y, then x.
+  expectOutput(
+    p,
+    "outA",
+    array_([
+      array_([array_([int_(111), int_(112), int_(113)]), array_([int_(121), int_(122), int_(123)])]),
+      array_([array_([int_(211), int_(212), int_(213)]), array_([int_(221), int_(222), int_(223)])]),
+    ]),
+  )
+  // outB: the transpose — grouped x, then y, then z. Same values, re-indexed.
+  expectOutput(
+    p,
+    "outB",
+    array_([
+      array_([array_([int_(111), int_(211)]), array_([int_(121), int_(221)])]),
+      array_([array_([int_(112), int_(212)]), array_([int_(122), int_(222)])]),
+      array_([array_([int_(113), int_(213)]), array_([int_(123), int_(223)])]),
+    ]),
+  )
+
+  // Golden: the user's f3 appears exactly once in a compiled output — both orders
+  // share the one cube rather than each recomputing the rank-3 product.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outA") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b + c")
+      if n === 1 {
+        pass("f3's work appears once (both orders share the rank-3 cube)")
+      } else {
+        fail("expected f3 once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outA to inspect for f3-once")
+    }
+  | Error(ws) =>
+    fail("rank-3 product failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15e. The rank-3 product authored directly in text: nested `cross with`
+//      statements naming the intermediate {X,Y} product, then the full
+//      {X,Y,Z}. Parses, checks, compiles via the whole-table (cube) emitter,
+//      and round-trips — the two-axis `cross with` surface (15b) generalises to
+//      nesting for free.
+header("cross: the rank-3 product authored in text (nested `cross with`)")
+{
+  let src = `
+f3 = js "(a, b, c) => a + b + c"
+[1, 2] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+[100, 200] -> open list => ~fz, ez
+~fx ~> cross with ~fy => ~fxy
+~fxy ~> cross with ~fz => ~fxyz
+ex, ey, ez -> f3 => s
+s -~> collect ~fx => a1
+a1 -~> collect ~fy => a2
+a2 -~> collect ~fz => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  // out[iz][iy][ix] = x + y + z (chain collects fx inner, fy mid, fz outer).
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(111), int_(112)]), array_([int_(121), int_(122)])]),
+      array_([array_([int_(211), int_(212)]), array_([int_(221), int_(222)])]),
+    ]),
+  )
+  expectRoundTrip(p)
+}
+
+// 15f. An under-covered rank-3 consumer: three lists combined, but only the
+//      {X,Y} sub-product was crossed (never the full {X,Y,Z}). The whole-table
+//      emitter needs the EXACT product spanning the chain's axes, which does not
+//      exist, so NextCodegen declines with a clean Todo rather than crashing
+//      (product-flows-design.md, N-ary: "the combine is ill-formed until a Cross
+//      supplies {X,Y,Z}"). Soundly WITNESSING this is the poset round's
+//      context-model check (checkAlignment admits the first sibling pair via the
+//      {X,Y} product and does not yet re-verify the full span); until then the
+//      Todo keeps the gap disciplined, mirroring the commute decline (15c).
+header("cross: an under-covered rank-3 consumer declines cleanly (poset round)")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow) // only {X,Y} — no full product
+  let i1 = Build.collect(b, ~flow=itX.flow, s.value)
+  let i2 = Build.collect(b, ~flow=itY.flow, i1.value)
+  let out = Build.collect(b, ~flow=itZ.flow, i2.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compileVia(NextCodegen, p) {
+  | exception Codegen.Todo(_) => pass("under-covered rank-3 consumer declines with a Todo (poset round owns the check)")
+  | Ok(_) => fail("under-covered rank-3 consumer unexpectedly compiled")
+  | Error(ws) =>
+    fail("expected a Todo decline, got witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
 // 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser
 //      catch-up — the last of the standalone flow-combine forms). A commute
 //      swaps a list opened inside an option's absent-or-present flow: the
