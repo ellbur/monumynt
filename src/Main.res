@@ -1413,15 +1413,18 @@ out out
 }
 
 // 15f. An under-covered rank-3 consumer: three lists combined, but only the
-//      {X,Y} sub-product was crossed (never the full {X,Y,Z}). The whole-table
-//      emitter needs the EXACT product spanning the chain's axes, which does not
-//      exist, so codegen declines with a clean Todo rather than crashing
-//      (product-flows-design.md, N-ary: "the combine is ill-formed until a Cross
-//      supplies {X,Y,Z}"). Soundly WITNESSING this is the poset round's
-//      context-model check (checkAlignment admits the first sibling pair via the
-//      {X,Y} product and does not yet re-verify the full span); until then the
-//      Todo keeps the gap disciplined, mirroring the commute decline (15c).
-header("cross: an under-covered rank-3 consumer declines cleanly (poset round)")
+//      {X,Y} sub-product was crossed (never the full {X,Y,Z}). The combine
+//      `f3(x, y, z)` demands a value per (x, y, z) — it demands the full product
+//      exist — and it does not (product-flows-design.md, N-ary: "the combine is
+//      ill-formed until a Cross supplies {X,Y,Z}"). checkAlignment now catches
+//      this soundly with its FULL-SPAN re-verification: the {X,Y} pair has a home
+//      but the whole value's span does not, so it witnesses `time-travel` (a
+//      completable gap) at the Check level rather than admitting the first pair
+//      and leaving Codegen to decline with a Todo. This is the poset round's
+//      "checkAlignment does not yet re-verify the full span" note discharged; the
+//      Codegen `underCoveredProduct` Todo remains as the backstop for the
+//      partial/sub-product traversal (holding axes), a genuinely different shape.
+header("cross: an under-covered rank-3 consumer is witnessed as time travel")
 {
   let b = Build.make()
   let f3 = Build.raw(b, "(a, b, c) => a + b + c")
@@ -1438,10 +1441,49 @@ header("cross: an under-covered rank-3 consumer declines cleanly (poset round)")
   let out = Build.collect(b, ~flow=itZ.flow, i2.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("under-covered rank-3 consumer declines with a Todo (poset round owns the check)")
-  | Ok(_) => fail("under-covered rank-3 consumer unexpectedly compiled")
   | Error(ws) =>
-    fail("expected a Todo decline, got witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    if ws->Array.some(w => w.rule === "time-travel") {
+      pass("under-covered rank-3 consumer witnessed as time travel (full-span check)")
+    } else {
+      fail("expected a time-travel witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | exception Codegen.Todo(m) => fail("expected a Check witness, got a Codegen Todo: " ++ m)
+  | Ok(_) => fail("under-covered rank-3 consumer unexpectedly compiled")
+  }
+}
+
+// 15g. The full-span check's sharpest case (product-flows-design.md, N-ary: "the
+//      first place that 'if one exists' bites"). Two OVERLAPPING sub-products
+//      were constructed — {X,Y} and {Y,Z} — so every adjacent pair of the combine
+//      f3(x,y,z) is individually covered by SOME product, yet no single product
+//      spans {X,Y,Z}. A first-pair-only check would admit this; the full-span
+//      re-verification reaches the uncovered step (a value at {X,Y} combined with
+//      a value at {Z}, with no constructed common superset) and witnesses time
+//      travel. This is the poset's partiality — "no least upper bound ⇒ no context
+//      to combine at" — delivered by the existing rule, exactly as the doc says.
+header("cross: overlapping sub-products {X,Y} and {Y,Z} still leave the span uncovered")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  // Two overlapping sub-products; the full {X,Y,Z} was never constructed.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=itY.flow, ~right=itZ.flow)
+  let p = Build.finish(b, ~outputs=[("out", xs.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "time-travel") {
+    pass("overlapping sub-products do not host the full-span combine — still time travel")
+  } else {
+    fail(
+      "expected the {X,Y,Z} span to stay time travel, got:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
   }
 }
 

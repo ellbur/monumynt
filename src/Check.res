@@ -210,62 +210,90 @@ let checkAlignment = (p: program): array<witness> => {
   // combine from a time-travel gap into a well-formed product combine
   // (product-flows-design.md, "The context model").
   let products = Context.productsIndex(p)
+
+  let mixingWitness = (n: node, split: node, cellA: string, cellB: string) =>
+    // Bundle mixing is untouched by Cross: sibling cells never coexist, so no
+    // product can host the combine (product-flows-design.md, "bundle mixing —
+    // untouched, as ever; the missing fact there is an execution").
+    Array.push(
+      out,
+      {
+        nodeId: n.id,
+        rule: "bundle-mixing",
+        message: "values live in mutually exclusive cells \"" ++
+        cellA ++
+        "\" and \"" ++
+        cellB ++
+        "\" of case split node " ++
+        Int.toString(split.id) ++
+        "; no execution produces both (sibling cells meet only at a collect)",
+      },
+    )
+
+  let timeTravelWitness = (n: node, openA: flowRef, openB: flowRef) =>
+    Array.push(
+      out,
+      {
+        nodeId: n.id,
+        rule: "time-travel",
+        message: "combining values from unrelated flows " ++
+        Context.flowKey(openA) ++
+        " and " ++
+        Context.flowKey(openB) ++
+        " with no correspondence between their firings (completion inserts a Cross)",
+      },
+    )
+
   p.nodes->Array.forEach(n => {
-    // Probe the node's own output ports: computing a port's context is
-    // what merges the input contexts (an App's args, a Cross's operands),
-    // so this is where incomparability surfaces.
-    try {
-      valuePorts(n.kind)->Array.forEach(port => {
-        let _ = Context.valueContext(ValuePort(n, port))
-      })
-      flowPorts(n.kind)->Array.forEach(port => {
-        let _ = Context.flowContext(FlowPort(n, port))
-      })
-    } catch {
-    | Context.Incomparable({left, right, where: _}) =>
-      switch classifyClash(left, right) {
-      | Mixing({split, cellA, cellB}) =>
-        // Bundle mixing is untouched by Cross: sibling cells never coexist, so
-        // no product can host the combine (product-flows-design.md, "bundle
-        // mixing — untouched, as ever; the missing fact there is an execution").
-        Array.push(
-          out,
-          {
-            nodeId: n.id,
-            rule: "bundle-mixing",
-            message: "values live in mutually exclusive cells \"" ++
-            cellA ++
-            "\" and \"" ++
-            cellB ++
-            "\" of case split node " ++
-            Int.toString(split.id) ++
-            "; no execution produces both (sibling cells meet only at a collect)",
-          },
-        )
-      | TimeTravel({openA, openB}) =>
-        // A constructed Cross may make this sibling combine well-formed: the two
-        // values meet at the product context, deeper than each axis. Consult the
-        // poset — if a Cross product covers EXACTLY these axes the combine has a
-        // home; otherwise it is a (completable) time-travel gap that completion
-        // fills by inserting the exact Cross.
-        switch Poset.merge(~products, Context.pathToPoset(left), Context.pathToPoset(right)) {
-        | _ => () // admitted — a constructed Cross covers this combine
-        | exception Poset.Incomparable(_, _) =>
-          Array.push(
-            out,
-            {
-              nodeId: n.id,
-              rule: "time-travel",
-              message: "combining values from unrelated flows " ++
-              Context.flowKey(openA) ++
-              " and " ++
-              Context.flowKey(openB) ++
-              " with no correspondence between their firings (completion inserts a Cross)",
-            },
-          )
+    // Probe each output port: computing a port's context is what merges the
+    // input contexts (an App's args, a Cross's operands), so this is where
+    // incomparability surfaces. A value port is checked FULL-SPAN — the linear
+    // merge raises on the first sibling pair, so it admits a value like
+    // `f(x, y, z)` on the {X,Y} pair even when no product covers all three axes;
+    // the poset-aware recomputation reaches every combine and witnesses the
+    // uncovered one (checkAlignment's full-span re-verification — the case that
+    // previously slipped through Check and only declined at Codegen).
+    valuePorts(n.kind)->Array.forEach(port =>
+      switch Context.valueContext(ValuePort(n, port)) {
+      | _ => ()
+      | exception Context.Incomparable({left, right, where: _}) =>
+        switch classifyClash(left, right) {
+        | Mixing({split, cellA, cellB}) => mixingWitness(n, split, cellA, cellB)
+        | TimeTravel({openA, openB}) =>
+          // Full-span: does the WHOLE value have a poset home? If a constructed
+          // Cross covers every combine it reaches, admit; otherwise it is a
+          // (completable) time-travel gap — including the under-covered n-ary
+          // consumer, whose first pair IS covered but whose full span is not.
+          switch Context.posetValueContext(~products, ValuePort(n, port)) {
+          | _ => () // admitted — the full span lies in constructed products
+          | exception Poset.Incomparable(_, _) => timeTravelWitness(n, openA, openB)
+          // A deeper poset case (an operand exterior that is itself a product)
+          // is beyond this pass; fall back to the single-pair check, unchanged.
+          | exception Context.Incomparable(_) =>
+            switch Poset.merge(~products, Context.pathToPoset(left), Context.pathToPoset(right)) {
+            | _ => ()
+            | exception Poset.Incomparable(_, _) => timeTravelWitness(n, openA, openB)
+            }
+          }
         }
       }
-    }
+    )
+    // Flow ports (a Cross's product output) merge their operands pairwise; the
+    // single-pair product check is exact for them.
+    flowPorts(n.kind)->Array.forEach(port =>
+      switch Context.flowContext(FlowPort(n, port)) {
+      | _ => ()
+      | exception Context.Incomparable({left, right, where: _}) =>
+        switch classifyClash(left, right) {
+        | Mixing({split, cellA, cellB}) => mixingWitness(n, split, cellA, cellB)
+        | TimeTravel({openA, openB}) =>
+          switch Poset.merge(~products, Context.pathToPoset(left), Context.pathToPoset(right)) {
+          | _ => () // admitted — a constructed Cross covers this combine
+          | exception Poset.Incomparable(_, _) => timeTravelWitness(n, openA, openB)
+          }
+        }
+      }
+    )
   })
   out
 }
