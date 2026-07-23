@@ -43,9 +43,11 @@
 //
 // Not represented yet (deliberately): stream/async/incremental flow kinds,
 // race and concurrent-join barriers, partial-collect's None-port decision,
-// Aggregate/Disaggregate, diagrams-with-boundaries (a program here is one
-// anonymous diagram: node set + named outputs). Each arrives with its own
-// design round; the port model is what makes them local additions.
+// diagrams-with-boundaries (a program here is one anonymous diagram: node set
+// + named outputs). Each arrives with its own design round; the port model is
+// what makes them local additions. (Aggregate/Disaggregate — struct
+// construction and field projection — are now represented, as pure value
+// nodes; they compile like an App. The textual surface for them is still owed.)
 
 type rec node = {id: int, kind: kind}
 
@@ -101,6 +103,15 @@ and kind =
   // "final" is the register's value after the flow completes (init if no
   // iteration ran).
   | DelayWrite({read: node, step: valueRef})
+  // Aggregate: combine named field values into a struct
+  // (visual-language-spec.md, "Aggregate"). A pure value node — fields are
+  // ordinary value wires. Ports: value "value".
+  | Aggregate({fields: array<(string, valueRef)>})
+  // Disaggregate: the reverse — project a struct's fields, one value output
+  // port per named field (visual-language-spec.md, "Disaggregate"). Ports:
+  // one value port per field name. Sharing across projections is opt-in like
+  // any node, but the fields are read off one node so a struct splits once.
+  | Disaggregate({struct_: valueRef, fields: array<string>})
 
 and collectBranch = {flow: flowRef, value: valueRef}
 
@@ -168,6 +179,8 @@ let valuePorts = (k: kind): array<string> =>
   | Join(_) | Commute(_) | Cross(_) => []
   | DelayRead(_) => ["prev"]
   | DelayWrite(_) => ["final"]
+  | Aggregate(_) => ["value"]
+  | Disaggregate({fields}) => fields
   }
 
 let flowPorts = (k: kind): array<string> =>
@@ -183,6 +196,7 @@ let flowPorts = (k: kind): array<string> =>
   | Join(_) | Cross(_) => ["flow"]
   | Commute(_) => ["outer", "inner"]
   | DelayRead(_) | DelayWrite(_) => []
+  | Aggregate(_) | Disaggregate(_) => []
   }
 
 // Is this value port flow-borne (per-iteration / per-alt — it only exists
@@ -237,6 +251,12 @@ let inputs = (n: node): nodeInputs =>
   | Cross({left, right}) => {values: [], flows: [left, right], pairedReads: []}
   | DelayRead({flow, init}) => {values: [init], flows: [flow], pairedReads: []}
   | DelayWrite({read, step}) => {values: [step], flows: [], pairedReads: [read]}
+  | Aggregate({fields}) => {
+      values: fields->Array.map(((_, v)) => v),
+      flows: [],
+      pairedReads: [],
+    }
+  | Disaggregate({struct_}) => {values: [struct_], flows: [], pairedReads: []}
   }
 
 let nodeOfValue = (r: valueRef): node =>
@@ -270,6 +290,8 @@ let kindName = (k: kind): string =>
   | Cross(_) => "Cross"
   | DelayRead(_) => "DelayRead"
   | DelayWrite(_) => "DelayWrite"
+  | Aggregate(_) => "Aggregate"
+  | Disaggregate(_) => "Disaggregate"
   }
 
 let dump = (p: program): string => {
@@ -336,6 +358,10 @@ let dump = (p: program): string => {
     | Cross({left, right}) => "left=" ++ fref(left) ++ " right=" ++ fref(right)
     | DelayRead({flow, init}) => "flow=" ++ fref(flow) ++ " init=" ++ vref(init)
     | DelayWrite({read, step}) => "read=" ++ num(read) ++ " step=" ++ vref(step)
+    | Aggregate({fields}) =>
+      "fields=[" ++ fields->Array.map(((k, v)) => k ++ "=" ++ vref(v))->Array.join(", ") ++ "]"
+    | Disaggregate({struct_, fields}) =>
+      "input=" ++ vref(struct_) ++ " fields=[" ++ fields->Array.join(", ") ++ "]"
     }
     Array.push(lines, num(n) ++ " " ++ kindName(n.kind) ++ " " ++ detail)
   })

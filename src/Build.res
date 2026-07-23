@@ -49,6 +49,10 @@ type commuteHandle = {node: node, outerFlow: flowRef, innerFlow: flowRef}
 type delayHandle = {node: node, prev: valueRef}
 type writeHandle = {node: node, final: valueRef}
 
+// Disaggregate exposes one value port per projected field; `field(h, name)`
+// projects it (trusting, like `alt` — the field set is per-node data).
+type disaggregateHandle = {node: node, fields: array<string>}
+
 let vHandleOf = (n: node): vHandle => {node: n, value: ValuePort(n, "value")}
 
 // --- Constructors ----------------------------------------------------------
@@ -128,6 +132,23 @@ let delay = (bld: b, ~flow: flowRef, ~init: valueRef): delayHandle => {
 let writeBack = (bld: b, ~read: delayHandle, ~step: valueRef): writeHandle => {
   let n = mint(bld, DelayWrite({read: read.node, step}))
   {node: n, final: ValuePort(n, "final")}
+}
+
+// Struct construction: combine named field values into one struct value.
+let aggregate = (bld: b, ~fields: array<(string, valueRef)>): vHandle =>
+  vHandleOf(mint(bld, Aggregate({fields: fields})))
+
+// Struct projection: one node splits a struct into its named fields.
+let disaggregate = (bld: b, ~fields: array<string>, struct_: valueRef): disaggregateHandle => {
+  let n = mint(bld, Disaggregate({struct_: struct_, fields: fields}))
+  {node: n, fields}
+}
+
+let field = (h: disaggregateHandle, name: string): valueRef => {
+  if !(h.fields->Array.includes(name)) {
+    failwith("Build.field: disaggregate has no field named " ++ name)
+  }
+  ValuePort(h.node, name)
 }
 
 let finish = (bld: b, ~outputs: array<(string, valueRef)>): program => {

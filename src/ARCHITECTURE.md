@@ -15,7 +15,7 @@ Representation and authoring:
 
 | module | status | what it is |
 |---|---|---|
-| `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
+| `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, **Aggregate/Disaggregate** (struct construction / field projection — pure value nodes, one value port per field on the Disaggregate side), program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
 | `Build.res` | working | Typed handles over `Program` ("strings below, typed handles above"). The builder also *collects the node set* — that is how root-unreachable write halves stay in the program. |
 | `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise on the linear path. **First Poset wiring landed**: `pathToPoset` / `crossProduct` / `productsIndex` lift the sibling-combine question to `Poset` — a program's Cross nodes build the product index `Poset.merge` consults. The linear model stays primary for every consumer (the full poset-valued context, e.g. a collect over a crossed axis reporting `{Y}` not `[]`, is the deeper poset round with the emitter). |
 | `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and `merge` (comparable → the deeper; siblings → the **exact-axis** constructed product, not a covering superset — `leq` is monotone `⊆` but a combine's home is `==`, since a flat cross builds no sub-products; else `Incomparable`, the completion gap — an under-determined cross is just another time-travel program). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. **Wired into Context** for the alignment admit (`Context.productsIndex`); the full context-model migration (Cross output ports, poset-valued contexts everywhere) is the rest of the poset round. |
@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 150 checks.
+gaps). Currently 157 checks.
 
 ## The single engine
 
@@ -82,7 +82,10 @@ Build handles ──────────────────────
 ```
 
 What compiles today: the value fragment (including **computed
-functions** — App's fn is a wire, so it can be another node's output),
+functions** — App's fn is a wire, so it can be another node's output,
+and **structs** — Aggregate emits an object literal, Disaggregate a
+field access, each a memoised lazy cell let-floated exactly like an App,
+so a per-element struct floats into its loop body),
 list/option chains with binary Join, multi-close, single-module
 multi-output compilation (outputs share one memo), **case collects**,
 **filters** (join with a case-alt inner operand, including nested

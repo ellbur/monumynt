@@ -240,6 +240,8 @@ let print = (p: program): string => {
         bumpV(init, Some(n))
       }
     | DelayWrite({step}) => bumpV(step, Some(n))
+    | Aggregate({fields}) => fields->Array.forEach(((_, v)) => bumpV(v, Some(n)))
+    | Disaggregate({struct_}) => bumpV(struct_, Some(n))
     | Lit(_) => ()
     }
   })
@@ -789,6 +791,11 @@ let print = (p: program): string => {
             valueName(ValuePort(n, "final")),
           )
         }
+      | Aggregate(_) | Disaggregate(_) =>
+        // Aggregate/Disaggregate are representable and compile, but the textual
+        // surface has no struct-construction/projection syntax yet (the spelling
+        // is a separate text-surface round). Authored via handles only for now.
+        failwith("TextPrint: struct construction/projection has no textual surface yet")
       }
     }
   )
