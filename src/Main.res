@@ -876,6 +876,112 @@ header("register pair: running sum over a filter-then-flatmap sequence")
 }
 
 // ============================================================================
+// 8h. The running view (scanl): a sibling collect over the SAME driving flow
+//     reads the register's `prev`, building the running-value list. A register
+//     is a feature of the flow (delay-ontology-design.md), so its running total
+//     is readable per firing; the eager model gives the reading collect its own
+//     loop that re-runs the fold and PUSHES `prev` each step. Collecting `prev`
+//     yields the prefix sums BEFORE each element ([0, 1, 3] for [1,2,3]);
+//     collecting the stepped value yields them AFTER ([1, 3, 6]). The write
+//     half's `final` still folds independently in its own loop.
+// ============================================================================
+
+header("register pair: running view (scanl) — a sibling collect reads prev")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  // Running-before list (collect prev): [0, 1, 3]. Running-after list (collect
+  // the stepped value): [1, 3, 6]. And the final total alongside: 6.
+  let before = Build.collect(b, ~flow=it.flow, sum.prev)
+  let after = Build.collect(b, ~flow=it.flow, stepped.value)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", before.value), ("after", after.value), ("total", w.final)],
+  )
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("running-view program passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectOutput(p, "before", array_([int_(0), int_(1), int_(3)]))
+  expectOutput(p, "after", array_([int_(1), int_(3), int_(6)]))
+  expectOutput(p, "total", int_(6))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 8i. The running view over a FLATTENED (joined) driving flow: a register folds
+//     a list-of-lists with one accumulator (test 8c), and the sibling running
+//     collect re-runs that same flattened fold, pushing one running value per
+//     innermost element — a flat list of prefix sums across the whole order.
+// ============================================================================
+
+header("register pair: running view over a flattened list-of-lists")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let outer = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3), int_(4)])]))
+  let ito = Build.uncollectList(b, outer.value)
+  let iti = Build.uncollectList(b, ~nesting=ito.flow, ito.element)
+  let flat = Build.join(b, ~outer=ito.flow, ~inner=iti.flow)
+  let sum = Build.delay(b, ~flow=flat.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  // Flattened order 1,2,3,4 -> running-after prefix sums 1,3,6,10; total 10.
+  let after = Build.collect(b, ~flow=flat.flow, stepped.value)
+  let p = Build.finish(b, ~outputs=[("after", after.value), ("total", w.final)])
+  expectOutput(p, "after", array_([int_(1), int_(3), int_(6), int_(10)]))
+  expectOutput(p, "total", int_(10))
+}
+
+// ============================================================================
+// 8j. The FILTERED running view — a sibling collect reads `prev` over a filtered
+//     (case-alt) driving flow — is well-formed (passes Check) but the emitter is
+//     the shared-loop-skeleton case, deferred with the rest of the running-view
+//     work. It must decline with a clean Codegen.Todo, not a raw failwith crash
+//     (the error-discipline fix: a well-formed program never crashes the
+//     compiler). ARCHITECTURE worklist item 6.
+// ============================================================================
+
+header("register pair: a filtered running view declines cleanly (Todo, not a crash)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(b, "x => x > 0 ? {tag: 'Keep', value: x} : {tag: 'Drop', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=it.flow, it.element)
+  let keep = Build.alt(cs, "Keep")
+  let filtered = Build.join(b, ~outer=it.flow, ~inner=keep.altFlow)
+  let sum = Build.delay(b, ~flow=filtered.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, keep.altValue])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  // A sibling collect over the SAME filtered flow reads prev.
+  let running = Build.collect(b, ~flow=filtered.flow, sum.prev)
+  let p = Build.finish(b, ~outputs=[("running", running.value), ("total", w.final)])
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("filtered running view passes the implemented checks (well-formed)")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("filtered running view declines with a clean Todo (not a crash)")
+  | Ok(_) => fail("filtered running view unexpectedly compiled — its emitter is deferred")
+  | Error(ws) =>
+    fail("filtered running view failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // (No round-trip: the text surface for a nested case split in a chain is a
+  // known TextPrint gap, shared with the filtered register tests 8e–8g.)
+}
+
+// ============================================================================
 // 9. Witness surface: a bad port reference
 // ============================================================================
 
