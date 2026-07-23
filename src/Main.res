@@ -761,6 +761,121 @@ header("register pair: per-group running sum (register over the inner flow) -> l
 }
 
 // ============================================================================
+// 8e. Register over a FILTERED (case-alt) driving flow — a running sum over the
+//     kept subsequence. The driving flow is `join(list, case-alt)`, so `spine`
+//     gives a list level then a dispatch level; the register walks the
+//     Some-subsequence, advancing `reg` only on the firings whose alt matches
+//     (delay-ontology-design.md, route (b) "filter inside": the Delay's flow is
+//     the kept subsequence, so the register "only updates when the option is
+//     Some"). The alt-guard logic is shared with the filter collect
+//     (walkFilterLevels), so the step and `prev` sit INSIDE the alt guard and
+//     the one `let reg` lives outside the loop and the guard.
+// ============================================================================
+
+header("register pair: running sum over a filtered sequence (only kept firings advance)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  // Keep the positives; drop the negatives (an option-shaped case split).
+  let disc = Build.raw(b, "x => x > 0 ? {tag: 'Keep', value: x} : {tag: 'Drop', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3), int_(-4), int_(5)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=it.flow, it.element)
+  let keep = Build.alt(cs, "Keep")
+  let filtered = Build.join(b, ~outer=it.flow, ~inner=keep.altFlow)
+  let sum = Build.delay(b, ~flow=filtered.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, keep.altValue])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("filtered register passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // Only the kept positives fold: 0 + 1 + 3 + 5 = 9 (the negatives never advance).
+  expectOutput(p, "total", int_(9))
+  // One accumulator, declared once outside the loop and the alt guard.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "total") {
+    | Some(o) =>
+      if countOccurrences(o.js, "let ") === 1 {
+        pass("one accumulator, outside the loop and the alt guard")
+      } else {
+        fail("expected a single `let ` accumulator, found " ++ Int.toString(countOccurrences(o.js, "let ")))
+      }
+    | None => fail("no total output")
+    }
+  | _ => fail("filtered register failed to compile")
+  }
+}
+
+// ============================================================================
+// 8f. The all-dropped edge: no firing matches the kept alt, so the register
+//     never advances and `final` is `init` — the same law as the empty list
+//     (8b), reached through the guard rather than an empty loop.
+// ============================================================================
+
+header("register pair: a filter that keeps nothing yields init")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(b, "x => x > 0 ? {tag: 'Keep', value: x} : {tag: 'Drop', value: x}")
+  let xs = Build.lit(b, array_([int_(-1), int_(-2), int_(-3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=it.flow, it.element)
+  let keep = Build.alt(cs, "Keep")
+  let filtered = Build.join(b, ~outer=it.flow, ~inner=keep.altFlow)
+  let sum = Build.delay(b, ~flow=filtered.flow, ~init=Build.lit(b, int_(42)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, keep.altValue])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  expectOutput(p, "total", int_(42))
+}
+
+// ============================================================================
+// 8g. A register over a filter-then-flatmap driving flow —
+//     join(join(list, case-alt), inner-list): keep the matching alts, then
+//     flatten each kept alt's payload list, folding the whole flattened kept
+//     order with one accumulator. The dispatch is a NON-trailing level (an iter
+//     level nested inside it), so `prev` aligns with the innermost list element.
+// ============================================================================
+
+header("register pair: running sum over a filter-then-flatmap sequence")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  // Keep even-headed groups; each Keep carries the group's list as its payload.
+  let disc = Build.raw(
+    b,
+    "g => g[0] % 2 === 0 ? {tag: 'Keep', value: g} : {tag: 'Drop', value: g}",
+  )
+  let groups = Build.lit(
+    b,
+    array_([
+      array_([int_(2), int_(3)]),    // head 2 even -> kept, contributes 2, 3
+      array_([int_(5), int_(7)]),    // head 5 odd  -> dropped
+      array_([int_(4), int_(1), int_(6)]), // head 4 even -> kept, contributes 4, 1, 6
+    ]),
+  )
+  let ito = Build.uncollectList(b, groups.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=ito.flow, ito.element)
+  let keep = Build.alt(cs, "Keep")
+  let iti = Build.uncollectList(b, ~nesting=keep.altFlow, keep.altValue)
+  // join(join(list, case-alt), inner-list): filter the groups, flatten the kept.
+  let j1 = Build.join(b, ~outer=ito.flow, ~inner=keep.altFlow)
+  let flat = Build.join(b, ~outer=j1.flow, ~inner=iti.flow)
+  let sum = Build.delay(b, ~flow=flat.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  // 0 + (2+3) + (4+1+6) = 16; the odd-headed group never advances.
+  expectOutput(p, "total", int_(16))
+}
+
+// ============================================================================
 // 9. Witness surface: a bad port reference
 // ============================================================================
 
