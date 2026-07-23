@@ -262,9 +262,18 @@ Worked in `variable-rate-consumption-design.md`: "advance how far"
 reframed as boundary placement via **split-when** (a segmenting binary
 flow operation); the running view answered as the state port of the
 collect's derived augment form; breadth items 1, 2, 4 worked
-end-to-end; three dead ends recorded. Remaining: the adoption
-conversation; the boundary-destination setting's form (jointly with
-end-when's inclusive bit); the stream compile's sequencing constraint;
+end-to-end; three dead ends recorded. The relationship question is
+now **decided** (2026-07-23, in end-when's adopting conversation):
+the **cut** ("when" — one construct yielding prefix, payload,
+continuation) is the root concept; split-when is not a separate
+primitive but the *iterated cut*, expected to live as a
+derived/catalog construct over the root; and the
+boundary-destination setting is three-valued at the root, on the
+node, end-when's binary bit its projection. Remaining: the cut
+round itself (how iteration is drawn without handing users raw
+corecursion; the continuation on RanOut; payload availability from
+the continuation side — the doc's question 10); the running view's
+adoption; the stream compile's sequencing constraint;
 the fixed-length-segment catalog question; the nested-segmentation
 boundary against grammar vocabulary; and the decision-driven merge
 (the family's two-flow member), which still has only its chooser
@@ -603,17 +612,19 @@ analysis scripts) should still confirm the scope move. See
 **End-when: residue after adoption — I 2, W 5.**
 **Adopted** (2026-07-23 — `end-when-design.md`, status header and
 adoption notes): the law of the shortened flow, the standalone-node
-posture (the first-segment recognition to split-when and the
-sibling stance to interrupt both stand unchanged), and the
+posture (the sibling stance to interrupt stands unchanged; the
+split-when relationship was settled at the root in the same
+conversation — end-when is the cut's prefix projection, see the
+variable-rate row), and the
 inclusive/exclusive bit as one bit on the node, exclusive default.
 Remaining: the register final-readout anchor (needs a stated rule;
 touches the iteration-state round); the textual spelling (with a
 recorded direction — a word pair like `to`/`until`, never a flag,
 decided jointly with split-when's destination setting); the bit's
 drawing (layout-side, out of scope here); interrupt unification
-stays deliberately unforced; and the continuation seam
-(inhomogeneous iteration continuing from the cut) is a recorded
-expectation on the segmentation/grammar rounds, not a reopening.
+stays deliberately unforced; and the continuation seam is now
+cashed by the cut decision (the continuation is a port of the
+root construct; edges filed at the variable-rate row).
 I stays 2 (the anchor rule is genuine semantic residue, not
 polish); W = 5 stands, which is why the anchor and spellings are
 worth closing soon.

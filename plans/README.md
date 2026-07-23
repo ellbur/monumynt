@@ -194,7 +194,11 @@ consumes, and whether it needs an input list at all:
   see the doc's adoption notes.*
 - [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
   — "advance how far?" reframed as placing segment boundaries
-  (split-when), plus the running view of a collect. *Exploration.*
+  (split-when), plus the running view of a collect. *Mixed: the cut
+  root decided (2026-07-23 — end-when and split-when branch off one
+  root, the cut; split-when is the iterated cut, not a separate
+  primitive; see the status header); the running view still
+  exploration.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed

@@ -4,10 +4,12 @@ Status: **adopted** (design conversation, 2026-07-23) — the
 construct is settled design; none of it is implemented. Adopted:
 the core construct (the law of the shortened flow, the flow-typed
 (subject, stop) operand pair) as a standalone everyday node — the
-relationships to split-when, the decision-driven merge, and
-interrupt stay exactly the recorded recognitions and leanings,
-unchanged by adoption — and the inclusive/exclusive bit as one bit
-on the node, exclusive the default reading. The adopting
+relationships to the decision-driven merge and interrupt stay
+exactly the recorded leanings, and the split-when relationship was
+settled at the root in the same conversation (the cut refinement,
+in "Adoption notes" below: end-when is the cut's prefix
+projection) — and the inclusive/exclusive bit as one bit on the
+node, exclusive the default reading. The adopting
 conversation's rationale and its standing notes (the continuation
 seam; the bit's textual direction) are in "Adoption notes" below.
 The open questions keep their own status: where one is marked open
@@ -659,9 +661,10 @@ Three notes from that conversation are part of the record:
   — there is no second segment to conceive of and then discard.
   Deriving it from split-when would force the discarded remainder
   into the everyday case's mental model, backwards from how the
-  sampled programs are conceived. The first-segment recognition
-  stays as recorded ("What end-when is not", and
-  `variable-rate-consumption-design.md`, "Skip-while").
+  sampled programs are conceived. (The first-segment recognition
+  this note originally kept was superseded within the same
+  conversation by the cut refinement, below — the derivation now
+  runs from the root, in the direction this rationale wanted.)
 
 - **The continuation seam.** Inhomogeneous iteration — the
   regex-shaped "loop until this, then loop until that"
@@ -686,6 +689,27 @@ Three notes from that conversation are part of the record:
   `until` exclusive). Filed into open question 6, to be decided
   jointly with split-when's three-valued destination setting —
   one word family, decided once.
+
+- **The cut refinement (same conversation).** Working the
+  split-when question arrived at the root concept: end-when and
+  split-when branch off one construct, the **cut** ("when" is the
+  working word) — it yields (prefix, payload, continuation), and
+  to split is to tap the continuation. This cashes the
+  continuation seam above: the adoption of the law stands, re-read
+  as the cut's *prefix projection*; skip-while is the continuation
+  projection; split-when is the cut *iterated*, a derived form,
+  not a separate primitive. The anti-unification leaning's reasons
+  survive the override — the everyday form stays flat and one
+  gesture; it is split-when that wears the derivation. One
+  consequence for the bit: the adopted two-valued bit is the
+  projection of the root's **three-valued** destination setting
+  (prefix / head-of-continuation / dropped) when the continuation
+  is unused — without a continuation, starts-next and dropped are
+  indistinguishable, which is why binary sufficed here. The cut
+  round's open edges (how iteration is drawn without raw
+  corecursion; the continuation on RanOut; payload availability
+  from the continuation side) are filed in
+  `variable-rate-consumption-design.md`, open question 10.
 
 ## Open questions
 
