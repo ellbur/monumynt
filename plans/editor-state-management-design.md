@@ -672,7 +672,8 @@ sync or out of it; it is only present or absent.
   wholesale — Incremental's concepts enter only re-keyed to what
   the step-DAG already provides.
 - **Sample reality (standing method).** The whole ladder above rung
-  0 is *conditional on measurement*. At smoke-suite scale,
+  0 is *conditional on measurement* (a confirmed lean from the
+  design conversation, alongside keeping refs-by-record). At smoke-suite scale,
   from-scratch per keystroke may be fast for a long time; rung 0
   ships with timing instrumentation, and each rung is adopted when
   a measured edit latency demands it — with one stated exception:
@@ -683,11 +684,11 @@ sync or out of it; it is only present or absent.
 ## Open questions
 
 1. **Refs-by-record vs refs-by-id.** Kept: refs-by-record (free
-   upstream keys, editing doc consistency). The fork reopens if
-   path-copy cost or serialization interning proves painful;
-   refs-by-id + persistent map + explicit stamps is the worked
-   alternative, and the query layer above is deliberately neutral
-   between them.
+   upstream keys, editing doc consistency) — a confirmed lean from
+   the design conversation. The fork reopens if path-copy cost or
+   serialization interning proves painful; refs-by-id + persistent
+   map + explicit stamps is the worked alternative, and the query
+   layer above is deliberately neutral between them.
 2. **Where the memo attaches.** Lazy derived fields on records
    (sharing-tracked, GC-managed) vs external weak tables vs
    per-history-node overlays. Leaning: fields for upstream-footprint
