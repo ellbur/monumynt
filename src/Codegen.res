@@ -838,6 +838,79 @@ and emitCaseCollect = (
   }
 }
 
+// Walk a spine of iter (list/option) and case-alt dispatch levels
+// outermost-in, building the per-level `filterPlan` and the statements to
+// float. Each level opens its own body context (tagged with `ownerId`, the
+// thunk that owns the emitted JS scope) and pre-memoises the binding its
+// interior resolves — an iter level's element, a dispatch's alt payload.
+// Feeds (an iter input, a split's discriminator + dispatched value) compile in
+// the context built so far and float to where they belong. Shared by
+// emitFilterCollect (the accumulator is a collect) and emitRegister (the
+// accumulator is a register fold), so the alt-guard logic is written once.
+and walkFilterLevels = (
+  st: state,
+  exterior: ctxPath,
+  levels: array<level>,
+  ownerId: int,
+): (array<filterPlan>, array<placed>) => {
+  let floatedAcc: array<placed> = []
+  let plans: array<filterPlan> = []
+  let parentCtx = ref(exterior)
+  levels->Array.forEach(l =>
+    switch l {
+    | PartialLevel(_) =>
+      failwith("Codegen.walkFilterLevels: PartialLevel — caller must guard it out")
+    | IterLevel({uncollect, isList}) => {
+        let input = switch uncollect.kind {
+        | Uncollect({input}) => input
+        | _ => failwith("Codegen.walkFilterLevels: IterLevel is not an Uncollect")
+        }
+        let own = FlowPort(uncollect, "flow")
+        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
+        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+          failwith(
+            "Codegen: level " ++
+            Int.toString(uncollect.id) ++
+            " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
+          )
+        }
+        let feedC = compileValue(st, parentCtx.contents, input)
+        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: ownerId}])
+        let iterVar = st.fresh()
+        let elemName = st.fresh()
+        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+        Array.push(plans, FIter({uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName}))
+        parentCtx := bodyCtx
+      }
+    | AltLevel({split, alt}) => {
+        let (discriminator, csInput) = switch split.kind {
+        | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
+        | _ => failwith("Codegen.walkFilterLevels: alt level's node is not a case split — placement bug")
+        }
+        // The dispatched value and the discriminator compile in the context
+        // built so far (`s = disc(input)` is recomputed per firing there); a
+        // Lit discriminator floats out to the top level via emitLit.
+        let inputC = compileValue(st, parentCtx.contents, csInput)
+        inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let discC = compileValue(st, parentCtx.contents, discriminator)
+        discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let altFlow = FlowPort(split, alt)
+        let altCtx = Array.concat(parentCtx.contents, [{flow: altFlow, thunkOf: ownerId}])
+        let payloadName = st.fresh()
+        recordMemo(st, split.id, alt, altCtx, payloadName)
+        let splitName = st.fresh()
+        Array.push(
+          plans,
+          FAlt({split, alt, altCtx, splitName, discName: discC.name, inputName: inputC.name, payloadName}),
+        )
+        parentCtx := altCtx
+      }
+    }
+  )
+  (plans, floatedAcc)
+}
+
 // The filter shape: a `join` chain whose levels are iter levels (list/option
 // loops) and case-alt dispatch levels, interleaved in any order, at least one
 // of which is a dispatch. One thunk = an accumulator, then the levels nested
@@ -894,69 +967,15 @@ and emitFilterCollect = (
     ctx,
   )
 
-  // Walk the levels outermost-in: each opens its body context (tagged with this
-  // collect) and pre-memoises the binding its interior resolves — an iter
-  // level's element, a dispatch's alt payload. Feeds (an iter input, a split's
-  // discriminator + dispatched value) compile in the context built so far and
-  // float to where they belong.
-  let floatedAcc: array<placed> = []
-  let plans: array<filterPlan> = []
-  let parentCtx = ref(exterior)
-  levels->Array.forEach(l =>
-    switch l {
-    | PartialLevel(_) =>
-      failwith("Codegen.emitFilterCollect: PartialLevel — guarded above")
-    | IterLevel({uncollect, isList}) => {
-        let input = switch uncollect.kind {
-        | Uncollect({input}) => input
-        | _ => failwith("Codegen.emitFilterCollect: IterLevel is not an Uncollect")
-        }
-        let own = FlowPort(uncollect, "flow")
-        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
-        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
-          failwith(
-            "Codegen: level " ++
-            Int.toString(uncollect.id) ++
-            " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
-          )
-        }
-        let feedC = compileValue(st, parentCtx.contents, input)
-        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: cn.id}])
-        let iterVar = st.fresh()
-        let elemName = st.fresh()
-        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-        Array.push(plans, FIter({uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName}))
-        parentCtx := bodyCtx
-      }
-    | AltLevel({split, alt}) => {
-        let (discriminator, csInput) = switch split.kind {
-        | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
-        | _ => failwith("Codegen.emitFilterCollect: alt level's node is not a case split — placement bug")
-        }
-        // The dispatched value and the discriminator compile in the context
-        // built so far (`s = disc(input)` is recomputed per firing there); a
-        // Lit discriminator floats out to the top level via emitLit.
-        let inputC = compileValue(st, parentCtx.contents, csInput)
-        inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let discC = compileValue(st, parentCtx.contents, discriminator)
-        discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let altFlow = FlowPort(split, alt)
-        let altCtx = Array.concat(parentCtx.contents, [{flow: altFlow, thunkOf: cn.id}])
-        let payloadName = st.fresh()
-        recordMemo(st, split.id, alt, altCtx, payloadName)
-        let splitName = st.fresh()
-        Array.push(
-          plans,
-          FAlt({split, alt, altCtx, splitName, discName: discC.name, inputName: inputC.name, payloadName}),
-        )
-        parentCtx := altCtx
-      }
-    }
-  )
+  let (plans, floatedAcc) = walkFilterLevels(st, exterior, levels, cn.id)
 
   // At the innermost level's context: compile the kept value.
-  let valueC = compileValue(st, parentCtx.contents, branch.value)
+  let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
+  | Some(FIter({bodyCtx})) => bodyCtx
+  | Some(FAlt({altCtx})) => altCtx
+  | None => exterior
+  }
+  let valueC = compileValue(st, innerCtx, branch.value)
   valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
   // Partition: each level's body claims what is addressed to it; everything at
@@ -1360,10 +1379,18 @@ and emitPartialCollect = (
 // (`spine` = several list/option levels, e.g. a running sum over a list-of-lists):
 // the levels nest as loops and the ONE accumulator lives outside them all, so a
 // join folds the whole flattened firing order into one register (the fork
-// dissolves on sequences — iteration-with-state / delay-ontology). A DISPATCH
-// level (a case-alt / partial merged flow) still raises Todo: a register over a
-// filtered flow is design-settled too but wants the guard logic, and a register
-// over a genuine product (a grid) is the Delay ontology open problem.
+// dissolves on sequences — iteration-with-state / delay-ontology). The levels
+// may also include a case-alt **dispatch** — a register over a FILTERED
+// sequence (`join(list, case-alt)`): the register walks the Some-subsequence,
+// advancing only on the firings whose alt matches (delay-ontology-design.md,
+// route (b) "filter inside": the Delay's flow is the kept subsequence, so the
+// register "only updates when the option is Some"). The alt-guard logic is
+// shared with emitFilterCollect via walkFilterLevels, so the accumulator step
+// and `prev` sit inside the alt guard and the one `let reg` lives outside every
+// loop and guard. Still Todo: a PARTIAL merged driving flow (the k-arm-dispatch
+// cell-set case, the poset round) and a register over a genuine PRODUCT (a grid
+// — `spine` raises on a Cross before reaching here; the Delay ontology open
+// problem).
 and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRef): compiled => {
   let (flow, init) = switch read.kind {
   | DelayRead({flow, init}) => (flow, init)
@@ -1375,18 +1402,20 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
     Context.flowContext(flow),
     ctx,
   )
-  // Every level must be an iter (list/option) loop — the flattened sequence. A
-  // dispatch level (case-alt guard, partial merged flow) declines cleanly.
-  let iterLevels = spine(flow)->Array.map(l =>
+  // Iter (list/option) levels loop; a case-alt level guards. A PARTIAL merged
+  // driving flow is still Todo (the cell-set / poset round); a Cross/Commute
+  // already raised in `spine` (a register over a grid is the Delay ontology
+  // open problem).
+  let levels = spine(flow)
+  levels->Array.forEach(l =>
     switch l {
-    | IterLevel({uncollect, isList}) => (uncollect, isList)
-    | AltLevel(_) | PartialLevel(_) =>
+    | IterLevel(_) | AltLevel(_) => ()
+    | PartialLevel(_) =>
       throw(
         Todo(
-          "register over a filtered / dispatched / product driving flow — a " ++
-          "register over a filtered sequence wants the alt-guard logic; a " ++
-          "register over a grid is the Delay ontology open problem " ++
-          "(iteration-with-state-design.md)",
+          "register over a partial merged driving flow — the k-arm-dispatch " ++
+          "cell-set case (the poset round); a register over a grid is the Delay " ++
+          "ontology open problem (iteration-with-state-design.md)",
         ),
       )
     }
@@ -1397,36 +1426,17 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   let initC = compileValue(st, exterior, init)
   initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  // Walk the levels outermost-in: compile each level's feed in the context so
-  // far, open its body context (tagged with this register's write node) and
-  // pre-memoise its element there. Mirrors emitIterCollect's level walk.
-  let plans: array<levelPlan> = []
-  let parentCtx = ref(exterior)
-  iterLevels->Array.forEach(((uncollect, isList)) => {
-    let input = switch uncollect.kind {
-    | Uncollect({input}) => input
-    | _ => failwith("Codegen.emitRegister: register flow's level is not an Uncollect")
-    }
-    let own = FlowPort(uncollect, "flow")
-    let parentFlows = parentCtx.contents->Array.map(s => s.flow)
-    if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
-      failwith(
-        "Codegen.emitRegister: level " ++
-        Int.toString(uncollect.id) ++
-        " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
-      )
-    }
-    let feedC = compileValue(st, parentCtx.contents, input)
-    feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: wn.id}])
-    let iterVar = st.fresh()
-    let elemName = st.fresh()
-    recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-    Array.push(plans, {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName})
-    parentCtx := bodyCtx
-  })
+  // Walk the levels (iter loops and alt guards) outermost-in, tagging each
+  // opened scope with this register's write node so its bindings don't
+  // memo-reuse into a sibling consumer.
+  let (plans, walkFloated) = walkFilterLevels(st, exterior, levels, wn.id)
+  walkFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  let innerCtx = parentCtx.contents
+  let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
+  | Some(FIter({bodyCtx})) => bodyCtx
+  | Some(FAlt({altCtx})) => altCtx
+  | None => exterior
+  }
   let regName = st.fresh()
   let prevName = st.fresh()
   recordMemo(st, read.id, "prev", innerCtx, prevName)
@@ -1436,7 +1446,12 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   // Partition: statements addressed to one of the level bodies are claimed into
   // it (compile order preserved); loop-invariant work floats out of the thunk.
   let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  plans->Array.forEach(p =>
+    switch p {
+    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
+    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
+    }
+  )
   let escaped: array<placed> = []
   floatedAcc->Array.forEach(pl =>
     switch Map.get(buckets, ctxPathKey(pl.at)) {
@@ -1451,32 +1466,59 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   )
 
   // Assemble innermost-out: `reg = force(step)` is the innermost payload, and
-  // `prev` is declared in the innermost body (alongside that level's element).
+  // `prev = __lazyDone__(reg)` is declared in the innermost body (a loop body
+  // for an iter level, or inside the alt guard for a filtered register). The one
+  // `let reg` lives at the thunk top, outside every loop and guard.
+  let lastIx = Array.length(plans) - 1
   let regAssign = JsBuild.exprStmt(
     JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))),
   )
+  let prevDecl = JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
   let nested = ref([regAssign])
-  for i in Array.length(plans) - 1 downto 0 {
-    let p = plans->Array.getUnsafe(i)
-    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
-    let head = if i === Array.length(plans) - 1 {
-      [
-        JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar))),
-        JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName))),
-      ]
-    } else {
-      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))]
-    }
-    let body = Array.concat(head, Array.concat(bucket, nested.contents))
-    nested :=
-      if p.isList {
-        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
-      } else {
-        [
-          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
-          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+  for i in lastIx downto 0 {
+    let isInner = i === lastIx
+    switch plans->Array.getUnsafe(i) {
+    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
+        let head = if isInner {
+          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar))), prevDecl]
+        } else {
+          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))]
+        }
+        let body = Array.concat(head, Array.concat(bucket, nested.contents))
+        nested :=
+          if isList {
+            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
+          } else {
+            [
+              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
+              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
+            ]
+          }
+      }
+    | FAlt({alt, altCtx, splitName: aSplitName, discName, inputName, payloadName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
+        let head = if isInner {
+          [
+            JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value"))),
+            prevDecl,
+          ]
+        } else {
+          [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value")))]
+        }
+        let altBody = Array.concat(head, Array.concat(bucket, nested.contents))
+        nested := [
+          JsBuild.const(
+            aSplitName,
+            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
+          ),
+          JsBuild.if_(
+            JsBuild.eq(JsBuild.member(JsBuild.id(aSplitName), "tag"), JsBuild.str(alt)),
+            altBody,
+          ),
         ]
       }
+    }
   }
   let thunkBody = Array.concat(
     [JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initC.name)))],
