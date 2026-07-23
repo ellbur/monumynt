@@ -5,8 +5,11 @@ mechanisms, the availability law, the co-location criterion, and
 corner 1 (flow-only joins) are adopted**, with one clarification
 recorded under the law: a value wire does not participate in a
 flow operation, so it is neither upstream nor downstream of one —
-the ordering is on contexts only. Corners 2 and 3 (race; the
-partial collect) are pending the same rolling conversation.
+the ordering is on contexts only. Corner 2 (race) is **adopted with an amendment**: per-contender
+(flow, payload) pairs in — the pair the lean, the bare async
+value the isomorphic aggregate — race re-read as the partial
+collect's async sibling (see its section). Corner 3 (the
+partial collect) is pending the same rolling conversation.
 **Corner 4 (the discharging collect) is contested**: the
 discharge-barrier direction (`failure-payloads-design.md`, "The
 discharge barrier") weakens its settled-sum justification —
@@ -350,7 +353,62 @@ are structurally unrelated to the race's partition (they fire on
 their own resolution regardless of the race); and the case-split
 precedent is values-in — the sum-side uncollect consumes the thing
 whose settlement creates the partition. (This is a recorded dead end
-of this proposal — please don't re-propose it without new evidence.)
+of this proposal — please don't re-propose it without new evidence.
+The adopted pair form below shares the flows-in *surface* but none
+of these mechanics — its cells are minted at the node, its values
+carried as mints, its contenders demand-started — so it is not
+this dead end.)
+
+**Adopted with an amendment (design conversation, 2026-07-23).**
+The corner is decided, but the input shape is amended. The
+conversation distinguished three shapes where this chapter weighed
+two:
+
+- a **bare async value** — no associated flow wire, the
+  computation as one aggregate thing (the values-in form above);
+- the **(flow wire, payload value wire) pair** — the opened form,
+  the payload descending from the flow's context;
+- the dead end above — contexts alone, cells as sub-flows, values
+  by availability. Still dead.
+
+Both of the first two are admissible — they are isomorphic, and a
+bare value fed to the race is an open, completed or spelled
+`-~>` — and **the pair is the lean**, on a stated principle worth
+keeping: *a barrier is a control-flow operation and must consume
+something that stands for the control flow; a value representing
+a computation is valid but esoteric — the higher-order-function
+objection again (`configuration-scopes.md`) — so the control flow
+should be spelled as a visible flow wire.* The uniformity argument
+above is answered rather than defeated: openers (case split, list
+open) create control flow from a value, so they take no flow
+input; race presupposes existing async computation, and the
+precedent for operating on *existing* control flow — join,
+commute, end-when — is flow wires in. Under the pair form **race
+is the async sibling of the partial collect**: the sum side's
+explicit transport node — async context flows in, the
+first-settling contender's in-context payload carried out through
+the one-way door as a mint. The values-in form fuses an opener
+into the transport, and it costs a collect per pipeline contender
+(packaging `a -> parse -> transform` in ~A back into an async
+value) that the pair form saves — racing `(~A, transformOut)`
+directly.
+
+Unchanged by the amendment: the cells and their mints co-locate
+on one node (the partition quantifies over all contenders), and
+the winner's value is a mint, never availability. Reshaped: the
+unary-race leaning — under pairs, **await = open async** (the
+opener), and the N=1 race is the degenerate transport, harmless
+(the one-cell partial collect's sibling); noted for
+`race-barrier-design.md`. One new check: the pair must cohere —
+the payload must descend from the flow wire's context (`-~>`
+guarantees it by construction; the explicit form gets a
+provenance check). The wire-mess cost is acknowledged and filed
+to the layout/textual side (`-~>` carries most of it textually:
+`a, t -~> race => r`). The amendment rhymes with the
+discharge-barrier direction recorded the same day
+(`failure-payloads-design.md`): the sum side gets one grammar —
+flows plus in-context payloads in, minted bundle out, one law per
+barrier (first settlement here; the ending there).
 
 Race's full semantics — fairness, N-ary composition, abandonment —
 remain owed (`async-flow-design.md` question 5, taken up in
@@ -504,7 +562,7 @@ untouched: a question about the terminator value, not about ports.
 | concurrent join | fires when all operands have; context = product of operands' | availability (product segment) |
 | Cross | once per pair; context = product of axes | availability (stated in its round) |
 | end-when (subject, stop) | prefix of subject's firings | availability (prefix admission, its theorem) |
-| race | cells partition the parent by first settlement | mint: per-cell (value, flow) pairs, one node |
+| race | cells partition the parent by first settlement | inputs per contender: (flow, payload) pairs (adopted lean; a bare async value is the completed-open aggregate); mint: per-cell (value, flow) pairs, one node |
 | case-split uncollect | cells partition the parent by dispatch | mint: per-alt (value, flow) pairs, one node |
 | partial collect | merged flow fires iff a branch fires; context = union cell set | mint: the firing branch's value — one row per node; m rows = m sibling nodes |
 | collect (propagating) | terminates; output at parent | mint: `result` (failable if the flow was) |
@@ -574,7 +632,10 @@ can find them:
    drawn/recognized view of m siblings.
 3. **Race over pre-opened flows** — in "Race." Wrong three ways:
    race consumes values, losers' contexts are unrelated to the
-   partition, and the case-split precedent is values-in.
+   partition, and the case-split precedent is values-in. (The
+   adopted pair form, 2026-07-23, is not this: it shares the
+   flows-in surface but mints its cells at the node and carries
+   values as mints.)
 4. **A tuple output for the many-kind discharge** — in "The
    discharging collect." The product bottleneck verbatim.
 5. **The absorb collect** — in "The discharging collect." An

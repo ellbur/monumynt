@@ -813,8 +813,14 @@ ports — the co-location criterion, and corner 1 (Join and the
 concurrent join flow-only) are adopted, with a recorded
 clarification: a value wire does not participate in a flow
 operation — neither upstream nor downstream of it; the ordering is
-on contexts only. Corners still pending the rolling conversation:
-race's per-contender (value, flow) pairs, values-in; the m-rows =
+on contexts only. Corner 2 (race) is adopted with an amendment
+(2026-07-23): inputs are per-contender **(flow, payload) pairs** —
+the pair the lean on the stated principle that a barrier is a
+control-flow operation and its control flow should be a visible
+wire; the bare async value admissible as the completed-open
+aggregate; race re-read as the partial collect's async sibling;
+the unary-race leaning reshaped (await = open async). Still
+pending the rolling conversation: the m-rows =
 m-sibling-collects answer. **Corner 4 (the discharge's port shape)
 is contested** by the discharge-barrier direction
 (`failure-payloads-design.md`): fail-as-uncollect gives every
