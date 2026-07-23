@@ -879,7 +879,13 @@ question 4 — now carrying the noted **site-as-label direction**:
 the minting site is itself a label, a failure facet could let
 discharges pick sites by location, and a tag becomes a drawn
 identification of sites, sharpening the scoped-by-default
-leaning); the super flow's filed edges (collect anchor, async
+leaning); the **discharge-barrier direction** (noted same day,
+details owed: fail as an uncollect of an error flow, the error
+wires as drawn arrows to failure points, term-then-split as the
+packed sibling, a barrier minting per-site cells plus a completed
+cell whose success payload is answered by availability/mint per
+kind — contests the crossing round's corner 4); the super flow's
+filed edges (collect anchor, async
 face, `Cancelled` siblinghood, naming); interrupt's adoption
 paperwork (rides the async round; its verdict vocabulary is fixed
 by its two adopted siblings); the advisory tier's contents; the
