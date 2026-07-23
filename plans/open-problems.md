@@ -870,7 +870,11 @@ the model; cause-chain wrapping).
 
 Residue after adoption: tag identity across reuse boundaries (the
 one piece owing a worked round; touches the catalog schema,
-question 4); the super flow's filed edges (collect anchor, async
+question 4 — now carrying the noted **site-as-label direction**:
+the minting site is itself a label, a failure facet could let
+discharges pick sites by location, and a tag becomes a drawn
+identification of sites, sharpening the scoped-by-default
+leaning); the super flow's filed edges (collect anchor, async
 face, `Cancelled` siblinghood, naming); interrupt's adoption
 paperwork (rides the async round; its verdict vocabulary is fixed
 by its two adopted siblings); the advisory tier's contents; the

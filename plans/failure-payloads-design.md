@@ -802,6 +802,30 @@ as leanings.
    place to state identity), but this needs a worked round with
    real composed programs, and it touches the catalog schema
    (`types-design.md`, question 4).
+
+   **The site-as-label direction (noted 2026-07-23, deliberately
+   unworked).** The adopting conversation added a reordering of
+   this question's layers worth keeping in view: the minting
+   *site* is itself a label — a visual program's shape already
+   distinguishes every failure point — so the user need not name
+   lanes just to handle them later. Imagine a **failure facet** of
+   a subprogram (`facets-design-notes.md`): the view showing just
+   its minting points, and a discharge authored by *picking sites
+   from that view* — "handle the failure from this point and that
+   point," identified by location, no tag authored. Under this
+   reading site identity is the primitive the inventory already
+   uses (every lane carries a site witness), and a **tag is a
+   drawn act of identifying several sites as one meaning** —
+   needed exactly for sameness across sites or across a reuse
+   boundary, and not before; this question's scoped-by-default
+   leaning gets sharper, not weaker. Cautions filed with it: site
+   identity is edit-fragile where a tag is not (leans on
+   boundary-identity-across-versions,
+   `transformation-levels-design.md`); one site in a reused
+   subdiagram is many instances, and site-addressed handling must
+   say which are meant — exactly where tags-through-signatures
+   earn their keep; and the textual form still needs a spelling
+   for site references, a problem the visual form doesn't have.
 3. **The aggregate payload's value design.** Speculation's
    all-declined aggregate is ordinary data construction (above),
    but *which* construction serves parsing well — expectation
