@@ -188,7 +188,10 @@ consumes, and whether it needs an input list at all:
 
 - [`end-when-design.md`](end-when-design.md) — data-driven termination
   (stop the loop when the data says so): the surveys' biggest unserved
-  everyday demand, worked as a binary flow operation. *Exploration.*
+  everyday demand, worked as a binary flow operation. *Adopted
+  (2026-07-23): the construct and the node-bit with exclusive default;
+  spellings, the final-readout anchor, and the drawing still open —
+  see the doc's adoption notes.*
 - [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
   — "advance how far?" reframed as placing segment boundaries
   (split-when), plus the running view of a collect. *Exploration.*

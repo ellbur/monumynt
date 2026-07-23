@@ -600,15 +600,23 @@ analysis scripts) should still confirm the scope move. See
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
-**End-when: adoption and its open questions — I 2, W 5.**
-The exploration round exists with leanings (`end-when-design.md`;
-question 5 worked in place). Remaining: the adoption conversation
-itself; the inclusive/exclusive bit's final form (node-vs-wire now
-worked toward the node; the drawing and the tie-break interaction
-resolved with it); interrupt unification; the register
-final-readout anchor (touches the iteration-state round); the textual
-spelling. Low I is recent work; W = 5 (the surveys' biggest unserved
-everyday demand) is why the remaining distance is worth closing soon.
+**End-when: residue after adoption — I 2, W 5.**
+**Adopted** (2026-07-23 — `end-when-design.md`, status header and
+adoption notes): the law of the shortened flow, the standalone-node
+posture (the first-segment recognition to split-when and the
+sibling stance to interrupt both stand unchanged), and the
+inclusive/exclusive bit as one bit on the node, exclusive default.
+Remaining: the register final-readout anchor (needs a stated rule;
+touches the iteration-state round); the textual spelling (with a
+recorded direction — a word pair like `to`/`until`, never a flag,
+decided jointly with split-when's destination setting); the bit's
+drawing (layout-side, out of scope here); interrupt unification
+stays deliberately unforced; and the continuation seam
+(inhomogeneous iteration continuing from the cut) is a recorded
+expectation on the segmentation/grammar rounds, not a reopening.
+I stays 2 (the anchor rule is genuine semantic residue, not
+polish); W = 5 stands, which is why the anchor and spellings are
+worth closing soon.
 
 Evidence and prior art: the stop/discharge/split-on-tag composition
 survived contact with the textual form and reads well
@@ -838,8 +846,10 @@ one family); tag identity across reuse boundaries (touches the
 catalog schema, question 4); the option/async convergence, sharpened
 again (an option is the `{Nil}` inventory) but undecided; the
 spellings, owed to the textual round jointly with end-when's.
-End-when's readout composition leans entirely on discharge, so
-adoption pressure arrives from the everyday side too.
+End-when's readout composition leans entirely on discharge, and
+end-when is now adopted (2026-07-23), so the family pressure is
+live: the everyday member is settled while `fail` and the
+inventory account await their conversation.
 
 Prior art, now consumed by the round rather than pending: Zig's `try`
 (propagate-by-default at one keyword) and its error-set algebra
