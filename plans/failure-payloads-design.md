@@ -360,6 +360,66 @@ unbounded. The super flow is the opposite move — one quarantined
 lane outside the per-flow accounting, leaving every drawn
 inventory finite and every discharge exhaustiveness check intact.
 
+## The discharge barrier (noted 2026-07-23 — a direction, details owed)
+
+A further direction from the adopting conversation, recorded as
+direction rather than worked design. It starts from the ontology
+note read one step further: if failure is an uncollect of an
+**error flow**, then each fail site mints a flow wire — and those
+wires are *arrows pointing at the failure points*, case-split-like
+wires identifying the ways this program can fail. That cashes the
+site-as-label direction (open question 2) with ordinary
+constructs — no facets needed.
+
+The observation that makes it a construct: the adopted idiom
+`~> discharge => term` followed by `term -> split tag of …` is
+**merge-then-split** — lanes packed into one tagged value at a
+structural point, torn apart immediately after. Fail-fast makes
+the packing look inevitable (only one error can come out), but by
+the no-bottlenecks principle the honest form is a **barrier**:
+feed the error flow wires in, corresponding case flow wires come
+out, plus a completed/success case. Wires pass through as
+themselves; no union is packed.
+
+What the conversation worked out on the spot:
+
+- **The bundle is legal by construction.** One walk's error flows
+  are mutually exclusive (the walk ends at the first), and each
+  lives at the *outer* context already — a walk's ending is one
+  event at the level above — so the inputs are outer-context
+  at-most-once flows and the output is an honest bundle. The case
+  vocabulary applies verbatim: *"handle this point and that point
+  together" is a partial collect over cells*, and a **tag
+  reconstructs as a drawn identification** (same-meaning cells
+  merged) rather than a substrate primitive.
+- **The success case needs no value port** — the availability law
+  answers it by kind. On many-kinds (list/stream) the prefix is
+  total, a value at the outer context, readable inside every cell
+  by the prefix rule; the completed cell fires bare with the
+  result in reach. On exactly-one kinds the resolved value is born
+  at settlement, so the success cell *mints* its payload — exactly
+  race's winner cell. (The conversation's first intuition — a
+  value wire feeding the barrier as success payload — was the
+  packed reading; availability dissolves it.)
+- **Propagation is untouched.** Between minting and the barrier
+  the terminator still propagates silently through consumers that
+  say nothing; the barrier is where handling is *chosen*.
+
+**Interaction flagged:** this contests
+`barrier-value-crossing-design.md`'s corner 4. The settled-sum
+output there was justified by the value and failure payload having
+"no independent upstream wires" — fail-as-uncollect gives every
+failure an upstream wire, so the barrier form is a live
+alternative, possibly the primary drawing with term-then-split as
+its packed lowering (a level-1 recognition candidate). Corner 4
+should not be ratified as written without this in the room.
+
+Open edges owed by the round that works this out: the barrier's
+law stated precisely (which inputs — fail sites, end-when stop
+alts, the bare end; per-site or per-tag cells); new node species
+vs recognition over discharge+split; whether the super flow and
+`Cancelled` can feed it as inputs where collected; spelling.
+
 Open edges filed at adoption (this round still owes them):
 
 1. **The collect's anchor.** The super flow "commutes out of
@@ -826,6 +886,9 @@ as leanings.
    say which are meant — exactly where tags-through-signatures
    earn their keep; and the textual form still needs a spelling
    for site references, a problem the visual form doesn't have.
+   (The discharge-barrier direction, above, cashes this with
+   ordinary constructs — the error flow wires are the site
+   references, and no facets are needed.)
 3. **The aggregate payload's value design.** Speculation's
    all-declined aggregate is ordinary data construction (above),
    but *which* construction serves parsing well — expectation

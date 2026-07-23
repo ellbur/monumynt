@@ -806,18 +806,23 @@ sample. See `divide-flow-design.md`, `trees-and-recursion.md`,
 `flix-comparison.md`.
 
 **How values cross a barrier — I 2, W 4.**
-Worked (`barrier-value-crossing-design.md`): crossing split into
-availability (provenance over the barrier's flow law; no pass-through
-value ports anywhere) and minted ports, with a co-location criterion
-for which mints share a node. The four corners answered with leanings:
-Join and the concurrent join flow-only; race's per-contender (value,
-flow) pairs confirmed, values-in; no multi-row partial collect — m rows
-are m sibling collects at one context; the discharge one settled-sum
-port on exactly-one kinds, the (prefix, terminator) pair on many kinds;
-five dead ends recorded. Remaining: the adoption conversation, the
-spec-side reconciliation (its Join's value ports re-read as drawn
-availability), and the concurrent join × Cross unification question it
-strengthened.
+Worked (`barrier-value-crossing-design.md`), now partly **adopted**
+(2026-07-23): the two mechanisms — availability (provenance over the
+barrier's flow law; no pass-through value ports anywhere) and minted
+ports — the co-location criterion, and corner 1 (Join and the
+concurrent join flow-only) are adopted, with a recorded
+clarification: a value wire does not participate in a flow
+operation — neither upstream nor downstream of it; the ordering is
+on contexts only. Corners still pending the rolling conversation:
+race's per-contender (value, flow) pairs, values-in; the m-rows =
+m-sibling-collects answer. **Corner 4 (the discharge's port shape)
+is contested** by the discharge-barrier direction
+(`failure-payloads-design.md`): fail-as-uncollect gives every
+failure an independent upstream wire, weakening the settled-sum
+justification — do not ratify as written. Five dead ends recorded.
+Remaining besides the corners: the spec-side reconciliation (its
+Join's value ports re-read as drawn availability) and the
+concurrent join × Cross unification question it strengthened.
 
 **Failability's residue — I 2, W 4.**
 The core is worked (terminator payloads, propagate-by-default,

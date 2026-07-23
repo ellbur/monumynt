@@ -1,11 +1,21 @@
 # How Values Cross a Barrier
 
-Status: exploration — this chapter teaches a worked proposal that has
-not been adopted yet; nothing in it is implemented. Read it as "here
-is a candidate and the case for it." Several other chapters each
-stopped at this question and pointed at the others; this is the one
-place it is worked through, and each of those chapters marks its
-corner as worked here, none as decided.
+Status: mixed (design conversation, 2026-07-23) — the **two
+mechanisms, the availability law, the co-location criterion, and
+corner 1 (flow-only joins) are adopted**, with one clarification
+recorded under the law: a value wire does not participate in a
+flow operation, so it is neither upstream nor downstream of one —
+the ordering is on contexts only. Corners 2 and 3 (race; the
+partial collect) are pending the same rolling conversation.
+**Corner 4 (the discharging collect) is contested**: the
+discharge-barrier direction (`failure-payloads-design.md`, "The
+discharge barrier") weakens its settled-sum justification —
+fail-as-uncollect gives every failure an independent upstream
+wire — and proposes the unbottlenecked barrier form as a live
+alternative; do not ratify corner 4 as written without that in
+the room. Nothing is implemented. Several other chapters each
+stopped at this question and pointed at the others; this is the
+one place it is worked through.
 
 ## Your first crossing
 
@@ -147,6 +157,19 @@ put the output context where it is.
 > that context is ≥ the value's context in the context order, and the
 > barrier's flow law determines where its output context sits in that
 > order.
+
+One clarification recorded at adoption (2026-07-23): **a value
+wire does not participate in a flow operation** — it is impossible
+to say whether a value wire is upstream or downstream of a join, a
+race, or any barrier; position in flow topology is a property of
+flows and contexts only. In your first crossing above, the `add`
+of `a` and `b` is neither upstream nor downstream of the join. The
+law's "downstream" — and this chapter's upstream/downstream
+phrasing for values generally — is shorthand for the context
+relation: what is ordered is the value's *context* against the
+barrier's output context, never the value wire itself. This is
+easy to lose when reading the textual form, whose lines are
+listed in sequence; it changes nothing in the law.
 
 Why insist the barrier carries *no* pass-through value port, even as
 a convenience? Because such a port would be a second, wireable

@@ -129,7 +129,12 @@ they change how everything else is read.
 - [`barrier-value-crossing-design.md`](barrier-value-crossing-design.md)
   — one place to answer how values cross barriers (joins, races, partial
   collects), a question several docs had deferred to each other. Two
-  mechanisms plus a co-location rule. *Exploration.*
+  mechanisms plus a co-location rule. *Mixed: the mechanisms, the
+  availability law, the co-location criterion, and flow-only joins
+  adopted (2026-07-23, with the clarification that value wires are
+  neither upstream nor downstream of a flow operation); race and
+  partial-collect corners pending; the discharge corner contested by
+  the discharge-barrier direction.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
