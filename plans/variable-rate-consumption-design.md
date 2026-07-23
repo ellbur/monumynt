@@ -17,8 +17,12 @@ the destination setting, the boundary-reads-own-state analysis,
 the evidence — carries over to the iterated form unchanged; read
 "split-when the node" below as "the iterated cut." The cut
 round's own open edges are filed as open question 10. The running
-view (Part II) remains exploration — a worked candidate, not
-adopted.
+view (Part II) remains exploration: the same conversation reviewed
+it and deliberately left it tentative — the semantics (the
+definition, the strict prefix) were not doubted, but how to draw
+the read understandably is unresolved, and a port on the collect
+node read as a little backwards (see the note under the
+definition). A worked candidate, not adopted.
 
 Two everyday shapes of loop have, so far, no owning construct
 anywhere in this design record. The first is the loop that consumes
@@ -624,6 +628,18 @@ Whether the port is *drawn on the collect node itself* (the friendly
 surface) or reached by explicitly referencing the derived view is a
 presentation question; the leaning is on the node, defined as the
 derived port — one thing, surfaced.
+
+The design conversation of 2026-07-23 reviewed this proposal and
+**deliberately left it tentative**. The semantics were not
+doubted — reading what has been built so far is implementable, and
+the definition above says what it means. What kept it from
+adoption is the drawing: how to draw the read *understandably* is
+unresolved, and a port on the collect node struck the conversation
+as a little backwards — the collect's one job is to be the place
+where the flow becomes a value at the end, and a mid-walk output
+port muddies that reading. The next round here should treat the
+surface as the open problem and the definition as its fixed
+semantic target.
 
 ## Reading the past is safe: the check that transfers
 

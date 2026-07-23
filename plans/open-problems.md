@@ -272,8 +272,11 @@ boundary-destination setting is three-valued at the root, on the
 node, end-when's binary bit its projection. Remaining: the cut
 round itself (how iteration is drawn without handing users raw
 corecursion; the continuation on RanOut; payload availability from
-the continuation side — the doc's question 10); the running view's
-adoption; the stream compile's sequencing constraint;
+the continuation side — the doc's question 10); the running view
+(reviewed 2026-07-23 and deliberately left tentative — the
+semantics stand, but the drawing is the open problem: a port on
+the collect node read as backwards); the stream compile's
+sequencing constraint;
 the fixed-length-segment catalog question; the nested-segmentation
 boundary against grammar vocabulary; and the decision-driven merge
 (the family's two-flow member), which still has only its chooser

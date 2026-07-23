@@ -197,8 +197,9 @@ consumes, and whether it needs an input list at all:
   (split-when), plus the running view of a collect. *Mixed: the cut
   root decided (2026-07-23 — end-when and split-when branch off one
   root, the cut; split-when is the iterated cut, not a separate
-  primitive; see the status header); the running view still
-  exploration.*
+  primitive; see the status header); the running view reviewed and
+  deliberately left tentative — the drawing, not the semantics, is
+  the open problem.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
