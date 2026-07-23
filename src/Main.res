@@ -2058,6 +2058,99 @@ header("case split: a value shared across both branches (placement)")
 }
 
 // ============================================================================
+// 16. Aggregate / Disaggregate — struct construction and field projection
+//     (visual-language-spec.md, "Aggregate" / "Disaggregate"). Pure value
+//     nodes: Aggregate builds an object literal from named field wires,
+//     Disaggregate projects one value port per field. Authored via handles
+//     (no textual surface yet). These are the value fragment, not the poset
+//     round — they compile the same way an App does (memoised lazy cell,
+//     let-floated to where the fields jointly live).
+// ============================================================================
+
+header("aggregate: build a struct, project a field, output the whole struct")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let one = Build.lit(b, int_(1))
+  let two = Build.lit(b, int_(2))
+  let three = Build.lit(b, int_(3))
+  let four = Build.lit(b, int_(4))
+  // pt = {x: 1 + 2, y: 3 + 4} = {x: 3, y: 7}
+  let pt = Build.aggregate(
+    b,
+    ~fields=[
+      ("x", Build.app(b, addF.value, [one.value, two.value]).value),
+      ("y", Build.app(b, addF.value, [three.value, four.value]).value),
+    ],
+  )
+  // Project x and y off one Disaggregate node.
+  let d = Build.disaggregate(b, ~fields=["x", "y"], pt.value)
+  // sum = pt.x + pt.y = 10 — both projections feed one App.
+  let sum = Build.app(b, addF.value, [Build.field(d, "x"), Build.field(d, "y")])
+  let p = Build.finish(
+    b,
+    ~outputs=[("pt", pt.value), ("x", Build.field(d, "x")), ("sum", sum.value)],
+  )
+  expectOutput(p, "pt", obj([("x", int_(3)), ("y", int_(7))]))
+  expectOutput(p, "x", int_(3))
+  expectOutput(p, "sum", int_(10))
+}
+
+header("aggregate: a per-element struct across a list collect (placement inside the loop)")
+{
+  let b = Build.make()
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  // Per element x: {v: x, sq: x * x}. The struct varies with the element, so it
+  // must be emitted INSIDE the loop body (let-floating places it there).
+  let sq = Build.app(b, mul.value, [it.element, it.element])
+  let rec_ = Build.aggregate(b, ~fields=[("v", it.element), ("sq", sq.value)])
+  let out = Build.collect(b, ~flow=it.flow, rec_.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(
+    p,
+    "out",
+    array_([
+      obj([("v", int_(1)), ("sq", int_(1))]),
+      obj([("v", int_(2)), ("sq", int_(4))]),
+      obj([("v", int_(3)), ("sq", int_(9))]),
+    ]),
+  )
+}
+
+header("disaggregate: project a per-element field, then collect")
+{
+  let b = Build.make()
+  // A list of structs, projected per element down to one field, collected back.
+  let structs = Build.lit(
+    b,
+    array_([
+      obj([("x", int_(10)), ("y", int_(1))]),
+      obj([("x", int_(20)), ("y", int_(2))]),
+      obj([("x", int_(30)), ("y", int_(3))]),
+    ]),
+  )
+  let it = Build.uncollectList(b, structs.value)
+  let d = Build.disaggregate(b, ~fields=["x", "y"], it.element)
+  let out = Build.collect(b, ~flow=it.flow, Build.field(d, "x"))
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(p, "out", array_([int_(10), int_(20), int_(30)]))
+}
+
+header("aggregate then disaggregate is identity (project both fields back out)")
+{
+  let b = Build.make()
+  let seven = Build.lit(b, int_(7))
+  let nine = Build.lit(b, int_(9))
+  let s = Build.aggregate(b, ~fields=[("a", seven.value), ("b", nine.value)])
+  let d = Build.disaggregate(b, ~fields=["a", "b"], s.value)
+  let p = Build.finish(b, ~outputs=[("a", Build.field(d, "a")), ("b", Build.field(d, "b"))])
+  expectOutput(p, "a", int_(7))
+  expectOutput(p, "b", int_(9))
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++

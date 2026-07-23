@@ -278,7 +278,7 @@ let rec spine = (f: flowRef): array<level> =>
       throw(Todo("commute in a collect chain — the swapped-orientation walk (lazy-stream-commute-design.md)"))
     | Cross(_) =>
       throw(Todo("cross in a collect chain — the point-indexed table (product-flows-design.md)"))
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) =>
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) =>
       failwith("Codegen.spine: node kind has no flow ports — Check's port-exists rule should have witnessed this")
     }
   }
@@ -437,6 +437,8 @@ let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
       switch n.kind {
       | Lit(js) => emitLit(st, n, js)
       | App({fn, args}) => emitApp(st, ctx, n, fn, args)
+      | Aggregate({fields}) => emitAggregate(st, ctx, n, fields)
+      | Disaggregate({struct_}) => emitDisaggregate(st, ctx, n, struct_, port)
       | Collect({branches}) =>
         switch matchProductChain(st, n) {
         | Some(m) => emitProductChain(st, ctx, n, m)
@@ -522,6 +524,50 @@ and emitApp = (st: state, ctx: ctxPath, n: node, fn: valueRef, args: array<value
       [own],
     ),
   }
+}
+
+// Struct construction: an object literal whose field values force their wires.
+// Placement mirrors emitApp — a struct lives where its fields jointly live, and
+// a product-context struct (fields on incomparable sibling axes) is placed at
+// the current (product) context, the same Incomparable admission emitApp makes.
+and emitAggregate = (
+  st: state,
+  ctx: ctxPath,
+  n: node,
+  fields: array<(string, valueRef)>,
+): compiled => {
+  let fieldCs = fields->Array.map(((k, v)) => (k, compileValue(st, ctx, v)))
+  let required = switch Context.valueContext(ValuePort(n, "value")) {
+  | structural =>
+    instantiate(~what="Aggregate node " ++ Int.toString(n.id), structural, ctx)
+  | exception Context.Incomparable(_) => ctx
+  }
+  let name = st.fresh()
+  let objJs = JsBuild.obj(fieldCs->Array.map(((k, c)) => (k, Runtime.forceOf(JsBuild.id(c.name)))))
+  recordMemo(st, n.id, "value", required, name)
+  let own = {at: required, stmt: JsBuild.const(name, Runtime.lazyOfExpr(objJs))}
+  {
+    name,
+    floated: Array.concat(fieldCs->Array.map(((_, c)) => c.floated)->Array.flat, [own]),
+  }
+}
+
+// Struct projection: `force(struct).field`. `port` is the field being read; the
+// struct wire is compiled once and each projection is its own memoised binding
+// (sharing across fields is opt-in, like any node). The context is the struct's
+// own — projection introduces no new axis.
+and emitDisaggregate = (st: state, ctx: ctxPath, n: node, struct_: valueRef, port: string): compiled => {
+  let sc = compileValue(st, ctx, struct_)
+  let required = switch Context.valueContext(ValuePort(n, port)) {
+  | structural =>
+    instantiate(~what="Disaggregate node " ++ Int.toString(n.id), structural, ctx)
+  | exception Context.Incomparable(_) => ctx
+  }
+  let name = st.fresh()
+  let accessJs = JsBuild.member(Runtime.forceOf(JsBuild.id(sc.name)), port)
+  recordMemo(st, n.id, port, required, name)
+  let own = {at: required, stmt: JsBuild.const(name, Runtime.lazyOfExpr(accessJs))}
+  {name, floated: Array.concat(sc.floated, [own])}
 }
 
 and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBranch>): compiled =>

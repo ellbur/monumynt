@@ -107,8 +107,11 @@ None committed to.
   consumer, partial collect's merged-context computation, and
   registers over a joined/nested/case flow. `Poset.res` has the
   algebra; `src/ARCHITECTURE.md` worklist item 8 is the map.
-- **`Aggregate`/`Disaggregate`** for struct construction and field
-  projection.
+- ~~**`Aggregate`/`Disaggregate`** for struct construction and field
+  projection.~~ DONE (as pure value nodes — Aggregate builds an object
+  literal, Disaggregate projects one value port per field; both compile
+  like an App, let-floated to where the fields jointly live). The textual
+  surface for them is still owed (a separate text-surface round).
 - **Diagrams as the top-level structure** — the spec's `Diagram`
   type, compiling to a JS function per diagram. Now has a forcing
   argument beyond spec fidelity: a Delay write half can be

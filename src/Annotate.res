@@ -52,7 +52,7 @@ let annotate = (p: program): annotations => {
   )
   let speciesOf = (n: node): species =>
     switch n.kind {
-    | Lit(_) | App(_) | Collect(_) => LazyCell
+    | Lit(_) | App(_) | Collect(_) | Aggregate(_) | Disaggregate(_) => LazyCell
     | Uncollect(_) | Join(_) | Commute(_) | Cross(_) => FlowOnly
     | DelayRead(_) => RegisterRead
     | DelayWrite(_) => RegisterWrite
@@ -96,7 +96,7 @@ let rec introducedAxes = (f: flowRef): array<string> =>
     | Cross({left, right}) => Array.concat(introducedAxes(left), introducedAxes(right))
     | Commute({outer, inner}) => Array.concat(introducedAxes(outer), introducedAxes(inner))
     | Collect(_) => [flowKey(f)] // a partial collect's merged flow: its own option axis
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) => []
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
     }
   }
 
@@ -118,7 +118,7 @@ and sourceAxes = (f: flowRef): array<string> =>
       | Some({flow}) => sourceAxes(flow) // the merged cells' exterior
       | None => []
       }
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) => []
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
     }
   }
 
@@ -159,6 +159,9 @@ and valueAxes = (v: valueRef): array<string> =>
       | DelayRead({flow}) => sourceAxes(flow)
       | _ => []
       }
+    | Aggregate({fields}) =>
+      fields->Array.reduce([], (acc, (_, v)) => Array.concat(acc, valueAxes(v)))
+    | Disaggregate({struct_}) => valueAxes(struct_)
     }
   }
 

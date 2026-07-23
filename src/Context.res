@@ -128,6 +128,12 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       | DelayRead({flow}) => flowContext(flow)
       | _ => failwith("Context.valueContext: DelayWrite whose read is not a DelayRead")
       }
+    | Aggregate({fields}) =>
+      // A struct lives where its fields jointly live — the same prefix-rule
+      // merge an App does over its arguments.
+      let where = "Aggregate node " ++ Int.toString(n.id)
+      fields->Array.reduce([], (acc, (_, v)) => merge(~where, acc, valueContext(v)))
+    | Disaggregate({struct_}) => valueContext(struct_)
     }
   }
 
@@ -180,7 +186,7 @@ and flowContext = (r: flowRef): array<flowRef> =>
         }
       | None => []
       }
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) =>
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) =>
       failwith(
         "Context.flowContext: node kind " ++
         kindName(n.kind) ++ " has no flow ports (ref to port " ++ port ++ ")",
@@ -264,6 +270,11 @@ let rec posetValueContext = (~products: array<Poset.t>, r: valueRef): Poset.t =>
       args->Array.reduce(posetValueContext(~products, fn), (acc, a) =>
         Poset.merge(~products, acc, posetValueContext(~products, a))
       )
+    | Aggregate({fields}) =>
+      fields->Array.reduce(Poset.Root, (acc, (_, v)) =>
+        Poset.merge(~products, acc, posetValueContext(~products, v))
+      )
+    | Disaggregate({struct_}) => posetValueContext(~products, struct_)
     | Uncollect({flowKind}) =>
       let ownFlow = switch flowKind {
       | List | Option => FlowPort(n, "flow")
