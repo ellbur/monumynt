@@ -1,16 +1,20 @@
 # Failure payloads: lightweight failure and the terminator inventory
 
-Status: mixed — the **fail node itself is adopted** (design
-conversation, 2026-07-23; see "What fail is — the ontology note"
-below for the adoption's stated basis and the commute-completion
-ruling that came with it), and the **edge stance is adopted with a
-structural amendment** (same conversation: bodies total, declared
-throws as catalog-row lanes, and undeclared throws landing on the
+Status: **adopted** (design conversation, 2026-07-23, in three
+steps of one rolling conversation): the **fail node** (see "What
+fail is — the ontology note" for the adoption's stated basis and
+the commute-completion ruling that came with it), the **edge
+stance with a structural amendment** (bodies total, declared
+throws as catalog-row lanes, undeclared throws landing on the
 **background super flow** — see that section for the adopted
-account and its filed edges). The rest of the chapter — the
-terminator inventory and the clients'
-cashings — remains exploration, being worked through the same
-rolling conversation; none of it is implemented. Its scope is the two
+account and its filed edges), and the **terminator inventory
+account** with the clients' cashings (lanes as derived sets of
+minting sites, union by propagation, discharge exhaustiveness as
+alt matching, re-tagging drawn only where meaning changes, and
+the `Cancelled` / subset-merge / divide-link riders as cashed).
+None of it is implemented. The open questions below remain open
+where marked — tag identity across reuse boundaries is the one
+owing a worked round. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 "Failure as terminator payload"): **"do bodies raise?"** and
 **payload-type composition** — plus the payload questions other
@@ -781,11 +785,14 @@ Recorded here with the reasons they should not be re-proposed.
 The language hasn't decided any of these yet; leanings are stated
 as leanings.
 
-1. **Adoption.** Prepared for the design conversation — jointly
-   with the failability core it completes (`async-flow-design.md`)
-   and beside end-when's, since the terminator-writing family
-   (end-when, fail, interrupt) should be adopted as one family or
-   not at all.
+1. **Adoption.** Done (2026-07-23, the rolling conversation): the
+   fail node, the edge stance (amended — the background super
+   flow), and the inventory account, beside end-when's adoption
+   the same day — the family constraint honored in substance. One
+   member's paperwork remains: interrupt is designed in
+   `async-flow-design.md` (its verdict vocabulary now fixed by two
+   adopted siblings) but rides that round's own adoption, with its
+   mechanical content owned by the race round.
 2. **Tag identity across reuse boundaries.** Within one diagram,
    tags are names and same-tag sites union into one lane. Two
    independently-authored diagrams both minting `NotFound` — one

@@ -564,8 +564,8 @@ what replaced them is the uniform dimension above.)
 - **Payload type composition.** Chaining closes over flows with
   different payload types `E1`, `E2` needs either payload unification
   at joins of failability or an error-mapping operation on the
-  terminator. Probably small; not worked out. *Now worked*
-  (`failure-payloads-design.md`, exploration): neither, as posed —
+  terminator. Probably small; not worked out. *Now adopted*
+  (`failure-payloads-design.md`, 2026-07-23): neither, as posed —
   the payload sets are derived, not artifacts; a terminator lane is a
   set of drawn minting sites grouped by tag, the inventory at any
   consumer computed by property propagation (union along stacks,
@@ -577,12 +577,14 @@ what replaced them is the uniform dimension above.)
   not — JS-honest, but it erases the infallible/failable distinction
   the table draws. The alternative — bodies are total, failure enters
   only at declared sources — is cleaner and less honest. Genuinely
-  open. *Now worked* (`failure-payloads-design.md`, exploration): the
+  open. *Now adopted* (`failure-payloads-design.md`, 2026-07-23): the
   cleaner side, with the honesty bill paid at the edge — failure is
   drawn (`fail`, end-when's failure-tagged sibling), declared throws
-  enter by catalog row, undeclared throws are edge breaches, and the
-  infallible/failable distinction becomes derived and readable rather
-  than declared.
+  enter by catalog row, and undeclared throws land on the
+  **background super flow** (a runtime-owned lane outside every
+  drawn inventory, collectable where wanted — see that doc's
+  adopted edge section), so the infallible/failable distinction
+  becomes derived and readable rather than declared.
 - **Port structure.** The discharging close's two value outputs
   (prefix + terminator) is more port structure than current close
   nodes carry — the same pressure as the race barrier. Worked with

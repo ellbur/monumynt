@@ -835,7 +835,8 @@ runtime-owned lane that silently commutes out of everything, joins
 with itself, stays out of every drawn inventory, and is collectable
 where wanted (a collect compiles to try/catch; the supervisor
 boundary made drawable; anchor/async-face/naming edges filed in the
-doc) — while the inventory account stays exploration;
+doc) — and the **inventory account is adopted too** (same
+conversation), so the whole round is now adopted design;
 moved down from Tier 2 by
 this index's maintenance rule). **Failure is drawn, not thrown**:
 bodies never raise ambiently — the raise is `fail`, the
@@ -867,10 +868,13 @@ catalog rows. Five dead ends recorded (ambient bodies-raise; nominal
 sets with coercion; mandatory declared sets; the dynamic catch-all as
 the model; cause-chain wrapping).
 
-Residue: the adoption conversation (joint with the async round's
-failability section and end-when — the terminator-writing family is
-one family); tag identity across reuse boundaries (touches the
-catalog schema, question 4); the option/async convergence, sharpened
+Residue after adoption: tag identity across reuse boundaries (the
+one piece owing a worked round; touches the catalog schema,
+question 4); the super flow's filed edges (collect anchor, async
+face, `Cancelled` siblinghood, naming); interrupt's adoption
+paperwork (rides the async round; its verdict vocabulary is fixed
+by its two adopted siblings); the advisory tier's contents; the
+option/async convergence, sharpened
 again (an option is the `{Nil}` inventory) but undecided; the
 spellings, owed to the textual round jointly with end-when's.
 End-when's readout composition leans entirely on discharge, and
