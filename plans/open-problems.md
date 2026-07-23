@@ -819,9 +819,14 @@ the pair the lean on the stated principle that a barrier is a
 control-flow operation and its control flow should be a visible
 wire; the bare async value admissible as the completed-open
 aggregate; race re-read as the partial collect's async sibling;
-the unary-race leaning reshaped (await = open async). Still
-pending the rolling conversation: the m-rows =
-m-sibling-collects answer. **Corner 4 (the discharge's port shape)
+the unary-race leaning reshaped (await = open async). Corner 3 is
+adopted too (same conversation): m rows = m sibling partial
+collects, backed by the context-equality theorem (cell sets
+computed by walking — merges mint no worlds, openers do), the
+multi-row node staying a dead end that survives as a drawn view;
+a naming constraint recorded — the partial collect's surfaced
+name should not contain "collect" (it stays in flow-land). Every
+corner is now resolved except corner 4 (contested, above). **Corner 4 (the discharge's port shape)
 is contested** by the discharge-barrier direction
 (`failure-payloads-design.md`): fail-as-uncollect gives every
 failure an independent upstream wire, weakening the settled-sum

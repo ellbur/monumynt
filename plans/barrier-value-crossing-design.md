@@ -8,8 +8,11 @@ flow operation, so it is neither upstream nor downstream of one —
 the ordering is on contexts only. Corner 2 (race) is **adopted with an amendment**: per-contender
 (flow, payload) pairs in — the pair the lean, the bare async
 value the isomorphic aggregate — race re-read as the partial
-collect's async sibling (see its section). Corner 3 (the
-partial collect) is pending the same rolling conversation.
+collect's async sibling (see its section). Corner 3 (the partial
+collect) is **adopted**: m rows = m sibling collects, backed by
+the context-equality theorem, with a recorded naming constraint —
+the node's surfaced name should not contain "collect" (it stays
+in flow-land).
 **Corner 4 (the discharging collect) is contested**: the
 discharge-barrier direction (`failure-payloads-design.md`, "The
 discharge barrier") weakens its settled-sum justification —
@@ -490,6 +493,23 @@ Two deferrals, kept rather than newly decided:
   single-result, and two results over one bundle are two collects —
   which is what the implemented multi-close on case splits already
   does.
+
+**Adopted (design conversation, 2026-07-23).** The
+context-equality theorem and the m-siblings answer stand; the
+multi-row node stays the dead end (surviving as the
+drawn/recognized view); both deferrals above are kept. Two notes
+from the conversation ride along. First, the sibling flows'
+redundancy is understood, not accidental: two partial collects
+over one cell set mint interchangeable flows — nobody would draw
+a second collect *for the flow*; a second collect exists for its
+value row, and the flow duplication is exactly what the
+partial-collect round's open question 4 (one flow or many) will
+dedupe, with bind-once-and-reuse the interim rule. Second, a
+**naming constraint** is recorded (mirrored at
+`partial-collect-design.md`, "Naming"): calling this node a
+*collect* is not ideal — a regular collect leaves flow-land (flow
+in, value out) while this node stays in it (it produces a flow
+wire) — so the surfaced name should not contain "collect."
 
 ### 4. The discharging collect: one port or two, by kind
 

@@ -134,7 +134,8 @@ they change how everything else is read.
   adopted (2026-07-23, with the clarification that value wires are
   neither upstream nor downstream of a flow operation); the race
   corner adopted with the pairs-in amendment (race as the partial
-  collect's async sibling); the partial-collect corner pending; the
+  collect's async sibling); the partial-collect corner adopted (m
+  siblings, with a naming constraint — not a "collect"); the
   discharge corner contested by the discharge-barrier direction.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
