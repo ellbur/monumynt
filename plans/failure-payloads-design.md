@@ -3,8 +3,12 @@
 Status: mixed — the **fail node itself is adopted** (design
 conversation, 2026-07-23; see "What fail is — the ontology note"
 below for the adoption's stated basis and the commute-completion
-ruling that came with it). The rest of the chapter — the edge
-conversion stance, the terminator inventory, and the clients'
+ruling that came with it), and the **edge stance is adopted with a
+structural amendment** (same conversation: bodies total, declared
+throws as catalog-row lanes, and undeclared throws landing on the
+**background super flow** — see that section for the adopted
+account and its filed edges). The rest of the chapter — the
+terminator inventory and the clients'
 cashings — remains exploration, being worked through the same
 rolling conversation; none of it is implemented. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
@@ -287,15 +291,87 @@ that terminated with payload"); this generalizes that sentence to
 the whole edge: **declared throws are lanes; the row is their
 minting site.**
 
-**An undeclared throw is an edge breach, not a lane.** If a JS
-payload registered as total throws anyway, that is the catalog's
-claim being false — the same species of violation as a
-discriminator returning an alt it didn't register. It surfaces as a
-runtime fault attributed to the row, never as a language-level
-terminator: soundness is relative to the catalog, and keeping
-undeclared throws *out* of the vocabulary is what keeps the derived
-inventory honest. (The trusted tier already owns this posture;
-nothing new is added here.)
+**An undeclared throw is an edge breach — and it lands on the
+background super flow.** This part was **amended at adoption**
+(2026-07-23; the section below is the adopted account). As
+proposed, an undeclared throw was a runtime fault outside the
+vocabulary entirely. The adopted form keeps the *attribution* —
+a JS payload registered as total that throws anyway is still the
+catalog's claim being false, the same species of violation as a
+discriminator returning an unregistered alt, and the firing
+carries which row lied so tooling can say so — but the throw
+itself lands on the background super flow rather than outside the
+language. What keeps the derived inventory honest is *quarantine*,
+not exclusion: the super flow is absent from ordinary flows'
+inventories, so exhaustiveness and the infallible/failable
+distinction are untouched.
+
+## The background super flow (adopted, 2026-07-23)
+
+The edge stance above was adopted with one structural amendment,
+stated by the design conversation as follows. However accurate the
+catalog, there is always a background risk of a throw that wasn't
+accounted for — the language compiles to a runtime that can fail
+in unpredictable ways, and that cannot be eliminated. The best
+account of that fact is a distinguished, runtime-owned
+**super flow**:
+
+- It **silently commutes out of everything and joins with
+  itself** — all background failures, from any depth, are one
+  flow, not a per-flow dimension. Ordinary inventories never
+  contain it; the reader's question "can this walk abort, and
+  with what?" is still answered by the drawn inventory, plus one
+  standing background caveat that is the same everywhere and so
+  carries no per-program information.
+- Its silent commutes are **not rendered, and this is the
+  recognized boundary of the commute-completion ruling**, not an
+  exception carved by fiat: that ruling governs commutes that are
+  *choices* (a lawful alternative existed, so the completion must
+  be shown to make the inference legitimate). The super flow's
+  commutes have no lawful alternative — a program cannot opt out
+  of the runtime's ability to fail — and they are identical
+  everywhere, so rendering them would add zero information. The
+  ruling's content survives in operative form:
+  **availability-as-addressability** — the flow is always nameable
+  and collectable, it just isn't drawn for you.
+- **It is not handled in generated code by default** — no ambient
+  try/catch anywhere, zero compilation cost. **Collecting it is
+  drawn, and compiles to a try/catch** around the collected
+  region's generated code. This is the escape hatch made
+  expressible: the supervisor boundary ("this handler may blow up
+  unpredictably; log, serve the error, keep going") becomes a
+  drawable program instead of a fault the vocabulary disowns.
+  Erlang/OTP supervision is the shipped witness —
+  crash-as-data at a drawn boundary — and JS's own
+  `uncaughtException`/`unhandledrejection` hooks are the
+  runtime-floor costume.
+- Its payload is the caught JS value: **one lane, no shape** — the
+  dynamic catch-all of dead end 4, which that dead end already
+  said "survives as a choice," here given its principled home at
+  the language's floor rather than in its substrate.
+
+Note carefully what this does *not* re-open: dead end 1 (ambient
+bodies-raise) rejected making *every flow's own inventory*
+unbounded. The super flow is the opposite move — one quarantined
+lane outside the per-flow accounting, leaving every drawn
+inventory finite and every discharge exhaustiveness check intact.
+
+Open edges filed at adoption (this round still owes them):
+
+1. **The collect's anchor.** The super flow "commutes out of
+   everything," so a collect of it must name a *region* — which
+   boundary's background failures are meant. The likely vocabulary
+   is the demand/necessity frontier the cancellation round already
+   ordered; needs working.
+2. **The async face.** A rejection whose payload doesn't match its
+   row's declared lanes, and a synchronous throw inside a
+   registered body, should presumably both land on the super flow;
+   the mapping through the FFI catalog blocks needs stating.
+3. **Two runtime-minted lanes.** `Cancelled` (strand delivery) and
+   the super flow are now siblings — the runtime's two non-drawn
+   minting sites. Whether they share machinery (both deliver over
+   frontier structure) is worth one look.
+4. **Naming.** "Super flow" is the conversation's placeholder.
 
 The payoff of drawing every entry point is that **failability
 becomes readable instead of declared.** A flow is failable iff its
@@ -652,7 +728,11 @@ Recorded here with the reasons they should not be re-proposed.
    the record's visibility stance exists to exclude. The edge
    converts *declared* throws; undeclared throws are catalog
    breaches. (Settled within this proposal — please don't
-   re-propose without new evidence.)
+   re-propose without new evidence. The adopted **background super
+   flow** is not this dead end: it quarantines the
+   unaccounted-throw risk into one runtime-owned lane outside
+   every flow's inventory, where this dead end is about making
+   every flow's own inventory unbounded.)
 
 2. **Nominal payload types with coercion.** You might wonder
    whether payload sets should be named artifacts that convert

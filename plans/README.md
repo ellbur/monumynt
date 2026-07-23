@@ -347,7 +347,9 @@ case/option are implemented; the rest are designed:
   and served-flow rounds had filed here. *Mixed: the fail node adopted
   (2026-07-23, with the ontology note — fail is the minting half of
   the applicative sequence — and the commute-completion ruling); the
-  edge stance and the inventory account still exploration.*
+  edge stance adopted with the background-super-flow amendment
+  (undeclared throws quarantined in one runtime-owned collectable
+  lane); the inventory account still exploration.*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

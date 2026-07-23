@@ -828,7 +828,14 @@ adopted** — 2026-07-23, with its ontology note (fail is the minting
 half of the applicative sequence; the accompanying
 commute-completion ruling is general — an implied commute is time
 travel and must be inferred *and viewable*, never merely absent) —
-while the edge stance and the inventory account stay exploration;
+and the **edge stance is adopted with an amendment** (same
+conversation): bodies total, declared throws as catalog-row lanes,
+and undeclared throws landing on the **background super flow** — a
+runtime-owned lane that silently commutes out of everything, joins
+with itself, stays out of every drawn inventory, and is collectable
+where wanted (a collect compiles to try/catch; the supervisor
+boundary made drawable; anchor/async-face/naming edges filed in the
+doc) — while the inventory account stays exploration;
 moved down from Tier 2 by
 this index's maintenance rule). **Failure is drawn, not thrown**:
 bodies never raise ambiently — the raise is `fail`, the
