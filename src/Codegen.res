@@ -426,6 +426,58 @@ let underCoveredProduct = (cn: node): bool =>
   | _ => false
   }
 
+// --- The running view (scanl) ------------------------------------------------
+//
+// A register (Delay pair) is a feature of a flow, not a threaded wire
+// (delay-ontology-design.md). Its running value is readable at each firing as
+// the `prev` port. A SIBLING collect over the SAME driving flow may read that
+// `prev` to build the running-view list (a scan / prefix-fold: [init, init⊕x₀,
+// init⊕x₀⊕x₁, …]). In the eager model each consumer gets its OWN loop and
+// re-runs the fold — the documented per-consumer cost — so the reading collect
+// is emitted as a register-driven loop that PUSHES the branch value each firing
+// instead of only returning the final accumulator (emitRunningCollect). The
+// write half's `final` output, if also present, still emits its own loop
+// (emitRegister); the two fold independently.
+
+// The DelayRead nodes whose `prev` a value reads, walked through the value cone
+// (App / Aggregate / Disaggregate); deduped by id, order-preserving.
+let readsPrevRegs = (v: valueRef): array<node> => {
+  let acc: array<node> = []
+  let rec go = (v: valueRef): unit =>
+    switch v {
+    | ValuePort(n, port) =>
+      switch n.kind {
+      | DelayRead(_) =>
+        if port === "prev" && !(acc->Array.some(x => x.id === n.id)) {
+          Array.push(acc, n)
+        }
+      | App({fn, args}) => {
+          go(fn)
+          args->Array.forEach(go)
+        }
+      | Aggregate({fields}) => fields->Array.forEach(((_, fv)) => go(fv))
+      | Disaggregate({struct_}) => go(struct_)
+      | Lit(_) | Uncollect(_) | Collect(_) | Join(_) | Commute(_) | Cross(_) | DelayWrite(_) => ()
+      }
+    }
+  go(v)
+  acc
+}
+
+// The opener/dispatch node id a spine level stands on — used to compare a
+// register's driving flow to a collect's flow (they scan the same sequence iff
+// their spines stand on the same nodes in the same order).
+let levelNodeId = (l: level): int =>
+  switch l {
+  | IterLevel({uncollect}) => uncollect.id
+  | AltLevel({split}) => split.id
+  | PartialLevel({split}) => split.id
+  }
+
+let sameLevelIds = (a: array<int>, b: array<int>): bool =>
+  Array.length(a) === Array.length(b) &&
+  a->Array.everyWithIndex((x, i) => b[i] === Some(x))
+
 // --- The compile ------------------------------------------------------------
 
 let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
@@ -470,16 +522,23 @@ let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
       | DelayWrite({read, step}) => emitRegister(st, ctx, n, read, step)
       | DelayRead(_) =>
         // The register's per-iteration `prev` port. The write half's emitter
-        // (emitRegister) pre-memoises it into the driving loop body before
-        // compiling the step, so a memo miss here means `prev` was read from
-        // outside that loop — a foreign consumer of the register (e.g. a
-        // sibling collect over the same flow), which is deferred (the driving
-        // collect would have to share the register's loop skeleton; ARCHITECTURE
-        // worklist item 6, general case).
-        failwith(
-          "Codegen: register `prev` port of node " ++
-          Int.toString(n.id) ++
-          " reached outside its driving loop — Check's flow-borne rule should have witnessed this",
+        // (emitRegister) and the running-view emitter (emitRunningCollect) both
+        // pre-memoise `prev` into their own driving loop before compiling what
+        // reads it, so a memo miss here means `prev` was read by a foreign
+        // consumer whose loop the emitters do not (yet) supply — an IterCollect
+        // scanl is handled by emitRunningCollect, but a case / partial / product
+        // running view, or `prev` read by a value that no collect gathers, is
+        // deferred (the shared-loop-skeleton case; ARCHITECTURE worklist item 6).
+        // Check guarantees the program is well-formed (a boundary `prev` is
+        // witnessed by the flow-borne rule), so this is a clean gap, not a bug.
+        throw(
+          Todo(
+            "register `prev` read outside a supported driving loop — the running " ++
+            "view is compiled only for an IterCollect sibling that scans the " ++
+            "register's own flow (emitRunningCollect); a case / partial / product " ++
+            "running view is the shared-loop-skeleton case (ARCHITECTURE worklist " ++
+            "item 6, iteration-with-state-design.md running view)",
+          ),
         )
       | Join(_) | Commute(_) | Cross(_) =>
         failwith("Codegen: flow-only node reached as a value — Check's port-exists rule should have witnessed this")
@@ -587,7 +646,12 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
         | PartialLevel(_) | IterLevel(_) => false
         }
       )
-      if hasPartial {
+      // A branch that reads a register's `prev` is a running view (scanl) over
+      // the same driving flow — it re-runs the fold, pushing the running value.
+      let readsPrev = Array.length(readsPrevRegs(branch.value)) > 0
+      if readsPrev {
+        emitRunningCollect(st, ctx, cn, branch, levels)
+      } else if hasPartial {
         emitPartialCollect(st, ctx, cn, branch, levels)
       } else if hasAlt {
         emitFilterCollect(st, ctx, cn, branch, levels)
@@ -729,6 +793,209 @@ and emitIterCollect = (
     JsBuild.letDecl(outName)
   }
   let thunkBody = Array.concat([accDecl], Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]))
+
+  let name = st.fresh()
+  recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// The running view (scanl): a collect whose branch value reads one or more
+// registers' `prev` over the SAME driving flow it iterates. Emitted as a
+// register-driven loop that re-runs the fold and PUSHES the branch value each
+// firing (the running list), rather than only returning the final accumulator
+// (emitRegister). Supported for the pure-iter case — a list (or nested
+// list/option flatten) driving flow, at least one list level so the output is a
+// list. A filtered (case-alt) / partial / product running view, or a register
+// whose driving flow the collect does not directly scan, is deferred with a
+// clean Todo (the shared-loop-skeleton case; ARCHITECTURE worklist item 6).
+and emitRunningCollect = (
+  st: state,
+  ctx: ctxPath,
+  cn: node,
+  branch: collectBranch,
+  levels: array<level>,
+): compiled => {
+  // Only pure iter levels loop; an alt / partial level is the deferred filtered
+  // / cell-set running view.
+  let pureIter = levels->Array.every(l =>
+    switch l {
+    | IterLevel(_) => true
+    | AltLevel(_) | PartialLevel(_) => false
+    }
+  )
+  let collectIds = levels->Array.map(levelNodeId)
+  // Each register must (a) have a write half (its step) and (b) scan exactly the
+  // same sequence this collect iterates — same spine node ids in the same order.
+  let regs = readsPrevRegs(branch.value)
+  let stepOf = (reg: node): option<valueRef> =>
+    st.ann.writeIndex
+    ->Map.get(reg.id)
+    ->Option.flatMap(wn =>
+      switch wn.kind {
+      | DelayWrite({step}) => Some(step)
+      | _ => None
+      }
+    )
+  let regScansSameFlow = (reg: node): bool =>
+    switch reg.kind {
+    | DelayRead({flow}) =>
+      switch spine(flow) {
+      | rl => sameLevelIds(collectIds, rl->Array.map(levelNodeId))
+      | exception Todo(_) => false // a product/commute driving flow — deferred
+      }
+    | _ => false
+    }
+  let supported =
+    pureIter &&
+    Array.length(regs) > 0 &&
+    regs->Array.every(r => stepOf(r)->Option.isSome && regScansSameFlow(r))
+  if !supported {
+    throw(
+      Todo(
+        "running-view collect: `prev` is read over a filtered / partial / product " ++
+        "driving flow, or a flow this collect does not directly scan — the " ++
+        "shared-loop-skeleton case (ARCHITECTURE worklist item 6, " ++
+        "iteration-with-state-design.md running view)",
+      ),
+    )
+  }
+
+  let exterior = instantiate(
+    ~what="Running-view collect node " ++ Int.toString(cn.id),
+    Context.flowContext(branch.flow),
+    ctx,
+  )
+
+  // Walk the levels outermost-in, exactly as emitIterCollect: compile each
+  // level's feed, open its body context (tagged with this collect), pre-memoise
+  // its element there.
+  let floatedAcc: array<placed> = []
+  let plans: array<levelPlan> = []
+  let parentCtx = ref(exterior)
+  levels->Array.forEach(l =>
+    switch l {
+    | AltLevel(_) | PartialLevel(_) =>
+      failwith("Codegen.emitRunningCollect: dispatch level — guarded by `pureIter` above")
+    | IterLevel({uncollect, isList}) => {
+        let input = switch uncollect.kind {
+        | Uncollect({input}) => input
+        | _ => failwith("Codegen.emitRunningCollect: IterLevel is not an Uncollect")
+        }
+        let own = FlowPort(uncollect, "flow")
+        let feedC = compileValue(st, parentCtx.contents, input)
+        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: cn.id}])
+        let iterVar = st.fresh()
+        let elemName = st.fresh()
+        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+        Array.push(plans, {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName})
+        parentCtx := bodyCtx
+      }
+    }
+  )
+  let innerCtx = parentCtx.contents
+
+  // One accumulator per register, declared outside all the loops. `prev` is the
+  // running value at the top of the innermost body; `reg = force(step)` advances
+  // at the bottom — AFTER the branch value (which reads `prev`) is pushed, so the
+  // pushed value is the running total BEFORE this firing's step.
+  let regPlans = regs->Array.map(reg => {
+    let (init, step) = switch (reg.kind, stepOf(reg)) {
+    | (DelayRead({init}), Some(step)) => (init, step)
+    | _ => failwith("Codegen.emitRunningCollect: register lost its init/step after the support check")
+    }
+    let initC = compileValue(st, exterior, init) // loop-invariant — floats out
+    initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    let regName = st.fresh()
+    let prevName = st.fresh()
+    recordMemo(st, reg.id, "prev", innerCtx, prevName)
+    (reg, regName, prevName, initC.name, step)
+  })
+
+  // Steps are compiled at the innermost context AFTER every `prev` is memoised,
+  // so a step (or another register's step) that reads `prev` resolves.
+  let stepPlans = regPlans->Array.map(((_, regName, _, _, step)) => {
+    let stepC = compileValue(st, innerCtx, step)
+    stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    (regName, stepC.name)
+  })
+
+  let anyList = plans->Array.some(p => p.isList)
+  let outName = st.fresh()
+  let valueC = compileValue(st, innerCtx, branch.value)
+  valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  // Partition floated statements into level bodies (compile order preserved);
+  // loop-invariant work (init feeds, list sources) floats out of the thunk.
+  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
+  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  let escaped: array<placed> = []
+  floatedAcc->Array.forEach(pl =>
+    switch Map.get(buckets, ctxPathKey(pl.at)) {
+    | Some(b) => Array.push(b, pl.stmt)
+    | None =>
+      if isCtxPrefix(pl.at, exterior) {
+        Array.push(escaped, pl)
+      } else {
+        failwith("Codegen: a statement floated to a context unrelated to the running collect being assembled — placement bug")
+      }
+    }
+  )
+
+  // Innermost payload: push the running value, then advance every accumulator.
+  let pushStmt = if anyList {
+    JsBuild.exprStmt(
+      JsBuild.call(JsBuild.member(JsBuild.id(outName), "push"), [Runtime.forceOf(JsBuild.id(valueC.name))]),
+    )
+  } else {
+    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
+  }
+  let regAssigns = stepPlans->Array.map(((regName, stepName)) =>
+    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepName))))
+  )
+  let prevDecls = regPlans->Array.map(((_, regName, prevName, _, _)) =>
+    JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
+  )
+
+  // Assemble innermost-out. The innermost body carries the `prev` decls (after
+  // its element decl), then the bucketed work, then the push and the advances.
+  let lastIx = Array.length(plans) - 1
+  let nested = ref(Array.concat([pushStmt], regAssigns))
+  for i in lastIx downto 0 {
+    let p = plans->Array.getUnsafe(i)
+    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
+    let head = if i === lastIx {
+      Array.concat([JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))], prevDecls)
+    } else {
+      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))]
+    }
+    let body = Array.concat(head, Array.concat(bucket, nested.contents))
+    nested :=
+      if p.isList {
+        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+      } else {
+        [
+          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
+          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+        ]
+      }
+  }
+
+  let accDecl = if anyList {
+    JsBuild.const(outName, JsBuild.array_([]))
+  } else {
+    JsBuild.letDecl(outName)
+  }
+  let regDecls = regPlans->Array.map(((_, regName, _, initName, _)) =>
+    JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initName)))
+  )
+  let thunkBody = Array.concat(
+    Array.concat([accDecl], regDecls),
+    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
+  )
 
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
