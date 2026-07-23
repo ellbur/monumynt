@@ -113,7 +113,16 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       }
     | Join(_) | Commute(_) | Cross(_) =>
       failwith("Context.valueContext: flow-only node has no value ports")
-    | DelayRead({flow}) => Array.concat(flowContext(flow), [flow])
+    | DelayRead({flow}) =>
+      // `prev` is available at each firing of the driving flow. For a plain
+      // uncollect that firing point is the element's own layer; for a JOINED
+      // (flattened) driving flow it is the join's INTERIOR — the innermost
+      // element depth — so `prev` aligns with the element the step combines it
+      // with (a register over a flattened sequence, iteration-with-state /
+      // delay-ontology "the fork dissolves on sequences"). `flowInterior`
+      // collapses to `flowContext(flow) ++ [flow]` for a non-join flow, so the
+      // single-level register is unchanged.
+      flowInterior(flow)
     | DelayWrite({read}) =>
       switch read.kind {
       | DelayRead({flow}) => flowContext(flow)
@@ -188,8 +197,8 @@ and flowContext = (r: flowRef): array<flowRef> =>
 // stacked joins. (The join-adjacency check uses this; without it a join whose
 // outer is itself a join — a nested flatten, e.g. flatten-then-filter — is
 // wrongly rejected as non-adjacent, though Codegen's per-level spine walk
-// compiles it fine.)
-let rec flowInterior = (r: flowRef): array<flowRef> =>
+// compiles it fine. Also backs a register's `prev` context, above.)
+and flowInterior = (r: flowRef): array<flowRef> =>
   switch r {
   | FlowPort(n, _) =>
     switch n.kind {

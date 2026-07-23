@@ -9,7 +9,8 @@
 // The emitters that still raise `Todo` are genuine gaps owned by the poset
 // round (commute, cross of non-top-level / non-list axes and the
 // partial/sub-product consumer, partial's merged-context computation,
-// registers over a joined/nested/case flow) — a `Todo` means "no emitter yet",
+// registers over a dispatched/filtered or product driving flow — a register
+// over a flattened SEQUENCE now compiles) — a `Todo` means "no emitter yet",
 // not "fall back elsewhere": there is no other engine.
 //
 // The architecture, pinned by the working machinery:
@@ -1351,12 +1352,18 @@ and emitPartialCollect = (
 //   });
 //
 // `prev` is pre-memoised to a fresh per-iteration `__lazyDone__(reg)` and the
-// element to `__lazyDone__(x)`, both inside the loop body, so the step subtree
-// re-runs each iteration (a register is the one place laziness must NOT cache
-// across firings — the bindings live in the body, never hoisted). Only a
-// single-level driving flow is compiled: a joined / nested / case flow raises
-// Todo, because which flow a register's next iteration binds to is the Delay
-// ontology open problem (iteration-with-state-design.md).
+// innermost element to `__lazyDone__(x)`, both inside the loop body, so the step
+// subtree re-runs each iteration (a register is the one place laziness must NOT
+// cache across firings — the bindings live in the body, never hoisted).
+//
+// The driving flow may be a single uncollect OR a **flattened (joined) sequence**
+// (`spine` = several list/option levels, e.g. a running sum over a list-of-lists):
+// the levels nest as loops and the ONE accumulator lives outside them all, so a
+// join folds the whole flattened firing order into one register (the fork
+// dissolves on sequences — iteration-with-state / delay-ontology). A DISPATCH
+// level (a case-alt / partial merged flow) still raises Todo: a register over a
+// filtered flow is design-settled too but wants the guard logic, and a register
+// over a genuine product (a grid) is the Delay ontology open problem.
 and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRef): compiled => {
   let (flow, init) = switch read.kind {
   | DelayRead({flow, init}) => (flow, init)
@@ -1368,82 +1375,112 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
     Context.flowContext(flow),
     ctx,
   )
-  let (uncollect, isList) = switch spine(flow) {
-  | [IterLevel({uncollect, isList})] => (uncollect, isList)
-  | _ =>
-    throw(
-      Todo(
-        "register over a joined / nested / case flow — which flow the next " ++
-        "iteration binds to is the Delay ontology open problem " ++
-        "(iteration-with-state-design.md)",
-      ),
-    )
-  }
-  let input = switch uncollect.kind {
-  | Uncollect({input}) => input
-  | _ => failwith("Codegen.emitRegister: register flow's level is not an Uncollect")
-  }
-  let ownFlow = FlowPort(uncollect, "flow")
-  if flowsKey(Context.flowContext(ownFlow)) !== flowsKey(exterior->Array.map(s => s.flow)) {
-    failwith(
-      "Codegen.emitRegister: register flow is not nesting-adjacent to its exterior — " ++
-      "Check's join-adjacency rule should have witnessed this",
-    )
-  }
-
-  let floatedAcc: array<placed> = []
-  // Feed (the collection / option) and init are loop-invariant — compiled at
-  // the exterior, they float out of the thunk.
-  let feedC = compileValue(st, exterior, input)
-  feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-  let initC = compileValue(st, exterior, init)
-  initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  let regName = st.fresh()
-  let bodyCtx = Array.concat(exterior, [{flow: ownFlow, thunkOf: wn.id}])
-  let iterVar = st.fresh()
-  let elemName = st.fresh()
-  let prevName = st.fresh()
-  recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-  recordMemo(st, read.id, "prev", bodyCtx, prevName)
-  let stepC = compileValue(st, bodyCtx, step)
-  stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  // Partition: step work addressed to the loop body is claimed into it;
-  // loop-invariant work floats out of the thunk.
-  let bucket: array<JsAst.stmt> = []
-  let escaped: array<placed> = []
-  floatedAcc->Array.forEach(pl =>
-    if ctxPathKey(pl.at) === ctxPathKey(bodyCtx) {
-      Array.push(bucket, pl.stmt)
-    } else if isCtxPrefix(pl.at, exterior) {
-      Array.push(escaped, pl)
-    } else {
-      failwith("Codegen: a statement floated to a context unrelated to the register being assembled — placement bug")
+  // Every level must be an iter (list/option) loop — the flattened sequence. A
+  // dispatch level (case-alt guard, partial merged flow) declines cleanly.
+  let iterLevels = spine(flow)->Array.map(l =>
+    switch l {
+    | IterLevel({uncollect, isList}) => (uncollect, isList)
+    | AltLevel(_) | PartialLevel(_) =>
+      throw(
+        Todo(
+          "register over a filtered / dispatched / product driving flow — a " ++
+          "register over a filtered sequence wants the alt-guard logic; a " ++
+          "register over a grid is the Delay ontology open problem " ++
+          "(iteration-with-state-design.md)",
+        ),
+      )
     }
   )
 
-  let loopBody = Array.concat(
-    Array.concat(
-      [
-        JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar))),
-        JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName))),
-      ],
-      bucket,
-    ),
-    [JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))))],
+  let floatedAcc: array<placed> = []
+  // init is loop-invariant — compiled at the exterior, floats out of the thunk.
+  let initC = compileValue(st, exterior, init)
+  initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  // Walk the levels outermost-in: compile each level's feed in the context so
+  // far, open its body context (tagged with this register's write node) and
+  // pre-memoise its element there. Mirrors emitIterCollect's level walk.
+  let plans: array<levelPlan> = []
+  let parentCtx = ref(exterior)
+  iterLevels->Array.forEach(((uncollect, isList)) => {
+    let input = switch uncollect.kind {
+    | Uncollect({input}) => input
+    | _ => failwith("Codegen.emitRegister: register flow's level is not an Uncollect")
+    }
+    let own = FlowPort(uncollect, "flow")
+    let parentFlows = parentCtx.contents->Array.map(s => s.flow)
+    if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+      failwith(
+        "Codegen.emitRegister: level " ++
+        Int.toString(uncollect.id) ++
+        " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
+      )
+    }
+    let feedC = compileValue(st, parentCtx.contents, input)
+    feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: wn.id}])
+    let iterVar = st.fresh()
+    let elemName = st.fresh()
+    recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+    Array.push(plans, {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName})
+    parentCtx := bodyCtx
+  })
+
+  let innerCtx = parentCtx.contents
+  let regName = st.fresh()
+  let prevName = st.fresh()
+  recordMemo(st, read.id, "prev", innerCtx, prevName)
+  let stepC = compileValue(st, innerCtx, step)
+  stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+
+  // Partition: statements addressed to one of the level bodies are claimed into
+  // it (compile order preserved); loop-invariant work floats out of the thunk.
+  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
+  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  let escaped: array<placed> = []
+  floatedAcc->Array.forEach(pl =>
+    switch Map.get(buckets, ctxPathKey(pl.at)) {
+    | Some(b) => Array.push(b, pl.stmt)
+    | None =>
+      if isCtxPrefix(pl.at, exterior) {
+        Array.push(escaped, pl)
+      } else {
+        failwith("Codegen: a statement floated to a context unrelated to the register being assembled — placement bug")
+      }
+    }
   )
-  let loopStmts = if isList {
-    [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedC.name)), loopBody)]
-  } else {
-    [
-      JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedC.name))),
-      JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), loopBody),
-    ]
+
+  // Assemble innermost-out: `reg = force(step)` is the innermost payload, and
+  // `prev` is declared in the innermost body (alongside that level's element).
+  let regAssign = JsBuild.exprStmt(
+    JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))),
+  )
+  let nested = ref([regAssign])
+  for i in Array.length(plans) - 1 downto 0 {
+    let p = plans->Array.getUnsafe(i)
+    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
+    let head = if i === Array.length(plans) - 1 {
+      [
+        JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar))),
+        JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName))),
+      ]
+    } else {
+      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))]
+    }
+    let body = Array.concat(head, Array.concat(bucket, nested.contents))
+    nested :=
+      if p.isList {
+        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
+      } else {
+        [
+          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
+          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+        ]
+      }
   }
   let thunkBody = Array.concat(
     [JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initC.name)))],
-    Array.concat(loopStmts, [JsBuild.ret(JsBuild.id(regName))]),
+    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(regName))]),
   )
 
   let name = st.fresh()

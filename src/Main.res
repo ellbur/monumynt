@@ -29,6 +29,11 @@ let fail = (msg: string) => {
 
 let header = (name: string) => Console.log("\n=== " ++ name ++ " ===")
 
+// Count non-overlapping occurrences of `needle` in `haystack` (golden checks
+// that a fragment — the user's work, an accumulator — is emitted once).
+let countOccurrences = (haystack: string, needle: string): int =>
+  Array.length(String.split(haystack, needle)) - 1
+
 // Compile one named output and compare its eval'd value against expected JS.
 let expectOutput = (p: Program.program, name: string, expected: JsAst.expr): unit =>
   switch Pipeline.compile(p) {
@@ -682,6 +687,80 @@ header("register pair: empty list yields init")
 }
 
 // ============================================================================
+// 8c. Register over a FLATTENED (joined) sequence — one global running sum
+//     across a list-of-lists. The driving flow is `join(outer, inner)`, so
+//     `spine` gives two iter levels: the loops nest and the ONE accumulator
+//     lives outside them both, folding the whole flattened firing order. This
+//     is the register's sequence face — the delay-ontology fork "dissolves on
+//     sequences" (iteration-with-state-design.md); a grid (a Cross product)
+//     stays the open case. `prev` aligns with the innermost element because a
+//     joined driving flow places `prev` at the join's interior (Context.res).
+// ============================================================================
+
+header("register pair: running sum over a flattened list-of-lists (one accumulator)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xss = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3), int_(4)])]))
+  let ito = Build.uncollectList(b, xss.value)
+  let iti = Build.uncollectList(b, ~nesting=ito.flow, ito.element)
+  let flat = Build.join(b, ~outer=ito.flow, ~inner=iti.flow)
+  let sum = Build.delay(b, ~flow=flat.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("flattened register passes the implemented checks (prev aligns with the inner element)")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // 0 + 1 + 2 + 3 + 4 = 10 across the whole flattened sequence.
+  expectOutput(p, "total", int_(10))
+  // The accumulator is declared exactly once — outside both loops (one fold,
+  // not one-per-outer-element).
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "total") {
+    | Some(o) =>
+      if countOccurrences(o.js, "let ") === 1 {
+        pass("one accumulator, outside both loops (a global fold over the flatten)")
+      } else {
+        fail("expected a single `let ` accumulator, found " ++ Int.toString(countOccurrences(o.js, "let ")))
+      }
+    | None => fail("no total output")
+    }
+  | _ => fail("flattened register failed to compile")
+  }
+}
+
+// ============================================================================
+// 8d. The contrast: a register over the INNER flow directly (not the join)
+//     resets per outer element — a running sum per group, collected into a
+//     list. Same two lists, different register: here `final` is borne on the
+//     outer flow and the accumulator lives INSIDE the outer loop, so 8c's
+//     global fold and 8d's per-group folds are two distinct programs over the
+//     same data (the join is what makes the fold span the whole sequence).
+// ============================================================================
+
+header("register pair: per-group running sum (register over the inner flow) -> list of totals")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xss = Build.lit(b, array_([array_([int_(1), int_(2), int_(3)]), array_([int_(10), int_(20)])]))
+  let ito = Build.uncollectList(b, xss.value)
+  let iti = Build.uncollectList(b, ~nesting=ito.flow, ito.element)
+  let sum = Build.delay(b, ~flow=iti.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let out = Build.collect(b, ~flow=ito.flow, w.final)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // per group: 1+2+3 = 6, 10+20 = 30.
+  expectOutput(p, "out", array_([int_(6), int_(30)]))
+}
+
+// ============================================================================
 // 9. Witness surface: a bad port reference
 // ============================================================================
 
@@ -1150,9 +1229,6 @@ header("poset: merge (a combine's home is the EXACT constructed product)")
 //     free, and the user's `add` runs once. Validated against hand-built
 //     tables, and a golden check pins add-once.
 // ============================================================================
-
-let countOccurrences = (haystack: string, needle: string): int =>
-  Array.length(String.split(haystack, needle)) - 1
 
 header("cross: the two-lists product, both orders, one shared table")
 {

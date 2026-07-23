@@ -29,7 +29,7 @@ function with a printable output):
 | 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ a time-travel candidate that is **admitted iff a constructed Cross covers its exact axes** — `Context.productsIndex` + `Poset.merge` — else ⇒ `time-travel`; and now **full-span** — a value port's combine is re-verified with `Context.posetValueContext`, a poset-aware recomputation that merges sibling axes through the constructed products and so reaches EVERY combine, not just the first sibling pair, so an under-covered n-ary consumer like `f(x,y,z)` with only `{X,Y}` crossed is witnessed as `time-travel` at the Check level rather than admitted on its first coverable pair and left to Codegen), **join-adjacency** (an inner operand opens exactly at the outer flow's interior — computed by `Context.flowInterior`, which flattens a Join outer through its stacked layers, so a nested flatten like flatten-then-filter is not wrongly rejected against a single-layer `[outer]`), **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
 | 2 complete | `Complete.res` | **the sibling-opens completion landed** — `harvest` → `solve` → `realise` bodies real for the two-lists time-travel gap: `harvest` finds an App spanning two incomparable top-level list siblings (mutually invariant, exact-span, no constructed Cross yet covering them) and demands a `MustCompare`; `solve` dedups by axis pair; `realise` mints a root-unreachable `Cross(left, right)` into the node set. Runs **before** Check (Pipeline), which validates the *completed* program — the inserted Cross gives the combine a product home, so it compiles via the whole-table emitter instead of witnessing. Identity for already-committed programs, so every other witness is unchanged. Still v0: everything past the binary sibling-opens case (dependent-nesting Nests edges, commute-chain lifts, n-ary combines, the canonical heuristic table). |
 | 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
-| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator, single-level driving flow — running sum runs), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). An **under-covered** n-ary consumer now splits: the case where **no product spans the combine's axes at all** (e.g. `f(x,y,z)` with only `{X,Y}` crossed) is witnessed by Check's full-span alignment before codegen runs; what still reaches this backstop is the **partial / sub-product traversal** — a terminal whose span IS covered by a product but which the chain collects over only SOME of its axes while holding the rest — and it declines with a clean `Todo` rather than crashing (soundly compiling it is the rest of the poset round's context-model work). `Todo`/deferred, each citing its design doc: filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes and the partial/sub-product consumer (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); registers over a joined/nested/case flow (the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
+| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator over an iter driving flow — a single uncollect OR a **flattened (joined) sequence**, e.g. a running sum over a list-of-lists: the levels nest as loops and the ONE accumulator lives outside them all, folding the whole flattened firing order; `prev` aligns with the innermost element because a joined driving flow places it at the join's interior — the fork "dissolves on sequences", `delay-ontology-design.md`), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). An **under-covered** n-ary consumer now splits: the case where **no product spans the combine's axes at all** (e.g. `f(x,y,z)` with only `{X,Y}` crossed) is witnessed by Check's full-span alignment before codegen runs; what still reaches this backstop is the **partial / sub-product traversal** — a terminal whose span IS covered by a product but which the chain collects over only SOME of its axes while holding the rest — and it declines with a clean `Todo` rather than crashing (soundly compiling it is the rest of the poset round's context-model work). `Todo`/deferred, each citing its design doc: filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes and the partial/sub-product consumer (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); a register over a **dispatched/filtered** flow (a case-alt or partial merged driving flow — design-settled as a sequence but wants the alt-guard logic) or a **product** driving flow (a grid — the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
 | entry | `Pipeline.res` | derive → complete → check → annotate → codegen → `JsPrint`. Witnesses come back as data (`result`); a not-yet-written emitter raises `Codegen.Todo` (a compiler gap, surfaced to the caller). |
 
@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 139 checks.
+gaps). Currently 143 checks.
 
 ## The single engine
 
@@ -100,8 +100,11 @@ is not the innermost level), **partial collects**
 an option, its leading levels list, option, or a case-alt dispatch — the
 filter-then-partial `join(join(list, case-alt), partial)` — just like the
 filter's),
-**registers** (the Delay pair over a single-level
-driving flow — validated against the design docs and hand-computed
+**registers** (the Delay pair over an iter
+driving flow — a single uncollect or a **flattened (joined) sequence**
+(a running sum over a list-of-lists folds the whole flattened order with
+one accumulator outside the nested loops) — validated against the design
+docs and hand-computed
 values), and the **whole-table Cross of any rank** (a
 product of n top-level list axes — the binary two-axis product consumed
 by a two-collect chain in either order, and the rank-3 cube authored by
@@ -128,8 +131,10 @@ non-top-level-list cross and the partial/sub-product consumer (the rest of
 the poset round; the flat rank-n top-level product now compiles — 15d/15e),
 explicit `in` nesting, partial collects whose merged
 value is *computed at the merged context* (needs the cell-set/poset
-round), and registers over joined/nested/case flows (the Delay ontology
-open problem).
+round), and registers over a **dispatched/filtered** driving flow (a
+case-alt or partial merged flow — design-settled as a sequence but wanting
+the alt-guard logic) or a **product** driving flow (a grid — the Delay
+ontology open problem).
 
 ## Decisions taken here (all cheap to revisit; recorded so they are
 decisions, not accidents)
@@ -344,7 +349,16 @@ live work is item 8, the poset round.
    with a mutable accumulator (`let reg = force(init)`; `const prev =
    lazyDone(reg)` at body top; `reg = force(step)` at bottom; `return
    reg`). Main test 8's decline flipped to a real compile (running
-   sum = 6, empty list = init). Remaining: (a) the **productivity
+   sum = 6, empty list = init). **Now also over a flattened (joined)
+   sequence** (`emitRegister` walks `spine(flow)` as a nested iter-level
+   chain — the same walk as `emitIterCollect` — and threads ONE
+   accumulator declared outside all the loops, so a running sum over a
+   list-of-lists folds the whole flattened firing order; `prev` aligns
+   with the innermost element because `Context.valueContext(DelayRead)`
+   now places `prev` at the driving flow's interior (`flowInterior`),
+   which is unchanged for a single uncollect. The fork "dissolves on
+   sequences" — `delay-ontology-design.md`; Main 8c/8d, 8d the
+   per-group contrast). Remaining: (a) the **productivity
    check** (`Check.res` stub) — currently unreachable, since the object
    graph is a DAG by construction and the only cycle is the register
    pairing itself, so every buildable program is productive; it becomes
@@ -354,9 +368,12 @@ live work is item 8, the poset round.
    register's mutable state across loops needs the driving collect to
    emit the register `let` into *its* skeleton via `st.ann.writeIndex`;
    deferred (the `DelayRead` arm `failwith`s if `prev` is reached
-   outside the write half's loop). (c) Registers over a joined / nested
-   / case driving flow — the Delay ontology open problem
-   (iteration-with-state-design.md); raises `Todo`.
+   outside the write half's loop). (c) A register over a **dispatched /
+   filtered** driving flow (a case-alt or partial merged flow — a
+   dispatch level in `spine(flow)` raises `Todo`; design-settled as a
+   sequence but wanting the alt-guard logic) or over a **product** (a
+   grid — the Delay ontology open problem,
+   iteration-with-state-design.md).
 7. **Retirement** — DONE (2026-07). No reachable smoke program fell back
    to the bridge, so the bridge, the `Pipeline` fallback, and the earlier
    modules (`Expr`/`Compile`/`ExprPrint` and the old `Main`) were deleted,
