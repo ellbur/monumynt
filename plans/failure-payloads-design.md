@@ -1,7 +1,12 @@
 # Failure payloads: lightweight failure and the terminator inventory
 
-Status: exploration — this chapter teaches a worked proposal that has
-not been adopted yet; none of it is implemented. Its scope is the two
+Status: mixed — the **fail node itself is adopted** (design
+conversation, 2026-07-23; see "What fail is — the ontology note"
+below for the adoption's stated basis and the commute-completion
+ruling that came with it). The rest of the chapter — the edge
+conversion stance, the terminator inventory, and the clients'
+cashings — remains exploration, being worked through the same
+rolling conversation; none of it is implemented. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 "Failure as terminator payload"): **"do bodies raise?"** and
 **payload-type composition** — plus the payload questions other
@@ -10,8 +15,8 @@ rounds filed to be decided jointly with them: the `Cancelled` payload
 (`race-barrier-design.md`, open question 3), speculation's diagnosis
 payload (`speculation-design.md`, open question 4), and the divide
 flow's link-crossing payload sets (`divide-flow-design.md`,
-"Failability composes with one constraint"). Read it as "here is a
-candidate and the case for it." The failable flow kind itself is
+"Failability composes with one constraint"). Read the unadopted parts
+as "here is a candidate and the case for it." The failable flow kind itself is
 settled design this chapter builds on, not reopens: a flow kind's
 termination event can carry a payload; consumers propagate it by
 default and discharge it at a whole-flow collect, where it becomes
@@ -157,6 +162,66 @@ end+e). `x -> validate -> fail` at the top of a program makes the
 program's output failable, with no walk in sight. The table's now
 column fills in from the same construct as its later column, which
 is what "failability is a uniform dimension" predicted.
+
+## What fail is — the ontology note (2026-07-23)
+
+The design conversation that adopted the node asked what it *is*,
+and the answer is one sentence: **fail is the minting half of the
+applicative sequence, whose commute half is the propagating
+whole-flow close.** Unpacked:
+
+- The record already contains sequence twice without naming it.
+  The option commute's runtime move — abandon the rest at the
+  first `None`, resolve to `None` — is `[Maybe a] → Maybe [a]`,
+  and end-when's cut compiles to that same move aimed at a
+  terminator. And the propagating close's all-or-nothing reading
+  ("the output is a failable value that fails if the walk
+  failed") is `[Either e a] → Either e [a]`, verbatim. So the
+  construct decomposes sequence: the close is the commute
+  (list∘failable → failable∘list); `fail` is only the minting
+  site — the half that gives the walk a failure dimension to
+  commute at all, invisible in the applicative form because there
+  every body already returns `Either`.
+- The packed alternative — building a flow of `Ok(x) | Bad(e)`
+  values and feeding it to a drawn commute — is the sum bottleneck
+  in sequence's clothes: the per-firing sum exists only to pass
+  the construct, when the split had already delivered the alts
+  unpacked. The philosophy's sentence extends verbatim: no tuple
+  packed just to pass a join, no union packed just to pass a race,
+  no Either packed just to pass a sequence.
+- **The adoption's stated basis is the drawn distinction between
+  short-circuit and accumulate.** In the applicative form,
+  abort-at-first vs collect-all-failures is the invisible choice
+  between the `Either` and `Validation` instances — one `sequence`
+  call, meaning selected off the page. Here they are two visibly
+  different drawings: `fail` on the Bad alt (this chapter), vs
+  collecting the Bad alt beside the walk (the recover side —
+  ordinary multi-close, already free). The conversation was
+  honest that beyond this clarity the construct's difference from
+  an uncollected error flow remained partly intuitive; the further
+  payoffs (stacked-lane union, the discharge's prefix, witnesses)
+  ride along rather than carrying the decision.
+
+**The commute-completion ruling** (same conversation, a general
+ruling, not specific to failure): *implicitly inferring a commute
+is time travel* — it retrospectively determines whether the loop
+terminates early — *and the language allows time travel only under
+the completion discipline*: the implied commute must be inferred
+by published rule **and available for the author to see**, faint,
+never merely absent
+(`time-travel-programs-design.md`). "Never drawn" everywhere in
+the record is to be read as "never authored" — the completed form
+exists and is viewable on request. This answers the half of
+`effects-design.md`'s open question 1 that asked whether the faint
+completed commute is "worth showing at all": showing it is
+required — it is what makes the inference legitimate. And the
+error commute has a sharper edge than the IO commute: the IO
+commute went unauthored because it is mandatory and unique (no
+lawful alternative), but the error commute is a genuine *choice* —
+short-circuit (commuted) and accumulate (uncommuted) are both
+lawful — which by the effects round's own criterion is exactly why
+the choice must be visible. `fail` vs the collected Bad alt is
+that visibility.
 
 ## Do bodies raise? — No. The raise is a node
 

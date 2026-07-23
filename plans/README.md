@@ -344,7 +344,10 @@ case/option are implemented; the rest are designed:
   drawn minting sites — union by propagation, exhaustive discharge
   with witnesses, re-tagging drawn only where meaning changes). Cashes
   the payload checks the cancellation, race, speculation, divide-flow,
-  and served-flow rounds had filed here. *Exploration.*
+  and served-flow rounds had filed here. *Mixed: the fail node adopted
+  (2026-07-23, with the ontology note — fail is the minting half of
+  the applicative sequence — and the commute-completion ruling); the
+  edge stance and the inventory account still exploration.*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

@@ -254,6 +254,16 @@ determines, faint, and the author never spells it
 (`time-travel-programs-design.md`). Collecting the handle at the
 end of the loop just does the job.
 
+One ruling from the 2026-07-23 design conversation binds this
+section (recorded at `failure-payloads-design.md`, "What fail is —
+the ontology note"): "never drawn" means **never authored, never
+absent** — implicitly inferring a commute is time travel, and the
+language allows time travel only under the completion discipline,
+so the implied commute must be inferred by published rule *and
+available for the author to see*, faint. The half of open
+question 1 below that asked whether the faint completed form is
+worth showing at all is answered: showing it is required.
+
 ### No register appears (a dissolved reading)
 
 The first working of this round answered differently: "a per-firing
@@ -510,12 +520,14 @@ the proposal.
 1. **The spelling of the threaded effect op and its two boundaries.**
    The provisional `~io ~> op(args…) in ~loop => ~io'`
    (translation-exercise open question 10) needs the boundary story
-   confirmed on the page: the commute itself is never drawn, so
+   confirmed on the page: the commute itself is never authored, so
    does the `in ~loop` phrase carry the spanning-vs-nesting
-   distinction, or does the drawing alone? And is the faint
-   completed form (the commute the editor fills in,
-   `time-travel-programs-design.md`-style) worth showing at all?
-   Jointly owned with `textual-representation-design.md` and
+   distinction, or does the drawing alone? The second half of this
+   question — is the faint completed form worth showing at all? —
+   is answered (2026-07-23, the commute-completion ruling: showing
+   it is required; see "You never draw the commute" above).
+   The spelling half remains, jointly owned with
+   `textual-representation-design.md` and
    `first-class-ports-design.md`.
 
 2. **Stacking with other commutes.** When the effect ops sit under

@@ -823,7 +823,13 @@ strengthened.
 The core is worked (terminator payloads, propagate-by-default,
 discharge at a whole-flow collect — `async-flow-design.md`), and the
 two flagged residues now carry a worked round of their own
-(`failure-payloads-design.md`, exploration; moved down from Tier 2 by
+(`failure-payloads-design.md`, now mixed: the **fail node itself is
+adopted** — 2026-07-23, with its ontology note (fail is the minting
+half of the applicative sequence; the accompanying
+commute-completion ruling is general — an implied commute is time
+travel and must be inferred *and viewable*, never merely absent) —
+while the edge stance and the inventory account stay exploration;
+moved down from Tier 2 by
 this index's maintenance rule). **Failure is drawn, not thrown**:
 bodies never raise ambiently — the raise is `fail`, the
 terminator-writing family's third member (one wiring, three
