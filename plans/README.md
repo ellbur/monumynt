@@ -152,6 +152,16 @@ they change how everything else is read.
   a position, enumerated as the checker of `types-design.md` run in
   reverse. Builds on the step-DAG and completion docs.
   *Exploration.*
+- [`editor-state-management-design.md`](editor-state-management-design.md)
+  — the doc above's state-architecture companion: the working record
+  with the step-DAG head-first (current version cached at the head,
+  all history levels behind it), the zipper question dissolved by the
+  ports-first node set, and reuse of derived computations (checking,
+  eligibility, completion) as history-shaped incrementality —
+  memoization keyed by the step-DAG's identity discipline
+  (constructive traces, no invalidation; undo and previews are cache
+  hits), with the from-scratch recompute kept as the definition and
+  the oracle. *Exploration.*
 
 ## Constructs
 
