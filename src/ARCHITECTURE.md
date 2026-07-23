@@ -27,7 +27,7 @@ function with a printable output):
 |---|---|---|
 | 0 derive | `Derive.res` | honest identity (no abstract node species exist, so every program is level-0). The catalog architecture — pattern/expansion/correspondence, composite ids, the origins map — is recorded in its header for when reduce-close arrives. |
 | 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ a time-travel candidate that is **admitted iff a constructed Cross covers its exact axes** — `Context.productsIndex` + `Poset.merge` — else ⇒ `time-travel`; and now **full-span** — a value port's combine is re-verified with `Context.posetValueContext`, a poset-aware recomputation that merges sibling axes through the constructed products and so reaches EVERY combine, not just the first sibling pair, so an under-covered n-ary consumer like `f(x,y,z)` with only `{X,Y}` crossed is witnessed as `time-travel` at the Check level rather than admitted on its first coverable pair and left to Codegen), **join-adjacency** (an inner operand opens exactly at the outer flow's interior — computed by `Context.flowInterior`, which flattens a Join outer through its stacked layers, so a nested flatten like flatten-then-filter is not wrongly rejected against a single-layer `[outer]`), **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
-| 2 complete | `Complete.res` | **the sibling-opens completion landed** — `harvest` → `solve` → `realise` bodies real for the two-lists time-travel gap: `harvest` finds an App spanning two incomparable top-level list siblings (mutually invariant, exact-span, no constructed Cross yet covering them) and demands a `MustCompare`; `solve` dedups by axis pair; `realise` mints a root-unreachable `Cross(left, right)` into the node set. Runs **before** Check (Pipeline), which validates the *completed* program — the inserted Cross gives the combine a product home, so it compiles via the whole-table emitter instead of witnessing. Identity for already-committed programs, so every other witness is unchanged. Still v0: everything past the binary sibling-opens case (dependent-nesting Nests edges, commute-chain lifts, n-ary combines, the canonical heuristic table). |
+| 2 complete | `Complete.res` | **the sibling-opens completion landed at any rank** — `harvest` → `solve` → `realise` bodies real for the k≥2 lists time-travel gap: `harvest` finds a value spanning k incomparable top-level list siblings (pairwise mutually invariant, **fully uncrossed** — no axis of the combine appears in any constructed product), reading the FULL span off `Annotate.valueAxes` (so it reaches every axis, not just the first incomparable pair the linear raise names) and demands a `MustCross(flows)`; `solve` dedups by the axis SET; `realise` mints a root-unreachable product — a single `Cross` for k=2, a left-nested `Cross(Cross(x,y),z)` chain for k≥3 — into the node set, reporting one insertion per product. Runs **before** Check (Pipeline), which validates the *completed* program — the inserted product gives the combine a home, so it compiles via the whole-table (cube) emitter at any rank instead of witnessing. Identity for already-committed programs, and the "fully uncrossed" guard leaves an under-covered consumer (a combine whose axes are entangled with a partial/overlapping product — Main 15f/15g) a witness, so every other witness is unchanged. Still ahead: dependent-nesting Nests edges, commute-chain lifts, the canonical heuristic table. |
 | 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
 | 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator over an iter driving flow — a single uncollect OR a **flattened (joined) sequence**, e.g. a running sum over a list-of-lists: the levels nest as loops and the ONE accumulator lives outside them all, folding the whole flattened firing order; `prev` aligns with the innermost element because a joined driving flow places it at the join's interior — the fork "dissolves on sequences", `delay-ontology-design.md`; the driving flow may also be **filtered** — `join(list, case-alt)` folds the Some-subsequence, `reg` advancing only on kept firings via the shared `walkFilterLevels` alt-guard, `delay-ontology-design.md` route (b)), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). An **under-covered** n-ary consumer now splits: the case where **no product spans the combine's axes at all** (e.g. `f(x,y,z)` with only `{X,Y}` crossed) is witnessed by Check's full-span alignment before codegen runs; what still reaches this backstop is the **partial / sub-product traversal** — a terminal whose span IS covered by a product but which the chain collects over only SOME of its axes while holding the rest — and it declines with a clean `Todo` rather than crashing (soundly compiling it is the rest of the poset round's context-model work). `Todo`/deferred, each citing its design doc: filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes and the partial/sub-product consumer (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); a register over a **partial** merged driving flow (the k-arm-dispatch cell-set case) or a **product** driving flow (a grid — the Delay ontology open problem); a register `prev` read by a sibling collect (needs shared-loop-skeleton integration). |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 148 checks.
+gaps). Currently 150 checks.
 
 ## The single engine
 
@@ -123,11 +123,14 @@ the whole value through the constructed products, so `f(x,y,z)` with only
 partial/sub-product traversal (a covered span collected over only some of
 its axes) still declines at Codegen with a clean `Todo`), and the
 **completion of a
-sibling-opens time-travel program** — the two-lists combine with no
-hand-drawn Cross has one inserted by `Complete` (which now runs *before*
-Check, so Check validates the completed program), then compiles via the
-whole-table emitter to the same values as the hand-drawn form
-(product-flows-design.md's "smallest first step" 3). Representable-but-not-compilable
+sibling-opens time-travel program at any rank** — a k≥2 lists combine
+with no hand-drawn Cross has the product spanning exactly its axes
+inserted by `Complete` (which now runs *before* Check, so Check validates
+the completed program): a single Cross for the two-lists case (Main 10),
+a nested `Cross(Cross(x,y),z)` chain for a rank-3 combine (Main 10c),
+then compiles via the whole-table (cube) emitter to the same values as
+the hand-drawn form (product-flows-design.md's "smallest first step" 3
+and N-ary). Representable-but-not-compilable
 (prints, checks, and now round-trips through the text surface): commute
 (its standalone `commute out of` form authorable in text — Main 15c),
 non-top-level-list cross and the partial/sub-product consumer (the rest of
@@ -474,17 +477,29 @@ live work is item 8, the poset round.
    design.md`'s "the first non-tree feature: partial-collect's subset
    lattice"). The Delay-over-products case rides on this too.
    **Completion inserts a Cross** (Cross's "smallest first step" 3) is
-   DONE for the binary sibling-opens case (`Complete.res`
-   `harvest`/`solve`/`realise`; Main test 10): the two-lists combine
-   authored with no Cross now has the exact `Cross(X, Y)` inserted and
-   compiles via the whole-table emitter, the same values as the
-   hand-drawn form. `Complete` runs before Check (Pipeline), so Check
-   validates the completed program; completion is identity for
-   already-committed programs, and non-completable clashes (bundle
-   mixing, dependent nesting, n-ary) are never harvested and stay
-   witnesses. Still ahead: dependent-nesting `Nests` edges from
-   terminations, commute-chain lifts, n-ary combines, the canonical
-   heuristic table, and TextPrint's `+` lines.
+   DONE for the sibling-opens case at **any rank** (`Complete.res`
+   `harvest`/`solve`/`realise`; Main tests 10 and 10c): the k≥2 lists
+   combine authored with no Cross now has the product spanning exactly
+   its axes inserted — a single `Cross(X, Y)` for k=2, a nested
+   `Cross(Cross(X, Y), Z)` chain for k≥3 — and compiles via the
+   whole-table (cube) emitter, the same values as the hand-drawn form
+   (Main 10c ≡ 15d/15e). The full span is read off `Annotate.valueAxes`,
+   so a rank-3 combine `f(x,y,z)` reaches all three axes rather than
+   completing only the first incomparable pair. `Complete` runs before
+   Check (Pipeline), so Check validates the completed program; completion
+   is identity for already-committed programs, and non-completable
+   clashes (bundle mixing, dependent nesting) are never harvested and
+   stay witnesses. The **fully-uncrossed** guard is what keeps an
+   under-covered consumer a witness: a combine whose axes are already
+   entangled with a partial/overlapping product (Main 15f/15g — {X,Y} and
+   {Y,Z} with no full span) has no least upper bound and stays
+   time-travel rather than being papered over. (This refines the earlier
+   binary rule, which only checked whether the *exact* pair-product
+   existed; the axis-entanglement guard is more aligned with the poset's
+   "no LUB ⇒ no home" stance and changes only the untested binary edge
+   where a combine shares an axis with an unrelated cross.) Still ahead:
+   dependent-nesting `Nests` edges from terminations, commute-chain
+   lifts, the canonical heuristic table, and TextPrint's `+` lines.
 9. **Partial collect** — DONE for the direct slice (`Codegen.res`,
    `emitPartialCollect`, plus a `PartialLevel` in `spine`, the flow-borne
    merged-value context in `Context.res`, and the `~pf` lane binder in

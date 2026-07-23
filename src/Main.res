@@ -941,6 +941,54 @@ header("complete: a sibling-opens combine gets a Cross inserted, then compiles")
   }
 }
 
+// 10c. Completion at rank 3: the SAME sibling-opens completion, n-ary. Three
+//      lists combined with no hand-drawn Cross — an under-committed time-travel
+//      program over {X,Y,Z}. Completion inserts the product spanning exactly
+//      those axes (a nested `Cross(Cross(x,y),z)` chain), and the completed
+//      program compiles via the whole-table cube emitter to the same values as
+//      the hand-authored rank-3 product (test 15d/15e). The full span is read
+//      off the flow-variable sets, so all three axes are reached — not just the
+//      first incomparable pair (product-flows-design.md, N-ary; the completion's
+//      "n-ary combines" gap discharged).
+header("complete: a rank-3 sibling-opens combine gets a product inserted, then compiles")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  // No hand-drawn Cross anywhere: the fully-uncrossed rank-3 time-travel program.
+  let a1 = Build.collect(b, ~flow=itX.flow, s.value) // inner: holds y, z; lists over x
+  let a2 = Build.collect(b, ~flow=itY.flow, a1.value) // mid
+  let out = Build.collect(b, ~flow=itZ.flow, a2.value) // outer
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // out[iz][iy][ix] = x + y + z — identical to the hand-authored 15d/15e cube.
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(111), int_(112)]), array_([int_(121), int_(122)])]),
+      array_([array_([int_(211), int_(212)]), array_([int_(221), int_(222)])]),
+    ]),
+  )
+  // One product is reported (however many binary Cross nodes back it).
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion inserted one rank-3 product for the sibling combine")
+    } else {
+      fail("expected one inserted product, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail("rank-3 sibling-opens program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
 header("complete: a non-invariant sibling cross is NOT completed (stays a witness)")
 {
   // Two independent opens, but itY's SOURCE is derived from itX's element via a
