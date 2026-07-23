@@ -1,13 +1,14 @@
 // Pass 2 of the compile pipeline: completion — turning an under-committed
 // program into a committed one (time-travel-programs-design.md).
 //
-// STATUS: the pass SHAPE is real — harvest -> solve -> realise, each a
-// named function with its contract stated — but every body is the v0
-// trivial case: a program that harvests no constraints completes to
-// itself. A program that actually needs completion currently either trips
-// a Check witness (alignment) or compiles wrong — acceptable only under
-// the honoured-limitations discipline, and only until these bodies are
-// written.
+// STATUS: harvest -> solve -> realise are real for the sibling-opens
+// completion at ANY rank — the k>=2 lists program without a hand-drawn
+// Cross has the product spanning exactly its axes inserted for it (the
+// binary two-lists case and the rank-3+ cube, `cross(cross(x,y),z)`,
+// authored automatically). Programs past that (dependent-nesting Nests
+// edges, commute-chain lifts, the canonical heuristic table) still either
+// trip a Check witness or compile wrong — acceptable only under the
+// honoured-limitations discipline, and only until those bodies are written.
 //
 // Commitments the skeleton already honours by shape:
 //   - Completion is translation only: zero runtime representation of
@@ -33,12 +34,19 @@ open Program
 // rendering lens).
 type constraint_ =
   | Nests({outer: flowRef, inner: flowRef, why: string})
-  | MustCompare({a: flowRef, b: flowRef, anchor: int, why: string})
+  // A sibling combine over k>=2 mutually-invariant top-level list axes with no
+  // constructed product touching any of them: it demands a product spanning
+  // EXACTLY those axes. `flows` are the axis flows in a canonical (flow-key)
+  // order — the product's stored orientation, which is free (every collect order
+  // indexes one shared table), so any deterministic order serves.
+  | MustCross({flows: array<flowRef>, anchor: int, why: string})
 
 // A planned insertion carrying its operator payload — the piece `solve` hands
 // `realise` (the public `insertion` keeps only the anchor + description, since
-// that is all the faint-rendering lens and TextPrint's `+` line consume).
-type plannedCross = {anchorNodeId: int, left: flowRef, right: flowRef}
+// that is all the faint-rendering lens and TextPrint's `+` line consume). One
+// planned product spans `flows` (k>=2 axes); `realise` mints it as a left-nested
+// chain of k-1 binary Crosses.
+type plannedCross = {anchorNodeId: int, flows: array<flowRef>}
 
 // One planned/reported insertion, addressed to an authored anchor. When
 // realise becomes real this grows a payload (which operator — Cross,
@@ -62,87 +70,103 @@ type completed = {
 // lands.
 let heuristicOrderV0: array<string> = []
 
-// A supported product axis for the whole-table Cross emitter: a single
-// top-level list uncollect flow. Completion only inserts a Cross the emitter
-// can compile (Codegen.productAxisOf's shape) — a siblings-sharing-an-outer-
-// loop or non-list axis would need the deferred poset round, so it is left to
-// witness rather than completed to an uncompilable node.
-let isTopLevelListAxis = (f: flowRef): bool =>
-  switch f {
-  | FlowPort(n, "flow") =>
-    switch n.kind {
-    | Uncollect({flowKind: List, nesting: None}) => true
-    | _ => false
+// Are every pair of these flows MUTUALLY INVARIANT (Cross's demand)? A
+// dependence between any pair would be a witnessed dependent nesting, not a
+// completable product, so it must not be papered over.
+let allInvariant = (flows: array<flowRef>): bool => {
+  let ok = ref(true)
+  let n = Array.length(flows)
+  for i in 0 to n - 1 {
+    for j in i + 1 to n - 1 {
+      switch Annotate.crossViolation(flows->Array.getUnsafe(i), flows->Array.getUnsafe(j)) {
+      | Some(_) => ok := false
+      | None => ()
+      }
     }
-  | _ => false
   }
+  ok.contents
+}
 
-// 1. HARVEST the constraints. Implemented for the sibling-opens combine —
-// the two-lists program without a hand-drawn Cross (product-flows-design.md,
-// "smallest first step" 3; time-travel-programs-design.md's disposition 4).
-// A combining node whose value spans two INCOMPARABLE sibling flows demands a
-// comparability that only a product supplies: an App over two independent
-// top-level list opens, mutually invariant, with no constructed Cross yet
-// covering them. That is a completable time-travel gap — harvest a MustCompare
-// so solve/realise insert the exact Cross.
+// 1. HARVEST the constraints. Implemented for the sibling-opens combine at ANY
+// rank — the k>=2 lists program without a hand-drawn Cross (product-flows-
+// design.md, "smallest first step" 3 and its N-ary section; time-travel-
+// programs-design.md's disposition 4). A combining node whose value spans k
+// INCOMPARABLE sibling flows demands a comparability that only a product
+// supplies: an App over k independent top-level list opens, pairwise mutually
+// invariant, with no constructed Cross touching any of them. That is a
+// completable time-travel gap — harvest a MustCross so solve/realise insert the
+// exact product (a nested Cross chain for k>=3).
+//
+// The full span is read off `Annotate.valueAxes` (order- and comparability-free,
+// so it reaches EVERY axis of the combine, not just the first incomparable pair
+// the linear `valueContext` raise names). "Fully uncrossed" — no axis of the
+// combine appears in any constructed product — is what keeps the UNDER-COVERED
+// consumer a witness: a combine whose axes are entangled with an existing
+// (possibly partial) product, e.g. two overlapping sub-products {X,Y} and {Y,Z}
+// with no full span, has no least upper bound and stays time travel rather than
+// being papered over (product-flows-design.md, N-ary; Main 15f/15g).
 //
 // Deliberately NOT harvested (each stays a witness, unchanged):
 //   - bundle mixing (sibling alt flows of one split) — no product exists, the
-//     missing fact is an execution (its offending flows fail isTopLevelListAxis);
-//   - dependent nesting — comparable contexts (prefix), so no clash is raised;
-//   - n-ary combines (three-plus sibling axes) — the value spans more than the
-//     two flows the raise names, caught by the exact-span guard; the binary
-//     whole-table emitter cannot compile them (the poset round).
+//     missing fact is an execution (its offending flows are not list axes);
+//   - dependent nesting — comparable contexts (prefix), so no clash is raised,
+//     and any dependent pair fails `allInvariant`;
+//   - siblings sharing an outer loop / non-list axes — not top-level list opens,
+//     so a span axis fails the axis-flow lookup (they need a hand-drawn Cross);
+//   - an under-covered consumer — some span axis is already in a product.
 //
 // Detection here is the front half of what checkAlignment detects; the two keep
 // distinct OUTPUTS (compile-strategy-design.md open question 6).
 let harvest = (p: program): array<constraint_> => {
   let out: array<constraint_> = []
-  let products = Context.productsIndex(p)
+  // Axis keys already covered by SOME constructed product — the "fully
+  // uncrossed" guard.
+  let crossedAxes =
+    Context.productsIndex(p)->Array.reduce([], (acc, pt) => Array.concat(acc, Poset.axes(pt)))
+  // Top-level list axis flows, keyed so a value's axis span resolves to flows.
+  let axisFlows: Map.t<string, flowRef> = Map.make()
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Uncollect({flowKind: List, nesting: None}) => {
+        let f = FlowPort(n, "flow")
+        Map.set(axisFlows, Context.flowKey(f), f)
+      }
+    | _ => ()
+    }
+  )
   p.nodes->Array.forEach(n =>
     valuePorts(n.kind)->Array.forEach(port =>
       switch Context.valueContext(ValuePort(n, port)) {
       | _ => ()
-      | exception Context.Incomparable({left, right}) =>
-        switch (left, right) {
-        | ([fa], [fb])
-          if isTopLevelListAxis(fa) &&
-          isTopLevelListAxis(fb) &&
-          Context.flowKey(fa) !== Context.flowKey(fb) =>
-          // Mutually invariant siblings (Cross's demand)? A dependence would be
-          // a witnessed dependent nesting, not a completable product.
-          switch Annotate.crossViolation(fa, fb) {
-          | Some(_) => ()
-          | None =>
-            // The value spans EXACTLY these two axes (excludes n-ary combines,
-            // whose pairwise raise names only two of three-plus axes).
-            let vaxes = Poset.dedup(Annotate.valueAxes(ValuePort(n, port)))
-            let need = [Context.flowKey(fa), Context.flowKey(fb)]
-            let spansExactly =
-              Array.length(vaxes) === 2 && need->Array.every(k => vaxes->Array.includes(k))
-            // A constructed Cross already covering the combine? Then it is not
-            // under-determined — nothing to insert.
-            let alreadyCovered = switch Poset.merge(
-              ~products,
-              Context.pathToPoset([fa]),
-              Context.pathToPoset([fb]),
-            ) {
-            | _ => true
-            | exception Poset.Incomparable(_, _) => false
-            }
-            if spansExactly && !alreadyCovered {
-              Array.push(
-                out,
-                MustCompare({
-                  a: fa,
-                  b: fb,
-                  anchor: n.id,
-                  why: "sibling combine at node " ++ Int.toString(n.id),
-                }),
-              )
-            }
-          }
-        | _ => ()
+      | exception Context.Incomparable(_) =>
+        // A sibling combine: its value has no linear context. Gather its full
+        // axis span; complete it only when every axis is a top-level list open,
+        // the axes are pairwise invariant, and none is already crossed.
+        let vaxes = Poset.dedup(Annotate.valueAxes(ValuePort(n, port)))
+        let flows = vaxes->Array.filterMap(k => Map.get(axisFlows, k))
+        if (
+          Array.length(flows) === Array.length(vaxes) &&
+          Array.length(flows) >= 2 &&
+          allInvariant(flows) &&
+          vaxes->Array.every(k => !(crossedAxes->Array.includes(k)))
+        ) {
+          // Canonical orientation: axes sorted by flow key. The stored
+          // orientation is free (every collect order indexes one shared table),
+          // so a deterministic order is all that is needed.
+          let ordered =
+            flows->Array.toSorted((a, b) => Context.flowKey(a) < Context.flowKey(b) ? -1. : 1.)
+          Array.push(
+            out,
+            MustCross({
+              flows: ordered,
+              anchor: n.id,
+              why: "sibling combine at node " ++
+              Int.toString(n.id) ++
+              " over " ++
+              Int.toString(Array.length(ordered)) ++
+              " axes",
+            }),
+          )
         }
       }
     )
@@ -150,10 +174,10 @@ let harvest = (p: program): array<constraint_> => {
   out
 }
 
-// 2. SOLVE: turn the harvested demands into planned insertions. For the
-// sibling-opens case each MustCompare implies one Cross; several combines over
-// the same axis pair collapse to one Cross (deduped by the unordered pair of
-// flow keys, first orientation seen wins — deterministic by node-scan order,
+// 2. SOLVE: turn the harvested demands into planned insertions. Each MustCross
+// implies one product; several combines over the same axis SET collapse to one
+// product (deduped by the canonical flow-key sequence — the flows arrive sorted,
+// so the join is a set key; first seen wins — deterministic by node-scan order,
 // the v0 tie-break standing in for the canonical table + heuristicOrderV0).
 // Contradictions (within-chain cycles, reversed dependent nestings, bundle
 // mixing) are never harvested, so they stay Check's witnesses.
@@ -162,13 +186,11 @@ let solve = (_p: program, constraints: array<constraint_>): array<plannedCross> 
   let out: array<plannedCross> = []
   constraints->Array.forEach(c =>
     switch c {
-    | MustCompare({a, b, anchor}) =>
-      let ka = Context.flowKey(a)
-      let kb = Context.flowKey(b)
-      let key = ka < kb ? ka ++ "|" ++ kb : kb ++ "|" ++ ka
+    | MustCross({flows, anchor}) =>
+      let key = flows->Array.map(Context.flowKey)->Array.join("|")
       if !Map.has(seen, key) {
         Map.set(seen, key, true)
-        Array.push(out, {anchorNodeId: anchor, left: a, right: b})
+        Array.push(out, {anchorNodeId: anchor, flows})
       }
     | Nests(_) => ()
     }
@@ -176,34 +198,42 @@ let solve = (_p: program, constraints: array<constraint_>): array<plannedCross> 
   out
 }
 
-// 3. REALISE the plan as inserted operators. Sibling opens get a single
-// Cross (orientation from the combine's operand order) — NOT an Incorporate,
-// which would erase their mutual independence (product-flows-design.md);
-// Incorporate remains the completion for bringing a *value* into a flow
-// context; lifts insert commute chains. The inserted Cross is a new
-// root-unreachable node in the set (like a write half): productOf and
-// productsIndex scan the whole node set, so both the checker and the
-// whole-table emitter pick it up. Its id is minted deterministically above the
-// program's ids (a counter suffices while ids are program-local; composite
-// ((anchor, name)) ids arrive when derive/complete interleave).
+// 3. REALISE the plan as inserted operators. Sibling opens get a product — NOT
+// an Incorporate, which would erase their mutual independence (product-flows-
+// design.md); Incorporate remains the completion for bringing a *value* into a
+// flow context; lifts insert commute chains. A k-axis product is minted as a
+// left-nested chain of k-1 binary Crosses (`Cross(Cross(f0,f1),f2)…`), exactly
+// the shape a hand-authored `cross(cross(x,y),z)` builds — the whole-table
+// emitter flattens it back to the flat axis set (Codegen.productAxesOf). The
+// inserted Crosses are new root-unreachable nodes in the set (like a write
+// half): productOf and productsIndex scan the whole node set, so both the
+// checker and the whole-table emitter pick them up. Ids are minted
+// deterministically above the program's ids (a counter suffices while ids are
+// program-local; composite ((anchor, name)) ids arrive when derive/complete
+// interleave). One insertion is REPORTED per product (the faint-rendering lens
+// sees one crossing, however many binary nodes back it).
 let realise = (p: program, planned: array<plannedCross>): completed =>
   if Array.length(planned) === 0 {
     {program: p, insertions: []}
   } else {
-    let maxId = p.nodes->Array.reduce(0, (m, n) => n.id > m ? n.id : m)
+    let nextId = ref(p.nodes->Array.reduce(0, (m, n) => n.id > m ? n.id : m))
     let newNodes: array<node> = []
     let insertions: array<insertion> = []
-    planned->Array.forEachWithIndex((pc, i) => {
-      let cross = {id: maxId + 1 + i, kind: Cross({left: pc.left, right: pc.right})}
-      Array.push(newNodes, cross)
+    planned->Array.forEach(pc => {
+      // Fold the sorted axis flows into a left-nested Cross chain.
+      let acc = ref(pc.flows->Array.getUnsafe(0))
+      for i in 1 to Array.length(pc.flows) - 1 {
+        nextId := nextId.contents + 1
+        let cross = {id: nextId.contents, kind: Cross({left: acc.contents, right: pc.flows->Array.getUnsafe(i)})}
+        Array.push(newNodes, cross)
+        acc := FlowPort(cross, "flow")
+      }
       Array.push(
         insertions,
         {
           anchorNodeId: pc.anchorNodeId,
           description: "Cross(" ++
-          Context.flowKey(pc.left) ++
-          ", " ++
-          Context.flowKey(pc.right) ++
+          pc.flows->Array.map(Context.flowKey)->Array.join(", ") ++
           ") — sibling opens crossed to give the combine a product home",
         },
       )
