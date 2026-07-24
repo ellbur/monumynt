@@ -577,9 +577,14 @@ here so the adoption round starts from it:
   share one reading. Two structural requirements, one wrinkle:
   (a) inner flow wires must join **directly to the global wire**,
   never to each other first (which would obscure the order); join
-  is associative so this normal form always exists, but what to do
-  when the user manually joins inner wires together is a wrinkle
-  to work out (normalize? render flattened as a derived view?);
+  is associative so this normal form always exists, and the
+  conversation later softened the wrinkle about a user manually
+  joining inner wires together: since associativity *licenses*
+  rebracketing, the renderer may rebracket to the uniform
+  join-column as a derived view, leaving the authored bracketing
+  stored — and short of rebracketing, layout alone can draw joins
+  as far left as possible in an order reflecting their global-flow
+  sequence;
   (b) the join node's **output is identified with its outer
   input** — technically different wires agreed to act as one wire
   passing through, the same identified-wires move the crossing
@@ -591,7 +596,11 @@ here so the adoption round starts from it:
   **synonyms** (the handle wire *is* the flow wire, so this is one
   program, two spellings), and the textual round owes a convenient
   syntax that avoids minting a variable per step (`io1`, `io2`,
-  …).
+  …). A printer mitigation was also noted: the printer can insert
+  **sequence numbers computed from the join order**, making the
+  global sequence legible in text without new syntax. These
+  view-side moves generalize — see `facets-design-notes.md`, "A
+  tractable core: facets as view toggles."
 - **External-world interaction is a separate problem, filed to
   facets.** Even order-independent ops (no data dependence) can
   interact outside — same file, or worse: *write a file, then

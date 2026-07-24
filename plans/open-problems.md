@@ -552,7 +552,15 @@ stated direction of doubt, and the explicit bound that facets are views
 for a human, not verification. Their first in-record client is the
 collect family, which consumes the algebra facet as the authoring
 surface for user monoids (with the joint constraint that the facet
-carry a value witness — the identity — not just a named law).
+carry a value witness — the identity — not just a named law). A
+**tractable core** was noted at the 2026-07-23 walkthrough
+(`facets-design-notes.md`, "Facets as view toggles"): pure
+derived-view toggles over the one representation — wire-species
+visibility, layout-constraint sets (the IO rail's join column),
+interpretation switches (handle/flow synonym), sequencing wires
+with toggleable algebraic layout constraints — implementable
+without solving attachment, a substrate the authored-facet ladder
+can later build on.
 
 W = 4 (raised from 3) with a condition: three curated corpora
 converging (Effekt, Flix, Zig) argue 5, but per the standing method
