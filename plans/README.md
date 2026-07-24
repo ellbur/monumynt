@@ -104,11 +104,14 @@ they change how everything else is read.
   original fork has dissolved; the hard residue is how several readers
   of one order-sensitive register over a multi-axis product each pick a
   reading order. The per-kind half — which flow kinds supply a "next
-  iteration" at all — is worked as the owned-order criterion (a flow
+  iteration" at all — is **adopted** (2026-07-23) as the owned-order
+  criterion (a flow
   supplies one exactly when its firings carry a total order the flow's
-  meaning owns, not one that merely happens at run time), cashing the
+  meaning owns, not one that merely happens at run time), with the
+  order-demand check and the `hold` identification, cashing the
   register checks the incremental, concurrent-collect, async, and
-  served rounds had written. *Exploration.*
+  served rounds had written. *The rest exploration — the linearization
+  residue and value-in-context model still owe their evidence.*
 - [`product-linearization-design.md`](product-linearization-design.md)
   — the doc above's one hard residue, worked: which order an
   order-sensitive register (or a spanning effect) walks a multi-axis

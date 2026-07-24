@@ -230,8 +230,8 @@ sampling by construction) before the demand's ergonomic cost is
 weighed. The
 per-kind "next iteration" question — formerly the row's most
 concrete owed work, with several rounds writing checks on it — is
-now worked (`delay-ontology-design.md`, "Per-kind \"next
-iteration\": the owned-order criterion", exploration): a flow
+now **adopted** (2026-07-23 — `delay-ontology-design.md`, "Per-kind
+\"next iteration\": the owned-order criterion"): a flow
 supplies a "next iteration" exactly when its firings carry an
 **owned total order** — stated by the constructs that minted or
 shaped the flow, not merely present at run time — and the clients'
@@ -243,8 +243,10 @@ the var's recomputation order incidental, so state lives on
 `changes`; the IO handle a wire, not a flow). Extent-fixedness is
 refined to a termination account only; the productivity check
 becomes one check with a clock parameter; `hold` is identified
-(leaning) as the register whose step ignores `prev`. The row's
-center, the surface decision, is untouched by all of these.
+as the register whose step ignores `prev` — all three pieces
+(criterion, order-demand check, `hold`) adopted; the
+linearization residue and the value-in-context model explicitly
+excluded from the adoption, each still owing its evidence.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
