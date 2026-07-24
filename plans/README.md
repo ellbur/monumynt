@@ -88,11 +88,15 @@ they change how everything else is read.
 - **[`iteration-with-state-design.md`](iteration-with-state-design.md)**
   — loop-carried state (running sums, accumulators, anything a loop
   updates as it goes). Two candidate surfaces are proven to compute the
-  same results; the open question is which drawing is primary. The bar:
-  easy for beginners *and* flexible enough for complex code. Start with
-  the reader's guide at the top. Companion:
+  same results, and *the surface decision is made* (2026-07-23): the
+  visible state thread is the primary framing — the register pair
+  stored, the Delay point and the augmented flow its projections. The
+  ergonomics round (making the thread friendly on the page) is
+  deliberately deferred; the generic-iteration picture constraint and
+  the constant-space caution are recorded in the doc's adoption note.
+  Start with the reader's guide at the top. Companion:
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
-  (the redesigned "rail" surface).
+  (the redesigned "rail" surface, promoted to input for that round).
 - **[`delay-ontology-design.md`](delay-ontology-design.md)** — the open
   problem split out of the doc above: what a Delay (the construct that
   carries a value to the next iteration) *is*, and which flow supplies

@@ -166,20 +166,27 @@ the row gates ordinary programs, not just effect-heavy ones. See
 `translation-exercise.md`, `effekt-comparison.md`, `flix-comparison.md`,
 `xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
 
-**Loop-carried state: the surface decision — I 3, W 5.**
-The two live candidates — the Delay pair and the latent-flow augmented
-uncollect — are proven result-level equivalent: one register-pair
-construct under two drawings (`iteration-with-state-design.md`, "The
-equivalence, worked"). The latent form's feedback collect *is* the
-write half; the productivity check transfers verbatim and holds by
-construction in the stored form; the stack-order/siblinghood/
-pass-through residue is inert. So the open decision is no longer
-"which semantics" but **which drawings exist and which is primary** —
-the beginner bar and the RTL/ST gestalt critiques attach to
-renderings.
+**Loop-carried state after the surface decision — I 2, W 5.**
+The surface decision is **made** (2026-07-23,
+`iteration-with-state-design.md`, "The surface decision"): the
+**visible state thread is the primary framing** — the register pair
+stored (the Delay quotient), the point (Delay) and the flow
+(augmented uncollect) its two projections, coexistence resolving by
+construction as stored-form asymmetry. Recorded with it: the
+generic-iteration-picture constraint (the beginner's sum keeps
+reading as "prior + element → next, repeated," drawn once over the
+generic iteration) and the constant-space caution
+(recursion-shaped constructs may eventually be wanted; what they
+are is unknown). The two candidates remain proven result-level
+equivalent — one register-pair construct under two drawings; the
+productivity check holds by construction in the stored form.
 
-Remaining: the decision conversation itself; the thread's rendering
-questions; the self-driven source opener the port form must borrow —
+Remaining: the **ergonomics round**, deliberately deferred (making
+the thread friendly to the programmer — it owns the crossing rule,
+the one-writeback rule's effect-ordering caveat, and the
+result-level fine print, under the recorded
+generic-iteration-picture constraint); the register final-readout
+anchor (filed from end-when's round); the self-driven source opener the port form must borrow —
 now worked (`source-openers-design.md`: a bare flow-minting opener, no
 value ports, kind answered as the sourceless stream; the
 counted↔conditional seam it opens is filed back here as that round's
