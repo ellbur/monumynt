@@ -825,8 +825,19 @@ collects, backed by the context-equality theorem (cell sets
 computed by walking — merges mint no worlds, openers do), the
 multi-row node staying a dead end that survives as a drawn view;
 a naming constraint recorded — the partial collect's surfaced
-name should not contain "collect" (it stays in flow-land). Every
-corner is now resolved except corner 4 (contested, above). **Corner 4 (the discharge's port shape)
+name should not contain "collect" (it stays in flow-land). And
+corner 4 is resolved in an amended direction (same conversation):
+governed by the stated **one-closer principle** — when a loop's
+result has one consumer, one construct closes the loop flow — the
+discharging collect stays the single closer but its discharge half
+mints outcome cells directly (no packed `term` value; the cell
+set checked against the derived inventory, so the anti-swallowing
+result is node-local and exhaustiveness is 3c's adopted check);
+the `(prefix, term)` pair is demoted to the packed interim
+spelling. **Every corner is now decided**; what remains of this
+row is the spec-side reconciliation, the concurrent join × Cross
+question, and the discharge round's owed details (authored ending
+wires vs derived witnesses; the bare-end cell; spellings). **Corner 4 (the discharge's port shape)
 is contested** by the discharge-barrier direction
 (`failure-payloads-design.md`): fail-as-uncollect gives every
 failure an independent upstream wire, weakening the settled-sum

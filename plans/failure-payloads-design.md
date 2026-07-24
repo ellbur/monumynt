@@ -414,10 +414,26 @@ alternative, possibly the primary drawing with term-then-split as
 its packed lowering (a level-1 recognition candidate). Corner 4
 should not be ratified as written without this in the room.
 
-Open edges owed by the round that works this out: the barrier's
-law stated precisely (which inputs — fail sites, end-when stop
-alts, the bare end; per-site or per-tag cells); new node species
-vs recognition over discharge+split; whether the super flow and
+**Refined the same day (the one-closer resolution).** The
+crossing round's corner 4 was decided in this direction with a
+synthesis governed by a stated principle: *when a loop's result
+has one consumer, one construct closes the loop flow.* The
+barrier does not stand beside the closing collect — it **is** the
+closing collect's discharge half, minting the outcome cells
+directly on the closer (no `term` value; the fold an optional
+sibling output readable in the cells; exhaustiveness = the cell
+set matches the derived inventory). The standalone-barrier
+drawing survives via multi-close for genuinely-multiple
+consumers, but the everyday gesture is the one closer. See
+`barrier-value-crossing-design.md`, corner 4, for the full
+resolution.
+
+Open edges owed by the round that works this out: whether the
+ending sites' wires feed the closer as authored inputs (the
+visible-control-flow lean) or the cells derive from the inventory
+with site→cell arrows as viewable derived witnesses (the
+commute-completion ruling's pattern); per-site or per-tag cells;
+the bare-end cell's exact form; whether the super flow and
 `Cancelled` can feed it as inputs where collected; spelling.
 
 Open edges filed at adoption (this round still owes them):

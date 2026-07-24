@@ -13,13 +13,16 @@ collect) is **adopted**: m rows = m sibling collects, backed by
 the context-equality theorem, with a recorded naming constraint —
 the node's surfaced name should not contain "collect" (it stays
 in flow-land).
-**Corner 4 (the discharging collect) is contested**: the
-discharge-barrier direction (`failure-payloads-design.md`, "The
-discharge barrier") weakens its settled-sum justification —
-fail-as-uncollect gives every failure an independent upstream
-wire — and proposes the unbottlenecked barrier form as a live
-alternative; do not ratify corner 4 as written without that in
-the room. Nothing is implemented. Several other chapters each
+**Corner 4 (the discharging collect) is resolved in an amended
+direction** (same conversation, via the discharge-barrier
+contest): one closer per loop — the discharging collect — whose
+discharge half mints outcome cells directly (no packed
+`terminator` value; the cell set checked against the derived
+inventory), the `(prefix, term)` pair demoted to the packed
+interim spelling; see the corner for the governing one-closer
+principle, the consequences, and the owed details. With that,
+every corner is decided. Nothing is implemented. Several other
+chapters each
 stopped at this question and pointed at the others; this is the
 one place it is worked through.
 
@@ -573,6 +576,39 @@ terminator port and leaves the prefix unwired; take-until-sentinel
 wires both. Terminator payload *types* — composing `E1` and `E2`
 across chained failability — remain the async round's residue,
 untouched: a question about the terminator value, not about ports.
+
+**Resolved in an amended direction (design conversation,
+2026-07-23).** This corner was contested by the discharge-barrier
+direction (`failure-payloads-design.md`) and the conversation
+decided it with a synthesis, governed by a stated principle:
+**when a loop's result has one consumer, one construct closes the
+loop flow.** The resolution is this corner's node *with the
+packing removed*: the discharging collect stays the single closer
+(the co-location instinct vindicated — fold and ending do belong
+together; the error was packing the ending, not fusing the
+consumers), but its discharge half **mints outcome cells
+directly** — a bundle with one cell per lane of the flow's derived
+inventory plus the bare-end cell — and the `terminator` value
+output does not exist. The pair spelling `=> prefix, term`
+followed by a split is demoted to the packed interim
+spelling/lowering (a level-1 recognition candidate), used in
+examples until the textual round catches up. Consequences: the
+bind-term-then-split step disappears (the cells are the split);
+exhaustiveness is the adopted inventory check — the closer's cell
+set must match the derived inventory, an unwired cell an
+unhandled lane; the anti-swallowing result is node-local again;
+the folded value is an optional sibling output readable inside
+the cells by availability; the exactly-one-kind half re-reads the
+same way (success and failure cells, the success cell minting the
+resolved value — no settled-sum output). Multi-close separation
+(standalone propagating collect + a barrier elsewhere) stays
+legal but is not the everyday gesture. The round that works the
+details (`failure-payloads-design.md`, "The discharge barrier")
+owes: whether the ending sites' wires feed the closer as authored
+inputs (visible control flow) or the cells derive from the
+inventory with site→cell arrows as viewable derived witnesses
+(the commute-completion ruling's pattern); the bare-end cell's
+exact form; spellings.
 
 ## The crossings, tabulated
 

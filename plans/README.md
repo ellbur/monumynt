@@ -136,7 +136,9 @@ they change how everything else is read.
   corner adopted with the pairs-in amendment (race as the partial
   collect's async sibling); the partial-collect corner adopted (m
   siblings, with a naming constraint — not a "collect"); the
-  discharge corner contested by the discharge-barrier direction.*
+  discharge corner resolved by the one-closer principle — the
+  discharging collect mints outcome cells directly, no packed
+  terminator value. All corners decided.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
