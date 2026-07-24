@@ -1063,7 +1063,12 @@ register whose step ignores `prev`); with them the kinds table's
 cashings stand as settled answers. Explicitly *not* part of this
 adoption: the product-linearization residue and the
 value-in-context model, each of which owes its own evidence before
-its conversation. This section takes up the per-kind
+its conversation. One cashing carries a filed re-read: "the IO
+handle is a wire, not a flow" is put in question by the same
+conversation's later IO-as-flow direction (`effects-design.md`,
+"The IO-as-flow direction") — if the handle wire is the IO flow
+wire, whether that flow supplies a "next iteration" under this
+criterion needs its own answer. This section takes up the per-kind
 question the firm-ground section left parenthetical — *which flow
 kinds supply a "next iteration"* — which bounds where a Delay means
 anything at all. It stopped being idle taxonomy a while ago:

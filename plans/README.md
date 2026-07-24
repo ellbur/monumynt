@@ -275,7 +275,12 @@ consumes, and whether it needs an input list at all:
   drawn: consuming the handle after the loop does the job. An effect
   that needs no ordering gets its own per-firing-minted handle,
   which never crosses the loop boundary. Within-firing ordering and
-  the batched (collected-plan) pole are fenced out. *Exploration.*
+  the batched (collected-plan) pole are fenced out. *Exploration,
+  with a recorded direction (2026-07-23): IO is a flow, not a
+  handle — ops as uncollects joining into one global IO flow,
+  join's asymmetry the sequencing, the handle derived; granularity
+  dissolves into a fork/join readability program; external-world
+  interaction filed as a facet. See the doc's IO-as-flow section.*
 - [`within-firing-effects-design.md`](within-firing-effects-design.md) —
   effect ordering *within* one firing, and the conditional-flush buffer:
   within a firing there is no time — the only intra-firing order is

@@ -74,7 +74,20 @@ records worked-vs-unworked, not settled. Citations across the record to
 
 **IO, effects, and cancellation — I 3, W 5.**
 The record's most-cited hole, now worked in two halves — both
-exploration, neither adopted. *Effects* (`effects-design.md`):
+exploration, neither adopted. **A direction was set at the
+2026-07-23 walkthrough**, which deliberately left the row
+unadopted (cancellation not yet engaged): **IO is a flow, not a
+handle** — an op is an uncollect joining its inner flow upward
+into one global IO flow; join's asymmetry is the sequencing (the
+IO monad in the record's own vocabulary); the handle wire is
+derived as the flow wire, linearity falling out of FIFO-collect;
+the flow is forced global (local create/destroy is the lazy-IO
+hazard); the within-firing round's handle-granularity leaning
+dissolves into a fork/join readability program (symmetric join,
+drawn independence, alignment bookkeeping); and cross-resource
+external interactions (the write-file-then-exec witness, which no
+per-resource factoring can capture) are filed as a separate facet
+(`effects-design.md`, "The IO-as-flow direction"). *Effects* (`effects-design.md`):
 **commuting an IO flow out of a list flow sequences the
 operations** — per-firing segments concatenate in firing order into
 one segment, so "collect of an effect flow" (the

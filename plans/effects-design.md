@@ -512,6 +512,74 @@ not rejected. The reasons matter, so here they are in full.
   a failable effect operation is a failable catalog row — its lanes
   enter the inventory like any source's, nothing effect-specific.
 
+## The IO-as-flow direction (2026-07-23 — a direction, details owed)
+
+The design conversation that walked the record's open choices
+(end-when, the failure round, the crossing corners) deliberately
+declined to adopt this row — cancellation was explicitly not yet
+engaged — and set a direction for its ontology instead. Recorded
+here so the adoption round starts from it:
+
+- **IO is a flow, not a handle.** An IO operation does not take a
+  handle in; it *uncollects*, minting an inner IO flow that must
+  join into a containing IO flow, all the way up to one global IO
+  flow. **Sequencing is join's existing asymmetry**:
+  `join(outer, inner)` means outer's operations happen before
+  inner's — which is exactly monadic join, so this is the IO monad
+  drawn in the record's own one-shape-per-kind vocabulary, with
+  the IO kind's join carrying *time* as its kind-specific meaning.
+- **The handle is derived, not primitive.** The handle wire *is*
+  the flow wire: an op "consuming a handle and producing a new
+  one" is the op joining its hidden inner flow onto the outer as
+  `(outer, inner)`. No new wire species. And no bespoke linearity
+  rule: the flow view doesn't need enforced linearity — you can
+  copy the wire, but everything must join back together, so
+  linearity can't actually break; the no-dangling-handle
+  prohibition falls out of flows-must-be-collected in FIFO order
+  (or implicitly commuted — under the commute-completion ruling,
+  inferred and viewable).
+- **The flow is forced global.** Locally creating and destroying
+  an IO context loses the guarantee that IO actually happens —
+  Haskell's lazy IO, frowned upon for good reasons; in this
+  demand-driven runtime, the root's collect of the one global IO
+  flow *is* the guarantee. Special local sub-worlds stay possible
+  where a construct honestly owns one (an asynchronous fork
+  getting its own embedded IO ordering); otherwise IO is one
+  global flow.
+- **The granularity leaning dissolves into a readability
+  program.** The per-meaning-unit handle factoring (within-firing
+  round's "one handle per terminal / per session") is re-read:
+  there is nothing to factor — independence inside the one flow is
+  *drawn*, not factored. Candidates: a **symmetric join** ("I
+  don't care which of these happens first"), parallel fork/join
+  nodes, the async fork's embedded ordering. The real problem is
+  the one Haskell has — monads linearize programs that didn't
+  need linearizing; threading one flow through everything is
+  semantically right and *visually noisy*, obscuring the data
+  flow. So the owed work is fork/join constructs plus the
+  bookkeeping (values that might not be available at the same
+  time must not mix — the existing alignment machinery's job), to
+  make the one-flow form readable and writable.
+- **External-world interaction is a separate problem, filed to
+  facets.** Even order-independent ops (no data dependence) can
+  interact outside — same file, or worse: *write a file, then
+  invoke an external program passing that path* — an everyday
+  task where the order matters and **no resource is in common**,
+  so no per-resource handle factoring can ever capture it. The
+  inclination: not the IO flow's job — a **facet** the user
+  layers on when a particular external resource or interaction
+  matters, reading the fork/join structure that is already drawn
+  (and displaying just those operations when the diagram is
+  messy). Filed to `facets-design-notes.md`'s territory alongside
+  the failure round's site-as-label direction.
+- **One interaction filed:** the delay-ontology adoption cashed
+  "the IO handle is a wire, not a flow" (no register rides it).
+  Under this direction the handle *is* a flow wire, so that
+  cashing owes a re-read: does the global IO flow supply a "next
+  iteration" under the owned-order criterion (its order is
+  owned), and what would a register over operations mean? Filed,
+  not resolved.
+
 ## Open questions this round leaves
 
 The language hasn't decided these yet; they are the honest edges of
