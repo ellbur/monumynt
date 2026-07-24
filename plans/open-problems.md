@@ -813,7 +813,11 @@ collects are order-free iff commutative (the product-round law). Five
 dead ends recorded.
 
 Remaining: the adoption conversation (now joint with the
-function-boundary round's); the link's spelling and anchor — the
+function-boundary round's, and carrying a recorded constraint from
+2026-07-23 — the anchor is an identity, a level label or boundary,
+never a value wire; the link's correspondences are thread-species
+identity assertions; wire-anchoring survives only as an editing
+gesture — see the doc's question 1); the link's spelling and anchor — the
 **level boundary**, the first construct-driven demand for the
 functions row's flow skeleton — now worked
 (`function-boundary-design.md`, revised in its first design

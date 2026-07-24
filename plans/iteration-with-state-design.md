@@ -246,6 +246,32 @@ for four reasons:
   on outside-flow values. Writing it as an `alt` of an in-flow
   case-split positions it as per-iteration computation. It is not.
 
+**The identity-vs-value account (2026-07-23)** — a sharpening of
+the first reason above, from the conversation that adopted the
+thread; recorded because it is the deepest statement of why this
+family of shapes must not return, and of why the thread is the
+right fix. There is a glimmer of usefulness in `prev`'s intuition:
+it is not crazy to say there is a *previous world*, and that
+everything in the current iteration frame has a counterpart there.
+The failure is in how `prev` reaches for the counterpart: you
+cannot identify the previous-world version of a thing by pointing
+at the current thing — the current value wire binds the *value*
+(the flesh-and-blood thing), and the value does not exist in the
+previous frame; only the *identity* does. `prev(x)` confuses the
+identity of a thing (which exists across frames) with the thing
+itself (which doesn't). One could decree that binding a value wire
+sometimes means binding its identity — but that distinction would
+be visually inapparent, which is exactly the confusion. (The same
+principle decided race's inputs: a control-flow operation must
+consume what *stands for* the computation, never a bare value from
+inside it.) The **thread** is the repair: a visually distinct
+species that points at the previous and current wires and asserts
+"these are the same identity across iterations" — identity-use
+drawn as identity-use. One directional note recorded with it: the
+assertion works equally well feeding the *next* frame as reading
+from the *previous* one — either alone suffices, and doing both
+overspecifies.
+
 (This is a recorded set-aside — but with a caveat: the
 value-in-context model of `delay-ontology-design.md` recasts `prev` as
 a readout on a wire's context rather than a name lookup, which

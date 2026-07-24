@@ -642,6 +642,33 @@ The language hasn't decided any of these.
    loop-label precedent), not function names. If adopted, the
    anchor question is answered by the substrate and what remains is
    the label's spelling, jointly with the textual catch-up.
+
+   **Constraint recorded (design conversation, 2026-07-23): the
+   program-level anchor must be an identity — a level label or the
+   boundary itself — never a value wire.** The conversation
+   diagnosed `level of xs` as the `prev` disease
+   (`iteration-with-state-design.md`, "Why not a `prev(x)`
+   operator?" and its identity-vs-value account): `of xs` uses a
+   value wire *by identity, in a value position, unconsumed* —
+   real Kramer standing for the Kramer-identity. The decisive
+   argument that no value-based anchor can work: imagine recursing
+   on a value that starts at `0` — "the cut point at 0" identifies
+   nothing, because innumerable wires in a graph carry `0`. What
+   the link needs is wire/boundary identity, and identity-use must
+   be visually distinct. The refinement that follows: **the link
+   is the thread, tree-shaped** — its correspondences are
+   thread-species identity assertions ("subA in this realm is the
+   xs of a child realm"; "the child's sorted is this realm's
+   sortedA"), each wire pair identified once (feed-the-next or
+   read-the-answer-back, never both — the thread's
+   overspecification rule, one level up). The realms reading is
+   affirmed as the right track: recursion frames are realms, one
+   wire identity exists across realms, and that is what lets a
+   level be referenced without a bottleneck. One survival for the
+   editor: *selecting a value wire to cut the graph* may be a fine
+   interactive **editing gesture** for creating a level — but it
+   is a gesture that resolves to a boundary identity at creation;
+   the stored program never anchors on the wire.
 2. **Mutual recursion.** Expression/statement grammars link *two*
    levels each into the other. Structurally nothing above forbids a
    link naming a sibling level's boundary; the measure must then be
