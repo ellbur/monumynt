@@ -535,9 +535,11 @@ here so the adoption round starts from it:
   rule: the flow view doesn't need enforced linearity — you can
   copy the wire, but everything must join back together, so
   linearity can't actually break; the no-dangling-handle
-  prohibition falls out of flows-must-be-collected in FIFO order
+  prohibition falls out of flows-must-be-collected in LIFO order
   (or implicitly commuted — under the commute-completion ruling,
-  inferred and viewable).
+  inferred and viewable). (The conversation first said FIFO and
+  corrected itself: nested opens close innermost-first — stack
+  discipline, LIFO.)
 - **The flow is forced global.** Locally creating and destroying
   an IO context loses the guarantee that IO actually happens —
   Haskell's lazy IO, frowned upon for good reasons; in this
@@ -560,6 +562,36 @@ here so the adoption round starts from it:
   bookkeeping (values that might not be available at the same
   time must not mix — the existing alignment machinery's job), to
   make the one-flow form readable and writable.
+- **The rail drawing — a convenient accident of the visual form
+  (added in the same conversation).** Drawn as a flow rather than
+  a handle, IO operations need not be linearized on the page: they
+  sit at their natural positions in the computation graph, and the
+  **global IO flow wire runs down the left, vertically**; each
+  op's inner flow wire joins into it directly. Read vertically,
+  the join points are **tap points — a map of the sequence** — and
+  the inner flow wires are arrows from each tap to its operation.
+  Data flow stays readable in its natural nonlinear layout; the
+  sequential order is consultable in the margin. This is the same
+  visual grammar the state thread just adopted — *position along
+  the wire is time* — so the record's two temporal constructs
+  share one reading. Two structural requirements, one wrinkle:
+  (a) inner flow wires must join **directly to the global wire**,
+  never to each other first (which would obscure the order); join
+  is associative so this normal form always exists, but what to do
+  when the user manually joins inner wires together is a wrinkle
+  to work out (normalize? render flattened as a derived view?);
+  (b) the join node's **output is identified with its outer
+  input** — technically different wires agreed to act as one wire
+  passing through, the same identified-wires move the crossing
+  round's drawn-availability view already makes at barriers.
+- **Textually, the handle notation may be the clearer synonym.**
+  The rail reading depends on the visual link between join points
+  and operations, which the textual form lacks — so for text, the
+  handle notation and the inner-flow notation are to be treated as
+  **synonyms** (the handle wire *is* the flow wire, so this is one
+  program, two spellings), and the textual round owes a convenient
+  syntax that avoids minting a variable per step (`io1`, `io2`,
+  …).
 - **External-world interaction is a separate problem, filed to
   facets.** Even order-independent ops (no data dependence) can
   interact outside — same file, or worse: *write a file, then

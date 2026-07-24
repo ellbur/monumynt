@@ -80,11 +80,15 @@ unadopted (cancellation not yet engaged): **IO is a flow, not a
 handle** — an op is an uncollect joining its inner flow upward
 into one global IO flow; join's asymmetry is the sequencing (the
 IO monad in the record's own vocabulary); the handle wire is
-derived as the flow wire, linearity falling out of FIFO-collect;
+derived as the flow wire, linearity falling out of LIFO-collect;
 the flow is forced global (local create/destroy is the lazy-IO
 hazard); the within-firing round's handle-granularity leaning
 dissolves into a fork/join readability program (symmetric join,
-drawn independence, alignment bookkeeping); and cross-resource
+drawn independence, alignment bookkeeping — with the **rail
+drawing** as its first concrete win: the global IO wire vertical
+in the margin, join points as tap points, position-is-time shared
+with the state thread; textually the handle notation is the
+synonym, a no-io1-io2 syntax owed); and cross-resource
 external interactions (the write-file-then-exec witness, which no
 per-resource factoring can capture) are filed as a separate facet
 (`effects-design.md`, "The IO-as-flow direction"). *Effects* (`effects-design.md`):
