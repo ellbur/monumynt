@@ -91,7 +91,10 @@ with the state thread; textually the handle notation is the
 synonym, a no-io1-io2 syntax owed); and cross-resource
 external interactions (the write-file-then-exec witness, which no
 per-resource factoring can capture) are filed as a separate facet
-(`effects-design.md`, "The IO-as-flow direction"). *Effects* (`effects-design.md`):
+under a recorded stance — **legibility over enforcement**:
+external ordering is user-relative (timestamped log appends), so
+the language makes sequencedness readable rather than enforcing
+rules (`effects-design.md`, "The IO-as-flow direction"). *Effects* (`effects-design.md`):
 **commuting an IO flow out of a list flow sequences the
 operations** — per-firing segments concatenate in firing order into
 one segment, so "collect of an effect flow" (the

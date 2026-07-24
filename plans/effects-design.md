@@ -604,6 +604,24 @@ here so the adoption round starts from it:
   (and displaying just those operations when the diagram is
   messy). Filed to `facets-design-notes.md`'s territory alongside
   the failure round's site-as-label direction.
+
+  The conversation closed this point with a stance:
+  **legibility over enforcement.** Enforcement fails on both
+  sides. Under-prediction: external resources interact in too
+  many ways to foresee (the file-then-exec witness), so any rule
+  set will miss real orderings. Over-enforcement: appends to a
+  log file are technically non-commutative (they land in file
+  order), but if the entries are timestamped the user may not
+  care — the order has been relocated *into the data*, and file
+  position is incidental. In the owned-order criterion's terms:
+  whether an external order is owned by the meaning is
+  **user-relative**, so no static rule can decide it. Therefore
+  the language does not invent sequencing rules to enforce; it
+  makes *which operations are sequenced* readable — the rail, the
+  fork/join structure, the facet — so the user can see the
+  sequencing and judge whether it matches what they wanted. (The
+  facets doc's bound — views for a human, not verification —
+  applied to IO ordering.)
 - **One interaction filed:** the delay-ontology adoption cashed
   "the IO handle is a wire, not a flow" (no register rides it).
   Under this direction the handle *is* a flow wire, so that
