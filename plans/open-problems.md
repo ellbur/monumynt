@@ -832,11 +832,14 @@ advance, composition when cycles share edges — is still unworked;
 where Zig's
 inference warning bites hardest); the measure catalog's schema (joint
 with the checking row's question 4); whole-tree linearization (rides
-the delay-ontology/product residue); and the **zipper seam** —
-whether tree-over-data iteration re-reads its computed-value accesses
-as drawn crossings and retires the verify-or-fall-back scheme
-(`trees-and-recursion.md` owns that decision; the round's leaning
-runs that way). W = 3 as a breadth obligation: the three random
+the delay-ontology/product residue); and the **zipper seam** — now
+**decided** (2026-07-23, `trees-and-recursion.md`, on amended
+grounds: soundness set aside — lazy compile the honest baseline,
+warned trust the standing policy — with readability decisive via
+the `childSizes`-from-nowhere ruling; the verifier retires,
+computed-value zipper ports retire as stored surface and re-read
+as drawn crossings, input-structure reads stay, the compact form
+and the traversal-order word surviving as derived views). W = 3 as a breadth obligation: the three random
 surveys produced one recursive draw (breadth item 9, survey 2 —
 transcribed in the round), but
 parsing supplies everyday demand from outside the sampled domains,
