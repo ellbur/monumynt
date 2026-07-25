@@ -299,6 +299,17 @@ let checkAlignment = (p: program): array<witness> => {
 }
 
 // --- stubs -------------------------------------------------------------------
+//
+// Rules for constructs that are planned but not yet represented live with
+// their construct's architecture stub, each typed against `witness` so they
+// join this pass's result when wired in via Pipeline: OrderDemand.res (the
+// adopted order-demand rule for Delays — a register's driving flow must OWN
+// a total order), Fail.res (discharge exhaustiveness against the derived
+// endings inventory), Cut.res (stop-operand admissibility), Stream.res
+// (stack well-formedness), Async.res (race pair coherence; no register in
+// the sever->settle interior), Boundary.res (reusability; the measure
+// discipline), Effects.res (IO flows join back), Property.res (the
+// demand/offer propagation these rules generalise into).
 
 // Join/Commute operands must be nesting-adjacent: the inner flow's exterior
 // must end exactly at the outer flow (lazy-stream-join-design.md). This is

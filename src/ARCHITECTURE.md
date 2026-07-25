@@ -552,6 +552,55 @@ live work is item 8, the poset round.
    species in `Annotate` + cells in `Runtime.res` + an emitter, not a
    restructuring.
 
+## Architecture stubs — where the design has moved ahead of the code
+
+A 2026-07 gap analysis compared the design record against the code and
+staged the codeable gaps as **architecture-stub modules**: compiling
+ReScript files holding the planned types, the adopted decisions, the
+settled rejections (so a fill-in can't re-import a dead end without
+tripping over the comment saying why), and `failwith`-bodied function
+stubs naming the design doc that specifies each body. Nothing in them
+runs or is reachable from the pipeline; each stays staged until its
+emitter/check round, so the live matches in `Program.res`/`Codegen.res`
+don't grow arms ahead of behaviour. The gate for getting a stub was
+"has a worked representation in the record" — adopted **or**
+exploration; a mere thought gets a comment, not a module.
+
+| module | design status | what it stages |
+|---|---|---|
+| `Stream.res` | compile strategy **committed** (Shape C, per-node memoised streams); flows unimplemented | The `Stream` flowKind row; the Delayed-cell runtime spec with its two hard requirements (iterative force, path compression); the two commute *operations* (`SequenceCommute` vs `TransposeCommute` — settled to be distinct); the stack-discipline check; the source-opener riders (`SelfOpen`, `PullSource`). Implementation order 1→2→3→6; the consumer-set lattice is deferred-not-rejected. |
+| `Async.res` | exploration; race's pairs-in shape **adopted** (2026-07-23) | The terminator-tag vocabulary; the async cell (`__asyncCell__`/`__startAsync__`, start-is-synchronous); the async uncollect/collect; the race barrier (per-contender (flow, payload) pairs in, per-cell (value, flow) mints out, one node) with the pair-coherence check; the settle node (completions flow, settlement order); `Paced`; cancellation's `ReleaseHalf` (the bracket's late-wired half, DelayWrite-shaped). |
+| `Incremental.res` | exploration | The `Var` flowKind row; the pull-baseline cells + generation word; `Hold`/`Changes` kind-crossing nodes; switch-join as a Join variant, not a new species; cutoff left open; the push region deferred behind the same cell interface. |
+| `Cut.res` | **adopted** (2026-07-23): end-when + the node-bit, exclusive default; the cut root | `EndWhen` with the three-valued `cutDestination` at the root (end-when's bit is its projection); split-when staged as the *iterated cut* (derived, no node kind); the stop-operand admissibility check; the final-readout anchor left an explicit TODO. |
+| `Fail.res` | **adopted** (2026-07-23): fail node, edge stance + super flow, inventory account | `FailOp` (end-when's sibling, no bit); the derived endings inventory (lanes = sets of minting sites, monotone fixpoint, witnesses); the background super flow; the discharge barrier minting outcome cells directly (the `(prefix, term)` pair demoted to a lowering) with its exhaustiveness check. Residue flagged: tag identity across reuse boundaries. |
+| `CollectFamily.res` | ladder **adopted** (2026-07-23); keyed collect exploration | The `availability` ladder (monoid → total, semigroup → option-shaped, non-associative → augment-only) classified off the catalog row; the keyed partition with its four readouts. |
+| `Property.res` | exploration (its step 1, alignment, is already live in Check) | The 10-row property inventory; demands/offers; the **catalog row** several rounds converge on (identity witness, throw lanes, cancel translation, coalescing); monotone no-choice-points propagation; the boundary projection / principal property signature; the schematic source. |
+| `OrderDemand.res` | per-kind half **adopted** (2026-07-23) | The owned-order criterion as a five-way `orderClass` (owned / none / incidental / degenerate / surplus); order provenance (inherited / minted / ambient); the order-demand check for Delays; the hold identification. The product (surplus) cell is left to `product-linearization-design.md` — unresolved here. |
+| `Boundary.res` | **jointly adopted** (2026-07-23), anchor-is-identity constraint; served two-ends core adopted | The remembered cut (one directed sorted crossing list, six sorts including the op pair); `Call` vs `Link` on one substrate; the four bindings (function / level / provider / program — `{nodes, outputs}` is the degenerate cut); the measure discipline (3 species × 3 rungs); facet / binding / middleware-splice; derived membership, reusability, signature. Config scopes recorded as dissolved into the op pair. |
+| `Effects.res` | exploration with a recorded direction (2026-07-23): IO as a flow | The `IO` flowKind row; ops as uncollects joining into one global IO flow; join's asymmetry as the sequencing; the handle derived; the joins-back check. Within-firing effects deliberately contribute only the coalescing catalog-row bit (on `Property.catalogRow`). |
+| `FocusedUpdate.res` | exploration | The getter→setter mirror table as `pathStage`/`setterStage` with the derived `mirror`; the identity-branch-never-filter rule. |
+| `Saturation.res` | exploration, blocked on four presumed constructs | The flow back-edge as a `SaturateRead`/`SaturateFeed` pair mirroring the Delay pair; the dedup-collect parameter (set vs keyed-merge); naive/semi-naive as compiler-chosen lowerings. |
+| `Edit.res` | exploration (the most stub-ready doc in the record) | `Hole` (representable partiality, planned wires with zero semantics); the cursor position algebra + working record; edits as atomic pure `workingRecord => result<_, refusal>`; the eligibility tiers and `eligible`; the editor-state head-first `historyNode` with the from-scratch-is-the-definition fiat. |
+
+Also staged inside live modules: `Derive.res` grew the catalog-entry
+types (pattern / expansion / port correspondence, `DerivedPort`,
+reduce-close as the inaugural species); `Complete.res` grew stubs for
+its three named remaining bodies (dependent-nesting `Nests` harvesting,
+commute-chain lifts, the canonical table as versioned data beside
+`heuristicOrderV0`); `Check.res`'s stub section indexes the planned
+rules living in the stub modules.
+
+Deliberately **not** stubbed (mere thoughts — no worked representation
+to transcribe): trees/zippers (`trees-and-recursion.md` — the 2026-07-23
+seam decision is mostly negative: no verifier, no computed-value zipper
+ports; the positive remainder has no worked shape), within-firing
+effects (adds no construct by design), custom flows (the
+user-defined-kind vs catalog-block fork is itself the open question),
+configuration scopes (dissolved into the op pair), the
+product-linearization residue and the value-in-context model (owe their
+evidence), and the running view's surface (semantics fixed, drawing
+deliberately left tentative — no port minted for it).
+
 ## The JS backend
 
 `src/JsAst.res`, `src/JsPrint.res`, `src/JsBuild.res` are the JS backend:
