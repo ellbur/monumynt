@@ -1128,6 +1128,89 @@ header("complete: a rank-3 sibling-opens combine gets a product inserted, then c
   }
 }
 
+// 10d. The completion LENS, in text: everything completion inserted prints
+//      faint — a leading `+` (time-travel-programs-design.md, "in the textual
+//      form, faint is a leading `+`"; textual-representation-design.md, "the
+//      printer renders the derived insertions as `+` lines"). The program is
+//      authored under-committed IN TEXT — two sibling opens, no `cross with`
+//      line — and `Pipeline.completionText` shows it back with the product the
+//      compiler supplied.
+//
+//      The three laws the design states for the lens are checked here rather
+//      than asserted, and each one is a property of machinery that already
+//      existed: CONSERVATIVITY — parse discards `+` lines, so reparsing the
+//      completed print gives back the AUTHORED program, byte-identical wiring
+//      to what the source built; DETERMINISM/IDEMPOTENCE — completing that
+//      reparse reproduces the same text; and the completed program has no `+`
+//      lines of its own when printed plainly (the insertions are re-derived,
+//      never stored). The statement ORDER needs no new machinery either: the
+//      printer's topological sort already places the inserted `cross with`
+//      after the statements binding its two operand flows, which is the doc's
+//      "reordering statements as needed to restore token-order-is-time".
+header("complete: the inserted product prints faint (`+` lines) and reparses away")
+{
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+ex, ey -> add => s
+s -~> collect ~fx => inner
+inner -~> collect ~fy => out1
+out out1
+`
+  let authored = TextResolve.parseProgram(src)
+  let lens = Pipeline.completionText(authored)
+  Console.log("COMPLETION LENS:")
+  Console.log(lens)
+
+  // The lens shows exactly one derived line, and it is the inserted product.
+  let plusLines =
+    lens->String.split("\n")->Array.filter(l => l->String.startsWith("+"))
+  switch plusLines {
+  | [one] if one->String.includes("cross with") =>
+    pass("the completion lens renders the inserted product as one `+` line")
+  | _ =>
+    fail(
+      "expected exactly one `+ … cross with …` line, got:\n  " ++
+      plusLines->Array.join("\n  "),
+    )
+  }
+
+  // Conservativity: `+` lines are derived, not stored — reparsing the lens
+  // gives back the authored program, not the completed one.
+  let reparsed = TextResolve.parseProgram(lens)
+  if Program.equal(authored, reparsed) {
+    pass("reparsing the lens discards the `+` lines — the authored program comes back")
+  } else {
+    fail(
+      "lens reparse changed the wiring\n-- authored --\n" ++
+      Program.dump(authored) ++
+      "\n-- reparsed --\n" ++
+      Program.dump(reparsed),
+    )
+  }
+
+  // Determinism + idempotence: re-deriving the lens from that reparse
+  // reproduces it exactly.
+  if Pipeline.completionText(reparsed) === lens {
+    pass("the lens is deterministic and idempotent (re-derived, never stored)")
+  } else {
+    fail("re-deriving the lens produced different text")
+  }
+
+  // And a program that IS complete has no `+` lines: the same wiring with the
+  // product drawn solid is its own completion (constraint 1, "explicit
+  // structure is fixed").
+  let solid = TextResolve.parseProgram(
+    src->String.replace("ex, ey -> add => s", "~fx ~> cross with ~fy => ~fxy\nex, ey -> add => s"),
+  )
+  if !(Pipeline.completionText(solid)->String.includes("\n+")) {
+    pass("a program authored with the product drawn solid completes to no `+` lines")
+  } else {
+    fail("a complete program produced completion lines:\n" ++ Pipeline.completionText(solid))
+  }
+}
+
 header("complete: a non-invariant sibling cross is NOT completed (stays a witness)")
 {
   // Two independent opens, but itY's SOURCE is derived from itX's element via a
