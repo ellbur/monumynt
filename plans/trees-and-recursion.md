@@ -138,6 +138,40 @@ arrives). What decided the seam was **readability**:
   (`facets-design-notes.md`, "Facets as view toggles"). Legibility
   over enforcement, applied to traversal order.
 
+Idle notes recorded with the decision (same conversation — none
+of them changes it):
+
+- **Soundness and order-legibility nearly coincide.** If the user
+  can tell which order a traversal runs in, the recursion is
+  more or less sound by accident — it is hard to write unsound
+  recursion while knowingly doing a post-order walk. Consequence
+  for the compile: where an order is derivable from the data
+  flow, the lazy-value compilation isn't even *necessary* — an
+  optimization license, not an obligation. We are not doing
+  soundness for soundness's sake; when it appears, it appears as
+  a side effect of legibility.
+- **When does the user actually want the order?** Two answers.
+  Data-flow order is the usual care (as decided above). And IO
+  makes order *observable*: counting files in a directory tree,
+  nobody cares; recursively *deleting* one, the user wants to see
+  that children are deleted before the parent. So tree walks that
+  thread the IO flow want a *tellable* order — the first
+  tree-shaped client for the IO-as-flow direction
+  (`effects-design.md`): the children-before-parent sequence is
+  the answers-up crossing inducing the IO flow's order, readable
+  on the rail.
+- **But no order is required.** The lingering worry: some
+  ingenious lazy algorithm that wanders up, down, and around the
+  tree in no predictable order, works great, and would be
+  inexpressible if every traversal had to carry an order. So the
+  ruling stays permissive: users draw data-flow order; if their
+  dataflow has cycles, that is what they meant — the cycles are
+  visible in the graph, so nobody is surprised they're there.
+  (Lazy compile is exactly the semantics that honors this.)
+- **Reaffirmed:** the basic building block underneath all of it
+  is expressing dependencies across realms and identifying
+  corresponding values with a thread.
+
 ## You get this for free: derivation from recursive types
 
 Nothing about the zipper is tree-specific. For any recursive
