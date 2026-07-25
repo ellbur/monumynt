@@ -1048,16 +1048,20 @@ and emitIterCollect = (
 // registers' `prev` over the SAME driving flow it iterates. Emitted as a
 // register-driven loop that re-runs the fold and PUSHES the branch value each
 // firing (the running list), rather than only returning the final accumulator
-// (emitRegister). The levels are walked by `walkFilterLevels`, the same
-// iter-loop / alt-guard walk emitRegister uses, so a FILTERED driving flow
+// (emitRegister). The levels are walked by `buildChain`, the same walk
+// emitRegister and emitCellChain use, so a FILTERED driving flow
 // (`join(list, case-alt)`) scans the kept subsequence: one output element per
 // KEPT firing, carrying the running value at that firing — the running view of
 // the register delay-ontology-design.md's route (b) already folds ("the
-// register only updates when the option is Some"). The two halves stay
-// consistent because they walk the levels the same way. Still deferred with a
-// clean Todo: a PARTIAL (cell-set) driving flow, a product driving flow
-// (`spine` raises before this), and a register whose driving flow the collect
-// does not directly scan (ARCHITECTURE worklist item 6).
+// register only updates when the option is Some"). A PARTIAL (cell-set) driving
+// flow is that same scan at width k: the kept subsequence is the firings landing
+// in any covered cell, and the walk branches into one arm per cell, each pushing
+// and advancing inside its own arm. The two halves stay consistent because they
+// walk the levels the same way — the view is placed by `levelKey`, which names a
+// partial level by its CELL SET, so a view over `{A, B}` is not offered the
+// register that folds `{A, C}`. Still deferred with a clean Todo: a product
+// driving flow (`spine` raises before this) and a register whose driving flow
+// the collect does not directly scan (ARCHITECTURE worklist item 6).
 and emitRunningCollect = (
   st: state,
   ctx: ctxPath,
@@ -1065,14 +1069,7 @@ and emitRunningCollect = (
   branch: collectBranch,
   levels: array<level>,
 ): compiled => {
-  // Iter levels loop and alt levels guard; a PartialLevel is the deferred
-  // cell-set running view (the poset round owns the merged context).
-  let noPartial = levels->Array.every(l =>
-    switch l {
-    | IterLevel(_) | AltLevel(_) => true
-    | PartialLevel(_) => false
-    }
-  )
+  // Iter levels loop, alt levels guard one cell, partial levels k of them.
   let collectIds = levels->Array.map(levelKey)
   // Each register must (a) have a write half (its step) and (b) scan exactly the
   // same sequence this collect iterates — same spine levels in the same order.
@@ -1096,16 +1093,14 @@ and emitRunningCollect = (
     | _ => false
     }
   let supported =
-    noPartial &&
     Array.length(regs) > 0 &&
     regs->Array.every(r => stepOf(r)->Option.isSome && regScansSameFlow(r))
   if !supported {
     throw(
       Todo(
-        "running-view collect: `prev` is read over a partial (cell-set) or product " ++
-        "driving flow, or a flow this collect does not directly scan — the " ++
-        "shared-loop-skeleton case (ARCHITECTURE worklist item 6, " ++
-        "iteration-with-state-design.md running view)",
+        "running-view collect: `prev` is read over a product driving flow, or over " ++
+        "a flow this collect does not directly scan — the shared-loop-skeleton case " ++
+        "(ARCHITECTURE worklist item 6, iteration-with-state-design.md running view)",
       ),
     )
   }
@@ -1148,153 +1143,92 @@ and emitRunningCollect = (
     ctx,
   )
 
-  // Walk the levels outermost-in, exactly as emitRegister: iter levels open a
-  // loop (for-of / defined-check) and alt levels open a dispatch guard, each
-  // pre-memoising the binding its interior resolves (element / alt payload).
-  // The register's own fold walks these same levels, so the view and the fold
-  // agree on which firings are kept.
+  // One accumulator per register, declared outside all the loops; its init is
+  // loop-invariant, compiled at the exterior and floated out of the thunk.
   let floatedAcc: array<placed> = []
-  let (plans, walkFloated) = walkFilterLevels(st, exterior, levels, cn.id)
-  walkFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
-  let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
-  | Some(FIter({bodyCtx})) => bodyCtx
-  | Some(FAlt({altCtx})) => altCtx
-  | None => exterior
-  }
-
-  // One accumulator per register, declared outside all the loops. `prev` is the
-  // running value at the top of the innermost body; `reg = force(step)` advances
-  // at the bottom — AFTER the branch value (which reads `prev`) is pushed, so the
-  // pushed value is the running total BEFORE this firing's step.
   let regPlans = regs->Array.map(reg => {
     let (init, step) = switch (reg.kind, stepOf(reg)) {
     | (DelayRead({init}), Some(step)) => (init, step)
     | _ => failwith("Codegen.emitRunningCollect: register lost its init/step after the support check")
     }
-    let initC = compileValue(st, exterior, init) // loop-invariant — floats out
+    let initC = compileValue(st, exterior, init)
     initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    let regName = st.fresh()
-    let prevName = st.fresh()
-    recordMemo(st, reg.id, "prev", innerCtx, prevName)
-    (reg, regName, prevName, initC.name, step)
-  })
-
-  // Steps are compiled at the innermost context AFTER every `prev` is memoised,
-  // so a step (or another register's step) that reads `prev` resolves.
-  let stepPlans = regPlans->Array.map(((_, regName, _, _, step)) => {
-    let stepC = compileValue(st, innerCtx, step)
-    stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    (regName, stepC.name)
+    (reg, st.fresh(), initC.name, step)
   })
 
   // The any-list rule (lazy-compile-design.md), as everywhere else: any list
   // level ⇒ the view is a list (push per firing); an all-option / all-dispatch
   // scan is option-shaped (`let out;`, assigned on the firing that reaches it).
-  let anyList = plans->Array.some(p =>
-    switch p {
-    | FIter({isList}) => isList
-    | FAlt(_) => false
+  let anyList = levels->Array.some(l =>
+    switch l {
+    | IterLevel({isList}) => isList
+    | AltLevel(_) | PartialLevel(_) => false
     }
   )
   let outName = st.fresh()
-  let valueC = compileValue(st, innerCtx, branch.value)
-  valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  // Partition floated statements into level bodies (compile order preserved);
-  // loop-invariant work (init feeds, list sources) floats out of the thunk.
-  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p =>
-    switch p {
-    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
-    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
+  // The innermost payload, emitted once per innermost context the chain reaches
+  // — once per covered cell where a partial level branches. `prev` is the
+  // running value at the top of the body; the push carries the branch value
+  // (which reads it); `reg = force(step)` advances at the bottom, so the pushed
+  // value is the running total BEFORE this firing's step. Statements addressed
+  // to this context are claimed here rather than floated into the level's
+  // bucket, which keeps the `prev` decls ahead of everything that reads them.
+  let mkPayload = (innerCtx: ctxPath) => {
+    // Every `prev` is memoised before any step or the branch value compiles, so
+    // a step (or another register's step) that reads `prev` resolves.
+    let prevDecls = regPlans->Array.map(((reg, regName, _, _)) => {
+      let prevName = st.fresh()
+      recordMemo(st, reg.id, "prev", innerCtx, prevName)
+      JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
+    })
+    let mine: array<JsAst.stmt> = []
+    let rest: array<placed> = []
+    let claim = (fl: array<placed>) =>
+      fl->Array.forEach(pl =>
+        if ctxPathKey(pl.at) === ctxPathKey(innerCtx) {
+          Array.push(mine, pl.stmt)
+        } else {
+          Array.push(rest, pl)
+        }
+      )
+    let regAssigns = regPlans->Array.map(((_, regName, _, step)) => {
+      let stepC = compileValue(st, innerCtx, step)
+      claim(stepC.floated)
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))))
+    })
+    let valueC = compileValue(st, innerCtx, branch.value)
+    claim(valueC.floated)
+    let pushStmt = if anyList {
+      JsBuild.exprStmt(
+        JsBuild.call(JsBuild.member(JsBuild.id(outName), "push"), [Runtime.forceOf(JsBuild.id(valueC.name))]),
+      )
+    } else {
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
     }
-  )
-  let escaped: array<placed> = []
-  floatedAcc->Array.forEach(pl =>
-    switch Map.get(buckets, ctxPathKey(pl.at)) {
-    | Some(b) => Array.push(b, pl.stmt)
-    | None =>
-      if isCtxPrefix(pl.at, exterior) {
-        Array.push(escaped, pl)
-      } else {
-        failwith("Codegen: a statement floated to a context unrelated to the running collect being assembled — placement bug")
-      }
-    }
-  )
-
-  // Innermost payload: push the running value, then advance every accumulator.
-  let pushStmt = if anyList {
-    JsBuild.exprStmt(
-      JsBuild.call(JsBuild.member(JsBuild.id(outName), "push"), [Runtime.forceOf(JsBuild.id(valueC.name))]),
+    (
+      Array.concat(prevDecls, Array.concat(mine, Array.concat([pushStmt], regAssigns))),
+      rest,
     )
-  } else {
-    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
   }
-  let regAssigns = stepPlans->Array.map(((regName, stepName)) =>
-    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepName))))
-  )
-  let prevDecls = regPlans->Array.map(((_, regName, prevName, _, _)) =>
-    JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
-  )
 
-  // Assemble innermost-out, exactly as emitRegister. The innermost body carries
-  // the `prev` decls (after its element / alt-payload decl), then the bucketed
-  // work, then the push and the advances — so on a filtered flow both the push
-  // and the advance sit inside the alt guard, and a dropped firing contributes
-  // nothing to the view and does not step the register.
-  let lastIx = Array.length(plans) - 1
-  let nested = ref(Array.concat([pushStmt], regAssigns))
-  for i in lastIx downto 0 {
-    let isInner = i === lastIx
-    switch plans->Array.getUnsafe(i) {
-    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
-        let elemDecl = JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))
-        let head = isInner ? Array.concat([elemDecl], prevDecls) : [elemDecl]
-        let body = Array.concat(head, Array.concat(bucket, nested.contents))
-        nested :=
-          if isList {
-            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
-          } else {
-            [
-              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
-              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
-            ]
-          }
-      }
-    | FAlt({alt, altCtx, splitName, discName, inputName, payloadName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
-        let payloadDecl = JsBuild.const(
-          payloadName,
-          Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")),
-        )
-        let head = isInner ? Array.concat([payloadDecl], prevDecls) : [payloadDecl]
-        let altBody = Array.concat(head, Array.concat(bucket, nested.contents))
-        nested := [
-          JsBuild.const(
-            splitName,
-            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
-          ),
-          JsBuild.if_(
-            JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(alt)),
-            altBody,
-          ),
-        ]
-      }
-    }
-  }
+  // The level walk is `buildChain`, the same one the register's own fold walks,
+  // so the view and the fold agree on which firings are kept — and on a partial
+  // driving flow both the push and the advance sit inside the arm that fired.
+  let (stmts, escaped) = buildChain(st, cn.id, exterior, levels, mkPayload)
+  let escaped = Array.concat(floatedAcc, escaped)
 
   let accDecl = if anyList {
     JsBuild.const(outName, JsBuild.array_([]))
   } else {
     JsBuild.letDecl(outName)
   }
-  let regDecls = regPlans->Array.map(((_, regName, _, initName, _)) =>
+  let regDecls = regPlans->Array.map(((_, regName, initName, _)) =>
     JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initName)))
   )
   let thunkBody = Array.concat(
     Array.concat([accDecl], regDecls),
-    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
+    Array.concat(stmts, [JsBuild.ret(JsBuild.id(outName))]),
   )
 
   let name = st.fresh()
