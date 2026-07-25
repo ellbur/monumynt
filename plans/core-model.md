@@ -164,6 +164,14 @@ happens. Joining the list flow with the `Even` flow keeps exactly the
 elements for which `Even` fired, dropping the rest. Filtering is
 `join(list, case flow)`; there is no separate filter primitive.
 
+End-when (adopted 2026-07-23, `end-when-design.md`) reuses this
+exact operand pattern with a different verb: where
+`join(subject, alt flow)` keeps the firings at which the alt fires,
+`end-when(subject, alt flow)` keeps the firings *before* the alt
+first fires, ending the derived flow there with the alt's value as
+its terminator payload. Same condition wiring, two everyday
+consumers.
+
 (The implemented code still spells join as a per-collect annotation,
 `Joined(flowRef)`, which lost the second operand; that spelling is
 superseded at the design level by `lazy-stream-join-design.md`.)

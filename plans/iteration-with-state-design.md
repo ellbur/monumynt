@@ -1,14 +1,18 @@
 # Iteration with state — how a loop remembers
 
-Status: this is the biggest open area of the language's design, and
-this chapter teaches it as the open conversation it is. Nothing in it
-is implemented. One result-level construct — the **register pair** —
-has been reached from two independent directions, and the two candidate
-drawings of it are proven to compute the same results; but the language
-has *not yet chosen* which drawing a programmer actually writes, and
-several questions around the construct remain genuinely open. Read
-every construct below as "here is a candidate and the case for it,"
-never as a settled feature.
+Status: **the surface decision is made** (design conversation,
+2026-07-23): the **visible state thread is the primary framing** —
+the register pair stored (the Delay quotient), the thread rendered,
+the point (Delay) and the flow (augmented uncollect) its two
+projections, used where the path picture honestly degrades. See
+"The surface decision" under §"The surface question" for the
+adoption's scope, its recorded constraint (the generic-iteration
+picture) and caution (constant space may not be enough), and what
+is deliberately deferred — the ergonomics round that makes the
+thread friendly to the programmer is *not yet worked*, on purpose.
+Nothing is implemented. The chapter below is kept as the record of
+how the decision was reached; read pre-decision passages ("the
+language has not yet chosen") in that light.
 
 How does a loop carry a value from one iteration to the next — a
 running sum, a maximum-so-far, a Fibonacci pair? In conventional code
@@ -241,6 +245,58 @@ for four reasons:
   the initial case, evaluated before any iteration; it can only depend
   on outside-flow values. Writing it as an `alt` of an in-flow
   case-split positions it as per-iteration computation. It is not.
+
+**The identity-vs-value account (2026-07-23)** — a sharpening of
+the first reason above, from the conversation that adopted the
+thread; recorded because it is the deepest statement of why this
+family of shapes must not return, and of why the thread is the
+right fix. There is a glimmer of usefulness in `prev`'s intuition:
+it is not crazy to say there is a *previous world*, and that
+everything in the current iteration frame has a counterpart there.
+The failure is in how `prev` reaches for the counterpart: you
+cannot identify the previous-world version of a thing by pointing
+at the current thing — the current value wire binds the *value*
+(the flesh-and-blood thing), and the value does not exist in the
+previous frame; only the *identity* does. `prev(x)` confuses the
+identity of a thing (which exists across frames) with the thing
+itself (which doesn't). One could decree that binding a value wire
+sometimes means binding its identity — but that distinction would
+be visually inapparent, which is exactly the confusion. (The same
+principle decided race's inputs: a control-flow operation must
+consume what *stands for* the computation, never a bare value from
+inside it.) The **thread** is the repair: a visually distinct
+species that points at the previous and current wires and asserts
+"these are the same identity across iterations" — identity-use
+drawn as identity-use. One directional note recorded with it: the
+assertion works equally well feeding the *next* frame as reading
+from the *previous* one — either alone suffices, and doing both
+overspecifies.
+
+Two later additions to this account (same conversation):
+
+- **A fifth reason `prev` fails, purely visual.** Textually, "the
+  previous x" reads tolerably because `x` is a *word*. Visually
+  there is no word — there is a wire, and the wire runs to the
+  *current* node; nothing about it says "previous." Decorating the
+  wire with the label "prev" is not visual language, it is a word
+  glued onto a picture that says otherwise — frankly confusing.
+  The construct must *look like* what it means, and an
+  identity-across-frames reference looks like a distinct species
+  of line between two places, not a labeled value wire.
+- **The generalization (recorded half-finished, deliberately).**
+  Many of the record's iteration patterns are versions of one
+  idea — *this value, but in that context*: the previous iteration
+  (`prev`/the thread), the child realm (the divide flow's link),
+  the child realms again (the zipper's computed-value ports, now
+  retired as stored surface). All bizarro world. The standing
+  challenge is a visual form for cross-context reference that
+  doesn't get messy; the **thread** — a little dotted line saying
+  "these two nodes share part of their identity despite being in
+  different places" — is the best form found so far, adopted as
+  the framing and honestly held as *best-so-far, not fully
+  satisfying*. (This observation is a supporting datum for the
+  value-in-context model, `delay-ontology-design.md`, which owes
+  its frequency check before its own conversation.)
 
 (This is a recorded set-aside — but with a caveat: the
 value-in-context model of `delay-ontology-design.md` recasts `prev` as
@@ -1730,6 +1786,48 @@ user can point at.
   version: store the Delay quotient, render the thread, derive the
   flow view — making the fourth option an arrangement of existing
   pieces rather than a new primitive.
+
+### The surface decision (2026-07-23): the thread is the framing
+
+The design conversation adopted the fourth option: **the thread is
+the right framing.** Scope of the decision, as taken:
+
+- **Adopted:** the thread as primary surface, realized as
+  conjectured above — store the register pair (the Delay
+  quotient), render the thread, derive the flow view. The point
+  and the flow are the thread's projections, used where the path
+  picture degrades (dense cross-referencing recurrences; whole-
+  flow operations). With the pair stored and the other drawings
+  derived, the coexistence question below resolves **by
+  construction** as stored-form asymmetry; the domain split stays
+  the named cliff it is.
+- **Deliberately deferred:** the ergonomics round. The
+  conversation's own words: the really challenging part will be
+  working out the details that make the thread *friendly to the
+  programmer* — and that work was intentionally not started. The
+  open points above (the crossing rule, the one-writeback rule's
+  effect-ordering caveat, the result-level fine print) belong to
+  that round.
+- **A constraint recorded for that round — the generic-iteration
+  picture must not get lost.** In a visual language, the way to
+  convey summing a list is to draw a point for the prior total
+  and a point for a generic element, sum them, and indicate that
+  this repeats. The thread's tap→compute→writeback epoch *is*
+  that picture, drawn once over the single generic iteration.
+  Whatever the ergonomics round does to the rail, the beginner's
+  running sum must keep reading as "prior + element → next,
+  repeated" — never an unrolled history, never an opaque fold
+  glyph.
+- **A caution recorded, vague by intention.** The register/thread
+  family is constant-space: fixed-shape per-iteration state. The
+  conversation registered a feeling that constant-space constructs
+  will prove too limiting at some point, and that recursion-shaped
+  constructs closer to functional programming will be wanted —
+  *what those are is unknown*. The divide flow
+  (`divide-flow-design.md`) is the record's current recursion
+  story and may or may not be the eventual answer. Recorded so
+  the demand is expected when it arrives, not resisted; nothing
+  here is worked.
 
 ### Coexistence models (if both surfaces are first-class)
 

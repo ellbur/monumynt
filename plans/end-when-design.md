@@ -1,11 +1,19 @@
 # End-when: data-driven termination
 
-Status: exploration — this chapter teaches a worked proposal that
-has not been adopted yet; none of it is implemented. Read it as
-"here is a candidate construct and the case for it," with leanings
-stated where the record has them. Per the sampling method's own
-rule, the evidence gathered below reweights the design agenda, but
-decisions stay in the design conversations.
+Status: **adopted** (design conversation, 2026-07-23) — the
+construct is settled design; none of it is implemented. Adopted:
+the core construct (the law of the shortened flow, the flow-typed
+(subject, stop) operand pair) as a standalone everyday node — the
+relationships to the decision-driven merge and interrupt stay
+exactly the recorded leanings, and the split-when relationship was
+settled at the root in the same conversation (the cut refinement,
+in "Adoption notes" below: end-when is the cut's prefix
+projection) — and the inclusive/exclusive bit as one bit on the
+node, exclusive the default reading. The adopting
+conversation's rationale and its standing notes (the continuation
+seam; the bit's textual direction) are in "Adoption notes" below.
+The open questions keep their own status: where one is marked open
+it is still open.
 
 You will often want a walk to stop early because of what it sees —
 the first match, a sentinel, a value within tolerance. In
@@ -631,30 +639,92 @@ The record checks every proposal against the seven principles
   `.map()`/`.filter()` for a different species; here it acquires
   one node.
 
-## What this changes elsewhere, if adopted
+## What this changes elsewhere
 
 Nothing in the record is dissolved or corrected; this fills a
-named hole. If the design conversation adopts some form of it: the
-tough doc's inventory item 4 gains its worked member; the
-breadth-set theta kernel and retry-with-escalation get a concrete
-owner shape; the bottom-up mergesort composition can be drawn end
-to end. `core-model.md` would gain end-when a line alongside join
-in "Filtering is a join too" (it is the same operand pattern
-with a different verb) — but not before adoption.
+named hole. With adoption (2026-07-23) these integrations are
+owed: the tough doc's inventory item 4 gains its worked member;
+the breadth-set theta kernel and retry-with-escalation get a
+concrete owner shape; the bottom-up mergesort composition can be
+drawn end to end. `core-model.md` gains end-when a line alongside
+join in "Filtering is a join too" (it is the same operand pattern
+with a different verb).
+
+## Adoption notes (2026-07-23)
+
+The design conversation adopted the construct as it stands above.
+Three notes from that conversation are part of the record:
+
+- **Why standalone won over derivation from split-when.** Beyond
+  the gesture-count argument, the deciding reason was incremental
+  thinking: end-when lets the author think about the prefix alone
+  — there is no second segment to conceive of and then discard.
+  Deriving it from split-when would force the discarded remainder
+  into the everyday case's mental model, backwards from how the
+  sampled programs are conceived. (The first-segment recognition
+  this note originally kept was superseded within the same
+  conversation by the cut refinement, below — the derivation now
+  runs from the root, in the direction this rationale wanted.)
+
+- **The continuation seam.** Inhomogeneous iteration — the
+  regex-shaped "loop until this, then loop until that"
+  (`raku-grammars-comparison.md`) — needs a way to continue from
+  where the cut left off. Nothing adopted here forecloses that:
+  the subject beyond the cut is exactly split-when's second
+  segment, and the first-segment recognition is the named seam.
+  The adoption is of the law, with the stated expectation that
+  edge behavior (precisely what "where end-when left off" hands
+  to a continuation) may be tweaked when the segmentation and
+  grammar vocabulary lands. A tweak there is a refinement of this
+  construct, not a reopening of the adoption.
+
+- **The bit is acceptable because it draws, and it must not spell
+  as a flag.** The conversation's general aversion to flags was
+  overridden by the bit's natural visual form: the delimiter
+  drawn inside or outside the mark of the last element — the cut
+  line before/after the element mark that open question 1 already
+  anticipates (layout-side, out of scope here). Textually the
+  direction is to avoid a literal flag: spell the two readings as
+  two words, the way ranges do elsewhere (`to` inclusive vs
+  `until` exclusive). Filed into open question 6, to be decided
+  jointly with split-when's three-valued destination setting —
+  one word family, decided once.
+
+- **The cut refinement (same conversation).** Working the
+  split-when question arrived at the root concept: end-when and
+  split-when branch off one construct, the **cut** ("when" is the
+  working word) — it yields (prefix, payload, continuation), and
+  to split is to tap the continuation. This cashes the
+  continuation seam above: the adoption of the law stands, re-read
+  as the cut's *prefix projection*; skip-while is the continuation
+  projection; split-when is the cut *iterated*, a derived form,
+  not a separate primitive. The anti-unification leaning's reasons
+  survive the override — the everyday form stays flat and one
+  gesture; it is split-when that wears the derivation. One
+  consequence for the bit: the adopted two-valued bit is the
+  projection of the root's **three-valued** destination setting
+  (prefix / head-of-continuation / dropped) when the continuation
+  is unused — without a continuation, starts-next and dropped are
+  indistinguishable, which is why binary sufficed here. The cut
+  round's open edges (how iteration is drawn without raw
+  corecursion; the continuation on RanOut; payload availability
+  from the continuation side) are filed in
+  `variable-rate-consumption-design.md`, open question 10.
 
 ## Open questions
 
 The language hasn't decided these yet. Where a leaning exists it
 is stated; nothing here is settled.
 
-1. **The inclusive/exclusive bit's final form.** Option B is the
-   leaning (one bit, exclusive the default reading). The
-   node-vs-wire half is now worked ("Where the bit lives", above):
-   the two homes coincide wherever a stack can tie and diverge
-   only by demoting the bit to data, so the leaning is the node.
-   What remains open is the bit's *drawing* (a cut line before vs
-   after the element mark — layout, out of scope here) and
-   confirmation that both survey shapes stay one gesture.
+1. **The inclusive/exclusive bit's final form.** Decided at
+   adoption: one bit, on the node, exclusive the default reading
+   (the node-vs-wire half was worked above — the two homes
+   coincide wherever a stack can tie and diverge only by demoting
+   the bit to data). What remains open is the bit's *drawing* (a
+   cut line before vs after the element mark — layout, out of
+   scope here; the adopting conversation's inside/outside-the-
+   delimiter reading agrees) and confirmation that both survey
+   shapes stay one gesture.
 2. **Unification with interrupt.** One terminator-writing node
    with aligned/unaligned stop operands, or two rhyming siblings.
    Deliberately unforced; the deciding argument is in the sibling
@@ -683,6 +753,10 @@ is stated; nothing here is settled.
    discharge into the collect (a second value output) where
    source-openers spells it as a separate flow operation
    (`~W ~> discharge => term`). One spelling family, decided once.
+   One constraint from the adopting conversation: the
+   inclusive/exclusive bit must not spell as a flag — prefer a
+   word pair (`to` vs `until`, the range precedent), decided
+   jointly with split-when's three-valued destination setting.
 7. **Naming.** "End-when" vs take-while/until — parked in the
    tough doc's question 8. One constraint from this round: the
    name should read as a *flow operation* (like join), not as a

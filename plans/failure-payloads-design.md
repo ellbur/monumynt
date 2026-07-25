@@ -1,7 +1,20 @@
 # Failure payloads: lightweight failure and the terminator inventory
 
-Status: exploration — this chapter teaches a worked proposal that has
-not been adopted yet; none of it is implemented. Its scope is the two
+Status: **adopted** (design conversation, 2026-07-23, in three
+steps of one rolling conversation): the **fail node** (see "What
+fail is — the ontology note" for the adoption's stated basis and
+the commute-completion ruling that came with it), the **edge
+stance with a structural amendment** (bodies total, declared
+throws as catalog-row lanes, undeclared throws landing on the
+**background super flow** — see that section for the adopted
+account and its filed edges), and the **terminator inventory
+account** with the clients' cashings (lanes as derived sets of
+minting sites, union by propagation, discharge exhaustiveness as
+alt matching, re-tagging drawn only where meaning changes, and
+the `Cancelled` / subset-merge / divide-link riders as cashed).
+None of it is implemented. The open questions below remain open
+where marked — tag identity across reuse boundaries is the one
+owing a worked round. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 "Failure as terminator payload"): **"do bodies raise?"** and
 **payload-type composition** — plus the payload questions other
@@ -10,8 +23,8 @@ rounds filed to be decided jointly with them: the `Cancelled` payload
 (`race-barrier-design.md`, open question 3), speculation's diagnosis
 payload (`speculation-design.md`, open question 4), and the divide
 flow's link-crossing payload sets (`divide-flow-design.md`,
-"Failability composes with one constraint"). Read it as "here is a
-candidate and the case for it." The failable flow kind itself is
+"Failability composes with one constraint"). Read the unadopted parts
+as "here is a candidate and the case for it." The failable flow kind itself is
 settled design this chapter builds on, not reopens: a flow kind's
 termination event can carry a payload; consumers propagate it by
 default and discharge it at a whole-flow collect, where it becomes
@@ -158,6 +171,66 @@ program's output failable, with no walk in sight. The table's now
 column fills in from the same construct as its later column, which
 is what "failability is a uniform dimension" predicted.
 
+## What fail is — the ontology note (2026-07-23)
+
+The design conversation that adopted the node asked what it *is*,
+and the answer is one sentence: **fail is the minting half of the
+applicative sequence, whose commute half is the propagating
+whole-flow close.** Unpacked:
+
+- The record already contains sequence twice without naming it.
+  The option commute's runtime move — abandon the rest at the
+  first `None`, resolve to `None` — is `[Maybe a] → Maybe [a]`,
+  and end-when's cut compiles to that same move aimed at a
+  terminator. And the propagating close's all-or-nothing reading
+  ("the output is a failable value that fails if the walk
+  failed") is `[Either e a] → Either e [a]`, verbatim. So the
+  construct decomposes sequence: the close is the commute
+  (list∘failable → failable∘list); `fail` is only the minting
+  site — the half that gives the walk a failure dimension to
+  commute at all, invisible in the applicative form because there
+  every body already returns `Either`.
+- The packed alternative — building a flow of `Ok(x) | Bad(e)`
+  values and feeding it to a drawn commute — is the sum bottleneck
+  in sequence's clothes: the per-firing sum exists only to pass
+  the construct, when the split had already delivered the alts
+  unpacked. The philosophy's sentence extends verbatim: no tuple
+  packed just to pass a join, no union packed just to pass a race,
+  no Either packed just to pass a sequence.
+- **The adoption's stated basis is the drawn distinction between
+  short-circuit and accumulate.** In the applicative form,
+  abort-at-first vs collect-all-failures is the invisible choice
+  between the `Either` and `Validation` instances — one `sequence`
+  call, meaning selected off the page. Here they are two visibly
+  different drawings: `fail` on the Bad alt (this chapter), vs
+  collecting the Bad alt beside the walk (the recover side —
+  ordinary multi-close, already free). The conversation was
+  honest that beyond this clarity the construct's difference from
+  an uncollected error flow remained partly intuitive; the further
+  payoffs (stacked-lane union, the discharge's prefix, witnesses)
+  ride along rather than carrying the decision.
+
+**The commute-completion ruling** (same conversation, a general
+ruling, not specific to failure): *implicitly inferring a commute
+is time travel* — it retrospectively determines whether the loop
+terminates early — *and the language allows time travel only under
+the completion discipline*: the implied commute must be inferred
+by published rule **and available for the author to see**, faint,
+never merely absent
+(`time-travel-programs-design.md`). "Never drawn" everywhere in
+the record is to be read as "never authored" — the completed form
+exists and is viewable on request. This answers the half of
+`effects-design.md`'s open question 1 that asked whether the faint
+completed commute is "worth showing at all": showing it is
+required — it is what makes the inference legitimate. And the
+error commute has a sharper edge than the IO commute: the IO
+commute went unauthored because it is mandatory and unique (no
+lawful alternative), but the error commute is a genuine *choice* —
+short-circuit (commuted) and accumulate (uncommuted) are both
+lawful — which by the effects round's own criterion is exactly why
+the choice must be visible. `fail` vs the collected Bad alt is
+that visibility.
+
 ## Do bodies raise? — No. The raise is a node
 
 The failability round posed the question honestly: a JS `async`
@@ -222,15 +295,163 @@ that terminated with payload"); this generalizes that sentence to
 the whole edge: **declared throws are lanes; the row is their
 minting site.**
 
-**An undeclared throw is an edge breach, not a lane.** If a JS
-payload registered as total throws anyway, that is the catalog's
-claim being false — the same species of violation as a
-discriminator returning an alt it didn't register. It surfaces as a
-runtime fault attributed to the row, never as a language-level
-terminator: soundness is relative to the catalog, and keeping
-undeclared throws *out* of the vocabulary is what keeps the derived
-inventory honest. (The trusted tier already owns this posture;
-nothing new is added here.)
+**An undeclared throw is an edge breach — and it lands on the
+background super flow.** This part was **amended at adoption**
+(2026-07-23; the section below is the adopted account). As
+proposed, an undeclared throw was a runtime fault outside the
+vocabulary entirely. The adopted form keeps the *attribution* —
+a JS payload registered as total that throws anyway is still the
+catalog's claim being false, the same species of violation as a
+discriminator returning an unregistered alt, and the firing
+carries which row lied so tooling can say so — but the throw
+itself lands on the background super flow rather than outside the
+language. What keeps the derived inventory honest is *quarantine*,
+not exclusion: the super flow is absent from ordinary flows'
+inventories, so exhaustiveness and the infallible/failable
+distinction are untouched.
+
+## The background super flow (adopted, 2026-07-23)
+
+The edge stance above was adopted with one structural amendment,
+stated by the design conversation as follows. However accurate the
+catalog, there is always a background risk of a throw that wasn't
+accounted for — the language compiles to a runtime that can fail
+in unpredictable ways, and that cannot be eliminated. The best
+account of that fact is a distinguished, runtime-owned
+**super flow**:
+
+- It **silently commutes out of everything and joins with
+  itself** — all background failures, from any depth, are one
+  flow, not a per-flow dimension. Ordinary inventories never
+  contain it; the reader's question "can this walk abort, and
+  with what?" is still answered by the drawn inventory, plus one
+  standing background caveat that is the same everywhere and so
+  carries no per-program information.
+- Its silent commutes are **not rendered, and this is the
+  recognized boundary of the commute-completion ruling**, not an
+  exception carved by fiat: that ruling governs commutes that are
+  *choices* (a lawful alternative existed, so the completion must
+  be shown to make the inference legitimate). The super flow's
+  commutes have no lawful alternative — a program cannot opt out
+  of the runtime's ability to fail — and they are identical
+  everywhere, so rendering them would add zero information. The
+  ruling's content survives in operative form:
+  **availability-as-addressability** — the flow is always nameable
+  and collectable, it just isn't drawn for you.
+- **It is not handled in generated code by default** — no ambient
+  try/catch anywhere, zero compilation cost. **Collecting it is
+  drawn, and compiles to a try/catch** around the collected
+  region's generated code. This is the escape hatch made
+  expressible: the supervisor boundary ("this handler may blow up
+  unpredictably; log, serve the error, keep going") becomes a
+  drawable program instead of a fault the vocabulary disowns.
+  Erlang/OTP supervision is the shipped witness —
+  crash-as-data at a drawn boundary — and JS's own
+  `uncaughtException`/`unhandledrejection` hooks are the
+  runtime-floor costume.
+- Its payload is the caught JS value: **one lane, no shape** — the
+  dynamic catch-all of dead end 4, which that dead end already
+  said "survives as a choice," here given its principled home at
+  the language's floor rather than in its substrate.
+
+Note carefully what this does *not* re-open: dead end 1 (ambient
+bodies-raise) rejected making *every flow's own inventory*
+unbounded. The super flow is the opposite move — one quarantined
+lane outside the per-flow accounting, leaving every drawn
+inventory finite and every discharge exhaustiveness check intact.
+
+## The discharge barrier (noted 2026-07-23 — a direction, details owed)
+
+A further direction from the adopting conversation, recorded as
+direction rather than worked design. It starts from the ontology
+note read one step further: if failure is an uncollect of an
+**error flow**, then each fail site mints a flow wire — and those
+wires are *arrows pointing at the failure points*, case-split-like
+wires identifying the ways this program can fail. That cashes the
+site-as-label direction (open question 2) with ordinary
+constructs — no facets needed.
+
+The observation that makes it a construct: the adopted idiom
+`~> discharge => term` followed by `term -> split tag of …` is
+**merge-then-split** — lanes packed into one tagged value at a
+structural point, torn apart immediately after. Fail-fast makes
+the packing look inevitable (only one error can come out), but by
+the no-bottlenecks principle the honest form is a **barrier**:
+feed the error flow wires in, corresponding case flow wires come
+out, plus a completed/success case. Wires pass through as
+themselves; no union is packed.
+
+What the conversation worked out on the spot:
+
+- **The bundle is legal by construction.** One walk's error flows
+  are mutually exclusive (the walk ends at the first), and each
+  lives at the *outer* context already — a walk's ending is one
+  event at the level above — so the inputs are outer-context
+  at-most-once flows and the output is an honest bundle. The case
+  vocabulary applies verbatim: *"handle this point and that point
+  together" is a partial collect over cells*, and a **tag
+  reconstructs as a drawn identification** (same-meaning cells
+  merged) rather than a substrate primitive.
+- **The success case needs no value port** — the availability law
+  answers it by kind. On many-kinds (list/stream) the prefix is
+  total, a value at the outer context, readable inside every cell
+  by the prefix rule; the completed cell fires bare with the
+  result in reach. On exactly-one kinds the resolved value is born
+  at settlement, so the success cell *mints* its payload — exactly
+  race's winner cell. (The conversation's first intuition — a
+  value wire feeding the barrier as success payload — was the
+  packed reading; availability dissolves it.)
+- **Propagation is untouched.** Between minting and the barrier
+  the terminator still propagates silently through consumers that
+  say nothing; the barrier is where handling is *chosen*.
+
+**Interaction flagged:** this contests
+`barrier-value-crossing-design.md`'s corner 4. The settled-sum
+output there was justified by the value and failure payload having
+"no independent upstream wires" — fail-as-uncollect gives every
+failure an upstream wire, so the barrier form is a live
+alternative, possibly the primary drawing with term-then-split as
+its packed lowering (a level-1 recognition candidate). Corner 4
+should not be ratified as written without this in the room.
+
+**Refined the same day (the one-closer resolution).** The
+crossing round's corner 4 was decided in this direction with a
+synthesis governed by a stated principle: *when a loop's result
+has one consumer, one construct closes the loop flow.* The
+barrier does not stand beside the closing collect — it **is** the
+closing collect's discharge half, minting the outcome cells
+directly on the closer (no `term` value; the fold an optional
+sibling output readable in the cells; exhaustiveness = the cell
+set matches the derived inventory). The standalone-barrier
+drawing survives via multi-close for genuinely-multiple
+consumers, but the everyday gesture is the one closer. See
+`barrier-value-crossing-design.md`, corner 4, for the full
+resolution.
+
+Open edges owed by the round that works this out: whether the
+ending sites' wires feed the closer as authored inputs (the
+visible-control-flow lean) or the cells derive from the inventory
+with site→cell arrows as viewable derived witnesses (the
+commute-completion ruling's pattern); per-site or per-tag cells;
+the bare-end cell's exact form; whether the super flow and
+`Cancelled` can feed it as inputs where collected; spelling.
+
+Open edges filed at adoption (this round still owes them):
+
+1. **The collect's anchor.** The super flow "commutes out of
+   everything," so a collect of it must name a *region* — which
+   boundary's background failures are meant. The likely vocabulary
+   is the demand/necessity frontier the cancellation round already
+   ordered; needs working.
+2. **The async face.** A rejection whose payload doesn't match its
+   row's declared lanes, and a synchronous throw inside a
+   registered body, should presumably both land on the super flow;
+   the mapping through the FFI catalog blocks needs stating.
+3. **Two runtime-minted lanes.** `Cancelled` (strand delivery) and
+   the super flow are now siblings — the runtime's two non-drawn
+   minting sites. Whether they share machinery (both deliver over
+   frontier structure) is worth one look.
+4. **Naming.** "Super flow" is the conversation's placeholder.
 
 The payoff of drawing every entry point is that **failability
 becomes readable instead of declared.** A flow is failable iff its
@@ -587,7 +808,11 @@ Recorded here with the reasons they should not be re-proposed.
    the record's visibility stance exists to exclude. The edge
    converts *declared* throws; undeclared throws are catalog
    breaches. (Settled within this proposal — please don't
-   re-propose without new evidence.)
+   re-propose without new evidence. The adopted **background super
+   flow** is not this dead end: it quarantines the
+   unaccounted-throw risk into one runtime-owned lane outside
+   every flow's inventory, where this dead end is about making
+   every flow's own inventory unbounded.)
 
 2. **Nominal payload types with coercion.** You might wonder
    whether payload sets should be named artifacts that convert
@@ -636,11 +861,14 @@ Recorded here with the reasons they should not be re-proposed.
 The language hasn't decided any of these yet; leanings are stated
 as leanings.
 
-1. **Adoption.** Prepared for the design conversation — jointly
-   with the failability core it completes (`async-flow-design.md`)
-   and beside end-when's, since the terminator-writing family
-   (end-when, fail, interrupt) should be adopted as one family or
-   not at all.
+1. **Adoption.** Done (2026-07-23, the rolling conversation): the
+   fail node, the edge stance (amended — the background super
+   flow), and the inventory account, beside end-when's adoption
+   the same day — the family constraint honored in substance. One
+   member's paperwork remains: interrupt is designed in
+   `async-flow-design.md` (its verdict vocabulary now fixed by two
+   adopted siblings) but rides that round's own adoption, with its
+   mechanical content owned by the race round.
 2. **Tag identity across reuse boundaries.** Within one diagram,
    tags are names and same-tag sites union into one lane. Two
    independently-authored diagrams both minting `NotFound` — one
@@ -650,6 +878,33 @@ as leanings.
    place to state identity), but this needs a worked round with
    real composed programs, and it touches the catalog schema
    (`types-design.md`, question 4).
+
+   **The site-as-label direction (noted 2026-07-23, deliberately
+   unworked).** The adopting conversation added a reordering of
+   this question's layers worth keeping in view: the minting
+   *site* is itself a label — a visual program's shape already
+   distinguishes every failure point — so the user need not name
+   lanes just to handle them later. Imagine a **failure facet** of
+   a subprogram (`facets-design-notes.md`): the view showing just
+   its minting points, and a discharge authored by *picking sites
+   from that view* — "handle the failure from this point and that
+   point," identified by location, no tag authored. Under this
+   reading site identity is the primitive the inventory already
+   uses (every lane carries a site witness), and a **tag is a
+   drawn act of identifying several sites as one meaning** —
+   needed exactly for sameness across sites or across a reuse
+   boundary, and not before; this question's scoped-by-default
+   leaning gets sharper, not weaker. Cautions filed with it: site
+   identity is edit-fragile where a tag is not (leans on
+   boundary-identity-across-versions,
+   `transformation-levels-design.md`); one site in a reused
+   subdiagram is many instances, and site-addressed handling must
+   say which are meant — exactly where tags-through-signatures
+   earn their keep; and the textual form still needs a spelling
+   for site references, a problem the visual form doesn't have.
+   (The discharge-barrier direction, above, cashes this with
+   ordinary constructs — the error flow wires are the site
+   references, and no facets are needed.)
 3. **The aggregate payload's value design.** Speculation's
    all-declined aggregate is ordinary data construction (above),
    but *which* construction serves parsing well — expectation
@@ -675,6 +930,26 @@ as leanings.
    sharper. Still not merged, for that question's standing reason
    (now/later is a difference in meaning); noted so the next
    round there starts from this formulation.
+
+   **Direction noted (2026-07-23): option-as-flow is the default
+   surface for failable operations.** The adopting conversation's
+   aside, recorded: the language may not like option *values*
+   generally — a failable operation (a lookup, a parse) should
+   mint the unpacked reading by default, an **open option flow**
+   (fires iff there is a value, `Nil` in its inventory), rather
+   than a packed option value that downstream immediately splits
+   (packing-to-pass, in miniature). The packed value survives as
+   data-on-purpose only, via a drawn collect (options stored in a
+   list, an optional field). What this buys: chaining without
+   ceremony (each op in the previous hit's context, the miss
+   propagating by default — Maybe-monad behavior from the adopted
+   machinery, no operator), and Rust's warn-on-discarded-Option
+   falls out structurally — a discarded option is a nonempty
+   `{Nil}` inventory reaching the root undischarged, which files
+   as a datum for question 4's advisory side (`#[must_use]` is
+   the field shipping that advisory). The now/later distinction
+   is untouched; this is a ruling about the now column's default
+   surface only.
 7. **Naming.** "Inventory," "lane," "minting site," "tag" are this
    chapter's placeholders; "fail" vs "raise" vs "abort"; deferred
    to the naming sweep (`implementation-strategy.md`).

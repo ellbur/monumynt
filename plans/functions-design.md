@@ -1,8 +1,11 @@
 # Functions — reusable sub-diagrams
 
-Status: design-only exploration — this chapter teaches a worked
-proposal that has not been adopted yet; none of it is implemented.
-Read it as "here is the candidate design and the case for it."
+Status: superseded-and-adopted — the boundary construct this
+chapter gestured at is now worked and **adopted** in
+`function-boundary-design.md` (2026-07-23), including this
+chapter's stances (functions for naming/reuse, not for map/filter
+bodies, and not first-class values). Read this chapter as the
+motivating sketch; the boundary doc is authoritative.
 Functions are a language-level construct; the representation-level
 machinery they lean on (derived views, principal ports) lives in
 `transformation-levels-design.md`, and what a function's boundary

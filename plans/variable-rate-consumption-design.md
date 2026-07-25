@@ -3,14 +3,26 @@
 *Or: cutting one walk into segments, and reading what you have built
 so far.*
 
-Status: exploration — this chapter teaches two worked proposals that
-have **not** been adopted; none of it is implemented. The two
-constructs developed here (split-when, a segmenting flow operation,
-and the running view, a derived port of a collect) are prepared for
-the design conversation — read everything below as "here is a
-candidate and the case for it," not as a settled feature. Per the
-sampling method's own rule, the evidence gathered in this chapter
-reweights the agenda, but the decisions stay in the conversations.
+Status: mixed after the cut decision (design conversation,
+2026-07-23); none of it is implemented. The conversation that
+adopted end-when (`end-when-design.md`, adoption notes) also
+settled this chapter's relationship question, at the root: the
+**cut** ("when") is the root concept — one construct yielding
+(prefix, payload, continuation) — and **split-when is not a
+separate primitive**: it is re-founded as the *iterated cut*,
+expected to live as a derived/catalog construct over the cut
+(users are not handed raw corecursion — the merge/interrupt
+precedent). Everything this chapter works — the law of segments,
+the destination setting, the boundary-reads-own-state analysis,
+the evidence — carries over to the iterated form unchanged; read
+"split-when the node" below as "the iterated cut." The cut
+round's own open edges are filed as open question 10. The running
+view (Part II) remains exploration: the same conversation reviewed
+it and deliberately left it tentative — the semantics (the
+definition, the strict prefix) were not doubted, but how to draw
+the read understandably is unresolved, and a port on the collect
+node read as a little backwards (see the note under the
+definition). A worked candidate, not adopted.
 
 Two everyday shapes of loop have, so far, no owning construct
 anywhere in this design record. The first is the loop that consumes
@@ -294,13 +306,19 @@ sighted in the wild:
   opening words-from-characters example uses this reading — the
   space belongs to no word.)
 
-The leaning mirrors end-when's Option B: a genuinely small, local,
-enumerated choice on the node (or on the boundary wire — the same
-open question as end-when's bit, and the two should be decided
-together, since end-when's two values are this three-value setting
-with "starts the next segment" degenerated away — there is no next
-segment after a stop). This is configuration in the established
-sense, not a construct.
+With the cut decision (2026-07-23) this setting is **three-valued
+at the root**: the boundary element goes to the prefix
+(inclusive), to the head of the continuation (starts-next), or
+nowhere (dropped). It lives on the node, following end-when's
+adopted node-home. End-when's adopted two-valued bit is this
+setting's *projection* when the continuation is unused — and the
+projection is what made "exclusive" look binary: without a
+continuation, starts-next and dropped are indistinguishable;
+with one, they are two settings (continue from the sentinel vs
+skip the delimiter). The spelling is one word family — end-when's
+`to`/`until` direction plus a third word for dropped — decided
+once in the textual round. This is configuration in the
+established sense, not a construct.
 
 One consequence worth noting rather than smoothing: under the
 starts-next reading, the boundary condition at element `e` is
@@ -475,18 +493,28 @@ drawing. This adjacency is systematic:
   projections of one cut.
 
 You might wonder, then, whether end-when and split-when should just
-be one construct. The leaning, following the interrupt precedent
-exactly (`end-when-design.md`, "Sibling or same node"), is: **record
-the relationship, do not unify the constructs.** End-when is
-promoted by frequency and must stay one everyday gesture with a flat
-output (eighteen of sixty sampled loops; its output is a flow, not a
-flow of flows); split-when is the breadth construct. A level-1
-recognition ("an end-when is a split-when observed at its first
-segment") can relate them in the tower without either construct
-wearing the other's weight. What they *must* share is the
-boundary/stop operand discipline and the destination bit's
-vocabulary — the same family-level sharing as the verdict-vocabulary
-rule recorded for the merge (end-when's open question 3).
+be one construct. This round's leaning was **record the
+relationship, do not unify** — and the design conversation of
+2026-07-23 *overrode the leaning while keeping its reasons*. The
+leaning's reasons were that end-when is promoted by frequency and
+must stay one everyday gesture with a flat output (eighteen of
+sixty sampled loops; a flow, not a flow of flows) — reasons
+against making end-when wear split-when's weight. The decision
+inverts the derivation instead: both branch off one root, the
+**cut** ("when"), one construct yielding (prefix, payload,
+continuation), all flat. The everyday author taps prefix and
+payload alone — that *is* end-when, the cut's prefix projection,
+one gesture, no second segment conceived; skip-while is the
+continuation projection; span/break tap both; and split-when is
+the cut *iterated*, the derived form that alone carries nesting.
+The level-1 recognition this passage used to carry ("an end-when
+is a split-when observed at its first segment") is superseded by
+the root reading — the derivation now runs the other way. What
+the projections share is unchanged and now structural: one
+boundary/stop operand discipline, one destination setting
+(three-valued at the root, above) — the same family-level sharing
+as the verdict-vocabulary rule recorded for the merge (end-when's
+open question 3).
 
 ## The advance family, after this round
 
@@ -600,6 +628,18 @@ Whether the port is *drawn on the collect node itself* (the friendly
 surface) or reached by explicitly referencing the derived view is a
 presentation question; the leaning is on the node, defined as the
 derived port — one thing, surfaced.
+
+The design conversation of 2026-07-23 reviewed this proposal and
+**deliberately left it tentative**. The semantics were not
+doubted — reading what has been built so far is implementable, and
+the definition above says what it means. What kept it from
+adoption is the drawing: how to draw the read *understandably* is
+unresolved, and a port on the collect node struck the conversation
+as a little backwards — the collect's one job is to be the place
+where the flow becomes a value at the end, and a mid-walk output
+port muddies that reading. The next round here should treat the
+surface as the open problem and the definition as its fixed
+semantic target.
 
 ## Reading the past is safe: the check that transfers
 
@@ -834,10 +874,13 @@ principal-port pressure either way.
 
 The language hasn't decided any of the following yet:
 
-1. **The destination setting's final form.** Three values on the
-   node vs an attribute of the boundary wire; its drawing; and the
-   joint decision with end-when's two-valued bit (one enumeration,
-   shared). The stacked-stops tie-break interaction recorded in
+1. **The destination setting's final form.** Decided at the cut
+   decision (2026-07-23): three values at the root, on the node
+   (following end-when's adopted node-home), end-when's two-valued
+   bit its projection when the continuation is unused. Remaining:
+   the drawing (layout-side); the word triple's spelling (jointly
+   with end-when's `to`/`until` direction — one family, textual
+   round); and the stacked-stops tie-break interaction recorded in
    end-when's question 1 presumably has a sibling here (two
    boundaries tying at one firing — same regime analysis, one bundle
    vs independent splits — assumed to transfer, unverified).
@@ -874,4 +917,27 @@ The language hasn't decided any of the following yet:
    "running view" vs "so-far" vs the survey's phrase. Deferred, with
    one constraint each: the segment construct's name should read as
    a flow operation yielding *nested* flow (the nesting is the
-   point), and the view's name must not suggest mutability.
+   point), and the view's name must not suggest mutability. The cut
+   decision adds a member: the root's name ("when" is the
+   conversation's working word) — decided with the family.
+10. **The cut round's open edges** (filed at the cut decision,
+    2026-07-23; the round that works the root construct owes
+    these):
+    - **How iteration is drawn.** All-segments = tapping the
+      continuation repeatedly — a corecursive unrolling, and the
+      record declines to hand users raw corecursion. The expected
+      shape is split-when as a derived/catalog construct over the
+      cut ("the iterated cut"), keeping nesting out of the
+      everyday path; the derived form's exact standing (catalog
+      block vs level-1 recognition vs both) is the round's
+      structural question.
+    - **The continuation on RanOut.** If the boundary never fires,
+      is the continuation an empty flow or a nonexistent one
+      (option-kind)? Likely it rides the same Stopped/RanOut
+      discharge; needs stating.
+    - **Payload availability from the continuation side.**
+      Skip-while taps only the continuation and never collects the
+      prefix, so where its payload is readable needs its own
+      account (likely the prefix-rule admission covers it —
+      continuation firings are subject firings — but it must be
+      checked against the flow-borne rule).

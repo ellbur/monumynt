@@ -1,11 +1,30 @@
 # How Values Cross a Barrier
 
-Status: exploration — this chapter teaches a worked proposal that has
-not been adopted yet; nothing in it is implemented. Read it as "here
-is a candidate and the case for it." Several other chapters each
-stopped at this question and pointed at the others; this is the one
-place it is worked through, and each of those chapters marks its
-corner as worked here, none as decided.
+Status: mixed (design conversation, 2026-07-23) — the **two
+mechanisms, the availability law, the co-location criterion, and
+corner 1 (flow-only joins) are adopted**, with one clarification
+recorded under the law: a value wire does not participate in a
+flow operation, so it is neither upstream nor downstream of one —
+the ordering is on contexts only. Corner 2 (race) is **adopted with an amendment**: per-contender
+(flow, payload) pairs in — the pair the lean, the bare async
+value the isomorphic aggregate — race re-read as the partial
+collect's async sibling (see its section). Corner 3 (the partial
+collect) is **adopted**: m rows = m sibling collects, backed by
+the context-equality theorem, with a recorded naming constraint —
+the node's surfaced name should not contain "collect" (it stays
+in flow-land).
+**Corner 4 (the discharging collect) is resolved in an amended
+direction** (same conversation, via the discharge-barrier
+contest): one closer per loop — the discharging collect — whose
+discharge half mints outcome cells directly (no packed
+`terminator` value; the cell set checked against the derived
+inventory), the `(prefix, term)` pair demoted to the packed
+interim spelling; see the corner for the governing one-closer
+principle, the consequences, and the owed details. With that,
+every corner is decided. Nothing is implemented. Several other
+chapters each
+stopped at this question and pointed at the others; this is the
+one place it is worked through.
 
 ## Your first crossing
 
@@ -147,6 +166,19 @@ put the output context where it is.
 > that context is ≥ the value's context in the context order, and the
 > barrier's flow law determines where its output context sits in that
 > order.
+
+One clarification recorded at adoption (2026-07-23): **a value
+wire does not participate in a flow operation** — it is impossible
+to say whether a value wire is upstream or downstream of a join, a
+race, or any barrier; position in flow topology is a property of
+flows and contexts only. In your first crossing above, the `add`
+of `a` and `b` is neither upstream nor downstream of the join. The
+law's "downstream" — and this chapter's upstream/downstream
+phrasing for values generally — is shorthand for the context
+relation: what is ordered is the value's *context* against the
+barrier's output context, never the value wire itself. This is
+easy to lose when reading the textual form, whose lines are
+listed in sequence; it changes nothing in the law.
 
 Why insist the barrier carries *no* pass-through value port, even as
 a convenience? Because such a port would be a second, wireable
@@ -327,7 +359,62 @@ are structurally unrelated to the race's partition (they fire on
 their own resolution regardless of the race); and the case-split
 precedent is values-in — the sum-side uncollect consumes the thing
 whose settlement creates the partition. (This is a recorded dead end
-of this proposal — please don't re-propose it without new evidence.)
+of this proposal — please don't re-propose it without new evidence.
+The adopted pair form below shares the flows-in *surface* but none
+of these mechanics — its cells are minted at the node, its values
+carried as mints, its contenders demand-started — so it is not
+this dead end.)
+
+**Adopted with an amendment (design conversation, 2026-07-23).**
+The corner is decided, but the input shape is amended. The
+conversation distinguished three shapes where this chapter weighed
+two:
+
+- a **bare async value** — no associated flow wire, the
+  computation as one aggregate thing (the values-in form above);
+- the **(flow wire, payload value wire) pair** — the opened form,
+  the payload descending from the flow's context;
+- the dead end above — contexts alone, cells as sub-flows, values
+  by availability. Still dead.
+
+Both of the first two are admissible — they are isomorphic, and a
+bare value fed to the race is an open, completed or spelled
+`-~>` — and **the pair is the lean**, on a stated principle worth
+keeping: *a barrier is a control-flow operation and must consume
+something that stands for the control flow; a value representing
+a computation is valid but esoteric — the higher-order-function
+objection again (`configuration-scopes.md`) — so the control flow
+should be spelled as a visible flow wire.* The uniformity argument
+above is answered rather than defeated: openers (case split, list
+open) create control flow from a value, so they take no flow
+input; race presupposes existing async computation, and the
+precedent for operating on *existing* control flow — join,
+commute, end-when — is flow wires in. Under the pair form **race
+is the async sibling of the partial collect**: the sum side's
+explicit transport node — async context flows in, the
+first-settling contender's in-context payload carried out through
+the one-way door as a mint. The values-in form fuses an opener
+into the transport, and it costs a collect per pipeline contender
+(packaging `a -> parse -> transform` in ~A back into an async
+value) that the pair form saves — racing `(~A, transformOut)`
+directly.
+
+Unchanged by the amendment: the cells and their mints co-locate
+on one node (the partition quantifies over all contenders), and
+the winner's value is a mint, never availability. Reshaped: the
+unary-race leaning — under pairs, **await = open async** (the
+opener), and the N=1 race is the degenerate transport, harmless
+(the one-cell partial collect's sibling); noted for
+`race-barrier-design.md`. One new check: the pair must cohere —
+the payload must descend from the flow wire's context (`-~>`
+guarantees it by construction; the explicit form gets a
+provenance check). The wire-mess cost is acknowledged and filed
+to the layout/textual side (`-~>` carries most of it textually:
+`a, t -~> race => r`). The amendment rhymes with the
+discharge-barrier direction recorded the same day
+(`failure-payloads-design.md`): the sum side gets one grammar —
+flows plus in-context payloads in, minted bundle out, one law per
+barrier (first settlement here; the ending there).
 
 Race's full semantics — fairness, N-ary composition, abandonment —
 remain owed (`async-flow-design.md` question 5, taken up in
@@ -410,6 +497,23 @@ Two deferrals, kept rather than newly decided:
   which is what the implemented multi-close on case splits already
   does.
 
+**Adopted (design conversation, 2026-07-23).** The
+context-equality theorem and the m-siblings answer stand; the
+multi-row node stays the dead end (surviving as the
+drawn/recognized view); both deferrals above are kept. Two notes
+from the conversation ride along. First, the sibling flows'
+redundancy is understood, not accidental: two partial collects
+over one cell set mint interchangeable flows — nobody would draw
+a second collect *for the flow*; a second collect exists for its
+value row, and the flow duplication is exactly what the
+partial-collect round's open question 4 (one flow or many) will
+dedupe, with bind-once-and-reuse the interim rule. Second, a
+**naming constraint** is recorded (mirrored at
+`partial-collect-design.md`, "Naming"): calling this node a
+*collect* is not ideal — a regular collect leaves flow-land (flow
+in, value out) while this node stays in it (it produces a flow
+wire) — so the surfaced name should not contain "collect."
+
 ### 4. The discharging collect: one port or two, by kind
 
 The last corner is about failure. A failable flow can end early, and
@@ -473,6 +577,39 @@ wires both. Terminator payload *types* — composing `E1` and `E2`
 across chained failability — remain the async round's residue,
 untouched: a question about the terminator value, not about ports.
 
+**Resolved in an amended direction (design conversation,
+2026-07-23).** This corner was contested by the discharge-barrier
+direction (`failure-payloads-design.md`) and the conversation
+decided it with a synthesis, governed by a stated principle:
+**when a loop's result has one consumer, one construct closes the
+loop flow.** The resolution is this corner's node *with the
+packing removed*: the discharging collect stays the single closer
+(the co-location instinct vindicated — fold and ending do belong
+together; the error was packing the ending, not fusing the
+consumers), but its discharge half **mints outcome cells
+directly** — a bundle with one cell per lane of the flow's derived
+inventory plus the bare-end cell — and the `terminator` value
+output does not exist. The pair spelling `=> prefix, term`
+followed by a split is demoted to the packed interim
+spelling/lowering (a level-1 recognition candidate), used in
+examples until the textual round catches up. Consequences: the
+bind-term-then-split step disappears (the cells are the split);
+exhaustiveness is the adopted inventory check — the closer's cell
+set must match the derived inventory, an unwired cell an
+unhandled lane; the anti-swallowing result is node-local again;
+the folded value is an optional sibling output readable inside
+the cells by availability; the exactly-one-kind half re-reads the
+same way (success and failure cells, the success cell minting the
+resolved value — no settled-sum output). Multi-close separation
+(standalone propagating collect + a barrier elsewhere) stays
+legal but is not the everyday gesture. The round that works the
+details (`failure-payloads-design.md`, "The discharge barrier")
+owes: whether the ending sites' wires feed the closer as authored
+inputs (visible control flow) or the cells derive from the
+inventory with site→cell arrows as viewable derived witnesses
+(the commute-completion ruling's pattern); the bare-end cell's
+exact form; spellings.
+
 ## The crossings, tabulated
 
 | Construct | Flow law (where the output context sits) | Value crossing |
@@ -481,7 +618,7 @@ untouched: a question about the terminator value, not about ports.
 | concurrent join | fires when all operands have; context = product of operands' | availability (product segment) |
 | Cross | once per pair; context = product of axes | availability (stated in its round) |
 | end-when (subject, stop) | prefix of subject's firings | availability (prefix admission, its theorem) |
-| race | cells partition the parent by first settlement | mint: per-cell (value, flow) pairs, one node |
+| race | cells partition the parent by first settlement | inputs per contender: (flow, payload) pairs (adopted lean; a bare async value is the completed-open aggregate); mint: per-cell (value, flow) pairs, one node |
 | case-split uncollect | cells partition the parent by dispatch | mint: per-alt (value, flow) pairs, one node |
 | partial collect | merged flow fires iff a branch fires; context = union cell set | mint: the firing branch's value — one row per node; m rows = m sibling nodes |
 | collect (propagating) | terminates; output at parent | mint: `result` (failable if the flow was) |
@@ -551,7 +688,10 @@ can find them:
    drawn/recognized view of m siblings.
 3. **Race over pre-opened flows** — in "Race." Wrong three ways:
    race consumes values, losers' contexts are unrelated to the
-   partition, and the case-split precedent is values-in.
+   partition, and the case-split precedent is values-in. (The
+   adopted pair form, 2026-07-23, is not this: it shares the
+   flows-in surface but mints its cells at the node and carries
+   values as mints.)
 4. **A tuple output for the many-kind discharge** — in "The
    discharging collect." The product bottleneck verbatim.
 5. **The absorb collect** — in "The discharging collect." An

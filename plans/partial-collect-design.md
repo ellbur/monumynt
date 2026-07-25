@@ -319,6 +319,14 @@ name is partial collect, coalesce, or something better is an open
 question (see below); what must not happen is "merge" meaning two
 things.
 
+One constraint recorded at the crossing round's adoption
+(2026-07-23): the surfaced name should **not contain "collect"**.
+A regular collect leaves flow-land — flow in, value out — while
+this node stays in it (it produces a flow wire), so naming it by
+the collect family miscommunicates the one thing a reader most
+needs to know about its output. "Partial collect" remains this
+record's prose term only until the naming sweep replaces it.
+
 ## The merged flow as parent scope
 
 Look back at the HTTP program: `errStatus` is computed at the merged

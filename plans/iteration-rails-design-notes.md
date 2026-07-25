@@ -12,9 +12,14 @@
 > *carried* and how it is *named*. Read alongside
 > `iteration-with-state-design.md`, which holds the semantic form —
 > one register-pair construct, proven equivalent under its two
-> candidate drawings — and remains the biggest open design area. The
-> open decision there is the *surface*: which drawings exist and
-> which is primary. Nothing on this page is that decision's winner.
+> candidate drawings. **Update (2026-07-23): the surface decision
+> is made** — the visible state thread is the primary framing (the
+> pair stored, the point and flow its projections), which promotes
+> this chapter's *state-thread* depiction and *one-visible-column*
+> constraint from kept ideas to load-bearing input for the owed
+> ergonomics round. The rejected mechanisms above (diagonal wire,
+> TapIn/TapOut, `ById`) stay rejected; the ergonomics round starts
+> from the thread, not from them.
 
 This is the visual companion to the loop-carried-state question. The
 semantic work — what the construct *means* — lives in

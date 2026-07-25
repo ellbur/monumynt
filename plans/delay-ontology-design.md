@@ -1,6 +1,10 @@
 # What a Delay is, and which flow binds it
 
-Status: an open problem, genuinely unsettled. This chapter teaches a
+Status: mixed. The **per-kind half is adopted** (2026-07-23): the
+owned-order criterion, the order-demand check, and the `hold`
+identification — see §"Per-kind \"next iteration\"" for the
+adoption's scope. The rest is an open problem, genuinely
+unsettled. This chapter teaches a
 construct the design does have — the register, whose carrying half is
 called a Delay — and then a question about it the language has *not*
 answered: what a Delay actually is, and which flow supplies its "next
@@ -119,7 +123,8 @@ axis-reference trade. Everything else has either coincided, been
 answered by provenance (update) and the consumer (read), or been
 closed. The per-kind question — which kinds supply a "next
 iteration" at all — is since worked below (the owned-order
-criterion), with leanings, unadopted. And the linearization residue
+criterion) and **adopted** (2026-07-23), together with the
+order-demand check and the `hold` identification. And the linearization residue
 itself has since been worked in its own round
 (`product-linearization-design.md`, exploration, unadopted): the
 axis is the *drawn orientation* of the flow the register rides —
@@ -1050,8 +1055,20 @@ single sharp trade already isolated — recompute per consumer
 
 ## Per-kind "next iteration": the owned-order criterion
 
-Status: worked with leanings, **not adopted** — a candidate
-criterion and the case for it. This section takes up the per-kind
+Status: **adopted** (design conversation, 2026-07-23, in the same
+rolling conversation that decided the surface — the thread
+framing). Adopted: the owned-order criterion itself, the
+order-demand check named below, and the `hold` identification (the
+register whose step ignores `prev`); with them the kinds table's
+cashings stand as settled answers. Explicitly *not* part of this
+adoption: the product-linearization residue and the
+value-in-context model, each of which owes its own evidence before
+its conversation. One cashing carries a filed re-read: "the IO
+handle is a wire, not a flow" is put in question by the same
+conversation's later IO-as-flow direction (`effects-design.md`,
+"The IO-as-flow direction") — if the handle wire is the IO flow
+wire, whether that flow supplies a "next iteration" under this
+criterion needs its own answer. This section takes up the per-kind
 question the firm-ground section left parenthetical — *which flow
 kinds supply a "next iteration"* — which bounds where a Delay means
 anything at all. It stopped being idle taxonomy a while ago:

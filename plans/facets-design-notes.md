@@ -259,3 +259,34 @@ viewing machinery applies downstream of it.
    "everything in this region touches resource R only via algebra A" (an
    offer of absence), and whether possession-by-wiring makes most
    negative constraints structural rather than asserted. Unworked.
+
+## A tractable core: facets as view toggles (noted 2026-07-23)
+
+The design conversation that set the IO-as-flow direction
+(`effects-design.md`) noticed a ladder of facets that are cheap,
+obviously implementable, and useful on day one — a tractable core
+for this area, below the authored-abstraction ambitions above:
+
+- **Wire-species visibility.** Turn the IO wire off when it is not
+  relevant to the current thought process; turn it on to audit
+  sequencing. (The failure round's site-picking view and the
+  external-ordering facet filed at `effects-design.md` are the
+  same species.)
+- **Layout-constraint sets.** Toggle "all joins in a vertical
+  column in global-flow order" (the rail reading) on and off —
+  the facet is a set of layout constraints, not content.
+- **Interpretation switches.** Flip the IO wire between its
+  handle spelling and its inner-flow spelling — one program, two
+  synonymous readings, the facet choosing which is rendered.
+- **The general case:** other special sequencing wires that can
+  be shown/hidden, each carrying **algebraic layout constraints**
+  (like IO join's associativity licensing rebracketing into the
+  uniform column) that can be switched on and off.
+
+What makes these tractable: each is a pure derived-view toggle
+over the one stored representation — nothing is authored, nothing
+attached, nothing verified — so they sidestep open edges 1 and 3
+entirely while delivering the "inspect only some aspects" value
+this chapter promises. A future round can build the
+authored-facet ladder on top of a working toggle substrate rather
+than designing attachment in the abstract.

@@ -74,7 +74,27 @@ records worked-vs-unworked, not settled. Citations across the record to
 
 **IO, effects, and cancellation — I 3, W 5.**
 The record's most-cited hole, now worked in two halves — both
-exploration, neither adopted. *Effects* (`effects-design.md`):
+exploration, neither adopted. **A direction was set at the
+2026-07-23 walkthrough**, which deliberately left the row
+unadopted (cancellation not yet engaged): **IO is a flow, not a
+handle** — an op is an uncollect joining its inner flow upward
+into one global IO flow; join's asymmetry is the sequencing (the
+IO monad in the record's own vocabulary); the handle wire is
+derived as the flow wire, linearity falling out of LIFO-collect;
+the flow is forced global (local create/destroy is the lazy-IO
+hazard); the within-firing round's handle-granularity leaning
+dissolves into a fork/join readability program (symmetric join,
+drawn independence, alignment bookkeeping — with the **rail
+drawing** as its first concrete win: the global IO wire vertical
+in the margin, join points as tap points, position-is-time shared
+with the state thread; textually the handle notation is the
+synonym, a no-io1-io2 syntax owed); and cross-resource
+external interactions (the write-file-then-exec witness, which no
+per-resource factoring can capture) are filed as a separate facet
+under a recorded stance — **legibility over enforcement**:
+external ordering is user-relative (timestamped log appends), so
+the language makes sequencedness readable rather than enforcing
+rules (`effects-design.md`, "The IO-as-flow direction"). *Effects* (`effects-design.md`):
 **commuting an IO flow out of a list flow sequences the
 operations** — per-firing segments concatenate in firing order into
 one segment, so "collect of an effect flow" (the
@@ -166,28 +186,37 @@ the row gates ordinary programs, not just effect-heavy ones. See
 `translation-exercise.md`, `effekt-comparison.md`, `flix-comparison.md`,
 `xquery-jq-comparison.md`, `reactive-comparison.md`, `zig-comparison.md`.
 
-**Loop-carried state: the surface decision — I 3, W 5.**
-The two live candidates — the Delay pair and the latent-flow augmented
-uncollect — are proven result-level equivalent: one register-pair
-construct under two drawings (`iteration-with-state-design.md`, "The
-equivalence, worked"). The latent form's feedback collect *is* the
-write half; the productivity check transfers verbatim and holds by
-construction in the stored form; the stack-order/siblinghood/
-pass-through residue is inert. So the open decision is no longer
-"which semantics" but **which drawings exist and which is primary** —
-the beginner bar and the RTL/ST gestalt critiques attach to
-renderings.
+**Loop-carried state after the surface decision — I 2, W 5.**
+The surface decision is **made** (2026-07-23,
+`iteration-with-state-design.md`, "The surface decision"): the
+**visible state thread is the primary framing** — the register pair
+stored (the Delay quotient), the point (Delay) and the flow
+(augmented uncollect) its two projections, coexistence resolving by
+construction as stored-form asymmetry. Recorded with it: the
+generic-iteration-picture constraint (the beginner's sum keeps
+reading as "prior + element → next, repeated," drawn once over the
+generic iteration) and the constant-space caution
+(recursion-shaped constructs may eventually be wanted; what they
+are is unknown). The two candidates remain proven result-level
+equivalent — one register-pair construct under two drawings; the
+productivity check holds by construction in the stored form.
 
-Remaining: the decision conversation itself; the thread's rendering
-questions; the self-driven source opener the port form must borrow —
+Remaining: the **ergonomics round**, deliberately deferred (making
+the thread friendly to the programmer — it owns the crossing rule,
+the one-writeback rule's effect-ordering caveat, and the
+result-level fine print, under the recorded
+generic-iteration-picture constraint); the register final-readout
+anchor (filed from end-when's round); the self-driven source opener the port form must borrow —
 now worked (`source-openers-design.md`: a bare flow-minting opener, no
 value ports, kind answered as the sourceless stream; the
 counted↔conditional seam it opens is filed back here as that round's
-open question); and operator identities for reduce-close — now worked
-jointly with the collect family (`collect-family-design.md`: the
-identity question reframed as the empty-collect question, a three-tier
-availability ladder, identities as catalog rows carrying the identity
-value as witness).
+open question); and operator identities for reduce-close — now
+**adopted** with the collect family's availability ladder
+(2026-07-23, `collect-family-design.md`: the identity question
+reframed as the empty-collect question; monoid total, semigroup
+option-shaped, non-associative augment-only; identities as catalog
+rows carrying the identity value as witness; the runtime-error and
+fake-∞ poles confirmed rejected).
 
 Beside the surface decision sits the row's open problem, now its own
 document: the **Delay ontology** — what a Delay *is* and which flow
@@ -223,8 +252,8 @@ sampling by construction) before the demand's ergonomic cost is
 weighed. The
 per-kind "next iteration" question — formerly the row's most
 concrete owed work, with several rounds writing checks on it — is
-now worked (`delay-ontology-design.md`, "Per-kind \"next
-iteration\": the owned-order criterion", exploration): a flow
+now **adopted** (2026-07-23 — `delay-ontology-design.md`, "Per-kind
+\"next iteration\": the owned-order criterion"): a flow
 supplies a "next iteration" exactly when its firings carry an
 **owned total order** — stated by the constructs that minted or
 shaped the flow, not merely present at run time — and the clients'
@@ -236,8 +265,10 @@ the var's recomputation order incidental, so state lives on
 `changes`; the IO handle a wire, not a flow). Extent-fixedness is
 refined to a termination account only; the productivity check
 becomes one check with a clock parameter; `hold` is identified
-(leaning) as the register whose step ignores `prev`. The row's
-center, the surface decision, is untouched by all of these.
+as the register whose step ignores `prev` — all three pieces
+(criterion, order-demand check, `hold`) adopted; the
+linearization residue and the value-in-context model explicitly
+excluded from the adoption, each still owing its evidence.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -262,9 +293,21 @@ Worked in `variable-rate-consumption-design.md`: "advance how far"
 reframed as boundary placement via **split-when** (a segmenting binary
 flow operation); the running view answered as the state port of the
 collect's derived augment form; breadth items 1, 2, 4 worked
-end-to-end; three dead ends recorded. Remaining: the adoption
-conversation; the boundary-destination setting's form (jointly with
-end-when's inclusive bit); the stream compile's sequencing constraint;
+end-to-end; three dead ends recorded. The relationship question is
+now **decided** (2026-07-23, in end-when's adopting conversation):
+the **cut** ("when" — one construct yielding prefix, payload,
+continuation) is the root concept; split-when is not a separate
+primitive but the *iterated cut*, expected to live as a
+derived/catalog construct over the root; and the
+boundary-destination setting is three-valued at the root, on the
+node, end-when's binary bit its projection. Remaining: the cut
+round itself (how iteration is drawn without handing users raw
+corecursion; the continuation on RanOut; payload availability from
+the continuation side — the doc's question 10); the running view
+(reviewed 2026-07-23 and deliberately left tentative — the
+semantics stand, but the drawing is the open problem: a port on
+the collect node read as backwards); the stream compile's
+sequencing constraint;
 the fixed-length-segment catalog question; the nested-segmentation
 boundary against grammar vocabulary; and the decision-driven merge
 (the family's two-flow member), which still has only its chooser
@@ -335,8 +378,9 @@ binding; the node-set consequence's second client); five dead ends,
 including exchange-as-two-messages, whose field witness is the
 correlation ID as hand-rolled provenance).
 
-Remaining: the adoption conversation (joint with the late-bound
-round's — one construct's two ends); the chooser family (also owning
+Remaining: the served flow's two-ends core is now **adopted**
+(2026-07-23, riding the joint adoption — one construct's two
+ends); the rest of that round stays exploration; the chooser family (also owning
 merge fairness *and now cross-client arbitration* — a serving
 provider bound at two boundaries has no cross-client order, the
 served round's question 2); pacing's per-consumer/per-source bit
@@ -389,8 +433,9 @@ termination. See `flix-comparison.md`.
 
 **Functions, reuse, and facets — I 3, W 4.**
 The row's center — the demand the record could previously not answer
-at all — is now worked: **late-bound operations and the test double**
-(`late-bound-operations-design.md`, exploration). An unbound
+at all — is now **adopted**: **late-bound operations and the test double**
+(`late-bound-operations-design.md`, 2026-07-23, in the joint
+adoption). An unbound
 operation is a request/response port pair on the diagram boundary,
 and binding a meaning is wiring a provider onto it at a boundary; the
 round is a unification of three worked pieces rather than a new
@@ -421,7 +466,7 @@ block; reverse-mode AD is fenced out honestly
 transformation-levels derived view).
 
 The row's other center — **the function boundary itself** — is now
-worked too (`function-boundary-design.md`, exploration, the round
+**adopted** too (`function-boundary-design.md`, 2026-07-23, the round
 three clients jointly demanded): a function is a **remembered cut**
 through the wiring, not a container — its ports are the wires the
 cut crosses (read off the drawing at extraction, never declared;
@@ -470,9 +515,14 @@ merge — settled by the conversation; the slot species; the
 obligatory declared signature; first-class functions restated; the
 argument list).
 
-Still open on the row's center: the joint adoption conversation
-(with the divide flow, the late-bound round, and the textual
-catch-up); the cut's edit gestures (editing round); boundary
+The joint adoption is **done** (2026-07-23): the cut ontology, the
+call/link substrate with no-named-recursion, the use-case account,
+partial cuts, and no first-class functions — under the
+anchor-is-identity constraint, and with a provisional-confidence
+marker on the slot-dissolves-into-op-pair piece (adopted as the
+working position without the conversation fully engaging it; a
+later look may reopen that piece alone). Still open on the row's
+center: the cut's edit gestures (editing round); boundary
 identity across versions (transformation-levels;
 `time-travel-programs-design.md` question 5 rides along); the
 conditional signature (checking question 3, unblocked not
@@ -511,7 +561,15 @@ stated direction of doubt, and the explicit bound that facets are views
 for a human, not verification. Their first in-record client is the
 collect family, which consumes the algebra facet as the authoring
 surface for user monoids (with the joint constraint that the facet
-carry a value witness — the identity — not just a named law).
+carry a value witness — the identity — not just a named law). A
+**tractable core** was noted at the 2026-07-23 walkthrough
+(`facets-design-notes.md`, "Facets as view toggles"): pure
+derived-view toggles over the one representation — wire-species
+visibility, layout-constraint sets (the IO rail's join column),
+interpretation switches (handle/flow synonym), sequencing wires
+with toggleable algebraic layout constraints — implementable
+without solving attachment, a substrate the authored-facet ladder
+can later build on.
 
 W = 4 (raised from 3) with a condition: three curated corpora
 converging (Effekt, Flix, Zig) argue 5, but per the standing method
@@ -600,15 +658,25 @@ analysis scripts) should still confirm the scope move. See
 
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
-**End-when: adoption and its open questions — I 2, W 5.**
-The exploration round exists with leanings (`end-when-design.md`;
-question 5 worked in place). Remaining: the adoption conversation
-itself; the inclusive/exclusive bit's final form (node-vs-wire now
-worked toward the node; the drawing and the tie-break interaction
-resolved with it); interrupt unification; the register
-final-readout anchor (touches the iteration-state round); the textual
-spelling. Low I is recent work; W = 5 (the surveys' biggest unserved
-everyday demand) is why the remaining distance is worth closing soon.
+**End-when: residue after adoption — I 2, W 5.**
+**Adopted** (2026-07-23 — `end-when-design.md`, status header and
+adoption notes): the law of the shortened flow, the standalone-node
+posture (the sibling stance to interrupt stands unchanged; the
+split-when relationship was settled at the root in the same
+conversation — end-when is the cut's prefix projection, see the
+variable-rate row), and the
+inclusive/exclusive bit as one bit on the node, exclusive default.
+Remaining: the register final-readout anchor (needs a stated rule;
+touches the iteration-state round); the textual spelling (with a
+recorded direction — a word pair like `to`/`until`, never a flag,
+decided jointly with split-when's destination setting); the bit's
+drawing (layout-side, out of scope here); interrupt unification
+stays deliberately unforced; and the continuation seam is now
+cashed by the cut decision (the continuation is a port of the
+root construct; edges filed at the variable-rate row).
+I stays 2 (the anchor rule is genuine semantic residue, not
+polish); W = 5 stands, which is why the anchor and spellings are
+worth closing soon.
 
 Evidence and prior art: the stop/discharge/split-on-tag composition
 survived contact with the textual form and reads well
@@ -722,9 +790,10 @@ graph features); the frequency question stays on the evidence-owed list.
 See `saturation-design.md`, `flix-comparison.md`,
 `collect-family-design.md`, `effekt-comparison.md`.
 
-**Recursion: the divide flow and trees — I 3, W 3.**
-Recursion over virtual structure is now worked
-(`divide-flow-design.md`, exploration — moved down from Tier 2 by
+**Recursion: the divide flow and trees — I 2, W 3.**
+Recursion over virtual structure is now **adopted**
+(`divide-flow-design.md`, 2026-07-23, in the joint adoption with
+the function-boundary round; previously moved down from Tier 2 by
 this index's maintenance rule): the divide flow is **the link
 transformation, tree-shaped** — write one level concretely (an
 ordinary case split; a leaf is an alt with no links, dissolving the
@@ -753,8 +822,11 @@ precedent), traversal orders dissolve into combines, and whole-tree
 collects are order-free iff commutative (the product-round law). Five
 dead ends recorded.
 
-Remaining: the adoption conversation (now joint with the
-function-boundary round's); the link's spelling and anchor — the
+Remaining (the adoption is done, under the recorded constraint —
+the anchor is an identity, a level label or boundary,
+never a value wire; the link's correspondences are thread-species
+identity assertions; wire-anchoring survives only as an editing
+gesture — see the doc's question 1): the link's spelling and anchor — the
 **level boundary**, the first construct-driven demand for the
 functions row's flow skeleton — now worked
 (`function-boundary-design.md`, revised in its first design
@@ -769,11 +841,14 @@ advance, composition when cycles share edges — is still unworked;
 where Zig's
 inference warning bites hardest); the measure catalog's schema (joint
 with the checking row's question 4); whole-tree linearization (rides
-the delay-ontology/product residue); and the **zipper seam** —
-whether tree-over-data iteration re-reads its computed-value accesses
-as drawn crossings and retires the verify-or-fall-back scheme
-(`trees-and-recursion.md` owns that decision; the round's leaning
-runs that way). W = 3 as a breadth obligation: the three random
+the delay-ontology/product residue); and the **zipper seam** — now
+**decided** (2026-07-23, `trees-and-recursion.md`, on amended
+grounds: soundness set aside — lazy compile the honest baseline,
+warned trust the standing policy — with readability decisive via
+the `childSizes`-from-nowhere ruling; the verifier retires,
+computed-value zipper ports retire as stored surface and re-read
+as drawn crossings, input-structure reads stay, the compact form
+and the traversal-order word surviving as derived views). W = 3 as a breadth obligation: the three random
 surveys produced one recursive draw (breadth item 9, survey 2 —
 transcribed in the round), but
 parsing supplies everyday demand from outside the sampled domains,
@@ -784,24 +859,65 @@ sample. See `divide-flow-design.md`, `trees-and-recursion.md`,
 `flix-comparison.md`.
 
 **How values cross a barrier — I 2, W 4.**
-Worked (`barrier-value-crossing-design.md`): crossing split into
-availability (provenance over the barrier's flow law; no pass-through
-value ports anywhere) and minted ports, with a co-location criterion
-for which mints share a node. The four corners answered with leanings:
-Join and the concurrent join flow-only; race's per-contender (value,
-flow) pairs confirmed, values-in; no multi-row partial collect — m rows
-are m sibling collects at one context; the discharge one settled-sum
-port on exactly-one kinds, the (prefix, terminator) pair on many kinds;
-five dead ends recorded. Remaining: the adoption conversation, the
-spec-side reconciliation (its Join's value ports re-read as drawn
-availability), and the concurrent join × Cross unification question it
-strengthened.
+Worked (`barrier-value-crossing-design.md`), now partly **adopted**
+(2026-07-23): the two mechanisms — availability (provenance over the
+barrier's flow law; no pass-through value ports anywhere) and minted
+ports — the co-location criterion, and corner 1 (Join and the
+concurrent join flow-only) are adopted, with a recorded
+clarification: a value wire does not participate in a flow
+operation — neither upstream nor downstream of it; the ordering is
+on contexts only. Corner 2 (race) is adopted with an amendment
+(2026-07-23): inputs are per-contender **(flow, payload) pairs** —
+the pair the lean on the stated principle that a barrier is a
+control-flow operation and its control flow should be a visible
+wire; the bare async value admissible as the completed-open
+aggregate; race re-read as the partial collect's async sibling;
+the unary-race leaning reshaped (await = open async). Corner 3 is
+adopted too (same conversation): m rows = m sibling partial
+collects, backed by the context-equality theorem (cell sets
+computed by walking — merges mint no worlds, openers do), the
+multi-row node staying a dead end that survives as a drawn view;
+a naming constraint recorded — the partial collect's surfaced
+name should not contain "collect" (it stays in flow-land). And
+corner 4 is resolved in an amended direction (same conversation):
+governed by the stated **one-closer principle** — when a loop's
+result has one consumer, one construct closes the loop flow — the
+discharging collect stays the single closer but its discharge half
+mints outcome cells directly (no packed `term` value; the cell
+set checked against the derived inventory, so the anti-swallowing
+result is node-local and exhaustiveness is 3c's adopted check);
+the `(prefix, term)` pair is demoted to the packed interim
+spelling. **Every corner is now decided**; what remains of this
+row is the spec-side reconciliation, the concurrent join × Cross
+question, and the discharge round's owed details (authored ending
+wires vs derived witnesses; the bare-end cell; spellings). **Corner 4 (the discharge's port shape)
+is contested** by the discharge-barrier direction
+(`failure-payloads-design.md`): fail-as-uncollect gives every
+failure an independent upstream wire, weakening the settled-sum
+justification — do not ratify as written. Five dead ends recorded.
+Remaining besides the corners: the spec-side reconciliation (its
+Join's value ports re-read as drawn availability) and the
+concurrent join × Cross unification question it strengthened.
 
 **Failability's residue — I 2, W 4.**
 The core is worked (terminator payloads, propagate-by-default,
 discharge at a whole-flow collect — `async-flow-design.md`), and the
 two flagged residues now carry a worked round of their own
-(`failure-payloads-design.md`, exploration; moved down from Tier 2 by
+(`failure-payloads-design.md`, now mixed: the **fail node itself is
+adopted** — 2026-07-23, with its ontology note (fail is the minting
+half of the applicative sequence; the accompanying
+commute-completion ruling is general — an implied commute is time
+travel and must be inferred *and viewable*, never merely absent) —
+and the **edge stance is adopted with an amendment** (same
+conversation): bodies total, declared throws as catalog-row lanes,
+and undeclared throws landing on the **background super flow** — a
+runtime-owned lane that silently commutes out of everything, joins
+with itself, stays out of every drawn inventory, and is collectable
+where wanted (a collect compiles to try/catch; the supervisor
+boundary made drawable; anchor/async-face/naming edges filed in the
+doc) — and the **inventory account is adopted too** (same
+conversation), so the whole round is now adopted design;
+moved down from Tier 2 by
 this index's maintenance rule). **Failure is drawn, not thrown**:
 bodies never raise ambiently — the raise is `fail`, the
 terminator-writing family's third member (one wiring, three
@@ -832,14 +948,29 @@ catalog rows. Five dead ends recorded (ambient bodies-raise; nominal
 sets with coercion; mandatory declared sets; the dynamic catch-all as
 the model; cause-chain wrapping).
 
-Residue: the adoption conversation (joint with the async round's
-failability section and end-when — the terminator-writing family is
-one family); tag identity across reuse boundaries (touches the
-catalog schema, question 4); the option/async convergence, sharpened
+Residue after adoption: tag identity across reuse boundaries (the
+one piece owing a worked round; touches the catalog schema,
+question 4 — now carrying the noted **site-as-label direction**:
+the minting site is itself a label, a failure facet could let
+discharges pick sites by location, and a tag becomes a drawn
+identification of sites, sharpening the scoped-by-default
+leaning); the **discharge-barrier direction** (noted same day,
+details owed: fail as an uncollect of an error flow, the error
+wires as drawn arrows to failure points, term-then-split as the
+packed sibling, a barrier minting per-site cells plus a completed
+cell whose success payload is answered by availability/mint per
+kind — contests the crossing round's corner 4); the super flow's
+filed edges (collect anchor, async
+face, `Cancelled` siblinghood, naming); interrupt's adoption
+paperwork (rides the async round; its verdict vocabulary is fixed
+by its two adopted siblings); the advisory tier's contents; the
+option/async convergence, sharpened
 again (an option is the `{Nil}` inventory) but undecided; the
 spellings, owed to the textual round jointly with end-when's.
-End-when's readout composition leans entirely on discharge, so
-adoption pressure arrives from the everyday side too.
+End-when's readout composition leans entirely on discharge, and
+end-when is now adopted (2026-07-23), so the family pressure is
+live: the everyday member is settled while `fail` and the
+inventory account await their conversation.
 
 Prior art, now consumed by the round rather than pending: Zig's `try`
 (propagate-by-default at one keyword) and its error-set algebra

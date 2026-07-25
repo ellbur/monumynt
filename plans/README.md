@@ -88,11 +88,15 @@ they change how everything else is read.
 - **[`iteration-with-state-design.md`](iteration-with-state-design.md)**
   — loop-carried state (running sums, accumulators, anything a loop
   updates as it goes). Two candidate surfaces are proven to compute the
-  same results; the open question is which drawing is primary. The bar:
-  easy for beginners *and* flexible enough for complex code. Start with
-  the reader's guide at the top. Companion:
+  same results, and *the surface decision is made* (2026-07-23): the
+  visible state thread is the primary framing — the register pair
+  stored, the Delay point and the augmented flow its projections. The
+  ergonomics round (making the thread friendly on the page) is
+  deliberately deferred; the generic-iteration picture constraint and
+  the constant-space caution are recorded in the doc's adoption note.
+  Start with the reader's guide at the top. Companion:
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
-  (the redesigned "rail" surface).
+  (the redesigned "rail" surface, promoted to input for that round).
 - **[`delay-ontology-design.md`](delay-ontology-design.md)** — the open
   problem split out of the doc above: what a Delay (the construct that
   carries a value to the next iteration) *is*, and which flow supplies
@@ -100,11 +104,14 @@ they change how everything else is read.
   original fork has dissolved; the hard residue is how several readers
   of one order-sensitive register over a multi-axis product each pick a
   reading order. The per-kind half — which flow kinds supply a "next
-  iteration" at all — is worked as the owned-order criterion (a flow
+  iteration" at all — is **adopted** (2026-07-23) as the owned-order
+  criterion (a flow
   supplies one exactly when its firings carry a total order the flow's
-  meaning owns, not one that merely happens at run time), cashing the
+  meaning owns, not one that merely happens at run time), with the
+  order-demand check and the `hold` identification, cashing the
   register checks the incremental, concurrent-collect, async, and
-  served rounds had written. *Exploration.*
+  served rounds had written. *The rest exploration — the linearization
+  residue and value-in-context model still owe their evidence.*
 - [`product-linearization-design.md`](product-linearization-design.md)
   — the doc above's one hard residue, worked: which order an
   order-sensitive register (or a spanning effect) walks a multi-axis
@@ -129,7 +136,16 @@ they change how everything else is read.
 - [`barrier-value-crossing-design.md`](barrier-value-crossing-design.md)
   — one place to answer how values cross barriers (joins, races, partial
   collects), a question several docs had deferred to each other. Two
-  mechanisms plus a co-location rule. *Exploration.*
+  mechanisms plus a co-location rule. *Mixed: the mechanisms, the
+  availability law, the co-location criterion, and flow-only joins
+  adopted (2026-07-23, with the clarification that value wires are
+  neither upstream nor downstream of a flow operation); the race
+  corner adopted with the pairs-in amendment (race as the partial
+  collect's async sibling); the partial-collect corner adopted (m
+  siblings, with a naming constraint — not a "collect"); the
+  discharge corner resolved by the one-closer principle — the
+  discharging collect mints outcome cells directly, no packed
+  terminator value. All corners decided.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
@@ -171,7 +187,11 @@ they change how everything else is read.
   only some branches of a case split; one k-ary partial-collect node.
 - [`collect-family-design.md`](collect-family-design.md) — the empty
   collect (what does an empty sum/max return?), identities as catalog
-  rows, and the keyed collect (group-by as flows). *Exploration.*
+  rows, and the keyed collect (group-by as flows). *Mixed: the
+  availability ladder adopted (2026-07-23 — monoid total, semigroup
+  option-shaped, non-associative augment-only; the runtime-error and
+  fake-∞ poles confirmed rejected); spellings and the keyed collect
+  still exploration.*
 
 ### Products of flows
 
@@ -188,10 +208,18 @@ consumes, and whether it needs an input list at all:
 
 - [`end-when-design.md`](end-when-design.md) — data-driven termination
   (stop the loop when the data says so): the surveys' biggest unserved
-  everyday demand, worked as a binary flow operation. *Exploration.*
+  everyday demand, worked as a binary flow operation. *Adopted
+  (2026-07-23): the construct and the node-bit with exclusive default;
+  spellings, the final-readout anchor, and the drawing still open —
+  see the doc's adoption notes.*
 - [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
   — "advance how far?" reframed as placing segment boundaries
-  (split-when), plus the running view of a collect. *Exploration.*
+  (split-when), plus the running view of a collect. *Mixed: the cut
+  root decided (2026-07-23 — end-when and split-when branch off one
+  root, the cut; split-when is the iterated cut, not a separate
+  primitive; see the status header); the running view reviewed and
+  deliberately left tentative — the drawing, not the semantics, is
+  the open problem.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
@@ -202,7 +230,10 @@ consumes, and whether it needs an input list at all:
 - [`trees-and-recursion.md`](trees-and-recursion.md) — iterating over
   trees and other recursive structures without writing a recursive
   function: a zipper-based uncollect walks the structure and exposes
-  each node with its full context. *Exploration.*
+  each node with its full context. *Exploration, with the soundness
+  seam decided (2026-07-23): the verifier retires, computed-value
+  zipper ports re-read as drawn crossings, the compact form a
+  derived view.*
 - [`divide-flow-design.md`](divide-flow-design.md) — recursion whose
   tree exists only as call structure (mergesort's splits, a parser's
   descent, a quadtree build): write one level concretely, then *link*
@@ -210,7 +241,9 @@ consumes, and whether it needs an input list at all:
   transformation, tree-shaped. Termination is a three-species measure
   discipline (structural shrink, cursor progress, drawn fuel); the
   left-recursion parser bug falls out as the progress measure's
-  violation. *Exploration.*
+  violation. *Adopted (2026-07-23, in the joint adoption, under the
+  anchor-is-identity constraint); the link's spelling and mutual
+  recursion's fine print remain open.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
@@ -251,7 +284,12 @@ consumes, and whether it needs an input list at all:
   drawn: consuming the handle after the loop does the job. An effect
   that needs no ordering gets its own per-firing-minted handle,
   which never crosses the loop boundary. Within-firing ordering and
-  the batched (collected-plan) pole are fenced out. *Exploration.*
+  the batched (collected-plan) pole are fenced out. *Exploration,
+  with a recorded direction (2026-07-23): IO is a flow, not a
+  handle — ops as uncollects joining into one global IO flow,
+  join's asymmetry the sequencing, the handle derived; granularity
+  dissolves into a fork/join readability program; external-world
+  interaction filed as a facet. See the doc's IO-as-flow section.*
 - [`within-firing-effects-design.md`](within-firing-effects-design.md) —
   effect ordering *within* one firing, and the conditional-flush buffer:
   within a firing there is no time — the only intra-firing order is
@@ -275,7 +313,9 @@ consumes, and whether it needs an input list at all:
   sub-diagrams with ports, existing for naming, reuse, and modularity —
   deliberately *not* for map/filter bodies (flows do that) and *not*
   first-class values (a function waiting to be called has no honest
-  visual form). *Exploration.*
+  visual form). *Superseded-and-adopted: the boundary round
+  (`function-boundary-design.md`) carries this chapter's stances and
+  is adopted (2026-07-23).*
 - [`function-boundary-design.md`](function-boundary-design.md) — the
   boundary construct itself, the round three worked rounds jointly
   demanded: a function is a **remembered cut** through the wiring, not
@@ -293,7 +333,12 @@ consumes, and whether it needs an input list at all:
   wires; the prefix rule derives the validity region; linear values
   force port-ification); the spec's slot dissolves into the op pair;
   function, level, provider, and the top-level program share one
-  substrate under four bindings. *Exploration.*
+  substrate under four bindings. *Adopted (2026-07-23, the joint
+  adoption with the divide flow and late-bound operations), under
+  the anchor-is-identity constraint and with a
+  provisional-confidence marker on the slot-dissolution piece; edit
+  gestures, spellings, and version identity remain with their
+  rounds.*
 - [`configuration-scopes.md`](configuration-scopes.md) — the replacement
   for higher-order arguments (comparators, predicates): instead of
   passing a function, open the operation as a scope and wire the
@@ -306,7 +351,9 @@ consumes, and whether it needs an input list at all:
   request/response port pair on the boundary — the client end of a
   served flow; binding is wiring a provider on; unmet demands travel
   outward like the placeholder story's residue; the facet supplies
-  the grouping identity. *Exploration.*
+  the grouping identity. *Adopted (2026-07-23, in the joint
+  adoption; the op-pair/slot identification carries the boundary
+  round's provisional-confidence marker); spellings still owed.*
 - [`facets-design-notes.md`](facets-design-notes.md) — early, deliberately
   undeveloped intuitions about *facets*: authorable, attachable
   abstractions (interfaces, algebras, state machines) you hang on code.
@@ -336,7 +383,13 @@ case/option are implemented; the rest are designed:
   drawn minting sites — union by propagation, exhaustive discharge
   with witnesses, re-tagging drawn only where meaning changes). Cashes
   the payload checks the cancellation, race, speculation, divide-flow,
-  and served-flow rounds had filed here. *Exploration.*
+  and served-flow rounds had filed here. *Adopted (2026-07-23): the
+  fail node (with the ontology note — fail is the minting half of
+  the applicative sequence — and the commute-completion ruling), the
+  edge stance with the background-super-flow amendment (undeclared
+  throws quarantined in one runtime-owned collectable lane), and the
+  inventory account. Tag identity across reuse boundaries is the
+  residue owing a worked round.*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*
@@ -356,7 +409,9 @@ case/option are implemented; the rest are designed:
   k-operation provider as a pre-split bundle, the recursive provider as
   the link in exchange costume, the keyed cache as a
   partition-plus-lane-register middleware, and the first joint working
-  of the top-down/bottom-up duality with saturation. *Exploration.*
+  of the top-down/bottom-up duality with saturation. *Mixed: the
+  two-ends core adopted (2026-07-23, riding the joint adoption); the
+  rest exploration.*
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
   values into a "necessity frontier."

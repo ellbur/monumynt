@@ -6,7 +6,16 @@ Status: exploration — this chapter teaches leanings that have not
 been adopted. Nothing in it is implemented, and the async runtime it
 presumes does not exist yet. Read every "race does X" below as "the
 current proposal is that race does X" — prepared for the design
-conversation, not decided.
+conversation, not decided. One update from the crossing side
+(2026-07-23, `barrier-value-crossing-design.md`, corner 2 —
+adopted with an amendment): race's inputs are per-contender
+**(flow wire, payload value wire) pairs** (a bare async value is
+admissible as the completed-open aggregate), race re-read as the
+partial collect's async sibling. That reshapes this chapter's
+unary-race leaning: under pairs, **await = open async** (the
+opener), and the N=1 race is the degenerate transport rather than
+the await — read the unary-race section with that amendment in
+mind.
 
 You will often want to start several things at once and act on
 whichever finishes first: a network fetch or a timer, a handshake or
