@@ -164,10 +164,19 @@ let checkWriteCount = (p: program): array<witness> => {
 // contexts are incomparable, walk them to their last common context and look at
 // the first divergent pair of steps.
 //
-//   - Both steps are cells of ONE case split (same node, different alt ports) →
-//     BUNDLE MIXING. The two values live in mutually exclusive cells that never
+//   - Both steps are cells of ONE bundle whose cell sets are DISJOINT → BUNDLE
+//     MIXING. The two values live in mutually exclusive cells that never
 //     coexist, so no execution produces both. A hard error (siblings may meet
-//     only at a collect — "the one door").
+//     only at a collect — "the one door"). Alt ports of one split are the
+//     all-singletons instance; two merged flows spanning disjoint cells are the
+//     same clash.
+//   - Both steps are cells of one bundle with a NON-EMPTY meet → the meet is
+//     where they combine, not a clash ("Revision: overlap is incorporate, not a
+//     clash"). `Context.merge` resolves that itself whenever the meet is a set
+//     the program constructed — a single cell always is — so reaching the
+//     classifier means the meet is WIDER than one cell and no partial collect
+//     spanning it was built. Reported by name rather than misfiled as time
+//     travel: the remedy is to construct the meet, not to insert a Cross.
 //   - Anything else (two independent opens, or two different splits) → TIME
 //     TRAVEL. Sibling contexts with no correspondence between their firings.
 //     Completable: completion inserts a Cross (product-flows-design.md); Check
@@ -175,12 +184,21 @@ let checkWriteCount = (p: program): array<witness> => {
 //
 // This is the refinement bundle-provenance-design.md folds into the alignment
 // step ("not a second check beside that one; the same check with the property
-// refined") — so the two flavors live here, and checkProvenance carries only
-// the deferred cell-set remainder.
+// refined") — so the flavors live here, and checkProvenance carries only the
+// deferred remainder.
 
 type clash =
   | Mixing({split: node, cellA: string, cellB: string})
+  | UnconstructedMeet({split: node, cellsA: array<string>, cellsB: array<string>, meet: array<string>})
   | TimeTravel({openA: flowRef, openB: flowRef})
+
+// Render a cell set the way the design writes it: a lone cell bare, a merge in
+// braces.
+let cellsToString = (cells: array<string>): string =>
+  switch cells {
+  | [one] => "\"" ++ one ++ "\""
+  | many => "{" ++ many->Array.join(", ") ++ "}"
+  }
 
 let classifyClash = (left: array<flowRef>, right: array<flowRef>): clash => {
   // Longest common prefix by flow key. Incomparable ⇒ neither path is a prefix
@@ -195,12 +213,18 @@ let classifyClash = (left: array<flowRef>, right: array<flowRef>): clash => {
     k := k.contents + 1
   }
   switch (left[k.contents], right[k.contents]) {
-  | (Some(FlowPort(na, pa)), Some(FlowPort(nb, pb))) if na.id === nb.id =>
-    switch altsOfSplit(na) {
-    | Some(_) => Mixing({split: na, cellA: pa, cellB: pb})
-    | None => TimeTravel({openA: FlowPort(na, pa), openB: FlowPort(nb, pb)})
+  | (Some(l), Some(r)) =>
+    // Cell sets first: they subsume the same-node alt-port test (an alt flow is
+    // the singleton `{A}`) and reach merged flows, which live on their own
+    // nodes and so would otherwise look like unrelated opens.
+    switch (branchCells(l), branchCells(r)) {
+    | (Some((sa, ca)), Some((sb, cb))) if sa.id === sb.id =>
+      switch ca->Array.filter(c => cb->Array.includes(c)) {
+      | [] => Mixing({split: sa, cellA: cellsToString(ca), cellB: cellsToString(cb)})
+      | meet => UnconstructedMeet({split: sa, cellsA: ca, cellsB: cb, meet})
+      }
+    | _ => TimeTravel({openA: l, openB: r})
     }
-  | (Some(l), Some(r)) => TimeTravel({openA: l, openB: r})
   | _ =>
     // Unreachable: an incomparable pair always diverges before either path ends.
     failwith("Check.classifyClash: contexts are comparable — merge should not have raised")
@@ -223,13 +247,43 @@ let checkAlignment = (p: program): array<witness> => {
       {
         nodeId: n.id,
         rule: "bundle-mixing",
-        message: "values live in mutually exclusive cells \"" ++
+        message: "values live in mutually exclusive cells " ++
         cellA ++
-        "\" and \"" ++
+        " and " ++
         cellB ++
-        "\" of case split node " ++
+        " of case split node " ++
         Int.toString(split.id) ++
         "; no execution produces both (sibling cells meet only at a collect)",
+      },
+    )
+
+  // Overlapping cell sets are not a clash — the combination lives at the meet
+  // (bundle-provenance-design.md, "Revision: overlap is incorporate, not a
+  // clash"), and `Context.merge` takes it there whenever the meet is a
+  // constructed set. A WIDER meet with no partial collect spanning it has no
+  // constructed home, exactly as a sibling combine with no covering product has
+  // none, so the remedy is to construct it — not to insert a Cross.
+  let unconstructedMeetWitness = (
+    n: node,
+    split: node,
+    cellsA: array<string>,
+    cellsB: array<string>,
+    meet: array<string>,
+  ) =>
+    Array.push(
+      out,
+      {
+        nodeId: n.id,
+        rule: "unconstructed-meet",
+        message: "values on overlapping cell sets " ++
+        cellsToString(cellsA) ++
+        " and " ++
+        cellsToString(cellsB) ++
+        " of case split node " ++
+        Int.toString(split.id) ++
+        " combine at their meet " ++
+        cellsToString(meet) ++
+        ", which the program never constructed; collect those cells into a merged flow first",
       },
     )
 
@@ -262,6 +316,8 @@ let checkAlignment = (p: program): array<witness> => {
       | exception Context.Incomparable({left, right, where: _}) =>
         switch classifyClash(left, right) {
         | Mixing({split, cellA, cellB}) => mixingWitness(n, split, cellA, cellB)
+        | UnconstructedMeet({split, cellsA, cellsB, meet}) =>
+          unconstructedMeetWitness(n, split, cellsA, cellsB, meet)
         | TimeTravel({openA, openB}) =>
           // Full-span: does the WHOLE value have a poset home? If a constructed
           // Cross covers every combine it reaches, admit; otherwise it is a
@@ -289,6 +345,8 @@ let checkAlignment = (p: program): array<witness> => {
       | exception Context.Incomparable({left, right, where: _}) =>
         switch classifyClash(left, right) {
         | Mixing({split, cellA, cellB}) => mixingWitness(n, split, cellA, cellB)
+        | UnconstructedMeet({split, cellsA, cellsB, meet}) =>
+          unconstructedMeetWitness(n, split, cellsA, cellsB, meet)
         | TimeTravel({openA, openB}) =>
           switch Poset.merge(~products, Context.pathToPoset(left), Context.pathToPoset(right)) {
           | _ => () // admitted — a constructed Cross covers this combine

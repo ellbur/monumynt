@@ -828,15 +828,39 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
   | CaseFull => emitCaseCollect(st, ctx, cn, branches)
   | CasePartial(_) =>
     // A partial collect's value output is the MERGED value — flow-borne on its
-    // own merged flow, pre-memoised inside the terminating dispatch's arms
-    // (emitPartialCollect). Reaching it here as a plain value means it was
-    // consumed outside its flow — Check's flow-borne rule should have witnessed
-    // it. (The merged flow itself is handled by `spine`, not here.)
-    failwith(
-      "Codegen: partial collect node " ++
-      Int.toString(cn.id) ++
-      "'s merged value reached outside its flow — Check's flow-borne rule should have witnessed this",
+    // own merged flow. The emitters that OPEN that flow (emitPartialCollect,
+    // emitCaseCollect) pre-memoise it per arm, so reaching it here means it was
+    // read from inside one of its cells by a chain that opened that cell some
+    // OTHER way — an ordinary filter on one alt, say. That is well-formed by the
+    // containment theorem (`{A} ⊆ {A, B}`), and inside cell A the merged value
+    // IS A's branch value, so resolve it on demand: place it at the cell segment
+    // the chain has open and bind the covering branch's value there.
+    // (The merged flow consumed AS a flow is `spine`'s job, not this one.)
+    let structural = Context.valueContext(ValuePort(cn, "value"))
+    let armCtx = instantiate(
+      ~what="Partial collect node " ++ Int.toString(cn.id) ++ "'s merged value",
+      structural,
+      ctx,
     )
+    let cell = switch armCtx->Array.last {
+    | Some({flow: FlowPort(_, port)}) => port
+    | None =>
+      failwith(
+        "Codegen: partial collect node " ++
+        Int.toString(cn.id) ++
+        "'s merged value reached at the top level — Check's flow-borne rule should have witnessed this",
+      )
+    }
+    let floated = memoiseMergedValues(st, armCtx, FlowPort(cn, "flow"), cell)
+    switch lookupMemo(st, cn.id, "value", armCtx) {
+    | Some(name) => {name, floated}
+    | None =>
+      failwith(
+        "Codegen: partial collect node " ++
+        Int.toString(cn.id) ++
+        " covers no cell open on the chain — Check's flow-borne rule should have witnessed this",
+      )
+    }
   | Malformed(msg) =>
     failwith("Codegen: malformed collect: " ++ msg ++ " — Check's coverage rule should have witnessed this")
   }

@@ -902,6 +902,202 @@ header("partial collect over a partial collect: nested cell merges")
 }
 
 // ============================================================================
+// 7o. A merged value read from INSIDE one of its cells, by a chain that opens
+//     that cell some other way — the containment theorem reached on demand
+//     rather than by the merging node's own emitter. The merge spans {A, B}; an
+//     ordinary filter keeps only the A firings and reads the merged value there.
+//     `{A} ⊆ {A, B}`, so the merged value is available — and inside cell A it IS
+//     A's branch value.
+// ============================================================================
+
+header("partial collect: the merged value read from inside one cell")
+{
+  let b = Build.make()
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let dbl = Build.raw(b, "x => x * 2")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4), int_(5), int_(6)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, it.element)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  // A plain filter on alt A — nothing here mentions the merge — whose value
+  // reads the merged value of the {A, B} merge.
+  let keepA = Build.join(b, ~outer=it.flow, ~inner=ca.altFlow)
+  let doubled = Build.app(b, dbl.value, [picked.value])
+  let out = Build.collect(b, ~flow=keepA.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // A firings are the multiples of 3: 3 and 6; inside cell A the merged value
+  // is A's own payload, so the result is [6, 12].
+  expectOutput(p, "out", array_([int_(6), int_(12)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7p. The same read from a cell the merge does NOT cover. `{C} ⊄ {A, B}`, so the
+//     merged value is not available there — it does not exist on the firings
+//     where C fired — and the merged flow survives the collect as a context the
+//     output cannot be read at. A `flow-borne` witness, not a codegen crash.
+// ============================================================================
+
+header("partial collect: a merged value is not readable from an uncovered cell")
+{
+  let b = Build.make()
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let dbl = Build.raw(b, "x => x * 2")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, it.element)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let cc = Build.alt(cs, "C")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  // Keep the C firings — a cell the {A, B} merge does not cover — and read the
+  // merged value there.
+  let keepC = Build.join(b, ~outer=it.flow, ~inner=cc.altFlow)
+  let doubled = Build.app(b, dbl.value, [picked.value])
+  let out = Build.collect(b, ~flow=keepC.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "flow-borne") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("flow-borne witness: the merged value is not readable from an uncovered cell")
+    } else {
+      fail(
+        "expected a flow-borne witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("a merged value was read from an uncovered cell without a witness")
+  }
+}
+
+// ============================================================================
+// 7q. OVERLAPPING cell sets combine at their MEET (bundle-provenance-design.md,
+//     "Revision: overlap is incorporate, not a clash"). Two merges over one
+//     bundle — {A, B} and {B, C} — carry values that combine at
+//     {A,B} ∩ {B,C} = {B}, "the greatest cell set contained in both ... and it
+//     is *unique*". Only a DISJOINT meet is bundle mixing.
+//
+//     The meet has to be a set the program constructed, exactly as a sibling
+//     combine's home has to be a constructed product; a single cell always is —
+//     the split's own alt flow port, engaged by both merges. Nothing in codegen
+//     was needed: the combine lands at cell B's arm, and each merged value
+//     resolves there by containment (7o's on-demand read).
+// ============================================================================
+
+header("partial collect: overlapping cell sets combine at their meet")
+{
+  let b = Build.make()
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let tenX = Build.raw(b, "n => n * 10")
+  let plus = Build.raw(b, "(x, y) => x + y")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, it.element)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let cc = Build.alt(cs, "C")
+  // {A, B}: the payload as-is. {B, C}: the payload times ten.
+  let ab = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let bc = Build.collectCases(
+    b,
+    [
+      (cb.altFlow, Build.app(b, tenX.value, [cb.altValue]).value),
+      (cc.altFlow, Build.app(b, tenX.value, [cc.altValue]).value),
+    ],
+  )
+  // The combine lives at {B} — the only cell on which both merges fire.
+  let both = Build.app(b, plus.value, [ab.value, bc.value])
+  let keepB = Build.join(b, ~outer=it.flow, ~inner=cb.altFlow)
+  let out = Build.collect(b, ~flow=keepB.flow, both.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // B firings are n % 3 == 1: 1 and 4. At B, {A,B} carries n and {B,C} carries
+  // 10n, so the sum is 11n: [11, 44].
+  expectOutput(p, "out", array_([int_(11), int_(44)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7r. The two ways a cell-set overlap can fail to resolve, each reported by the
+//     rule that owns it rather than misfiled as time travel (which would offer
+//     "insert a Cross" as the remedy for a bundle question).
+//
+//     (a) DISJOINT cell sets — {A, B} against {C, D} — are bundle mixing: no
+//         execution produces both. Alt ports of one split were always caught;
+//         two merged flows live on their own nodes and used to look like
+//         unrelated opens.
+//     (b) A meet WIDER than one cell — {A,B,C} ∩ {B,C,D} = {B,C} — is where the
+//         values combine, but only a set the program CONSTRUCTED can host them,
+//         exactly as a sibling combine needs a constructed product. The remedy
+//         is to build the merge, not to insert a Cross.
+// ============================================================================
+
+header("partial collect: disjoint cell sets are bundle mixing, wide meets need constructing")
+{
+  let mk = (~overlap: bool) => {
+    let b = Build.make()
+    let classify = Build.raw(
+      b,
+      "n => ({tag: ['A', 'B', 'C', 'D'][n % 4], value: n})",
+    )
+    let plus = Build.raw(b, "(x, y) => x + y")
+    let one = Build.lit(b, int_(1))
+    let cs = Build.caseSplit(b, ~alts=["A", "B", "C", "D"], ~discriminator=classify.value, one.value)
+    let cell = name => Build.alt(cs, name)
+    let left = Build.collectCases(
+      b,
+      overlap
+        ? [
+            (cell("A").altFlow, cell("A").altValue),
+            (cell("B").altFlow, cell("B").altValue),
+            (cell("C").altFlow, cell("C").altValue),
+          ]
+        : [(cell("A").altFlow, cell("A").altValue), (cell("B").altFlow, cell("B").altValue)],
+    )
+    let right = Build.collectCases(
+      b,
+      overlap
+        ? [
+            (cell("B").altFlow, cell("B").altValue),
+            (cell("C").altFlow, cell("C").altValue),
+            (cell("D").altFlow, cell("D").altValue),
+          ]
+        : [(cell("C").altFlow, cell("C").altValue), (cell("D").altFlow, cell("D").altValue)],
+    )
+    let combined = Build.app(b, plus.value, [left.value, right.value])
+    let out = Build.collect(b, ~flow=Program.FlowPort(left.node, "flow"), combined.value)
+    Build.finish(b, ~outputs=[("out", out.value)])
+  }
+
+  let expectRule = (p, rule, what) =>
+    switch Pipeline.compile(p) {
+    | Error(ws) =>
+      if ws->Array.some(w => w.rule === rule) {
+        Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+        pass(what)
+      } else {
+        fail(
+          "expected a " ++
+          rule ++
+          " witness, got:\n  " ++
+          ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+        )
+      }
+    | exception Codegen.Todo(m) => fail("expected a " ++ rule ++ " witness, got a Todo: " ++ m)
+    | Ok(_) => fail("expected a " ++ rule ++ " witness, but the program compiled")
+    }
+
+  expectRule(mk(~overlap=false), "bundle-mixing", "disjoint merged cell sets are bundle mixing")
+  expectRule(
+    mk(~overlap=true),
+    "unconstructed-meet",
+    "a meet wider than one cell is named, with the remedy of constructing it",
+  )
+}
+
+// ============================================================================
 // 7d. Partial collect over an option leading level —
 //     join(join(list, option), <partial>). Per list element, open an option
 //     (present iff n >= 2); per present value, dispatch a covered subset {A, B}
