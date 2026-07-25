@@ -651,13 +651,36 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
 // is traversed by INDEX rather than by for-of, so that a partial product
 // traversal nested inside it can index the shared table at this coordinate.
 // (A FILTERED axis's leading open is not itself the axis — the kept firings are
-// — so it is not traversed by index and does not answer yes here. Holding a
-// filtered axis while collecting another is the fibered case, which stays with
-// the rest of the poset round.)
+// — so the leading loop does not answer yes here. A chain axis supplies its
+// coordinate differently: see `chainAxisFlow` below.)
 let isProductAxisNode = (st: state, uncollect: node): bool =>
   st.products->Array.some(p =>
     p.axes->Array.some(a => !a.chain && a.uncollect.id === uncollect.id)
   )
+
+// Is this flow a FILTERED (join-chain) axis of some product? Such an axis is one
+// row per KEPT firing, so its coordinate is not a loop index — it is the running
+// count of firings that survived the chain, which is exactly the count the table
+// build pushed rows by (`getOrBuildTable` walks the same chain, and
+// `getOrBuildExtent` counts it the same way). A chain that iterates such an axis
+// therefore mints a kept-firing counter and hands each firing its own coordinate,
+// which is what lets a traversal nested inside it index the shared table — the
+// fibered read over a filtered axis (product-flows-design.md's first filtering
+// regime, "rectangular, just smaller", held rather than collected).
+let chainAxisFlow = (st: state, f: flowRef): bool => {
+  let k = Context.flowKey(Context.throughCommutes(f))
+  st.products->Array.some(p => p.axes->Array.some(a => a.chain && a.axisKey === k))
+}
+
+// Which segment of an open chain carries a held axis's coordinate. For a plain
+// axis it is the axis's own indexed loop, named by the axis flow itself. For a
+// filtered axis it is the INNERMOST LAYER of its chain — the point the kept-firing
+// counter is minted at, and the point one row of the table corresponds to — so the
+// axis is named by its last span key rather than by the join it is spelled as.
+let axisHeldAt = (a: productAxis, s: seg): bool => {
+  let k = Context.flowKey(s.flow)
+  a.axisKey === k || (a.chain && a.spanKeys->Array.last === Some(k))
+}
 
 // The same question asked of a flow reference (resolved through a transposing
 // commute, which denotes its operand swapped): is this chain level a product
@@ -673,9 +696,10 @@ let isProductAxisFlow = (st: state, f: flowRef): bool => {
 // collect form — collecting the X axis of an {X, Y} product yields one list per
 // y, i.e. a value that still varies with Y ("a collect over a crossed axis
 // reports {Y}", the context model). The axes the chain does NOT collect are
-// HELD: they must already be open in the current chain context as indexed
-// product-axis loops, whose index variables the emitted thunk reads to index the
-// shared table.
+// HELD: they must already be open in the current chain context WITH A COORDINATE
+// — an indexed product-axis loop for a plain axis, a kept-firing counter for a
+// chain (filtered / flattened) one — which the emitted thunk reads to index the
+// shared table. `axisHeldAt` names the segment carrying it, either way.
 //
 // Any number of axes may be held. With one, the fiber is a single layer; with
 // several — a rank-3 product collected over one axis holds `{Y, Z}` — the fiber
@@ -718,12 +742,12 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
             Array.length(keys) >= 1 &&
             spansProduct(p, sAxes)
           ) {
-            // Every held axis must be an indexed loop already open on this chain.
+            // Every held axis must already be open on this chain with a
+            // coordinate: an indexed loop for a plain axis, a kept-firing counter
+            // for a filtered one (`axisHeldAt` names the segment either way).
             let resolved = held->Array.filterMap(a =>
               ctx
-              ->Array.find(s =>
-                Context.flowKey(s.flow) === a.axisKey && Option.isSome(s.idxVar)
-              )
+              ->Array.find(s => axisHeldAt(a, s) && Option.isSome(s.idxVar))
               ->Option.flatMap(s => s.idxVar->Option.map(iv => (a, iv)))
             )
             let chainAxes = flows->Array.filterMap(f => {
@@ -739,7 +763,7 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
               // unrelated iteration, shallower would put the index out of scope.
               let deepest = ref(0)
               ctx->Array.forEachWithIndex((s, i) =>
-                if held->Array.some(a => Context.flowKey(s.flow) === a.axisKey) {
+                if held->Array.some(a => axisHeldAt(a, s)) {
                   deepest := i + 1
                 }
               )
@@ -1142,7 +1166,35 @@ and emitIterCollect = (
     }
   )
 
-  let valueC = compileValue(st, parentCtx.contents, branch.value)
+  // A chain that iterates a FLATTENED product axis (`join(list, list)` — a chain
+  // axis with no dispatch level) hands each firing its coordinate the same way
+  // the cell chain does: one running count over the whole flattened order, which
+  // is the order the table build pushed its rows in. Minted here rather than in
+  // `buildChain` only because this walk is the one that assembles a pure-iter
+  // chain; the rule is the same one.
+  let keptCounter = chainAxisFlow(st, branch.flow) ? Some(st.fresh()) : None
+  let payloadCtx = switch keptCounter {
+  | Some(c) if Array.length(plans) > 0 => {
+      let inner = parentCtx.contents
+      let ixName = st.fresh()
+      let last = inner->Array.getUnsafe(Array.length(inner) - 1)
+      let tagged = Array.concat(
+        inner->Array.slice(~start=0, ~end=Array.length(inner) - 1),
+        [{...last, idxVar: Some(ixName)}],
+      )
+      Array.push(
+        floatedAcc,
+        {
+          at: tagged,
+          stmt: JsBuild.const(ixName, JsAst.EUpdate({op: PostInc, operand: JsBuild.id(c)})),
+        },
+      )
+      tagged
+    }
+  | _ => parentCtx.contents
+  }
+
+  let valueC = compileValue(st, payloadCtx, branch.value)
   valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
   // Partition: statements addressed to one of this collect's level bodies
@@ -1213,7 +1265,14 @@ and emitIterCollect = (
   } else {
     JsBuild.letDecl(outName)
   }
-  let thunkBody = Array.concat([accDecl], Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]))
+  let counterDecl = switch keptCounter {
+  | Some(c) => [JsBuild.let_(c, JsBuild.int_(0))]
+  | None => []
+  }
+  let thunkBody = Array.concat(
+    Array.concat([accDecl], counterDecl),
+    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
+  )
 
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
@@ -1749,11 +1808,22 @@ and walkFilterLevels = (
 // Returns the statements to emit at `exterior`, plus the `placed` statements
 // addressed to `exterior` or shallower, which the caller places (an arm claims
 // those addressed to itself; the top-level caller floats them out of the thunk).
+//
+// `keptCounter` is the caller's kept-firing counter, passed when the chain
+// ITERATES a filtered product axis (`chainAxisFlow`). Each payload point then
+// opens with `const i = c++`, and that `i` is tagged onto the innermost segment
+// as its `idxVar` — so a traversal emitted inside this firing indexes the shared
+// table at this axis's coordinate, exactly as a plain axis's loop index does. A
+// partial level branches, so each arm mints its own coordinate; exactly one arm
+// runs per firing, and the table build (which walks this same chain) pushed its
+// rows in the same order.
 and buildChain = (
   st: state,
   ownerId: int,
   exterior: ctxPath,
   levels: array<level>,
+  ~keptCounter: option<string>=None,
+  ~exteriorIsArm: bool=false,
   mkPayload: ctxPath => (array<JsAst.stmt>, array<placed>),
 ): (array<JsAst.stmt>, array<placed>) => {
   let partialAt = levels->Array.findIndex(l =>
@@ -1823,16 +1893,54 @@ and buildChain = (
         FlowPort(partialCollect, "flow"),
         cell,
       )->Array.forEach(pl => Array.push(floatedAcc, pl))
-      let (armStmts, armFloated) = buildChain(st, ownerId, armCtx, post, mkPayload)
+      // `exteriorIsArm`: the arm's own cell segment is a level of this chain, so a
+      // payload emitted directly at it (a trailing partial) still gets a
+      // coordinate, even though the recursion walks no further levels.
+      let (armStmts, armFloated) = buildChain(
+        st,
+        ownerId,
+        armCtx,
+        post,
+        ~keptCounter,
+        ~exteriorIsArm=true,
+        mkPayload,
+      )
       armFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
       (cell, armCtx, payloadName, armStmts)
     })
     Some((splitName, discC.name, inputC.name, arms))
   }
+  // This firing's coordinate on a filtered axis: `const i = c++`, declared at the
+  // top of the innermost body (ahead of everything the payload emits there, which
+  // is why it is pushed before the payload compiles) and tagged onto the segment
+  // as its index. The bucket key ignores `idxVar`, so tagging changes where
+  // nothing lands — it only makes the coordinate reachable.
+  // (A partial level defers this to its arms: a firing landing in an uncovered
+  // cell is not a kept firing and contributes no row, so the counter advances
+  // inside the arm that fired — which is where the recursion mints it.)
   let payloadStmts = switch armData {
   | Some(_) => []
   | None => {
-      let (stmts, fl) = mkPayload(innerCtx)
+      let payloadCtx = switch keptCounter {
+      | Some(c) if Array.length(plans) > 0 || exteriorIsArm => {
+          let ixName = st.fresh()
+          let last = innerCtx->Array.getUnsafe(Array.length(innerCtx) - 1)
+          let tagged = Array.concat(
+            innerCtx->Array.slice(~start=0, ~end=Array.length(innerCtx) - 1),
+            [{...last, idxVar: Some(ixName)}],
+          )
+          Array.push(
+            floatedAcc,
+            {
+              at: tagged,
+              stmt: JsBuild.const(ixName, JsAst.EUpdate({op: PostInc, operand: JsBuild.id(c)})),
+            },
+          )
+          tagged
+        }
+      | _ => innerCtx
+      }
+      let (stmts, fl) = mkPayload(payloadCtx)
       fl->Array.forEach(pl => Array.push(floatedAcc, pl))
       stmts
     }
@@ -2003,13 +2111,26 @@ and emitCellChain = (
     }
     ([action], valueC.floated)
   }
-  let (stmts, escaped) = buildChain(st, cn.id, exterior, levels, mkPayload)
+  // A chain that iterates a FILTERED product axis hands each kept firing its own
+  // coordinate, so a traversal nested inside this loop can index the shared table
+  // at it (the fibered read over a filtered axis). The counter lives outside every
+  // loop, guard, and arm — one axis, one running count — exactly where the table
+  // build's own row index lives.
+  let keptCounter = chainAxisFlow(st, branch.flow) ? Some(st.fresh()) : None
+  let (stmts, escaped) = buildChain(st, cn.id, exterior, levels, ~keptCounter, mkPayload)
   let accDecl = if anyList {
     JsBuild.const(outName, JsBuild.array_([]))
   } else {
     JsBuild.letDecl(outName)
   }
-  let thunkBody = Array.concat([accDecl], Array.concat(stmts, [JsBuild.ret(JsBuild.id(outName))]))
+  let counterDecl = switch keptCounter {
+  | Some(c) => [JsBuild.let_(c, JsBuild.int_(0))]
+  | None => []
+  }
+  let thunkBody = Array.concat(
+    Array.concat([accDecl], counterDecl),
+    Array.concat(stmts, [JsBuild.ret(JsBuild.id(outName))]),
+  )
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
   {

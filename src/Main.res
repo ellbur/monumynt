@@ -3994,20 +3994,25 @@ header("cross: an operand that repeats the other's axis is witnessed, not crosse
   }
 }
 
-// 15r5. The boundary this round did NOT cross: a filtered axis HELD by an
-//       enclosing loop while another is collected — the fibered traversal over a
-//       filtered axis. A product axis is held by being traversed by INDEX, and
-//       the kept firings of a chain are not an indexed loop, so the chain is not
-//       matched and the router declines with a clean gap rather than compiling
-//       the wrong table read. Full chains over filtered axes (15r/15r2) are
-//       unaffected; this is the fibered row of the poset round, one step on.
+// 15r5. A filtered axis HELD while the other is collected — the FIBERED read
+//       over a filtered axis. Holding an axis means having its coordinate, and
+//       for a filtered axis that coordinate is not a loop index: it is the
+//       running count of the firings that SURVIVED the chain, which is exactly
+//       what the table build pushed its rows by. So the holding chain mints a
+//       kept-firing counter and hands each kept firing `const i = c++`, and the
+//       traversal nested inside indexes the shared table at it — the same read
+//       the plain-axis fiber does (15h), over an axis that is "rectangular, just
+//       smaller" (product-flows-design.md's first filtering regime). Both
+//       fiberings are here, and they share the one table: hold the filtered axis
+//       and collect the plain one, and the transpose.
 // ============================================================================
 
-header("cross: a FIBERED read over a filtered axis declines cleanly (a gap)")
+header("cross: a FIBERED read over a filtered axis (both fiberings, one table)")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, bb) => a + bb")
   let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let joinF = Build.raw(b, "l => l.join(\"-\")")
   let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
   let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
   let itX = Build.uncollectList(b, xs.value)
@@ -4018,20 +4023,101 @@ header("cross: a FIBERED read over a filtered axis declines cleanly (a gap)")
   let itY = Build.uncollectList(b, ys.value)
   let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
   let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  // Fiber over the FILTERED axis: hold each kept x, collect the Y axis, reduce.
   let row = Build.collect(b, ~flow=itY.flow, s.value) // one row per kept x
   let tot = Build.app(b, sumF.value, [row.value])
   let out = Build.collect(b, ~flow=kx.flow, tot.value)
-  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // The transpose: hold each y, collect the filtered X axis, join (a
+  // non-commutative reducer, so the kept-x order is observable).
+  let col = Build.collect(b, ~flow=kx.flow, s.value) // one column per y
+  let joined = Build.app(b, joinF.value, [col.value])
+  let outT = Build.collect(b, ~flow=itY.flow, joined.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value), ("outT", outT.value)])
+  // kept x = [2, 4]; y = [10, 20]; s = x + y.
+  // Per kept x: [x+10, x+20] summed — 2 ⇒ 34, 4 ⇒ 38.
+  expectOutput(p, "out", array_([int_(34), int_(38)]))
+  // Per y: the kept x's, in kept order — [2+y, 4+y] joined.
+  expectOutput(p, "outT", array_([str("12-14"), str("22-24")]))
+
+  // Golden: the user's add still appears once. Both fiberings — one holding the
+  // filtered axis, one collecting it — read the one shared table, so the
+  // computation still runs once per point of the smaller rectangle.
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("a fibered read over a filtered axis declines with a clean Todo")
-  | Ok(_) => fail("expected a codegen gap for the fibered filtered axis, but it compiled")
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + bb")
+      if n === 1 {
+        pass("add's work appears once (both fiberings share the filtered table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out to inspect for add-once")
+    }
   | Error(ws) =>
     fail(
-      "expected a codegen gap, got witnesses:\n  " ++
+      "the fibered filtered read failed check:\n  " ++
       ws->Array.map(Check.witnessToString)->Array.join("\n  "),
     )
+  | exception Codegen.Todo(g) => fail("the fibered filtered read declined: " ++ g)
   }
-  // It still prints and reparses — representable, just not yet compilable.
+  expectRoundTrip(p)
+}
+
+// 15r6. The same sentence with no dispatch in it: a FLATTENED axis
+//       (`join(list, list)` — a list of groups, iterated as one sequence) held
+//       while the other axis is collected. A chain axis's coordinate is the count
+//       of the firings it produces, whether a dispatch dropped some of them or a
+//       flatten multiplied them, so the flattened fiber is the filtered one with
+//       the guard removed. Both fiberings again, over the one shared table.
+// ============================================================================
+
+header("cross: a FIBERED read over a FLATTENED axis (both fiberings, one table)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let joinF = Build.raw(b, "l => l.join(\"-\")")
+  let groups = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3)])]))
+  let itG = Build.uncollectList(b, groups.value)
+  let itX = Build.uncollectList(b, itG.element)
+  let fx = Build.join(b, ~outer=itG.flow, ~inner=itX.flow) // firings: 1, 2, 3
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=fx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // Fiber over the flattened axis: hold each firing, collect Y, reduce.
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=fx.flow, tot.value)
+  // The transpose: hold each y, collect the flattened axis, join.
+  let col = Build.collect(b, ~flow=fx.flow, s.value)
+  let joined = Build.app(b, joinF.value, [col.value])
+  let outT = Build.collect(b, ~flow=itY.flow, joined.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value), ("outT", outT.value)])
+  // The flattened order is 1, 2, 3 — the groups are gone, one axis remains.
+  expectOutput(p, "out", array_([int_(32), int_(34), int_(36)]))
+  expectOutput(p, "outT", array_([str("11-12-13"), str("21-22-23")]))
+
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + bb")
+      if n === 1 {
+        pass("add's work appears once (both fiberings share the flattened table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail(
+      "the fibered flattened read failed check:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | exception Codegen.Todo(g) => fail("the fibered flattened read declined: " ++ g)
+  }
   expectRoundTrip(p)
 }
 
