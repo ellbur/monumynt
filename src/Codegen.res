@@ -629,11 +629,20 @@ let underCoveredProduct = (cn: node): bool =>
 // its ALT NAME as well as the split id: two different alts of one split are two
 // different subsequences, so a register folding the Keep alt is not scanned by a
 // collect over the Drop alt.
+// A PARTIAL level is the same key at width k: the split plus the CELL SET it
+// keeps, so two merges of different cells over one split are two different
+// subsequences, exactly as two alts of one split are.
 let levelKey = (l: level): string =>
   switch l {
   | IterLevel({uncollect}) => Int.toString(uncollect.id)
   | AltLevel({split, alt}) => Int.toString(split.id) ++ ":" ++ alt
-  | PartialLevel({split}) => Int.toString(split.id) ++ ":partial"
+  | PartialLevel({split, branches}) =>
+    Int.toString(split.id) ++
+    ":" ++
+    switch classifyCollect(branches) {
+    | CasePartial(cells) => cells->Array.toSorted(String.compare)->Array.join("|")
+    | _ => "partial"
+    }
   }
 
 let sameLevelKeys = (a: array<string>, b: array<string>): bool =>
@@ -1925,13 +1934,17 @@ and emitCellChain = (
 // sequence (`join(list, case-alt)`): the register walks the Some-subsequence,
 // advancing only on the firings whose alt matches (delay-ontology-design.md,
 // route (b) "filter inside": the Delay's flow is the kept subsequence, so the
-// register "only updates when the option is Some"). The alt-guard logic is
-// shared with emitCellChain via walkFilterLevels, so the accumulator step
-// and `prev` sit inside the alt guard and the one `let reg` lives outside every
-// loop and guard. Still Todo: a PARTIAL merged driving flow (the k-arm-dispatch
-// cell-set case, the poset round) and a register over a genuine PRODUCT (a grid
-// — `spine` raises on a Cross before reaching here; the Delay ontology open
-// problem).
+// register "only updates when the option is Some"). The dispatch may equally be
+// a PARTIAL level — a merged flow of k cells — which is the same construct at
+// width k: the kept subsequence is the firings landing in any covered cell, and
+// `OrderDemand.orderOf` already reads a merged flow's order as "the parent's,
+// restricted". The whole skeleton is therefore `buildChain`, the same recursive
+// level walk emitCellChain assembles: the k arms each carry their own copy of
+// the step subtree (exactly one runs per firing), the merged value resolving in
+// each arm by the containment theorem, while the ONE `let reg` lives outside
+// every loop, guard, and arm. Still Todo: a register over a genuine PRODUCT (a
+// grid — `spine` raises on a Cross before reaching here; ill-formed for the
+// ordinary reason, which Check's order-demand rule witnesses first).
 and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRef): compiled => {
   let (flow, init) = switch read.kind {
   | DelayRead({flow, init}) => (flow, init)
@@ -1949,128 +1962,54 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
     Context.valueContext(ValuePort(wn, "final")),
     ctx,
   )
-  // Iter (list/option) levels loop; a case-alt level guards. A PARTIAL merged
-  // driving flow is still Todo (the cell-set / poset round); a Cross/Commute
-  // already raised in `spine` (a register over a grid is the Delay ontology
-  // open problem).
+  // Iter (list/option) levels loop; a case-alt level guards one cell and a
+  // partial level k of them. A Cross/Commute already raised in `spine`.
   let levels = spine(flow)
-  levels->Array.forEach(l =>
-    switch l {
-    | IterLevel(_) | AltLevel(_) => ()
-    | PartialLevel(_) =>
-      throw(
-        Todo(
-          "register over a partial merged driving flow — the k-arm-dispatch " ++
-          "cell-set case (the poset round); a register over a grid is the Delay " ++
-          "ontology open problem (iteration-with-state-design.md)",
-        ),
-      )
-    }
-  )
 
-  let floatedAcc: array<placed> = []
   // init is loop-invariant — compiled at the exterior, floats out of the thunk.
   let initC = compileValue(st, exterior, init)
-  initC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  // Walk the levels (iter loops and alt guards) outermost-in, tagging each
-  // opened scope with this register's write node so its bindings don't
-  // memo-reuse into a sibling consumer.
-  let (plans, walkFloated) = walkFilterLevels(st, exterior, levels, wn.id)
-  walkFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
-  | Some(FIter({bodyCtx})) => bodyCtx
-  | Some(FAlt({altCtx})) => altCtx
-  | None => exterior
-  }
   let regName = st.fresh()
-  let prevName = st.fresh()
-  recordMemo(st, read.id, "prev", innerCtx, prevName)
-  let stepC = compileValue(st, innerCtx, step)
-  stepC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  // Partition: statements addressed to one of the level bodies are claimed into
-  // it (compile order preserved); loop-invariant work floats out of the thunk.
-  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p =>
-    switch p {
-    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
-    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
-    }
-  )
-  let escaped: array<placed> = []
-  floatedAcc->Array.forEach(pl =>
-    switch Map.get(buckets, ctxPathKey(pl.at)) {
-    | Some(b) => Array.push(b, pl.stmt)
-    | None =>
-      if isCtxPrefix(pl.at, exterior) {
-        Array.push(escaped, pl)
+  // The innermost payload, emitted once per innermost context the chain reaches
+  // — once per covered cell where a partial level branches (code duplicated,
+  // evaluation still once: exactly one arm runs per firing). `prev` is declared
+  // FIRST, so the step subtree's own per-firing bindings (which read it) follow
+  // it in the body; hence this claims the statements addressed to its own
+  // context instead of floating them into the level's bucket, which is emitted
+  // ahead of the payload.
+  let mkPayload = (innerCtx: ctxPath) => {
+    let prevName = st.fresh()
+    recordMemo(st, read.id, "prev", innerCtx, prevName)
+    let stepC = compileValue(st, innerCtx, step)
+    let mine: array<JsAst.stmt> = []
+    let rest: array<placed> = []
+    stepC.floated->Array.forEach(pl =>
+      if ctxPathKey(pl.at) === ctxPathKey(innerCtx) {
+        Array.push(mine, pl.stmt)
       } else {
-        failwith("Codegen: a statement floated to a context unrelated to the register being assembled — placement bug")
+        Array.push(rest, pl)
       }
-    }
-  )
-
-  // Assemble innermost-out: `reg = force(step)` is the innermost payload, and
-  // `prev = __lazyDone__(reg)` is declared in the innermost body (a loop body
-  // for an iter level, or inside the alt guard for a filtered register). The one
-  // `let reg` lives at the thunk top, outside every loop and guard.
-  let lastIx = Array.length(plans) - 1
-  let regAssign = JsBuild.exprStmt(
-    JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))),
-  )
-  let prevDecl = JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
-  let nested = ref([regAssign])
-  for i in lastIx downto 0 {
-    let isInner = i === lastIx
-    switch plans->Array.getUnsafe(i) {
-    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
-        let head = if isInner {
-          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar))), prevDecl]
-        } else {
-          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))]
-        }
-        let body = Array.concat(head, Array.concat(bucket, nested.contents))
-        nested :=
-          if isList {
-            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
-          } else {
-            [
-              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
-              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
-            ]
-          }
-      }
-    | FAlt({alt, altCtx, splitName: aSplitName, discName, inputName, payloadName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
-        let head = if isInner {
-          [
-            JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value"))),
-            prevDecl,
-          ]
-        } else {
-          [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value")))]
-        }
-        let altBody = Array.concat(head, Array.concat(bucket, nested.contents))
-        nested := [
-          JsBuild.const(
-            aSplitName,
-            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
-          ),
-          JsBuild.if_(
-            JsBuild.eq(JsBuild.member(JsBuild.id(aSplitName), "tag"), JsBuild.str(alt)),
-            altBody,
-          ),
-        ]
-      }
-    }
+    )
+    let stmts = Array.concat(
+      [JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))],
+      Array.concat(
+        mine,
+        [JsBuild.exprStmt(JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))))],
+      ),
+    )
+    (stmts, rest)
   }
+
+  // The level walk is `buildChain`, shared with emitCellChain: iter levels nest
+  // as loops, dispatch levels as guards, and a partial level branches (each arm
+  // re-assembling everything below it under that cell's own context). The one
+  // `let reg` lives at the thunk top, outside all of them.
+  let (stmts, escaped) = buildChain(st, wn.id, exterior, levels, mkPayload)
   let thunkBody = Array.concat(
     [JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initC.name)))],
-    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(regName))]),
+    Array.concat(stmts, [JsBuild.ret(JsBuild.id(regName))]),
   )
+  let escaped = Array.concat(initC.floated, escaped)
 
   let name = st.fresh()
   recordMemo(st, wn.id, "final", exterior, name)
