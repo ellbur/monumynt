@@ -242,3 +242,37 @@ let realise = (p: program, planned: array<plannedCross>): completed =>
   }
 
 let complete = (p: program): completed => realise(p, solve(p, harvest(p)))
+
+// --- Remaining bodies (ARCHITECTURE STUBS; time-travel-programs-design.md) --
+//
+// The three pieces the STATUS header names, staged so the shapes are on
+// record. Commitments they must keep: completion inserts ONLY operations
+// whose value-level shadow is the identity (never value nodes, joins,
+// filters, or collects — those change firing structure, which is meaning
+// the user must draw); sibling opens are completed by CROSS, never by
+// Incorporate (settled — re-rooting erases mutual invariance); bundle
+// mixing stays an error, always; opens are never silently duplicated for
+// per-consumer completion; and the four laws — conservativity, idempotence,
+// determinism, solidification stability — hold as test obligations.
+
+// Dependent-nesting Nests edges: terminations (an authored collect order
+// fully directs a nesting per output) and authored flow ops (join/commute/
+// explicit `in`) harvest DIRECTED edges; solve is partial-order extension
+// over a finite set, every tie broken by published rule, no scoring, no
+// backtracking. Four dispositions: determined / canonically completed /
+// heuristically completed / contradictory.
+let harvestNests: program => array<constraint_> = _p =>
+  failwith("stub: dependent-nesting Nests harvesting — time-travel-programs-design.md, rules 2-3")
+
+// Commute-chain lifts: the second insertion family — chains of commutes
+// lifting a flow toward its canonical position (rule 5's canonical
+// commutes per flow-kind pair). Gated on the commute emitter (the poset
+// round) and on streams for the inaugural table entry.
+let planCommuteChain: program => array<insertion> = _p =>
+  failwith("stub: commute-chain lifts — time-travel-programs-design.md, rule 5")
+
+// The canonical commute table, versioned with the language exactly like
+// heuristicOrderV0 (both lists are ONE semantic surface; growing the table
+// re-classifies previously-heuristic picks, which is a language change).
+// Inaugural entry when streams land: option/error flows commute OUTWARD.
+let canonicalTableV0: array<string> = []

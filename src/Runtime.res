@@ -11,6 +11,15 @@
 // question becomes real: inline prelude per output (self-contained, as
 // today) vs an imported runtime module (compile-strategy-design.md, open
 // question 3 — interacts with the test runner's eval harness).
+//
+// The growth is planned as stub prelude builders, in the recorded
+// dependency order: Stream.streamPreludeStmts (Delayed/stream/zipStream/
+// listToStream, with the two hard requirements — iterative force and path
+// compression), then Async.asyncPreludeStmts (__asyncCell__/__startAsync__;
+// later the frontier's strand event, the one new piece cancellation needs),
+// then Incremental.incrementalPreludeStmts (root/derived cells + the
+// generation word). Registers need no runtime at all — they compile to a
+// `let` in the loop skeleton.
 
 // --- Builders for referencing the runtime from generated code -------------
 

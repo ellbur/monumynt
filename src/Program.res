@@ -48,6 +48,21 @@
 // what makes them local additions. (Aggregate/Disaggregate — struct
 // construction and field projection — are now represented, as pure value
 // nodes; they compile like an App. The textual surface for them is still owed.)
+//
+// The design record has since moved ahead of this file, and the planned
+// additions now have ARCHITECTURE STUBS — modules that hold the staged
+// types, the adopted decisions, and the settled rejections, each citing its
+// design doc (see ARCHITECTURE.md, "Architecture stubs"). Planned `flowKind`
+// rows: Stream (Stream.res), Async (Async.res), Var (Incremental.res), IO
+// (Effects.res). Planned `kind` additions: EndWhen (Cut.res), Fail
+// (Fail.res), Race / Settle / Paced / ReleaseHalf (Async.res), SelfOpen /
+// PullSource (Stream.res), KeyedPartition (CollectFamily.res),
+// SaturateRead / SaturateFeed (Saturation.res), Hole (Edit.res),
+// SchematicSource (Property.res). Planned beside the node set: the boundary
+// substrate — the remembered cut, call/link references, the op pair
+// (Boundary.res; the {nodes, outputs} program is its degenerate top-level
+// cut). Each stays staged in its stub until its emitter/check round, so the
+// live matches here don't grow arms ahead of behaviour.
 
 type rec node = {id: int, kind: kind}
 

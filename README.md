@@ -100,6 +100,15 @@ npm start           # node lib/es6/src/Main.res.mjs — runs the test suite
 
 None committed to.
 
+The design-vs-code gap is now mapped in code: **architecture-stub
+modules** under `src/` (`Stream`, `Async`, `Incremental`, `Cut`, `Fail`,
+`CollectFamily`, `Property`, `OrderDemand`, `Boundary`, `Effects`,
+`FocusedUpdate`, `Saturation`, `Edit`) stage the types, adopted
+decisions, and settled rejections for everything in `plans/` that has a
+worked representation but no implementation. See `src/ARCHITECTURE.md`,
+"Architecture stubs", for the index. The items below predate that map
+and remain live.
+
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
   `Codegen.Todo` gaps wait on: commute (transpose over a Cross),
