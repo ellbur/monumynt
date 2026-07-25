@@ -2081,18 +2081,168 @@ header("cross: full reduction is two registers — the axis order shows in the r
   expectOutput(cats, "yFirst", str("||11|21||12|22||13|23"))
 }
 
+// ============================================================================
+// 16. The ORDER-DEMAND check (delay-ontology-design.md, "The order-demand
+//     check, named"): "a Delay's flow must own a total order" — the complement
+//     of productivity, and the species behind the register bans scattered
+//     across the record. Two parts: the kinds table cashed as a lookup
+//     (OrderDemand.orderOf, unit-tested here the way Poset's algebra is in test
+//     14), and the rule reading it (Check.checkOrderDemand). The forcing
+//     program is 15m below — a register over a whole product, which
+//     product-flows-design.md's "smallest first step" 1 asks to be rejected
+//     with the "no order" witness.
+// ============================================================================
+
+header("order demand: the kinds table, cashed")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(b, "(v) => v > 1 ? {tag: \"Big\", value: v} : {tag: \"Small\", value: v}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  // A list opened per X-element (nested), an option, and a case split on it.
+  let inner = Build.uncollectList(b, ~nesting=itX.flow, itX.element)
+  let opt = Build.uncollectOption(b, ~nesting=itX.flow, itX.element)
+  let split = Build.caseSplit(
+    b,
+    ~alts=["Big", "Small"],
+    ~discriminator=disc.value,
+    ~nesting=itX.flow,
+    itX.element,
+  )
+  let big = Build.alt(split, "Big")
+  let flatten = Build.join(b, ~outer=itX.flow, ~inner=inner.flow)
+  let filtered = Build.join(b, ~outer=itX.flow, ~inner=big.altFlow)
+  let optioned = Build.join(b, ~outer=opt.flow, ~inner=big.altFlow)
+  let prod = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let swapped = Build.commute(b, ~outer=itX.flow, ~inner=opt.flow)
+  // A partial collect's merged flow (one covered alt of the two).
+  let partial = Build.collectCases(b, [(big.altFlow, big.altValue)])
+  let mergedFlow = Program.FlowPort(partial.node, "flow")
+
+  let classIs = (label, flow, expected: OrderDemand.orderClass) => {
+    let got = OrderDemand.orderOf(flow)
+    if got == expected {
+      pass(label ++ " → " ++ OrderDemand.orderClassName(got))
+    } else {
+      fail(
+        label ++
+        ": expected " ++
+        OrderDemand.orderClassName(expected) ++
+        ", got " ++
+        OrderDemand.orderClassName(got),
+      )
+    }
+  }
+
+  // The rows that exist today. A list walk owns the walk order of its data,
+  // whether it is opened at the top level or inside another flow (a register
+  // there re-seeds per outer firing — the straddle section).
+  classIs("list walk", itX.flow, Owned)
+  classIs("list walk, nested", inner.flow, Owned)
+  // ≤1 firing: well-formed but inert, `prev` only ever reads the seed. This is
+  // CARDINALITY, not a bar — the doc is explicit that nobody needs a rule
+  // saying "Delay is meaningless over options".
+  classIs("option, bare", opt.flow, Degenerate)
+  classIs("case alt, bare", big.altFlow, Degenerate)
+  // The merged flow of a partial collect is the same shape: the covered cells
+  // are disjoint, so it fires at most once per parent firing. Its order comes
+  // from the Join that puts it on an ordered parent, not from the merge.
+  classIs("partial collect's merged flow", mergedFlow, Degenerate)
+  // A join takes the worse of its two operands: a flatten stays owned (the
+  // fork "dissolves on sequences"), a filter is the parent's order restricted
+  // (the Some-subsequence a filtered register folds), and a join of two
+  // degenerates is still ≤1 firing.
+  classIs("flatten — join(list, list)", flatten.flow, Owned)
+  classIs("filter — join(list, case-alt)", filtered.flow, Owned)
+  classIs("join(option, case-alt)", optioned.flow, Degenerate)
+  // The product: not disorder but an embarrassment of orders.
+  classIs("product — cross(list, list)", prod.flow, Surplus)
+  // A commute swaps the pair; each layer keeps its own operand's order.
+  classIs("commute's outer port (the ex-inner)", swapped.outerFlow, Degenerate)
+  classIs("commute's inner port (the ex-outer)", swapped.innerFlow, Owned)
+
+  // Provenance: descriptive, but it is what a diagram would point at to show
+  // where the synchronisation is. An opener states the order as its kind
+  // content; a join re-delivers one that already exists.
+  let provIs = (label, flow, expected: option<OrderDemand.orderProvenance>) =>
+    if OrderDemand.provenanceOf(flow) == expected {
+      pass("provenance: " ++ label)
+    } else {
+      fail("provenance: " ++ label ++ " — unexpected")
+    }
+  provIs("a list opener MINTS its walk order", itX.flow, Some(MintedOrder))
+  provIs("a filter INHERITS its parent's, restricted", filtered.flow, Some(InheritedOrder))
+  provIs("an unordered flow has no provenance", prod.flow, None)
+
+  let _ = Build.finish(b, ~outputs=[("x", addF.value)])
+}
+
+header("order demand: the rule admits every ordered driving flow")
+{
+  // The rule must not fire on any of the register shapes that compile today
+  // (Main 8, 8c–8g, 15k) — an owned order is exactly what they have. Built as
+  // one program with three registers so a single check covers all three.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(b, "(v) => v > 1 ? {tag: \"Big\", value: v} : {tag: \"Small\", value: v}")
+  let zero = Build.lit(b, int_(0))
+  let xss = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3)])]))
+  let itOuter = Build.uncollectList(b, xss.value)
+  let itInner = Build.uncollectList(b, ~nesting=itOuter.flow, itOuter.element)
+  let flat = Build.join(b, ~outer=itOuter.flow, ~inner=itInner.flow)
+  let split = Build.caseSplit(
+    b,
+    ~alts=["Big", "Small"],
+    ~discriminator=disc.value,
+    ~nesting=itInner.flow,
+    itInner.element,
+  )
+  let big = Build.alt(split, "Big")
+  let kept = Build.join(b, ~outer=flat.flow, ~inner=big.altFlow)
+
+  // (a) over a flattened sequence, (b) over the filtered subsequence.
+  let regFlat = Build.delay(b, ~flow=flat.flow, ~init=zero.value)
+  let wFlat = Build.writeBack(
+    b,
+    ~read=regFlat,
+    ~step=Build.app(b, addF.value, [regFlat.prev, itInner.element]).value,
+  )
+  let regKept = Build.delay(b, ~flow=kept.flow, ~init=zero.value)
+  let wKept = Build.writeBack(
+    b,
+    ~read=regKept,
+    ~step=Build.app(b, addF.value, [regKept.prev, big.altValue]).value,
+  )
+  let p = Build.finish(b, ~outputs=[("flat", wFlat.final), ("kept", wKept.final)])
+
+  let ws = Check.checkOrderDemand(p)
+  if Array.length(ws) === 0 {
+    pass("registers over a flattened and a filtered sequence raise no order demand")
+  } else {
+    fail("unexpected order-demand witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // 1+2+3 = 6 flattened; the kept subsequence is 2+3 = 5 (Big is v > 1).
+  expectOutput(p, "flat", int_(6))
+  expectOutput(p, "kept", int_(5))
+}
+
 // 15m. The boundary the fibered register does NOT cross: a register whose
 //      driving flow is the PRODUCT itself (a grid) — "reduce the whole product
 //      as one sequence", which the doc calls ill-formed for the ordinary reason
 //      (no order exists), the remedy being "fold one axis, or Join first"
 //      (product-flows-design.md; the commutative-monoid exception needs the
-//      catalog row's commutativity flag, which does not exist yet). It is
-//      REJECTED today, but not yet by the rule the doc names: the step combines
-//      `prev` (borne on the product flow) with a value at {X, Y}, and since a
-//      Cross OUTPUT port is not yet an axis set in the poset (the deferred half
-//      of the context model), that combine surfaces as a `time-travel` witness
-//      rather than a "no order" one. This pins the current behaviour and where
-//      the owed check goes.
+//      catalog row's commutativity flag, which does not exist yet). It is now
+//      rejected BY THE RULE THE DOC NAMES — the order-demand check (test 16
+//      below), which reads the product's `Surplus` class off the kinds table
+//      and says so, instead of the program being caught indirectly by its
+//      step's combine. (That indirect `time-travel` witness still fires
+//      alongside, because a Cross OUTPUT port is not yet an axis set in the
+//      poset — the deferred half of the context model. What matters, and what
+//      this test now pins, is that the register is witnessed by the rule that
+//      owns it: the "no order" witness of the doc's smallest-first-step 1.)
 header("cross: a register over the whole product is rejected (the no-order case)")
 {
   let b = Build.make()
@@ -2109,10 +2259,16 @@ header("cross: a register over the whole product is rejected (the no-order case)
   let w = Build.writeBack(b, ~read=reg, ~step=step.value)
   let p = Build.finish(b, ~outputs=[("out", w.final)])
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) =>
-    pass("a whole-product register declines at Codegen (the grid — no order to fold along)")
-  | Error(_) =>
-    pass("a whole-product register is witnessed (via the step's combine — the no-order rule is owed)")
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "order-demand") {
+      pass("a whole-product register is witnessed by the order-demand rule (the grid owns no order)")
+    } else {
+      fail(
+        "expected an order-demand witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | exception Codegen.Todo(_) => fail("expected an order-demand witness, got a Codegen Todo")
   | Ok(_) => fail("a whole-product register unexpectedly compiled")
   }
 }

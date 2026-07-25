@@ -37,6 +37,12 @@
 //                     and non-alt multi-branch collects (via classifyCollect)
 //                     plus duplicate-alt coverage — pairwise disjoint
 //                     (partial-collect-design.md).
+//   - order-demand    a Delay's flow must OWN a total order
+//                     (delay-ontology-design.md, "The order-demand check,
+//                     named"). Reads OrderDemand's kinds table; the case it
+//                     bites today is a register over a whole product, which
+//                     has surplus order rather than none (product-flows-
+//                     design.md's "smallest first step" 1).
 //
 // Stubbed with signatures (each names its design doc):
 //   - productivity    every cycle crosses a register pairing
@@ -146,6 +152,68 @@ let checkWriteCount = (p: program): array<witness> => {
             nodeId: n.id,
             rule: "write-count",
             message: "register read has " ++ Int.toString(k) ++ " write halves; exactly one is allowed",
+          },
+        )
+      }
+    | _ => ()
+    }
+  )
+  out
+}
+
+// --- order-demand ------------------------------------------------------------
+//
+// "A Delay's flow must own a total order" (delay-ontology-design.md, "The
+// order-demand check, named") — the complement of the productivity check, and
+// the species that the register-between-concurrent-bodies ban, the
+// exchange-stateless check, and the registers-over-sibling-instances ban are
+// each an instance of. Like productivity it is structural: the order-provenance
+// walk is `OrderDemand.orderOf`, the kinds table cashed, so no analysis runs
+// here.
+//
+// Two of the five classes pass. `Owned` is the point of the rule. `Degenerate`
+// passes too and is worth its sentence: a register over a bare option or case
+// alt is well-formed but inert — it never steps, `prev` only ever reads the
+// seed — and the doc is explicit that this is CARDINALITY, not a bar ("nobody
+// ever felt a need to write 'Delay is meaningless over options'").
+//
+// The class this bites today is `Surplus`: a register whose driving flow is the
+// product itself. That is `product-flows-design.md`'s "smallest first step" 1 —
+// "the check rejects a whole-product register with the 'no order' witness, the
+// remedy being 'fold one axis or Join'". Before this rule the program was
+// rejected only *indirectly*, through the step's combine (`prev` borne on the
+// product against a value at {X, Y}), which surfaced as `time-travel` — a
+// witness about the wrong thing, and one that would evaporate once a Cross
+// output port becomes an axis set in the poset. Now the register is witnessed
+// by the rule that owns it.
+//
+// The commutative-monoid exception ("reduce over the whole product IS
+// well-defined iff the operator commutes" — product-flows-design.md, "The one
+// order-free exception") is NOT implemented here, deliberately: it is
+// discharged by the catalog row's commutativity flag, which does not exist yet
+// (CollectFamily.res stages the ladder it hangs off). Until it does, the rule
+// is unconditional and the remedy sentence is the way out.
+let checkOrderDemand = (p: program): array<witness> => {
+  let out: array<witness> = []
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | DelayRead({flow}) =>
+      switch OrderDemand.orderOf(flow) {
+      | Owned | Degenerate => ()
+      | cls =>
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "order-demand",
+            message: "a register's flow must own a total order, but " ++
+            kindName(nodeOfFlow(flow).kind) ++
+            " flow " ++
+            Context.flowKey(flow) ++
+            " " ++
+            OrderDemand.classSummary(cls) ++
+            ", so there is no previous firing to read — " ++
+            OrderDemand.remedy(cls),
           },
         )
       }
@@ -302,9 +370,8 @@ let checkAlignment = (p: program): array<witness> => {
 //
 // Rules for constructs that are planned but not yet represented live with
 // their construct's architecture stub, each typed against `witness` so they
-// join this pass's result when wired in via Pipeline: OrderDemand.res (the
-// adopted order-demand rule for Delays — a register's driving flow must OWN
-// a total order), Fail.res (discharge exhaustiveness against the derived
+// join this pass's result when wired in via Pipeline: Fail.res (discharge
+// exhaustiveness against the derived
 // endings inventory), Cut.res (stop-operand admissibility), Stream.res
 // (stack well-formedness), Async.res (race pair coherence; no register in
 // the sever->settle interior), Boundary.res (reusability; the measure
@@ -547,6 +614,7 @@ let check = (p: program): array<witness> =>
   Array.flat([
     checkPortExists(p),
     checkWriteCount(p),
+    checkOrderDemand(p),
     checkAlignment(p),
     checkJoinAdjacency(p),
     checkCross(p),

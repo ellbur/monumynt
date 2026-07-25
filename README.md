@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 138 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 202 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
