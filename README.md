@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 254 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 265 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -111,9 +111,17 @@ and remain live.
 
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
-  `Codegen.Todo` gaps wait on: cross of non-top-level / non-list axes,
+  `Codegen.Todo` gaps wait on: cross of non-list axes, or of axes that
+  are join chains rather than single opens,
   and a running view over a product driving flow the reading collect
-  does not itself scan. The *transposing* commute now compiles: over a
+  does not itself scan. A product opened *inside an enclosing loop* — the
+  per-group cartesian product — now compiles, and completes: a product
+  carries its own exterior, so its shared table is built once per point
+  of that exterior and everything the top-level product had (both
+  traversal orders on one table, the fibered register, the fibered
+  traversal) comes along one layer in; and a sibling combine inside a
+  loop is completed by crossing its span's sibling *frontier*, the
+  loop's own axis dropped as shared context. The *transposing* commute now compiles: over a
   crossed pair commute is transpose, and transpose re-reads a product
   rather than restructuring it, so a commute output port simply denotes
   its operand swapped and the transposed consumer is another
