@@ -5,7 +5,9 @@
 // completion at ANY rank — the k>=2 lists program without a hand-drawn
 // Cross has the product spanning exactly its axes inserted for it (the
 // binary two-lists case and the rank-3+ cube, `cross(cross(x,y),z)`,
-// authored automatically). Programs past that (dependent-nesting Nests
+// authored automatically) — at the top level, and inside an enclosing loop
+// (the per-group product, whose span names the loop's axis as well; the
+// axes crossed are the span's sibling FRONTIER). Programs past that (dependent-nesting Nests
 // edges, commute-chain lifts, the canonical heuristic table) still either
 // trip a Check witness or compile wrong — acceptable only under the
 // honoured-limitations discipline, and only until those bodies are written.
@@ -100,10 +102,20 @@ let allInvariant = (flows: array<flowRef>): bool => {
 // design.md, "smallest first step" 3 and its N-ary section; time-travel-
 // programs-design.md's disposition 4). A combining node whose value spans k
 // INCOMPARABLE sibling flows demands a comparability that only a product
-// supplies: an App over k independent top-level list opens, pairwise mutually
-// invariant, with no constructed Cross touching any of them. That is a
-// completable time-travel gap — harvest a MustCross so solve/realise insert the
-// exact product (a nested Cross chain for k>=3).
+// supplies: an App over k independent list opens, pairwise mutually invariant,
+// with no constructed Cross touching any of them. That is a completable
+// time-travel gap — harvest a MustCross so solve/realise insert the exact
+// product (a nested Cross chain for k>=3).
+//
+// The opens need not be TOP-LEVEL. A combine inside an enclosing loop — the
+// per-group cartesian product — has that loop's axis in its span as well, and
+// the axes to cross are the span's sibling FRONTIER: the axes that do not
+// determine another axis in the span (`frontier` below). What is dropped is
+// context they share, and the inserted product simply lives one layer in
+// (`L > {A || B}`, Codegen's product `exterior`). The guard is that the dropped
+// axes must be shared by EVERY frontier member: an ancestor of some but not all
+// of them is a real ambiguity about which nesting to commit, and stays a
+// witness.
 //
 // The full span is read off `Annotate.valueAxes` (order- and comparability-free,
 // so it reaches EVERY axis of the combine, not just the first incomparable pair
@@ -119,8 +131,10 @@ let allInvariant = (flows: array<flowRef>): bool => {
 //     missing fact is an execution (its offending flows are not list axes);
 //   - dependent nesting — comparable contexts (prefix), so no clash is raised,
 //     and any dependent pair fails `allInvariant`;
-//   - siblings sharing an outer loop / non-list axes — not top-level list opens,
-//     so a span axis fails the axis-flow lookup (they need a hand-drawn Cross);
+//   - non-list axes — a span axis fails the axis-flow lookup (they need a
+//     hand-drawn Cross);
+//   - a frontier whose members do not share every dropped ancestor — the
+//     which-nesting ambiguity above;
 //   - an under-covered consumer — some span axis is already in a product.
 //
 // Detection here is the front half of what checkAlignment detects; the two keep
@@ -131,17 +145,45 @@ let harvest = (p: program): array<constraint_> => {
   // uncrossed" guard.
   let crossedAxes =
     Context.productsIndex(p)->Array.reduce([], (acc, pt) => Array.concat(acc, Poset.axes(pt)))
-  // Top-level list axis flows, keyed so a value's axis span resolves to flows.
+  // List axis flows, keyed so a value's axis span resolves to flows. Nesting is
+  // not restricted: an axis opened inside an enclosing loop is a crossable axis
+  // like any other, its product simply living one layer in (`L > {X || Y}` —
+  // Codegen's product `exterior`). What separates "context they share" from
+  // "siblings to cross" is `frontier` below, not where the open sits.
   let axisFlows: Map.t<string, flowRef> = Map.make()
   p.nodes->Array.forEach(n =>
     switch n.kind {
-    | Uncollect({flowKind: List, nesting: None}) => {
+    | Uncollect({flowKind: List}) => {
         let f = FlowPort(n, "flow")
         Map.set(axisFlows, Context.flowKey(f), f)
       }
     | _ => ()
     }
   )
+  // The SIBLING FRONTIER of an axis span: the axes that are not the source of
+  // another axis in the span. A combine inside a loop names that loop's axis
+  // too — the per-group product's span is `{G, A, B}` — but G is not a sibling
+  // of A or B, it is the context both were opened in, and crossing it would be
+  // nonsense. Dropping the axes that DETERMINE others leaves exactly the axes
+  // that need a correspondence.
+  //
+  // Completion applies only when what was dropped is context they ALL share: an
+  // ancestor of some frontier members but not others (x top-level, a inside a
+  // loop) is a real ambiguity about which nesting to commit, so it stays a
+  // witness rather than being resolved by this pass's convenience.
+  let frontier = (vaxes: array<string>): option<array<string>> => {
+    let sourcesOf = (k: string): array<string> =>
+      switch Map.get(axisFlows, k) {
+      | Some(f) => Annotate.sourceAxes(f)
+      | None => []
+      }
+    let determined =
+      vaxes->Array.filter(k => vaxes->Array.some(o => o != k && sourcesOf(o)->Array.includes(k)))
+    let front = vaxes->Array.filter(k => !(determined->Array.includes(k)))
+    let sharedByAll =
+      determined->Array.every(d => front->Array.every(k => sourcesOf(k)->Array.includes(d)))
+    sharedByAll ? Some(front) : None
+  }
   p.nodes->Array.forEach(n =>
     valuePorts(n.kind)->Array.forEach(port =>
       switch Context.valueContext(ValuePort(n, port)) {
@@ -150,7 +192,8 @@ let harvest = (p: program): array<constraint_> => {
         // A sibling combine: its value has no linear context. Gather its full
         // axis span; complete it only when every axis is a top-level list open,
         // the axes are pairwise invariant, and none is already crossed.
-        let vaxes = Poset.dedup(Annotate.valueAxes(ValuePort(n, port)))
+        let span = Poset.dedup(Annotate.valueAxes(ValuePort(n, port)))
+        let vaxes = frontier(span)->Option.getOr([])
         let flows = vaxes->Array.filterMap(k => Map.get(axisFlows, k))
         if (
           Array.length(flows) === Array.length(vaxes) &&

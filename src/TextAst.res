@@ -28,7 +28,7 @@
 //   statement   := leafDef | outDecl | chain | laneCollect
 //   leafDef     := NAME '=' leafTerm
 //   leafTerm    := NUMBER | STRING | 'js' STRING | '[' leafTerm,* ']'
-//   outDecl     := 'out' NAME ('=' NAME)?
+//   outDecl     := 'out' NAME ('=' NAME ('.' NAME)?)?
 //   chain       := sources? (arrow tap* stage)* naming?
 //   sources     := source (',' source)* | tap+    -- leading '|'s resume taps
 //   source      := term | '~' flowName
@@ -42,6 +42,8 @@
 //   lane        := '~' flowName ':' term            -- one per covered alt
 //   stage       := 'open' ('list'|'option') ('in' '~' flowName)?
 //               | 'split' term 'of' NAME (',' NAME)*
+//               | 'aggregate' NAME (',' NAME)*
+//               | 'disaggregate' NAME (',' NAME)*
 //               | 'collect' ('~' flowName)?
 //               | 'join' ('into' '~' flowName)?
 //               | 'commute' ('out' 'of' '~' flowName)?
@@ -73,7 +75,9 @@ type rec term =
   | TArr(array<term>) // literal array of leaf terms
   | TJs(string) // js "..." extern
   | TName(string)
-  | TProj(string, string) // cs.Just — value port projection
+  // `cs.Just` — a value port projected off a node name: a case split's alt
+  // payload, or a Disaggregate's field.
+  | TProj(string, string)
   // Infix binary operator (a + b, x * 2): sugar for an App of the operator's
   // JS function to the two operands (textual-representation-design.md, "the
   // grammar is permissive"). The middle field is the operator symbol; the
@@ -118,6 +122,14 @@ type stage =
   | StCommute({outOf: option<flowTerm>})
   | StDelay({init: term})
   | StStepOf(string) // step of <register binder>
+  // Struct construction: the chain's sources, in order, become the values of
+  // the named fields (`x, y -> aggregate name, age => p`). One node, one value.
+  | StAggregate({fields: array<string>})
+  // Struct projection: the chain's topic is the struct, and the stage binds
+  // the Disaggregate NODE — its fields are then projected off that name
+  // (`p -> disaggregate name, age => d`, then `d.name`). The same shape a case
+  // split has: a multi-output node named once, referenced by projection.
+  | StDisaggregate({fields: array<string>})
   | StTap // '|' mid-chain: mint a junction here
   // Chain-position infix operator (`-> * 2`): the running topic is the left
   // operand, `rhs` the right — an operator section applied to the chain value
@@ -130,7 +142,10 @@ type binder =
 
 type statement =
   | LeafDef({name: string, term: term})
-  | OutDecl({name: string, from: option<string>})
+  // `out NAME` (the name is its own source) or `out NAME = <source>`, where
+  // the source is a name or a projection off one (`out x = cs.Just`,
+  // `out x = d.field`) — the same two term shapes a `LeafDef` alias accepts.
+  | OutDecl({name: string, from: option<term>})
   | Chain({
       sources: array<source>,
       stages: array<(arrow, stage)>,

@@ -3534,6 +3534,243 @@ header("commute of two UNCROSSED siblings still witnesses (the carve-out is the 
   }
 }
 
+// 15q. A product opened INSIDE an enclosing loop — the per-group cartesian
+//      product. The two axes are derived from the SAME outer element, so they
+//      share an exterior (`L > {X || Y}`, the poset Check test 13b already
+//      admits) and neither varies with the other: mutually invariant, a lawful
+//      Cross. Nothing about the compile changes except where it lives — the
+//      shared table is built once per group inside the group loop, and the
+//      consuming chain reads it there. This is the "cross of non-top-level axes"
+//      half of ARCHITECTURE worklist item 8.
+header("cross: a product opened inside an enclosing loop (the per-group product)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  let _ = Build.cross(b, ~left=itA.flow, ~right=itB.flow)
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  let inner = Build.collect(b, ~flow=itA.flow, s.value) // per b: the list over a
+  let mid = Build.collect(b, ~flow=itB.flow, inner.value) // the group's table
+  let out = Build.collect(b, ~flow=itG.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // group 0: a=[1,2] × b=[10,20]; group 1: a=[3] × b=[100].
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]),
+      array_([array_([int_(103)])]),
+    ]),
+  )
+  expectRoundTrip(p)
+}
+
+// 10e. Completion of a per-group sibling combine — the nested counterpart of
+//      test 10. The combine's axis SPAN names the enclosing loop too (`{G, A,
+//      B}`), but G is not a sibling of A or B: it is the context both were
+//      opened in. Completion crosses the span's sibling FRONTIER — the axes
+//      that do not determine another axis in the span — so the inserted product
+//      is `{A || B}` with exterior `L`, and the completed program is identical
+//      to the hand-drawn 15q.
+header("complete: a per-group sibling combine gets its product inserted, then compiles")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  // No hand-drawn Cross: the under-committed per-group time-travel program.
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  let inner = Build.collect(b, ~flow=itA.flow, s.value)
+  let mid = Build.collect(b, ~flow=itB.flow, inner.value)
+  let out = Build.collect(b, ~flow=itG.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]),
+      array_([array_([int_(103)])]),
+    ]),
+  )
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion inserted one per-group product for the sibling combine")
+    } else {
+      fail("expected one inserted product, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail("per-group sibling program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 10f. The guard on that frontier rule. Here one axis is top-level and the
+//      other is opened inside a loop, so the span's dropped axis (the loop) is
+//      an ancestor of ONE frontier member and not the other. Which nesting to
+//      commit — `G > {X || A}` or `{G || X} > A` — is a genuine ambiguity, not
+//      something this pass gets to settle by convenience, so it stays a
+//      time-travel witness and asks for a hand-drawn Cross.
+header("complete: an ancestor shared by only SOME frontier axes is not completed")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let xs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let itX = Build.uncollectList(b, xs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let s = Build.app(b, addF.value, [itX.element, itA.element])
+  let inner = Build.collect(b, ~flow=itA.flow, s.value)
+  let mid = Build.collect(b, ~flow=itX.flow, inner.value)
+  let out = Build.collect(b, ~flow=itG.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Ok(_) => fail("a partially-shared ancestor was completed — the frontier guard did not hold")
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "time-travel") {
+      pass("a partially-shared ancestor stays a time-travel witness (needs a hand-drawn Cross)")
+    } else {
+      fail("expected a time-travel witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | exception Codegen.Todo(m) => fail("expected a Check witness, got a Codegen Todo: " ++ m)
+  }
+}
+
+// 15q2. The same per-group product read in BOTH orders. Everything the
+//       top-level product's shared table gives (test 15) holds one layer in:
+//       the two chains share one table per group, so the user's computation
+//       still runs once per point — the add-once golden, now inside a loop.
+header("cross: both orders of a per-group product share that group's one table")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  let _ = Build.cross(b, ~left=itA.flow, ~right=itB.flow)
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  // Order 1: a inner (holding b), b outer.
+  let i1 = Build.collect(b, ~flow=itA.flow, s.value)
+  let m1 = Build.collect(b, ~flow=itB.flow, i1.value)
+  let out1 = Build.collect(b, ~flow=itG.flow, m1.value)
+  // Order 2: the transpose — b inner, a outer.
+  let i2 = Build.collect(b, ~flow=itB.flow, s.value)
+  let m2 = Build.collect(b, ~flow=itA.flow, i2.value)
+  let out2 = Build.collect(b, ~flow=itG.flow, m2.value)
+  let p = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+  expectOutput(
+    p,
+    "out1",
+    array_([
+      array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]),
+      array_([array_([int_(103)])]),
+    ]),
+  )
+  expectOutput(
+    p,
+    "out2",
+    array_([
+      array_([array_([int_(11), int_(21)]), array_([int_(12), int_(22)])]),
+      array_([array_([int_(103)])]),
+    ]),
+  )
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out1") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + bb")
+      if n === 1 {
+        pass("add's work appears once (both orders share the per-group table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out1 to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("per-group product failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15q3. A REGISTER folding along one axis of a per-group product — the fibered
+//       register (test 15k) with the whole product one layer in. State never
+//       crosses fibers OR groups: `final` is a B-flow within its group, and the
+//       operator is non-commutative so the within-fiber order is observable.
+header("cross: a register folds one axis of a per-group product, fibered over the other")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let mixF = Build.raw(b, "(a, bb) => a * 2 + bb")
+  let zero = Build.lit(b, int_(0))
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  let _ = Build.cross(b, ~left=itA.flow, ~right=itB.flow)
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  let reg = Build.delay(b, ~flow=itA.flow, ~init=zero.value)
+  let step = Build.app(b, mixF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+  let perB = Build.collect(b, ~flow=itB.flow, w.final)
+  let out = Build.collect(b, ~flow=itG.flow, perB.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // g0,b=10: 0*2+11=11, 11*2+12=34. g0,b=20: 21, 21*2+22=64. g1,b=100: 103.
+  expectOutput(p, "out", array_([array_([int_(34), int_(64)]), array_([int_(103)])]))
+}
+
+// 15q4. The FIBERED TRAVERSAL of a per-group product: collect only the A axis
+//       while B is held, reduce each column, then gather. The held coordinate
+//       now comes from a loop that is itself inside the group loop, and the
+//       table it indexes is that group's — the partial-product matcher's
+//       machinery unchanged, one layer in.
+header("cross: a fibered traversal of a per-group product (reduce each column)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  let _ = Build.cross(b, ~left=itA.flow, ~right=itB.flow)
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  let col = Build.collect(b, ~flow=itA.flow, s.value) // one column per (group, b)
+  let tot = Build.app(b, sumF.value, [col.value])
+  let perB = Build.collect(b, ~flow=itB.flow, tot.value)
+  let out = Build.collect(b, ~flow=itG.flow, perB.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // g0: b=10 -> 11+12=23, b=20 -> 21+22=43. g1: b=100 -> 103.
+  expectOutput(p, "out", array_([array_([int_(23), int_(43)]), array_([int_(103)])]))
+}
+
 // ============================================================================
 // Coverage ported from the previous compiler's value-test suite. These exercise
 // distinct compiler behaviours the sections above do not: value-fragment
@@ -3841,6 +4078,7 @@ header("aggregate: build a struct, project a field, output the whole struct")
   expectOutput(p, "pt", obj([("x", int_(3)), ("y", int_(7))]))
   expectOutput(p, "x", int_(3))
   expectOutput(p, "sum", int_(10))
+  expectRoundTrip(p)
 }
 
 header("aggregate: a per-element struct across a list collect (placement inside the loop)")
@@ -3864,6 +4102,7 @@ header("aggregate: a per-element struct across a list collect (placement inside 
       obj([("v", int_(3)), ("sq", int_(9))]),
     ]),
   )
+  expectRoundTrip(p)
 }
 
 header("disaggregate: project a per-element field, then collect")
@@ -3883,6 +4122,11 @@ header("disaggregate: project a per-element field, then collect")
   let out = Build.collect(b, ~flow=it.flow, Build.field(d, "x"))
   let p = Build.finish(b, ~outputs=[("out", out.value)])
   expectOutput(p, "out", array_([int_(10), int_(20), int_(30)]))
+  // No round-trip here: the SOURCE is an array of object literals, and the text
+  // grammar has no object-literal leaf term, so the printer sends it through the
+  // `js "..."` escape hatch and it reparses as an ERaw. That is the literal
+  // renderer's own recorded limitation (TextPrint.litText), not the struct
+  // surface's — the disaggregate statement itself round-trips in the tests below.
 }
 
 header("aggregate then disaggregate is identity (project both fields back out)")
@@ -3895,6 +4139,53 @@ header("aggregate then disaggregate is identity (project both fields back out)")
   let p = Build.finish(b, ~outputs=[("a", Build.field(d, "a")), ("b", Build.field(d, "b"))])
   expectOutput(p, "a", int_(7))
   expectOutput(p, "b", int_(9))
+  expectRoundTrip(p)
+}
+
+// The struct surface authored in TEXT (textual-representation-design.md's
+// grammar grown by two stages). `aggregate` mirrors an application — the
+// chain's sources, in order, are the field values — and `disaggregate` mirrors
+// `split`: a multi-output node named once, its fields reached by projection off
+// that name. That symmetry is the whole design: nothing new to learn beyond the
+// two words, and the printer's existing node-naming machinery already knew how
+// to render a projected node.
+header("struct: aggregate and disaggregate authored in text, round-tripped")
+{
+  let src = `
+add = js "(a, b) => a + b"
+one = 1
+two = 2
+three = 3
+four = 4
+one, two -> add => xv
+three, four -> add => yv
+xv, yv -> aggregate x, y => pt
+pt -> disaggregate x, y => d
+d.x, d.y -> add => total
+out pt
+out total
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "pt", obj([("x", int_(3)), ("y", int_(7))]))
+  expectOutput(p, "total", int_(10))
+  expectRoundTrip(p)
+}
+
+header("struct: a per-element struct built and projected inside a loop, in text")
+{
+  let src = `
+mul = js "(a, b) => a * b"
+xs = [1, 2, 3]
+xs -> open list => e, ~L
+e, e -> mul => sq
+e, sq -> aggregate v, sq => rec
+rec -> disaggregate v, sq => d
+d.sq -~> collect ~L => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(1), int_(4), int_(9)]))
+  expectRoundTrip(p)
 }
 
 // ============================================================================

@@ -34,6 +34,9 @@ type entry =
   | EFlow(flowRef)
   | ESplit(Build.splitHandle)
   | ECommute(Build.commuteHandle) // its two swapped flows project as ~name.outer / ~name.inner
+  // A Disaggregate node: its fields project as name.field, the same shape a
+  // case split's alt payloads have.
+  | EStruct(Build.disaggregateHandle)
 
 type tapPoint = {tapValue: valueRef, tapStack: array<flowRef>}
 
@@ -110,12 +113,21 @@ let rec resolveValueTerm = (st: r, t: term): valueRef =>
       err("'" ++ name ++ "' names a case split; project an alt payload: " ++ name ++ ".<Alt>")
     | Some(ECommute(_)) =>
       err("'" ++ name ++ "' names a commute (a flow node), not a value")
+    | Some(EStruct(_)) =>
+      err("'" ++ name ++ "' names a disaggregate; project a field: " ++ name ++ ".<field>")
     | None => err("unknown name '" ++ name ++ "'")
     }
   | TProj(name, port) =>
     switch Map.get(st.env, name) {
     | Some(ESplit(h)) => Build.alt(h, port).altValue
-    | Some(_) => err("'" ++ name ++ "' is not a case split; '.' projection needs one")
+    | Some(EStruct(h)) =>
+      if h.fields->Array.includes(port) {
+        Build.field(h, port)
+      } else {
+        err("'" ++ name ++ "' has no field '" ++ port ++ "'")
+      }
+    | Some(_) =>
+      err("'" ++ name ++ "' is not a case split or a disaggregate; '.' projection needs one")
     | None => err("unknown name '" ++ name ++ "'")
     }
   }
@@ -130,6 +142,7 @@ let resolveFlowTerm = (st: r, ft: flowTerm): flowRef =>
       err("'~" ++ name ++ "' names a case split; project an alt flow: ~" ++ name ++ ".<Alt>")
     | Some(ECommute(_)) =>
       err("'~" ++ name ++ "' names a commute; project a swapped flow: ~" ++ name ++ ".outer or ~" ++ name ++ ".inner")
+    | Some(EStruct(_)) => err("'~" ++ name ++ "' names a disaggregate (a value node), not a flow")
     | None => err("unknown flow name '~" ++ name ++ "'")
     }
   | FProj(name, port) =>
@@ -168,6 +181,7 @@ type chainState = {
   mutable lastFlows: array<flowRef>, // flows minted by the latest stage, for ~binders
   mutable newSplit: option<Build.splitHandle>,
   mutable newCommute: option<Build.commuteHandle>, // standalone `commute out of`, bound by node name
+  mutable newStruct: option<Build.disaggregateHandle>, // `disaggregate`, bound by node name
   mutable newTaps: array<tapPoint>,
 }
 
@@ -192,6 +206,7 @@ let resolveChain = (
     lastFlows: [],
     newSplit: None,
     newCommute: None,
+    newStruct: None,
     newTaps: [],
   }
 
@@ -309,6 +324,47 @@ let resolveChain = (
         let h = Build.caseSplit(st.bld, ~alts, ~discriminator=discRef, input)
         cs.newSplit = Some(h)
         cs.cur = None
+        cs.lastFlows = []
+      }
+    | StAggregate({fields}) => {
+        if arrow != AValue {
+          err("'aggregate' takes '->' (value arrow): the inputs are values")
+        }
+        // The chain's sources, in order, are the field values — the same
+        // several-sources-one-stage shape an application uses.
+        let args = if Array.length(cs.pendingArgs) > 0 {
+          cs.pendingArgs
+        } else {
+          [theValue(cs, "'aggregate'")]
+        }
+        if Array.length(args) != Array.length(fields) {
+          err(
+            "'aggregate' names " ++
+            Int.toString(Array.length(fields)) ++
+            " field(s) but the chain supplies " ++
+            Int.toString(Array.length(args)) ++
+            " value(s)",
+          )
+        }
+        let h = Build.aggregate(
+          st.bld,
+          ~fields=fields->Array.mapWithIndex((f, i) => (f, args->Array.getUnsafe(i))),
+        )
+        cs.cur = Some(h.value)
+        cs.pendingArgs = []
+        cs.lastFlows = []
+      }
+    | StDisaggregate({fields}) => {
+        if arrow != AValue {
+          err("'disaggregate' takes '->' (value arrow): the input is a value")
+        }
+        let input = theValue(cs, "'disaggregate'")
+        let h = Build.disaggregate(st.bld, ~fields, input)
+        // Like a split, the node itself is what gets named; its fields are
+        // reached by projection off that name.
+        cs.newStruct = Some(h)
+        cs.cur = None
+        cs.pendingArgs = []
         cs.lastFlows = []
       }
     | StCollect({flowArg}) => {
@@ -465,16 +521,20 @@ let resolveChain = (
   binders->Array.forEach(b =>
     switch b {
     | BValue(name) =>
-      switch (cs.newSplit, cs.newCommute) {
-      | (Some(h), _) => {
+      switch (cs.newSplit, cs.newCommute, cs.newStruct) {
+      | (Some(h), _, _) => {
           bindName(st, name, ESplit(h))
           cs.newSplit = None
         }
-      | (None, Some(h)) => {
+      | (None, Some(h), _) => {
           bindName(st, name, ECommute(h))
           cs.newCommute = None
         }
-      | (None, None) => {
+      | (None, None, Some(h)) => {
+          bindName(st, name, EStruct(h))
+          cs.newStruct = None
+        }
+      | (None, None, None) => {
           if valueBound.contents {
             err("more than one value binder on a chain is not supported yet")
           }
@@ -546,14 +606,10 @@ let resolve = (statements: array<statement>): program => {
         bindName(st, name, EValue(resolveValueTerm(st, term)))
       | _ => bindName(st, name, EValue(Build.lit(st.bld, leafToJs(term)).value))
       }
-    | OutDecl({name, from}) => {
-        let srcName = from->Option.getOr(name)
-        switch Map.get(st.env, srcName) {
-        | Some(EValue(v)) => Array.push(st.outs, (name, v))
-        | Some(_) => err("output '" ++ name ++ "' must name a value")
-        | None => err("output references unknown name '" ++ srcName ++ "'")
-        }
-      }
+    | OutDecl({name, from}) =>
+        // `out x` names its own source; `out x = y` / `out x = d.field` name
+        // another wire. Projections resolve exactly as they do anywhere else.
+        Array.push(st.outs, (name, resolveValueTerm(st, from->Option.getOr(TName(name)))))
     | Chain({sources, stages, binders}) => resolveChain(st, sources, stages, binders)
     | LaneCollect({lanes, binders}) => resolveLaneCollect(st, lanes, binders)
     }

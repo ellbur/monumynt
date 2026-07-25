@@ -171,24 +171,46 @@ type compiled = {name: string, floated: array<placed>}
 // linear ctxPath cannot hold. The eager compile target is the whole-table lazy
 // (product-flows-design.md, "Compile"): one lazy builds the full n×m table in
 // the Cross's stored orientation, computing each cell's value once, and every
-// consuming collect chain indexes that shared table in its own order. This is
-// the minimal shape: a binary Cross of two top-level list uncollects, consumed
-// by a two-collect chain (both orders supported, sharing one table).
+// consuming collect chain indexes that shared table in its own order.
+//
+// A product need not be TOP-LEVEL. Its axes may be opened inside an enclosing
+// loop — the cartesian product of two lists derived from each group of a list
+// of groups, say — and then the whole construction simply lives one layer in:
+// the table is built once per point of the product's EXTERIOR (the common
+// context of its axes, `Context.flowContext` of the Cross, which the Poset
+// already builds as series-prefix-then-parallel, `L > {X || Y}`), and the
+// consuming chain is emitted inside that same exterior. Nothing else changes,
+// which is the point: a product's exterior is context like any other, and the
+// table's placement is let-floating doing what it always does.
 
 // One axis of a product: its flow key, the uncollect that opens it, and the
 // list source feeding it.
 type productAxis = {axisKey: string, uncollect: node, feed: valueRef, flow: flowRef}
 
 // A product a Cross node constructs. `axes` is the stored orientation
-// (outer-first), read off the Cross's (left, right) operands.
-type product = {crossId: int, axes: array<productAxis>}
+// (outer-first), read off the Cross's (left, right) operands. `exterior` is the
+// context the product itself is opened in — empty for a top-level product, the
+// enclosing chain for one opened inside a loop — and `exteriorAxisKeys` the axes
+// that exterior makes available, which a product-spanning value may vary over in
+// addition to the product's own (the enclosing chain holds them).
+type product = {
+  crossId: int,
+  axes: array<productAxis>,
+  exterior: array<flowRef>,
+  exteriorAxisKeys: array<string>,
+}
 
-// A supported product axis: a single top-level list uncollect flow.
+// A supported product axis: a list uncollect flow, at the top level or nested
+// inside an enclosing loop. Nesting is not restricted here because it is not
+// this predicate's question: two axes that nest *inside each other* are a
+// dependent nesting, which Check's `invariance` rule witnesses before codegen
+// runs (product-flows-design.md, "smallest first step" 1). What is left — axes
+// sharing an outer loop — is a product with a non-empty exterior.
 let productAxisOf = (f: flowRef): option<productAxis> =>
   switch f {
   | FlowPort(n, "flow") =>
     switch n.kind {
-    | Uncollect({flowKind: List, input, nesting: None}) =>
+    | Uncollect({flowKind: List, input}) =>
       Some({axisKey: Context.flowKey(f), uncollect: n, feed: input, flow: f})
     | _ => None
     }
@@ -228,11 +250,38 @@ let productOf = (n: node): option<product> =>
   switch n.kind {
   | Cross(_) =>
     switch productAxesOf(FlowPort(n, "flow")) {
-    | Some(axes) if Array.length(axes) >= 2 => Some({crossId: n.id, axes})
+    | Some(axes) if Array.length(axes) >= 2 =>
+      // The exterior is the common context of the operands — the merge
+      // `Context.flowContext` already computes for a Cross. It raises only for a
+      // cross whose operands sit in incomparable contexts, which Check witnesses;
+      // declining here leaves that program to the ordinary route.
+      switch Context.flowContext(FlowPort(n, "flow")) {
+      | exterior =>
+        let exteriorAxisKeys =
+          exterior
+          ->Array.reduce([], (acc, f) => Array.concat(acc, Context.axisFlows(f)))
+          ->Array.map(Context.flowKey)
+        Some({crossId: n.id, axes, exterior, exteriorAxisKeys})
+      | exception Context.Incomparable(_) => None
+      }
     | _ => None
     }
   | _ => None
   }
+
+// Does a value spanning `sAxes` belong to this product's table? It must vary
+// over EVERY axis of the product (a whole-table consumer), and over nothing
+// else except the axes of the product's own exterior — which the enclosing chain
+// holds open, so they are coordinates of *which* table this is, not of a point
+// within it. For a top-level product the exterior is empty and this is the
+// exact-axis test it replaces.
+let spansProduct = (p: product, sAxes: array<string>): bool => {
+  let need = p.axes->Array.map(a => a.axisKey)
+  need->Array.every(k => sAxes->Array.includes(k)) &&
+    sAxes->Array.every(k =>
+      need->Array.includes(k) || p.exteriorAxisKeys->Array.includes(k)
+    )
+}
 
 type state = {
   fresh: unit => string,
@@ -245,7 +294,7 @@ type state = {
   // A product-spanning node's shared table: its value memoKey -> table binding
   // name. Keyed separately from `memo` because a table is indexed (force(t)[i][j]),
   // not referenced as a scalar, and it is shared by every consumer chain.
-  tableMemo: Map.t<string, string>,
+  tableMemo: Map.t<string, array<(ctxPath, string)>>,
 }
 
 let memoKey = (id: int, port: string): string => Int.toString(id) ++ ":" ++ port
@@ -489,10 +538,11 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
       st.products
       ->Array.find(p => sameKeySet(keys, p.axes->Array.map(a => a.axisKey)))
       ->Option.flatMap(p => {
-        // s must vary over exactly the product's axes (the full-table consumer).
-        let need = p.axes->Array.map(a => a.axisKey)
+        // s must vary over exactly the product's axes (the full-table consumer)
+        // — plus, for a product opened inside an enclosing loop, that loop's
+        // axes, which the chain already holds.
         let sAxes = Annotate.valueAxes(sVal)
-        if sameKeySet(need, sAxes) {
+        if spansProduct(p, sAxes) {
           // The chain's axes in traversal order (outer-first), each resolved
           // against the product's stored axis records.
           let chainAxes = flows->Array.filterMap(f => {
@@ -517,6 +567,14 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
 // traversal nested inside it can index the shared table at this coordinate.
 let isProductAxisNode = (st: state, uncollect: node): bool =>
   st.products->Array.some(p => p.axes->Array.some(a => a.uncollect.id === uncollect.id))
+
+// The same question asked of a flow reference (resolved through a transposing
+// commute, which denotes its operand swapped): is this chain level a product
+// axis, or an ordinary flow?
+let isProductAxisFlow = (st: state, f: flowRef): bool => {
+  let k = Context.flowKey(Context.throughCommutes(f))
+  st.products->Array.some(p => p.axes->Array.some(a => a.axisKey === k))
+}
 
 // A PARTIAL product traversal: a collect chain over a proper, non-empty subset of
 // one product's axes, whose terminal spans the whole product. This is
@@ -567,7 +625,7 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
             keys->Array.every(k => axisKeys->Array.includes(k)) &&
             Array.length(held) >= 1 &&
             Array.length(keys) >= 1 &&
-            sameKeySet(axisKeys, sAxes)
+            spansProduct(p, sAxes)
           ) {
             // Every held axis must be an indexed loop already open on this chain.
             let resolved = held->Array.filterMap(a =>
@@ -626,19 +684,28 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
 // instead, leaving that traversal to the rest of the poset round (the general
 // poset-valued context). A value with a linear context (an ordinary nested
 // collect) returns false and compiles normally.
-let underCoveredProduct = (cn: node): bool =>
+let underCoveredProduct = (st: state, cn: node): bool =>
   switch cn.kind {
-  | Collect({branches: [{value}]}) =>
-    let (_, terminal) = chainFlows(value)
-    // A `prev`-reading terminal is a running view, not a table read: its
-    // product-spanning combine is emitted inside the register's own loop
-    // (emitRunningCollect), so an incomparable context here is expected.
-    if Array.length(readsPrevRegs(terminal)) > 0 {
+  | Collect({branches: [{flow, value}]}) =>
+    // The backstop belongs to a collect that is itself reading a product axis.
+    // A collect over an ORDINARY flow whose branch value happens to span a
+    // product is not a table read at all — it is the enclosing loop of one (the
+    // product opened inside it), so it compiles normally and the traversal is
+    // matched inside its body, where the exterior is open.
+    if !isProductAxisFlow(st, flow) {
       false
     } else {
-      switch Context.valueContext(terminal) {
-      | _ => false
-      | exception Context.Incomparable(_) => true
+      let (_, terminal) = chainFlows(value)
+      // A `prev`-reading terminal is a running view, not a table read: its
+      // product-spanning combine is emitted inside the register's own loop
+      // (emitRunningCollect), so an incomparable context here is expected.
+      if Array.length(readsPrevRegs(terminal)) > 0 {
+        false
+      } else {
+        switch Context.valueContext(terminal) {
+        | _ => false
+        | exception Context.Incomparable(_) => true
+        }
       }
     }
   | _ => false
@@ -690,7 +757,7 @@ let rec compileValue = (st: state, ctx: ctxPath, r: valueRef): compiled =>
           switch matchPartialProductChain(st, ctx, n) {
           | Some(pm) => emitPartialProductChain(st, n, pm)
           | None =>
-            if underCoveredProduct(n) {
+            if underCoveredProduct(st, n) {
               throw(
                 Todo(
                   "an under-determined / partially-covered n-ary product consumer — the " ++
@@ -1982,27 +2049,50 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
 // it and the user's computation runs once per cell. Returns the binding name
 // and the statements to float (the table lazy plus its feeds), or just the name
 // if a prior consumer already built it.
-and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<placed>) => {
+and getOrBuildTable = (
+  st: state,
+  ~place: ctxPath,
+  p: product,
+  sVal: valueRef,
+): (string, array<placed>) => {
   let (sNode, sPort) = switch sVal {
   | ValuePort(n, port) => (n, port)
   }
   let tkey = memoKey(sNode.id, sPort)
-  switch Map.get(st.tableMemo, tkey) {
-  | Some(existing) => (existing, [])
+  // Context-keyed like the ordinary memo, and for the same reason: a product
+  // opened inside a loop builds its table inside that loop's body, so the
+  // binding is only in scope for a chain whose context extends `place`. For a
+  // top-level product `place` is empty and every consumer hits the one entry.
+  let existing =
+    Map.get(st.tableMemo, tkey)
+    ->Option.flatMap(entries =>
+      entries
+      ->Array.find(((stored, _)) => isCtxPrefix(stored, place))
+      ->Option.map(((_, name)) => name)
+    )
+  switch existing {
+  | Some(name) => (name, [])
   | None =>
     // The product context, stored orientation, tagged with the Cross's id so
-    // the two consumer chains share this one table's scope.
-    let segs = p.axes->Array.map(a => {flow: a.flow, thunkOf: p.crossId, idxVar: None})
-    // Feeds (the list sources) are loop-invariant — compiled at the top level.
-    let feedCs = p.axes->Array.map(a => compileValue(st, [], a.feed))
+    // the two consumer chains share this one table's scope. It hangs off the
+    // product's exterior: the axes go parallel *inside* whatever loop opened
+    // them (`L > {X || Y}`).
+    let axisSegs = p.axes->Array.map(a => {flow: a.flow, thunkOf: p.crossId, idxVar: None})
+    let segs = Array.concat(place, axisSegs)
+    let placeLen = Array.length(place)
+    // The sub-context axis i's element lives at: the exterior plus axes 0..i.
+    let axisCtx = (i: int): ctxPath => segs->Array.slice(~start=0, ~end=placeLen + i + 1)
+    // Feeds (the list sources) are invariant in the product's own axes, so they
+    // compile at its exterior — the top level for a top-level product, the
+    // enclosing loop body for a nested one (where they legitimately vary).
+    let feedCs = p.axes->Array.map(a => compileValue(st, place, a.feed))
     let arrNames = p.axes->Array.map(_ => st.fresh())
     let idxVars = p.axes->Array.map(_ => st.fresh())
     // Pre-memoise each axis's element at its sub-context, so compiling sVal
     // resolves the elements; the bindings are emitted manually into the loops.
     let elemNames = p.axes->Array.mapWithIndex((a, i) => {
-      let subCtx = segs->Array.slice(~start=0, ~end=i + 1)
       let elemName = st.fresh()
-      recordMemo(st, a.uncollect.id, "element", subCtx, elemName)
+      recordMemo(st, a.uncollect.id, "element", axisCtx(i), elemName)
       elemName
     })
 
@@ -2012,18 +2102,17 @@ and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<pl
     let valC = compileValue(st, fullCtx, sVal)
     valC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-    // Bucket sVal's statements into the loop bodies; loop-invariant work floats
-    // out of the table thunk (the feeds, the discriminator externs, …).
+    // Bucket sVal's statements into the loop bodies; work invariant in the
+    // product's axes floats out of the table thunk (the feeds, the discriminator
+    // externs, …) to the exterior or above.
     let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-    segs->Array.forEachWithIndex((_, i) =>
-      Map.set(buckets, ctxPathKey(segs->Array.slice(~start=0, ~end=i + 1)), [])
-    )
+    p.axes->Array.forEachWithIndex((_, i) => Map.set(buckets, ctxPathKey(axisCtx(i)), []))
     let escaped: array<placed> = []
     floatedAcc->Array.forEach(pl =>
       switch Map.get(buckets, ctxPathKey(pl.at)) {
       | Some(bk) => Array.push(bk, pl.stmt)
       | None =>
-        if Array.length(pl.at) === 0 {
+        if isCtxPrefix(pl.at, place) {
           Array.push(escaped, pl)
         } else {
           failwith("Codegen: a statement floated to a context unrelated to the product table — placement bug")
@@ -2038,8 +2127,7 @@ and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<pl
     // for-of becomes n nested index-loops over the same shape.
     let n = Array.length(p.axes)
     let tName = st.fresh()
-    let bucketFor = (i: int): array<JsAst.stmt> =>
-      Map.get(buckets, ctxPathKey(segs->Array.slice(~start=0, ~end=i + 1)))->Option.getOr([])
+    let bucketFor = (i: int): array<JsAst.stmt> => Map.get(buckets, ctxPathKey(axisCtx(i)))->Option.getOr([])
     // buildLevel(j, accName): the loop over axis j, pushing into `accName`. At the
     // innermost axis it pushes the computed value; otherwise it opens a fresh row,
     // builds the next axis into it, and pushes that row.
@@ -2078,10 +2166,18 @@ and getOrBuildTable = (st: state, p: product, sVal: valueRef): (string, array<pl
     )
 
     let tableName = st.fresh()
-    Map.set(st.tableMemo, tkey, tableName)
+    let entries = switch Map.get(st.tableMemo, tkey) {
+    | Some(a) => a
+    | None => {
+        let a: array<(ctxPath, string)> = []
+        Map.set(st.tableMemo, tkey, a)
+        a
+      }
+    }
+    Array.push(entries, (place, tableName))
     (
       tableName,
-      Array.concat(escaped, [{at: [], stmt: JsBuild.const(tableName, Runtime.lazyOf(thunkBody))}]),
+      Array.concat(escaped, [{at: place, stmt: JsBuild.const(tableName, Runtime.lazyOf(thunkBody))}]),
     )
   }
 }
@@ -2130,7 +2226,16 @@ and emitTableTraversal = (
   ~sVal: valueRef,
 ): compiled => {
   let floatedAcc: array<placed> = []
-  let (tableName, tableFloated) = getOrBuildTable(st, p, sVal)
+  // The shared table lives at the product's own exterior — the top level for a
+  // top-level product, the enclosing loop's body for one opened inside a loop
+  // (one table per point of the exterior, shared by every consumer of it). The
+  // traversal itself is placed by its caller, at or below that.
+  let tablePlace = instantiate(
+    ~what="Product table for Cross node " ++ Int.toString(p.crossId),
+    p.exterior,
+    place,
+  )
+  let (tableName, tableFloated) = getOrBuildTable(st, ~place=tablePlace, p, sVal)
   tableFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
   let k = Array.length(chainAxes)
