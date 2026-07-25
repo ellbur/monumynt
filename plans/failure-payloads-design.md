@@ -930,6 +930,26 @@ as leanings.
    sharper. Still not merged, for that question's standing reason
    (now/later is a difference in meaning); noted so the next
    round there starts from this formulation.
+
+   **Direction noted (2026-07-23): option-as-flow is the default
+   surface for failable operations.** The adopting conversation's
+   aside, recorded: the language may not like option *values*
+   generally — a failable operation (a lookup, a parse) should
+   mint the unpacked reading by default, an **open option flow**
+   (fires iff there is a value, `Nil` in its inventory), rather
+   than a packed option value that downstream immediately splits
+   (packing-to-pass, in miniature). The packed value survives as
+   data-on-purpose only, via a drawn collect (options stored in a
+   list, an optional field). What this buys: chaining without
+   ceremony (each op in the previous hit's context, the miss
+   propagating by default — Maybe-monad behavior from the adopted
+   machinery, no operator), and Rust's warn-on-discarded-Option
+   falls out structurally — a discarded option is a nonempty
+   `{Nil}` inventory reaching the root undischarged, which files
+   as a datum for question 4's advisory side (`#[must_use]` is
+   the field shipping that advisory). The now/later distinction
+   is untouched; this is a ruling about the now column's default
+   surface only.
 7. **Naming.** "Inventory," "lane," "minting site," "tag" are this
    chapter's placeholders; "fail" vs "raise" vs "abort"; deferred
    to the naming sweep (`implementation-strategy.md`).
