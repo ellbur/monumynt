@@ -941,20 +941,23 @@ header("register pair: running view over a flattened list-of-lists")
 }
 
 // ============================================================================
-// 8j. The FILTERED running view — a sibling collect reads `prev` over a filtered
-//     (case-alt) driving flow — is well-formed (passes Check) but the emitter is
-//     the shared-loop-skeleton case, deferred with the rest of the running-view
-//     work. It must decline with a clean Codegen.Todo, not a raw failwith crash
-//     (the error-discipline fix: a well-formed program never crashes the
-//     compiler). ARCHITECTURE worklist item 6.
+// 8j. The FILTERED running view: a sibling collect reads `prev` over a filtered
+//     (case-alt) driving flow. The register itself already folds the kept
+//     subsequence (tests 8e–8g, delay-ontology-design.md route (b) "filter
+//     inside"); the view is that same fold re-run with a push, so it walks the
+//     SAME levels — `walkFilterLevels`, shared with the register and the filter
+//     collect — and both the push and the advance sit inside the alt guard. One
+//     output element per KEPT firing: a dropped firing contributes nothing to
+//     the view and does not step the register. Filter-then-scan, which is what
+//     the composition ought to mean.
 // ============================================================================
 
-header("register pair: a filtered running view declines cleanly (Todo, not a crash)")
+header("register pair: the running view over a filtered (case-alt) driving flow")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
   let disc = Build.raw(b, "x => x > 0 ? {tag: 'Keep', value: x} : {tag: 'Drop', value: x}")
-  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3)]))
+  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3), int_(-4), int_(5)]))
   let it = Build.uncollectList(b, xs.value)
   let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=it.flow, it.element)
   let keep = Build.alt(cs, "Keep")
@@ -962,23 +965,111 @@ header("register pair: a filtered running view declines cleanly (Todo, not a cra
   let sum = Build.delay(b, ~flow=filtered.flow, ~init=Build.lit(b, int_(0)).value)
   let stepped = Build.app(b, addF.value, [sum.prev, keep.altValue])
   let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
-  // A sibling collect over the SAME filtered flow reads prev.
-  let running = Build.collect(b, ~flow=filtered.flow, sum.prev)
-  let p = Build.finish(b, ~outputs=[("running", running.value), ("total", w.final)])
+  // Sibling collects over the SAME filtered flow. Kept subsequence: 1, 3, 5.
+  // Running-before (collect prev): [0, 1, 4]; running-after (collect the
+  // stepped value): [1, 4, 9]; the write half's own fold: 9.
+  let before = Build.collect(b, ~flow=filtered.flow, sum.prev)
+  let after = Build.collect(b, ~flow=filtered.flow, stepped.value)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", before.value), ("after", after.value), ("total", w.final)],
+  )
   let ws = Check.check(p)
   if Array.length(ws) === 0 {
     pass("filtered running view passes the implemented checks (well-formed)")
   } else {
     fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
-  switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("filtered running view declines with a clean Todo (not a crash)")
-  | Ok(_) => fail("filtered running view unexpectedly compiled — its emitter is deferred")
-  | Error(ws) =>
-    fail("filtered running view failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
-  }
+  expectOutput(p, "before", array_([int_(0), int_(1), int_(4)]))
+  expectOutput(p, "after", array_([int_(1), int_(4), int_(9)]))
+  expectOutput(p, "total", int_(9))
   // (No round-trip: the text surface for a nested case split in a chain is a
   // known TextPrint gap, shared with the filtered register tests 8e–8g.)
+}
+
+// ============================================================================
+// 8j2. The filtered running view over a NON-TRAILING dispatch (filter-then-
+//      flatmap): keep an alt, then flatten the kept payload's list. The register
+//      folds the flattened kept order (test 8g); the view pushes once per
+//      innermost element of that order. Same walk, one more level.
+// ============================================================================
+
+header("register pair: running view over a filter-then-flatmap driving flow")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  // Keep the rows whose head is positive; the alt payload is the row itself.
+  let disc = Build.raw(b, "r => r[0] > 0 ? {tag: 'Keep', value: r} : {tag: 'Drop', value: r}")
+  let rows = Build.lit(
+    b,
+    array_([
+      array_([int_(1), int_(2)]),
+      array_([int_(-9), int_(100)]),
+      array_([int_(3), int_(4)]),
+    ]),
+  )
+  let ito = Build.uncollectList(b, rows.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=ito.flow, ito.element)
+  let keep = Build.alt(cs, "Keep")
+  let iti = Build.uncollectList(b, ~nesting=keep.altFlow, keep.altValue)
+  let kept = Build.join(b, ~outer=ito.flow, ~inner=keep.altFlow)
+  let flat = Build.join(b, ~outer=kept.flow, ~inner=iti.flow)
+  let sum = Build.delay(b, ~flow=flat.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  // Kept flattened order 1,2,3,4 (the -9 row is dropped whole) -> running-after
+  // prefix sums 1,3,6,10; total 10.
+  let after = Build.collect(b, ~flow=flat.flow, stepped.value)
+  let p = Build.finish(b, ~outputs=[("after", after.value), ("total", w.final)])
+  expectOutput(p, "after", array_([int_(1), int_(3), int_(6), int_(10)]))
+  expectOutput(p, "total", int_(10))
+}
+
+// ============================================================================
+// 8j3. What the running view still declines: a PARTIAL (cell-set) driving flow.
+//      A register over a partial collect's merged flow is the k-arm-dispatch
+//      cell-set case the poset round owns, and so is its view. It must decline
+//      with a clean Codegen.Todo, not a raw failwith crash (the error discipline:
+//      a well-formed program never crashes the compiler).
+// ============================================================================
+
+header("register pair: a partial (cell-set) running view still declines cleanly")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(
+    b,
+    "x => x % 3 === 0 ? {tag: 'Three', value: x} : (x % 2 === 0 ? {tag: 'Two', value: x} : {tag: 'Other', value: x})",
+  )
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(
+    b,
+    ~alts=["Three", "Two", "Other"],
+    ~discriminator=disc.value,
+    ~nesting=it.flow,
+    it.element,
+  )
+  let three = Build.alt(cs, "Three")
+  let two = Build.alt(cs, "Two")
+  // A partial collect over two of the three alts: the merged flow of the
+  // covered cells.
+  let pc = Build.collectCases(
+    b,
+    [(three.altFlow, three.altValue), (two.altFlow, two.altValue)],
+  )
+  let merged = Program.FlowPort(pc.node, "flow")
+  let inner = Build.join(b, ~outer=it.flow, ~inner=merged)
+  let sum = Build.delay(b, ~flow=inner.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, pc.value])
+  let _ = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let running = Build.collect(b, ~flow=inner.flow, sum.prev)
+  let p = Build.finish(b, ~outputs=[("running", running.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("a partial running view declines with a clean Todo (not a crash)")
+  | Ok(_) => fail("a partial running view unexpectedly compiled — its emitter is deferred")
+  | Error(_) => pass("a partial running view is rejected before codegen (a witness, not a crash)")
+  }
 }
 
 // ============================================================================
