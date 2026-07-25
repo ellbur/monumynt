@@ -3320,16 +3320,218 @@ out out
   } else {
     fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
-  // Representable and checkable, but the commute emitter is still Todo — the
-  // poset round owns it. Compile declines with a clean Todo rather than a bad
-  // emit, which is what we assert here.
+  // Representable and checkable, but this commute is over a genuine (dependent)
+  // nesting — an option opened inside a list element — so it is the directed
+  // SEQUENCE operation, whose short-circuiting output construction waits on
+  // stream flows (lazy-stream-commute-design.md). Compile declines with a clean
+  // Todo rather than a bad emit, which is what we assert here. The other
+  // operation the word names — transpose over a crossed pair — compiles (15p).
   switch Pipeline.compile(fromText) {
-  | exception Codegen.Todo(_) => pass("commute declines to compile (poset round owns the emitter)")
+  | exception Codegen.Todo(_) =>
+    pass("commute over a non-product nesting declines to compile (the sequence operation)")
   | Ok(_) => fail("commute unexpectedly compiled — its emitter was Todo")
   | Error(ws) =>
     fail("commute program failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
   expectRoundTrip(fromText)
+}
+
+// ============================================================================
+// 15p. The TRANSPOSING commute: commute over a crossed pair
+//      (product-flows-design.md, theorem 2 "commute is total on crossed pairs";
+//      lazy-stream-commute-design.md's taxonomy row "Transpose", the lawful
+//      exception to the same-kind commute otherwise declined on usefulness
+//      grounds — "the decline applies exactly where the nesting is not a
+//      product").
+//
+//      This is Option A's spelling made real: the Cross stores an orientation,
+//      and the consumer that wants the other one reads through a Commute. Two
+//      things fall out rather than being built:
+//
+//      - Transpose is a RE-READING, not a restructuring, so the commute's
+//        output ports simply denote its operands swapped
+//        (`Context.throughCommutes`); the transposed chain is then an ordinary
+//        product chain in its own order, and every k! order already indexes the
+//        one shared point-indexed table. So the emitter is unchanged, and the
+//        `add` still runs once per point — pinned by the golden below.
+//      - The two axes are nesting-adjacent BY the product (theorem 1,
+//        rectangularity), which is the join-adjacency carve-out in `Check`:
+//        their own exteriors are sibling, and the Cross is what makes them
+//        adjacent.
+// ============================================================================
+
+header("commute over a crossed pair: transpose, re-reading the one shared table")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // The product, stored oriented: x outer, y inner.
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // The stored reading, naming the axes directly: per x, the list over y.
+  let inner1 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itX.flow, inner1.value)
+  // The transposed reading, through a Commute over the crossed pair. `c.outer`
+  // is the ex-inner (y) now outermost; `c.inner` the ex-outer (x) now innermost.
+  let cm = Build.commute(b, ~outer=itX.flow, ~inner=itY.flow)
+  let inner2 = Build.collect(b, ~flow=cm.innerFlow, s.value)
+  let out2 = Build.collect(b, ~flow=cm.outerFlow, inner2.value)
+  let p = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  // out1: grouped per x — [[1+10,1+20],[2+10,2+20],[3+10,3+20]].
+  expectOutput(
+    p,
+    "out1",
+    array_([
+      array_([int_(11), int_(21)]),
+      array_([int_(12), int_(22)]),
+      array_([int_(13), int_(23)]),
+    ]),
+  )
+  // out2: the transpose read through the commute — grouped per y.
+  expectOutput(
+    p,
+    "out2",
+    array_([
+      array_([int_(11), int_(12), int_(13)]),
+      array_([int_(21), int_(22), int_(23)]),
+    ]),
+  )
+
+  // The commute is nesting-adjacent by the product — no join-adjacency witness.
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("a commute over a crossed pair passes join-adjacency (the product makes it adjacent)")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+
+  // Golden: the transposed reading costs nothing — it indexes the SAME table, so
+  // the user's add still appears exactly once (theorem 2's "the same product read
+  // the other way; nothing can fail" as an operational fact).
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out2") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b")
+      if n === 1 {
+        pass("the transposed reading shares the stored orientation's table (add once)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out2 to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("transposing-commute program failed check:\n  " ++
+    ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+
+  expectRoundTrip(p)
+}
+
+header("commute at rank 3: swapping two axes the stored orientation puts apart")
+{
+  // In a cube stored x > y > z, X and Z are not neighbours — Y sits between them.
+  // But a product has no "between": its axes are mutually order-free, so the swap
+  // is lawful and the transposed chain is just another permutation indexing the
+  // one cube. This is why `crossedPair` asks CONTAINMENT ("both axes of one
+  // product") rather than the exact-span discipline a combine's home gets: a flat
+  // three-way cross builds no {X, Z} sub-product, and it does not need to.
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // The stored reading, x > y > z.
+  let a1 = Build.collect(b, ~flow=itZ.flow, s.value)
+  let a2 = Build.collect(b, ~flow=itY.flow, a1.value)
+  let outA = Build.collect(b, ~flow=itX.flow, a2.value)
+  // The same reading with X and Z transposed: z > y > x, read through a commute
+  // whose operands are the two non-neighbouring axes.
+  let cm = Build.commute(b, ~outer=itX.flow, ~inner=itZ.flow)
+  let b1 = Build.collect(b, ~flow=cm.innerFlow, s.value)
+  let b2 = Build.collect(b, ~flow=itY.flow, b1.value)
+  let outB = Build.collect(b, ~flow=cm.outerFlow, b2.value)
+  let p = Build.finish(b, ~outputs=[("outA", outA.value), ("outB", outB.value)])
+
+  // outA: grouped x, then y, then z.
+  expectOutput(
+    p,
+    "outA",
+    array_([
+      array_([array_([int_(111), int_(211)]), array_([int_(121), int_(221)])]),
+      array_([array_([int_(112), int_(212)]), array_([int_(122), int_(222)])]),
+      array_([array_([int_(113), int_(213)]), array_([int_(123), int_(223)])]),
+    ]),
+  )
+  // outB: grouped z, then y, then x — the same cube, indexed the other way.
+  expectOutput(
+    p,
+    "outB",
+    array_([
+      array_([array_([int_(111), int_(112), int_(113)]), array_([int_(121), int_(122), int_(123)])]),
+      array_([array_([int_(211), int_(212), int_(213)]), array_([int_(221), int_(222), int_(223)])]),
+    ]),
+  )
+
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("a commute of two non-neighbouring axes of one cube checks clean")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outB") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b + c")
+      if n === 1 {
+        pass("the rank-3 transpose shares the one cube (f3 once)")
+      } else {
+        fail("expected f3 once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outB to inspect for f3-once")
+    }
+  | Error(ws) =>
+    fail("rank-3 transposing commute failed check:\n  " ++
+    ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(p)
+}
+
+header("commute of two UNCROSSED siblings still witnesses (the carve-out is the Cross's)")
+{
+  // The same two top-level lists, the same Commute — but no Cross. Nothing makes
+  // the two axes nesting-adjacent, so the swap has no pair to swap and the
+  // join-adjacency rule reports it exactly as before. The carve-out above is
+  // theorem 1 speaking (the product IS the adjacency), not the rule weakening.
+  let b = Build.make()
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let cm = Build.commute(b, ~outer=itX.flow, ~inner=itY.flow)
+  let inner = Build.collect(b, ~flow=cm.innerFlow, itX.element)
+  let out = Build.collect(b, ~flow=cm.outerFlow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  let ws = Check.check(p)
+  if ws->Array.some(w => w.rule === "join-adjacency") {
+    pass("join-adjacency witness produced (two siblings with no product between them)")
+  } else {
+    fail(
+      "expected a join-adjacency witness, got:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
 }
 
 // ============================================================================

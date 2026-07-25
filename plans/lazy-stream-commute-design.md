@@ -616,7 +616,18 @@ a variant or note a no-op.
   eager-flow story stays as recorded there.
 
 - **Implementing commute.** This is design; implementation comes
-  after the basic stream-flow runtime is in place.
+  after the basic stream-flow runtime is in place — for *this*
+  chapter's commute, the directed sequence. The taxonomy's other row
+  is already built: **transpose over a Cross is implemented**
+  (`src/ARCHITECTURE.md`, poset round). It needed no output
+  construction at all, which is the two-operations distinction below
+  showing up as a difference in cost: sequence restructures and so
+  must walk; transpose only re-reads, so a commute output port
+  denotes its operand swapped and the consuming chain becomes another
+  permutation indexing the product's one shared table. The compiler
+  therefore gates on provenance exactly as the taxonomy says — over a
+  crossed pair, transpose; elsewhere, this chapter's still-unbuilt
+  walk.
 
 - **The spec's `Commute` node.** The node is the representation, the
   close is the compilation. The node carries flow wires only (no
