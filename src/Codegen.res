@@ -224,26 +224,9 @@ type product = {
 // runs (product-flows-design.md, "smallest first step" 1). What is left — axes
 // sharing an outer loop — is a product with a non-empty exterior.
 //
-// A FILTERED axis (a join chain) is supported as well: its layers must be a
-// leading list open — the extent to iterate — followed by any number of iter
-// (list / option) or dispatch (case-alt / partial) layers. The leading layer has
-// to be a list because the axis's extent is what the table's rank is built from;
-// everything after it only decides which firings survive, which is the design's
-// "rectangular, just smaller". A Cross or a Commute inside a would-be axis is not
-// an axis chain (the poset round's nested-product question) and declines here.
-let rec axisChainOk = (f: flowRef, ~lead: bool): bool =>
-  switch f {
-  | FlowPort(n, port) =>
-    switch n.kind {
-    | Uncollect({flowKind: List}) => port === "flow"
-    | Uncollect({flowKind: Option}) => !lead && port === "flow"
-    | Uncollect({flowKind: Case(_)}) => !lead
-    | Join({outer, inner}) => axisChainOk(outer, ~lead) && axisChainOk(inner, ~lead=false)
-    | Collect(_) => !lead // a partial collect's merged flow: a k-cell dispatch
-    | _ => false
-    }
-  }
-
+// A FILTERED axis (a join chain) is supported as well — `Context.axisChainOk`
+// owns that rule, shared with Complete.
+//
 // The chain's leading list open and the value feeding it — the axis's extent.
 let rec leadOpen = (f: flowRef): option<(node, valueRef)> =>
   switch f {
@@ -271,7 +254,7 @@ let productAxisOf = (f: flowRef): option<productAxis> =>
         chain: false,
         spanKeys: axisSpanKeys(f),
       })
-    | Join(_) if axisChainOk(f, ~lead=true) =>
+    | Join(_) if Context.axisChainOk(f, ~lead=true) =>
       leadOpen(f)->Option.map(((u, input)) => {
         axisKey: Context.flowKey(f),
         uncollect: u,

@@ -160,6 +160,65 @@ let harvest = (p: program): array<constraint_> => {
     | _ => ()
     }
   )
+  // Chain axes the author DREW: a Join whose layers form a valid axis chain
+  // (`Context.axisChainOk`) — a FILTERED axis, `join(list, case-alt)`, which is
+  // crossable like any other, "rectangular, just smaller". Its identity in a
+  // value's axis span is the SET of its layers, because a value borne on it names
+  // the layers rather than the join (`valueAxes` of an alt payload reports both
+  // the list and the alt), so resolving a span means letting a chain axis claim
+  // all of its layers at once.
+  //
+  // Only a DRAWN join qualifies: completion inserts operators whose value-level
+  // shadow is the identity, and a join changes firing structure, which is meaning
+  // the author must draw (time-travel-programs-design.md). A filtered axis nobody
+  // drew therefore stays a witness whose remedy is a hand-drawn chain, exactly as
+  // a non-list axis does.
+  let chainAxes: array<(array<string>, flowRef)> = []
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | Join(_) => {
+        let f = FlowPort(n, "flow")
+        if Context.axisChainOk(f, ~lead=true) {
+          Array.push(chainAxes, (Context.flowLayers(f)->Array.map(Context.flowKey), f))
+        }
+      }
+    | _ => ()
+    }
+  )
+  let layerKeys = (f: flowRef): array<string> =>
+    Context.flowLayers(f)->Array.map(Context.flowKey)
+  // Resolve an axis SPAN (layer keys, in the combine's own walk order) to the
+  // AXES it names. A drawn chain axis claims every one of its layers — but only
+  // when the span names them all, since a value that reaches just the leading
+  // list is borne on the list, not on the filtered axis. Every key left over must
+  // be a list open; anything else (a bare alt, a merged flow, a non-list open)
+  // fails resolution, and the combine stays a witness.
+  let resolveAxes = (span: array<string>): option<array<flowRef>> => {
+    let claimed: array<string> = []
+    let axes: array<flowRef> = []
+    let ok = ref(true)
+    span->Array.forEach(k =>
+      if !(claimed->Array.includes(k)) {
+        switch chainAxes->Array.find(((keys, _)) =>
+          keys->Array.includes(k) && keys->Array.every(x => span->Array.includes(x))
+        ) {
+        | Some((keys, f)) => {
+            keys->Array.forEach(x => Array.push(claimed, x))
+            Array.push(axes, f)
+          }
+        | None =>
+          switch Map.get(axisFlows, k) {
+          | Some(f) => {
+              Array.push(claimed, k)
+              Array.push(axes, f)
+            }
+          | None => ok := false
+          }
+        }
+      }
+    )
+    ok.contents ? Some(axes) : None
+  }
   // The SIBLING FRONTIER of an axis span: the axes that are not the source of
   // another axis in the span. A combine inside a loop names that loop's axis
   // too — the per-group product's span is `{G, A, B}` — but G is not a sibling
@@ -171,17 +230,26 @@ let harvest = (p: program): array<constraint_> => {
   // ancestor of some frontier members but not others (x top-level, a inside a
   // loop) is a real ambiguity about which nesting to commit, so it stays a
   // witness rather than being resolved by this pass's convenience.
-  let frontier = (vaxes: array<string>): option<array<string>> => {
-    let sourcesOf = (k: string): array<string> =>
-      switch Map.get(axisFlows, k) {
-      | Some(f) => Annotate.sourceAxes(f)
-      | None => []
-      }
-    let determined =
-      vaxes->Array.filter(k => vaxes->Array.some(o => o != k && sourcesOf(o)->Array.includes(k)))
-    let front = vaxes->Array.filter(k => !(determined->Array.includes(k)))
+  //
+  // Stated over AXES rather than over raw span keys, so a chain axis is one
+  // member however many layers it has: an axis determines another when any of its
+  // layers is among that one's sources (the enclosing loop's element is what the
+  // inner list's source is computed from, whether the inner axis is a plain open
+  // or a filtered chain).
+  let frontier = (axes: array<flowRef>): option<array<flowRef>> => {
+    let key = Context.flowKey
+    let determined = axes->Array.filter(f =>
+      axes->Array.some(o =>
+        key(o) != key(f) && layerKeys(f)->Array.some(k => Annotate.sourceAxes(o)->Array.includes(k))
+      )
+    )
+    let front = axes->Array.filter(f => !(determined->Array.some(d => key(d) === key(f))))
     let sharedByAll =
-      determined->Array.every(d => front->Array.every(k => sourcesOf(k)->Array.includes(d)))
+      determined->Array.every(d =>
+        front->Array.every(f =>
+          layerKeys(d)->Array.some(k => Annotate.sourceAxes(f)->Array.includes(k))
+        )
+      )
     sharedByAll ? Some(front) : None
   }
   p.nodes->Array.forEach(n =>
@@ -193,13 +261,14 @@ let harvest = (p: program): array<constraint_> => {
         // axis span; complete it only when every axis is a top-level list open,
         // the axes are pairwise invariant, and none is already crossed.
         let span = Poset.dedup(Annotate.valueAxes(ValuePort(n, port)))
-        let vaxes = frontier(span)->Option.getOr([])
-        let flows = vaxes->Array.filterMap(k => Map.get(axisFlows, k))
+        let flows =
+          resolveAxes(span)->Option.flatMap(frontier)->Option.getOr([])
         if (
-          Array.length(flows) === Array.length(vaxes) &&
           Array.length(flows) >= 2 &&
           allInvariant(flows) &&
-          vaxes->Array.every(k => !(crossedAxes->Array.includes(k)))
+          flows->Array.every(f =>
+            layerKeys(f)->Array.every(k => !(crossedAxes->Array.includes(k)))
+          )
         ) {
           // Canonical orientation: the order the COMBINE names its axes — the
           // structural walk order of `valueAxes` (fn, then args left to right).

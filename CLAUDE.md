@@ -157,7 +157,7 @@ The user designs incrementally and likes to think out loud about a step before a
 - They prefer "baby steps" — one small, well-understood addition at a time. Don't bring in extra design dimensions ("multi-close at the same time as nested at the same time as join") in one round.
 - They have strong design taste — when they say something like "we don't need to walk the stack" or "join is a pure flow operation," it's worth taking literally and working out the implications, not paraphrasing or smoothing over.
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
-- Before declaring something done, run the test suite (`npm start`). It currently passes 300 checks; if a change drops that count, something regressed.
+- Before declaring something done, run the test suite (`npm start`). It currently passes 304 checks; if a change drops that count, something regressed.
 
 ## Honoured semantic limitations
 

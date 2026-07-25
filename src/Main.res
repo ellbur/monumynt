@@ -3652,6 +3652,98 @@ header("complete: an ancestor shared by only SOME frontier axes is not completed
   }
 }
 
+// 10g. Completion over a FILTERED axis the author drew. A combine whose value is
+//      borne on `join(list, case-alt)` names BOTH of that axis's layers in its
+//      span, so the span has three keys for two axes; resolving it lets the drawn
+//      chain claim its layers at once, and what gets crossed is the join the
+//      author already drew. The completed program is the hand-drawn 15r5 — same
+//      values, same one shared table.
+header("complete: a sibling combine over a drawn filtered axis gets its product")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  // The filtered axis IS drawn — the join is the author's. No Cross is.
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=kx.flow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // The same values the hand-drawn form gives (test 15r5): kept x = [2, 4].
+  expectOutput(p, "out", array_([int_(34), int_(38)]))
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion crossed the drawn filtered axis with its sibling")
+    } else {
+      fail("expected one inserted product, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail(
+      "the filtered sibling program failed to complete:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | exception Codegen.Todo(g) => fail("the completed filtered product declined: " ++ g)
+  }
+  // The lens shows the inserted product as one `+` line, over the drawn join.
+  let lens = Pipeline.completionText(p)
+  let plusLines = lens->String.split("\n")->Array.filter(l => l->String.startsWith("+"))
+  switch plusLines {
+  | [one] if one->String.includes("cross with") =>
+    pass("the lens renders the inserted product over the filtered axis as one `+` line")
+  | _ => fail("expected exactly one `+ … cross with …` line, got:\n  " ++ plusLines->Array.join("\n  "))
+  }
+}
+
+// 10h. The guard that keeps 10g honest: an UNDRAWN filtered axis. The same
+//      combine, but the author never joined the alt onto its list — the value is
+//      borne on a bare alt flow, gathered by a collect over that flow. There is
+//      no axis to cross, and completion may not manufacture one: it inserts only
+//      operators whose value-level shadow is the identity, and a join changes
+//      firing structure, which is meaning the author must draw
+//      (time-travel-programs-design.md). So this stays a time-travel witness,
+//      exactly as a non-list axis does, and its remedy is the drawn chain of 10g.
+header("complete: an UNDRAWN filtered axis is not manufactured — it stays a witness")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=ev.altFlow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Ok(_) => fail("an undrawn filtered axis was completed — completion minted a join")
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "time-travel") {
+      pass("an undrawn filtered axis stays a time-travel witness (draw the chain)")
+    } else {
+      fail(
+        "expected a time-travel witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | exception Codegen.Todo(m) => fail("expected a Check witness, got a Codegen Todo: " ++ m)
+  }
+}
+
 // 15q2. The same per-group product read in BOTH orders. Everything the
 //       top-level product's shared table gives (test 15) holds one layer in:
 //       the two chains share one table per group, so the user's computation

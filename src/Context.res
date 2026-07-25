@@ -565,6 +565,32 @@ let rec flowLayers = (f: flowRef): array<flowRef> =>
     }
   }
 
+// Is this flow a PRODUCT AXIS CHAIN — a leading list open (the axis's extent)
+// followed by any number of iter (list / option) or dispatch (case-alt / partial)
+// layers? That is `product-flows-design.md`'s first filtering regime, "filter an
+// axis by its own element … still a product, still crossable, still transposable.
+// Rectangular, just smaller": the leading layer must be a list because the axis's
+// extent is what the product's rank is built from, and everything after it only
+// decides which firings survive (a dispatch drops some, a flatten multiplies
+// them). A Cross or a Commute inside a would-be axis is not an axis chain (the
+// poset round's nested-product question) and declines here.
+//
+// Shared by Codegen (which builds the table by walking such a chain) and Complete
+// (which may cross one the author DREW). Completion never mints the join itself —
+// that would change firing structure, which the design reserves to the author.
+let rec axisChainOk = (f: flowRef, ~lead: bool): bool =>
+  switch f {
+  | FlowPort(n, port) =>
+    switch n.kind {
+    | Uncollect({flowKind: List}) => port === "flow"
+    | Uncollect({flowKind: Option}) => !lead && port === "flow"
+    | Uncollect({flowKind: Case(_)}) => !lead
+    | Join({outer, inner}) => axisChainOk(outer, ~lead) && axisChainOk(inner, ~lead=false)
+    | Collect(_) => !lead // a partial collect's merged flow: a k-cell dispatch
+    | _ => false
+    }
+  }
+
 // The full poset context of a flow operand of a Cross: its exterior chain plus
 // the axis (or axes) it opens. A plain Uncollect opens ONE axis, so this is the
 // linear path made into a Series (`pathToPoset(flowContext(f) ++ [f])`); a

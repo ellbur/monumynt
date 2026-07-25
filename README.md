@@ -138,7 +138,14 @@ and remain live.
   traversal orders on one table, the fibered register, the fibered
   traversal) comes along one layer in; and a sibling combine inside a
   loop is completed by crossing its span's sibling *frontier*, the
-  loop's own axis dropped as shared context. The *transposing* commute now compiles: over a
+  loop's own axis dropped as shared context. Completion reaches a
+  filtered axis too, when the author drew it: such a combine names both
+  of the axis's layers in its span, and the drawn chain claims them as
+  one axis. What completion will not do is manufacture the join — it
+  inserts only operators whose value-level shadow is the identity, and a
+  join changes firing structure, which is meaning the author must draw —
+  so an *undrawn* filtered axis stays a witness whose remedy is the drawn
+  chain. The *transposing* commute now compiles: over a
   crossed pair commute is transpose, and transpose re-reads a product
   rather than restructuring it, so a commute output port simply denotes
   its operand swapped and the transposed consumer is another
