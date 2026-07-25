@@ -112,8 +112,9 @@ and remain live.
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
   `Codegen.Todo` gaps wait on: commute (transpose over a Cross),
-  cross of non-top-level / non-list axes, and a register (or its
-  running view) over a partial merged driving flow. Fibered products (a product collected
+  cross of non-top-level / non-list axes, and a running view over a
+  product driving flow the reading collect does not itself scan.
+  Fibered products (a product collected
   over some of its axes while enclosing loops hold the rest) now
   compile at any fiber width, on a flattened path read as a set of
   axes — the poset-*valued* context report, which would put that
@@ -132,9 +133,13 @@ and remain live.
   end; and values on *overlapping* cell sets combine at their meet
   (`{A,B}` and `{B,C}` at `{B}`) — subject to the same discipline a
   product combine gets: the meet must be a set the program
-  constructed. Cell-set work that remains lives on other rows —
-  a register over a partial merged driving flow, and a partial
-  running view — both about a `prev` and a loop skeleton, not cells.
+  constructed. The two cell-set items that lived on other rows — a
+  register over a partial merged driving flow, and its running view —
+  have since landed too: both were the same walk one width out, so both
+  arrived by assembling through the cell chain's own recursive level
+  walk rather than by growing machinery of their own. A partial level is
+  a dispatch that keeps k cells, and every walk that handles one cell
+  handles k by recursing.
 - ~~**`Aggregate`/`Disaggregate`** for struct construction and field
   projection.~~ DONE (as pure value nodes — Aggregate builds an object
   literal, Disaggregate projects one value port per field; both compile

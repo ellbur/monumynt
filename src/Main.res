@@ -1483,6 +1483,125 @@ header("register pair: running sum over a filter-then-flatmap sequence")
 }
 
 // ============================================================================
+// 8l. A register over a PARTIAL merged driving flow — the k-arm-dispatch cell-set
+//     case, which is the filtered register (8e) at width k. A partial collect
+//     merges the two error cells of a status-code split; the register folds over
+//     the merged flow, so the kept subsequence is "the firings landing in ANY
+//     covered cell" and `OrderDemand.orderOf` reads its order as the parent's,
+//     restricted — the same reading a single alt gets.
+//
+//     Nothing new was needed in the emitter: `emitRegister` now assembles
+//     through `buildChain`, the recursive level walk `emitCellChain` uses, so a
+//     partial level BRANCHES — each covered cell re-assembles the step subtree
+//     under its own context (exactly one arm runs per firing), while the ONE
+//     `let reg` stays outside every loop, guard, and arm. The severity is
+//     computed AT the merged context, so the containment theorem carries it into
+//     each arm: two arms syntactically, one evaluation per firing.
+// ============================================================================
+
+header("register pair: running sum over a partial (cell-set) merged driving flow")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let severity = Build.raw(b, "c => c >= 500 ? 10 : 1")
+  let disc = Build.raw(
+    b,
+    "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
+  )
+  let codes = Build.lit(b, array_([int_(200), int_(404), int_(500), int_(301), int_(503)]))
+  let it = Build.uncollectList(b, codes.value)
+  let cs = Build.caseSplit(
+    b,
+    ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
+    ~discriminator=disc.value,
+    ~nesting=it.flow,
+    it.element,
+  )
+  let clientErr = Build.alt(cs, "ClientError")
+  let serverErr = Build.alt(cs, "ServerError")
+  // Merge the two error cells; the merged value is the status code either way.
+  let errs = Build.collectCases(
+    b,
+    [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+  )
+  let errFlow = Program.FlowPort(errs.node, "flow")
+  let kept = Build.join(b, ~outer=it.flow, ~inner=errFlow)
+  // Computed at the merged context {ClientError, ServerError}, then folded.
+  let sev = Build.app(b, severity.value, [errs.value])
+  let total = Build.delay(b, ~flow=kept.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [total.prev, sev.value])
+  let w = Build.writeBack(b, ~read=total, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("a register over a merged flow passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  // 200 (Ok) and 301 (Redirect) never fire the merged flow. 404 -> 1,
+  // 500 -> 10, 503 -> 10: the fold is 0 + 1 + 10 + 10 = 21.
+  expectOutput(p, "total", int_(21))
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "total") {
+    | Some(o) =>
+      // One accumulator outside every loop, guard, and arm...
+      if countOccurrences(o.js, "let ") === 1 {
+        pass("one accumulator, outside the loop and both cell arms")
+      } else {
+        fail("expected a single `let ` accumulator, found " ++ Int.toString(countOccurrences(o.js, "let ")))
+      }
+      // ...and the step subtree emitted once per covered cell (two arms, two
+      // copies), which is the doc's sanctioned duplication: exactly one runs.
+      if countOccurrences(o.js, "\"ClientError\"") === 1 && countOccurrences(o.js, "\"ServerError\"") === 1 {
+        pass("one arm per covered cell, the uncovered cells absent")
+      } else {
+        fail("expected exactly one arm per covered cell")
+      }
+    | None => fail("no total output")
+    }
+  | _ => fail("the partial register failed to compile")
+  }
+}
+
+// ============================================================================
+// 8m. The empty case: no firing lands in a covered cell, so the register never
+//     advances and `final` is `init` — the all-dropped edge (8f) at width k.
+// ============================================================================
+
+header("register pair: a merged flow that never fires yields init")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(
+    b,
+    "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
+  )
+  let codes = Build.lit(b, array_([int_(200), int_(301), int_(204)]))
+  let it = Build.uncollectList(b, codes.value)
+  let cs = Build.caseSplit(
+    b,
+    ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
+    ~discriminator=disc.value,
+    ~nesting=it.flow,
+    it.element,
+  )
+  let clientErr = Build.alt(cs, "ClientError")
+  let serverErr = Build.alt(cs, "ServerError")
+  let errs = Build.collectCases(
+    b,
+    [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+  )
+  let kept = Build.join(b, ~outer=it.flow, ~inner=Program.FlowPort(errs.node, "flow"))
+  let total = Build.delay(b, ~flow=kept.flow, ~init=Build.lit(b, int_(7)).value)
+  let stepped = Build.app(b, addF.value, [total.prev, errs.value])
+  let w = Build.writeBack(b, ~read=total, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  expectOutput(p, "total", int_(7))
+}
+
+// ============================================================================
 // 8h. The running view (scanl): a sibling collect over the SAME driving flow
 //     reads the register's `prev`, building the running-value list. A register
 //     is a feature of the flow (delay-ontology-design.md), so its running total
@@ -1633,14 +1752,20 @@ header("register pair: running view over a filter-then-flatmap driving flow")
 }
 
 // ============================================================================
-// 8j3. What the running view still declines: a PARTIAL (cell-set) driving flow.
-//      A register over a partial collect's merged flow is the k-arm-dispatch
-//      cell-set case the poset round owns, and so is its view. It must decline
-//      with a clean Codegen.Todo, not a raw failwith crash (the error discipline:
-//      a well-formed program never crashes the compiler).
+// 8j3. The running view over a PARTIAL (cell-set) driving flow — the scan of the
+//      kept subsequence at width k. A partial collect merges two of a split's
+//      three cells; the register folds the merged value over the firings that
+//      land in either, and a sibling collect over that same merged flow reads
+//      `prev` to build the running view. One element per KEPT firing, exactly as
+//      the filtered view (8j) — the same construct with k arms instead of one.
+//
+//      The two halves agree by construction: both walk the levels through the
+//      shared `buildChain`, so the push and the advance sit inside the arm that
+//      fired, and `levelKey` names a partial level by its CELL SET, so a view is
+//      only offered a register that scans the same subsequence.
 // ============================================================================
 
-header("register pair: a partial (cell-set) running view still declines cleanly")
+header("register pair: running view over a partial (cell-set) merged driving flow")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -1669,13 +1794,70 @@ header("register pair: a partial (cell-set) running view still declines cleanly"
   let inner = Build.join(b, ~outer=it.flow, ~inner=merged)
   let sum = Build.delay(b, ~flow=inner.flow, ~init=Build.lit(b, int_(0)).value)
   let stepped = Build.app(b, addF.value, [sum.prev, pc.value])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let before = Build.collect(b, ~flow=inner.flow, sum.prev)
+  let after = Build.collect(b, ~flow=inner.flow, stepped.value)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", before.value), ("after", after.value), ("total", w.final)],
+  )
+  // 1 -> Other, dropped. 2 -> Two, 3 -> Three, 4 -> Two: the kept subsequence
+  // carries 2, 3, 4. Prefix sums before each kept firing: [0, 2, 5]; after:
+  // [2, 5, 9]; and `final` folds independently to 9.
+  expectOutput(p, "before", array_([int_(0), int_(2), int_(5)]))
+  expectOutput(p, "after", array_([int_(2), int_(5), int_(9)]))
+  expectOutput(p, "total", int_(9))
+}
+
+// ============================================================================
+// 8j4. The cell set is what identifies the subsequence. A register folding
+//      {Three, Two} is NOT the register a view over {Three, Other} wants: the
+//      two merges keep different firings, so "does this register scan the same
+//      sequence I iterate?" must answer no — which is why `levelKey` names a
+//      partial level by its cells, exactly as it names an alt level by its alt.
+//      Either answer is acceptable (a witness, or a clean Todo); silently
+//      compiling someone else's fold is not.
+// ============================================================================
+
+header("register pair: a view over a different cell set is not offered the fold")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(
+    b,
+    "x => x % 3 === 0 ? {tag: 'Three', value: x} : (x % 2 === 0 ? {tag: 'Two', value: x} : {tag: 'Other', value: x})",
+  )
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(
+    b,
+    ~alts=["Three", "Two", "Other"],
+    ~discriminator=disc.value,
+    ~nesting=it.flow,
+    it.element,
+  )
+  let three = Build.alt(cs, "Three")
+  let two = Build.alt(cs, "Two")
+  let other = Build.alt(cs, "Other")
+  let folded = Build.collectCases(
+    b,
+    [(three.altFlow, three.altValue), (two.altFlow, two.altValue)],
+  )
+  let viewed = Build.collectCases(
+    b,
+    [(three.altFlow, three.altValue), (other.altFlow, other.altValue)],
+  )
+  let foldFlow = Build.join(b, ~outer=it.flow, ~inner=Program.FlowPort(folded.node, "flow"))
+  let viewFlow = Build.join(b, ~outer=it.flow, ~inner=Program.FlowPort(viewed.node, "flow"))
+  let sum = Build.delay(b, ~flow=foldFlow.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, folded.value])
   let _ = Build.writeBack(b, ~read=sum, ~step=stepped.value)
-  let running = Build.collect(b, ~flow=inner.flow, sum.prev)
+  let running = Build.collect(b, ~flow=viewFlow.flow, sum.prev)
   let p = Build.finish(b, ~outputs=[("running", running.value)])
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("a partial running view declines with a clean Todo (not a crash)")
-  | Ok(_) => fail("a partial running view unexpectedly compiled — its emitter is deferred")
-  | Error(_) => pass("a partial running view is rejected before codegen (a witness, not a crash)")
+  | exception Codegen.Todo(_) => pass("a view over a different cell set declines with a clean Todo")
+  | Error(_) => pass("a view over a different cell set is witnessed before codegen")
+  | Ok(_) => fail("a view over a different cell set compiled against someone else's fold")
   }
 }
 
