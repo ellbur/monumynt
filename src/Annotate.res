@@ -64,8 +64,7 @@ let annotate = (p: program): annotations => {
 //
 // The invariance fact of product-flows-design.md ("smallest first step" 1):
 // per-flow sets of the uncollect axes a flow ranges over vs the axes that
-// determine its firing STRUCTURE. Three mutually-recursive walks over the
-// ports representation, expressed as sets of flow keys (Context.flowKey):
+// determine its firing STRUCTURE, as sets of flow keys (Context.flowKey):
 //
 //   introducedAxes(f) — the uncollect axes flow f itself ranges over (its
 //                       "own" iteration layers).
@@ -73,97 +72,26 @@ let annotate = (p: program): annotations => {
 //                       and its outer nesting, but NOT its own introduced axis.
 //   valueAxes(v)      — the axes a value varies over.
 //
+// The walks themselves live in `Context` (they return flow REFS there, because
+// `Context.valueContext` needs to name the fibering axes a partial product
+// traversal leaves standing); these are the key-set views the checks read.
+//
 // Unlike Context's paths these NEVER merge — they union raw flow keys, order-
 // and comparability-free — so they are defined even where Context.merge would
 // raise Incomparable. That is exactly the sibling case Cross exists to combine:
-// the invariance demand has to be answerable on two incomparable flows, which
-// is why it lives here and not on the context path.
-//
-// Precise for the shapes the demand actually inspects — list/option uncollects
-// (possibly nested), case splits, and the values built over them. The
-// compositional kinds (Join/Cross/Commute operands, collect results) are
-// unioned conservatively: an over-approximation can only over-report a
-// dependence, and crossing those kinds is itself the deferred poset round.
+// the invariance demand has to be answerable on two incomparable flows.
 
 let flowKey = Context.flowKey
 
-let rec introducedAxes = (f: flowRef): array<string> =>
-  switch f {
-  | FlowPort(n, _) =>
-    switch n.kind {
-    | Uncollect(_) => [flowKey(f)]
-    | Join({outer, inner}) => Array.concat(introducedAxes(outer), introducedAxes(inner))
-    | Cross({left, right}) => Array.concat(introducedAxes(left), introducedAxes(right))
-    | Commute({outer, inner}) => Array.concat(introducedAxes(outer), introducedAxes(inner))
-    | Collect(_) => [flowKey(f)] // a partial collect's merged flow: its own option axis
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
-    }
-  }
+let introducedAxes = (f: flowRef): array<string> =>
+  Context.introducedAxisFlows(f)->Array.map(flowKey)
 
-and sourceAxes = (f: flowRef): array<string> =>
-  switch f {
-  | FlowPort(n, _) =>
-    switch n.kind {
-    | Uncollect({input, nesting}) =>
-      let fromInput = valueAxes(input)
-      switch nesting {
-      | Some(outer) => Array.concat(fromInput, axesOf(outer))
-      | None => fromInput
-      }
-    | Join({outer, inner}) => Array.concat(axesOf(outer), sourceAxes(inner))
-    | Cross({left, right}) => Array.concat(axesOf(left), axesOf(right))
-    | Commute({outer, inner}) => Array.concat(axesOf(outer), sourceAxes(inner))
-    | Collect({branches}) =>
-      switch branches[0] {
-      | Some({flow}) => sourceAxes(flow) // the merged cells' exterior
-      | None => []
-      }
-    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
-    }
-  }
+let sourceAxes = (f: flowRef): array<string> => Context.sourceAxisFlows(f)->Array.map(flowKey)
 
 // Every axis a flow touches: what it ranges over plus what determines it.
-and axesOf = (f: flowRef): array<string> => Array.concat(sourceAxes(f), introducedAxes(f))
+let axesOf = (f: flowRef): array<string> => Context.axisFlows(f)->Array.map(flowKey)
 
-and valueAxes = (v: valueRef): array<string> =>
-  switch v {
-  | ValuePort(n, port) =>
-    switch n.kind {
-    | Lit(_) => []
-    | App({fn, args}) =>
-      args->Array.reduce(valueAxes(fn), (acc, a) => Array.concat(acc, valueAxes(a)))
-    | Uncollect({flowKind}) =>
-      // element (list/option) or an alt payload (case): varies over its own
-      // flow's axis and everything determining that flow.
-      let ownFlow = switch flowKind {
-      | List | Option => FlowPort(n, "flow")
-      | Case(_) => FlowPort(n, port)
-      }
-      axesOf(ownFlow)
-    | Collect({branches}) =>
-      switch classifyCollect(branches) {
-      // A partial collect's value is the merged (option-borne) value.
-      | CasePartial(_) => axesOf(FlowPort(n, "flow"))
-      // A full collect's value is the result at the flow's EXTERIOR — the
-      // iterated axis is gone, only its source survives.
-      | _ =>
-        switch branches[0] {
-        | Some({flow}) => sourceAxes(flow)
-        | None => []
-        }
-      }
-    | Join(_) | Commute(_) | Cross(_) => [] // no value ports
-    | DelayRead({flow}) => axesOf(flow)
-    | DelayWrite({read}) =>
-      switch read.kind {
-      | DelayRead({flow}) => sourceAxes(flow)
-      | _ => []
-      }
-    | Aggregate({fields}) =>
-      fields->Array.reduce([], (acc, (_, v)) => Array.concat(acc, valueAxes(v)))
-    | Disaggregate({struct_}) => valueAxes(struct_)
-    }
-  }
+let valueAxes = (v: valueRef): array<string> => Context.valueAxisFlows(v)->Array.map(flowKey)
 
 // Cross's demand (product-flows-design.md, "The construct"): the operands are
 // MUTUALLY INVARIANT — "neither flow's source, nor anything determining its

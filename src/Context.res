@@ -78,6 +78,138 @@ let merge = (~where: string, a: array<flowRef>, b: array<flowRef>): array<flowRe
 let pathToPoset = (path: array<flowRef>): Poset.t =>
   Poset.series(path->Array.map(f => Poset.Axis(flowKey(f))))
 
+// --- Flow-variable sets (as flow refs) ---------------------------------------
+//
+// The invariance fact of product-flows-design.md ("smallest first step" 1):
+// per-flow sets of the uncollect axes a flow ranges over vs the axes that
+// determine its firing STRUCTURE. `Annotate` re-exports these as key sets (its
+// `introducedAxes` / `sourceAxes` / `axesOf` / `valueAxes`); they live HERE, and
+// return flow REFS rather than keys, because `valueContext` needs to *name* the
+// axes a collect's branch value varies over but does not iterate — the fibering
+// axes of a partial product traversal, below.
+//
+// Unlike the context paths these NEVER merge — they union raw axes, order- and
+// comparability-free — so they are defined even where `merge` would raise
+// Incomparable. That is exactly the sibling case Cross exists to combine: the
+// invariance demand has to be answerable on two incomparable flows.
+//
+// Precise for the shapes the demand actually inspects — list/option uncollects
+// (possibly nested), case splits, and the values built over them. The
+// compositional kinds (Join/Cross/Commute operands) are unioned conservatively:
+// an over-approximation can only over-report a dependence.
+
+let dedupFlows = (fs: array<flowRef>): array<flowRef> => {
+  let out: array<flowRef> = []
+  fs->Array.forEach(f =>
+    if !(out->Array.some(g => flowKey(g) === flowKey(f))) {
+      Array.push(out, f)
+    }
+  )
+  out
+}
+
+let rec introducedAxisFlows = (f: flowRef): array<flowRef> =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Uncollect(_) => [f]
+    | Join({outer, inner}) => Array.concat(introducedAxisFlows(outer), introducedAxisFlows(inner))
+    | Cross({left, right}) => Array.concat(introducedAxisFlows(left), introducedAxisFlows(right))
+    | Commute({outer, inner}) =>
+      Array.concat(introducedAxisFlows(outer), introducedAxisFlows(inner))
+    | Collect(_) => [f] // a partial collect's merged flow: its own option axis
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
+    }
+  }
+
+and sourceAxisFlows = (f: flowRef): array<flowRef> =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Uncollect({input, nesting}) =>
+      let fromInput = valueAxisFlows(input)
+      switch nesting {
+      | Some(outer) => Array.concat(fromInput, axisFlows(outer))
+      | None => fromInput
+      }
+    | Join({outer, inner}) => Array.concat(axisFlows(outer), sourceAxisFlows(inner))
+    | Cross({left, right}) => Array.concat(axisFlows(left), axisFlows(right))
+    | Commute({outer, inner}) => Array.concat(axisFlows(outer), sourceAxisFlows(inner))
+    | Collect({branches}) =>
+      switch branches[0] {
+      | Some({flow}) => sourceAxisFlows(flow) // the merged cells' exterior
+      | None => []
+      }
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) => []
+    }
+  }
+
+// Every axis a flow touches: what it ranges over plus what determines it.
+and axisFlows = (f: flowRef): array<flowRef> =>
+  Array.concat(sourceAxisFlows(f), introducedAxisFlows(f))
+
+and valueAxisFlows = (v: valueRef): array<flowRef> =>
+  switch v {
+  | ValuePort(n, port) =>
+    switch n.kind {
+    | Lit(_) => []
+    | App({fn, args}) =>
+      args->Array.reduce(valueAxisFlows(fn), (acc, a) => Array.concat(acc, valueAxisFlows(a)))
+    | Uncollect({flowKind}) =>
+      // element (list/option) or an alt payload (case): varies over its own
+      // flow's axis and everything determining that flow.
+      let ownFlow = switch flowKind {
+      | List | Option => FlowPort(n, "flow")
+      | Case(_) => FlowPort(n, port)
+      }
+      axisFlows(ownFlow)
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      // A partial collect's value is the merged (option-borne) value.
+      | CasePartial(_) => axisFlows(FlowPort(n, "flow"))
+      // A full collect's value is the result at the flow's exterior — the
+      // iterated axis is gone, only its source survives — PLUS any axis the
+      // branch value varies over that the collect does not iterate (a partial
+      // product traversal: collecting one axis of a product leaves the others
+      // standing, so the result is one value per point of them).
+      | _ =>
+        let base = switch branches[0] {
+        | Some({flow}) => sourceAxisFlows(flow)
+        | None => []
+        }
+        branches->Array.reduce(base, (acc, b) =>
+          Array.concat(acc, collectRemainderFlows(b.flow, b.value))
+        )
+      }
+    | Join(_) | Commute(_) | Cross(_) => [] // no value ports
+    | DelayRead({flow}) => axisFlows(flow)
+    | DelayWrite({read, step}) =>
+      switch read.kind {
+      // The iterated axis is folded away; its source survives — plus any axis
+      // the step varies over that the driving flow does not supply (the fiber
+      // a register-along-one-axis-of-a-product leaves standing).
+      | DelayRead({flow}) =>
+        Array.concat(sourceAxisFlows(flow), collectRemainderFlows(flow, step))
+      | _ => []
+      }
+    | Aggregate({fields}) =>
+      fields->Array.reduce([], (acc, (_, v)) => Array.concat(acc, valueAxisFlows(v)))
+    | Disaggregate({struct_}) => valueAxisFlows(struct_)
+    }
+  }
+
+// The axes a collect branch's value varies over that the branch's flow neither
+// iterates (introduced) nor is determined by (source) — the fibering axes that
+// SURVIVE the collect. Empty for every ordinary collect; non-empty exactly when
+// the branch value spans a sibling axis of a product the collect does not
+// traverse (product-flows-design.md, "reduce along an axis, fibered over the
+// rest").
+and collectRemainderFlows = (flow: flowRef, value: valueRef): array<flowRef> => {
+  let excluded =
+    Array.concat(introducedAxisFlows(flow), sourceAxisFlows(flow))->Array.map(flowKey)
+  dedupFlows(valueAxisFlows(value))->Array.filter(g => !(excluded->Array.includes(flowKey(g))))
+}
+
 let rec valueContext = (r: valueRef): array<flowRef> =>
   switch r {
   | ValuePort(n, port) =>
@@ -108,7 +240,21 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       | _ =>
         switch branches[0] {
         | None => []
-        | Some({flow}) => flowContext(flow)
+        | Some({flow, value}) =>
+          // Normally a full collect's value is the result at the flow's
+          // exterior. But a collect whose branch value varies over an axis it
+          // does NOT iterate does not return a value there: that axis survives,
+          // one result per point of it — product-flows-design.md's "a collect
+          // over a crossed axis reports {Y}". The report is exact where exactly
+          // ONE axis survives (the fibered reading of a rank-2 product, and of
+          // any product all but one of whose axes the chain collects); a wider
+          // remainder is a genuine product context no linear path can hold, so
+          // it keeps the exterior report and the poset round owns it (Codegen
+          // declines those with a Todo rather than mis-placing them).
+          switch collectRemainderFlows(flow, value) {
+          | [g] => Array.concat(flowContext(g), [g])
+          | _ => flowContext(flow)
+          }
         }
       }
     | Join(_) | Commute(_) | Cross(_) =>
@@ -123,9 +269,19 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       // collapses to `flowContext(flow) ++ [flow]` for a non-join flow, so the
       // single-level register is unchanged.
       flowInterior(flow)
-    | DelayWrite({read}) =>
+    | DelayWrite({read, step}) =>
       switch read.kind {
-      | DelayRead({flow}) => flowContext(flow)
+      | DelayRead({flow}) =>
+        // `final` is the accumulator after the driving flow completes — at the
+        // flow's exterior. But a register whose STEP varies over an axis the
+        // driving flow neither iterates nor sources folds per FIBER of that axis
+        // (product-flows-design.md, "reduce along an axis, fibered over the
+        // rest": state never crosses axes, so there is one final per point of
+        // the surviving axis). Same one-axis exactness as the collect above.
+        switch collectRemainderFlows(flow, step) {
+        | [g] => Array.concat(flowContext(g), [g])
+        | _ => flowContext(flow)
+        }
       | _ => failwith("Context.valueContext: DelayWrite whose read is not a DelayRead")
       }
     | Aggregate({fields}) =>

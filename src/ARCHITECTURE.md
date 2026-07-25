@@ -17,7 +17,7 @@ Representation and authoring:
 |---|---|---|
 | `Program.res` | working | The program of record: ports-first nodes (`ValuePort`/`FlowPort`), uncollect/collect vocabulary, binary Join, per-alt ports (no Branch), Delay read/write pair, **Aggregate/Disaggregate** (struct construction / field projection — pure value nodes, one value port per field on the Disaggregate side), program = **node set + distinguished outputs**. Port inventories, canonical `dump`/`equal`. |
 | `Build.res` | working | Typed handles over `Program` ("strings below, typed handles above"). The builder also *collects the node set* — that is how root-unreachable write halves stay in the program. |
-| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise on the linear path. **First Poset wiring landed**: `pathToPoset` / `crossProduct` / `productsIndex` lift the sibling-combine question to `Poset` — a program's Cross nodes build the product index `Poset.merge` consults. The linear model stays primary for every consumer (the full poset-valued context, e.g. a collect over a crossed axis reporting `{Y}` not `[]`, is the deeper poset round with the emitter). |
+| `Context.res` | working (v0) | Context paths (bundle-provenance sense) computed structurally; prefix-rule merge. Shared by Check, Codegen, and TextResolve. Incomparable = raise on the linear path. **First Poset wiring landed**: `pathToPoset` / `crossProduct` / `productsIndex` lift the sibling-combine question to `Poset` — a program's Cross nodes build the product index `Poset.merge` consults. Also owns the **flow-variable set walks** (`introducedAxisFlows` / `sourceAxisFlows` / `axisFlows` / `valueAxisFlows`, returning flow *refs*; `Annotate` re-exports the key-set views), because the context report needs to *name* axes: `collectRemainderFlows` is the axes a collect branch's value varies over that the branch's flow neither iterates nor is determined by, and `valueContext` reports **the surviving axis** for a collect over one axis of a product ("a collect over a crossed axis reports `{Y}`" — exact at a one-axis fiber, which a linear path can hold; a wider fiber keeps the exterior report and stays with the poset round). |
 | `Poset.res` | working (algebra, unit-tested) | The **series-parallel context** — the poset generalization of the linear path (the Fork-A discussion, ARCHITECTURE poset round). Built by SERIES (nesting) and PARALLEL (Cross) composition, so every well-formed context is SP; the non-SP "N" is a repeated-flow diamond (align-vs-cross unresolved), witnessed not represented. Provides the `≤` primitive (`axes-⊆ + order-extends`) and `merge` (comparable → the deeper; siblings → the **exact-axis** constructed product, not a covering superset — `leq` is monotone `⊆` but a combine's home is `==`, since a flat cross builds no sub-products; else `Incomparable`, the completion gap — an under-determined cross is just another time-travel program). Axis keys are strings — pure, decoupled from Program. Products + nesting only; cells (⊇ polarity) arrive with partial-collect's merged context. **Wired into Context** for the alignment admit (`Context.productsIndex`); the full context-model migration (Cross output ports, poset-valued contexts everywhere) is the rest of the poset round. |
 
 The compile pipeline (`compile-strategy-design.md`; each pass a pure
@@ -28,8 +28,8 @@ function with a printable output):
 | 0 derive | `Derive.res` | honest identity (no abstract node species exist, so every program is level-0). The catalog architecture — pattern/expansion/correspondence, composite ids, the origins map — is recorded in its header for when reduce-close arrives. |
 | 1 check | `Check.res` | Implemented: port-exists, write-count, **alignment** (now with the **mixing / time-travel classification** folded in — walks the two incomparable paths to their first divergent step: sibling cells of one split ⇒ `bundle-mixing`, otherwise ⇒ a time-travel candidate that is **admitted iff a constructed Cross covers its exact axes** — `Context.productsIndex` + `Poset.merge` — else ⇒ `time-travel`; and now **full-span** — a value port's combine is re-verified with `Context.posetValueContext`, a poset-aware recomputation that merges sibling axes through the constructed products and so reaches EVERY combine, not just the first sibling pair, so an under-covered n-ary consumer like `f(x,y,z)` with only `{X,Y}` crossed is witnessed as `time-travel` at the Check level rather than admitted on its first coverable pair and left to Codegen), **join-adjacency** (an inner operand opens exactly at the outer flow's interior — computed by `Context.flowInterior`, which flattens a Join outer through its stacked layers, so a nested flatten like flatten-then-filter is not wrongly rejected against a single-layer `[outer]`), **invariance** (Cross operands must be mutually invariant — the Cross round's first step, consuming Annotate's flow-variable sets), **flow-borne** (program boundary **and** the general interior rule — a collect branch whose value is borne on a flow it does not iterate, exact for element/alt-payload interiors; Join/Commute/Cross interiors defer to the poset round), **coverage**. Stubs with named owners: productivity; provenance's deferred cell-set remainder (the poset round). |
 | 2 complete | `Complete.res` | **the sibling-opens completion landed at any rank** — `harvest` → `solve` → `realise` bodies real for the k≥2 lists time-travel gap: `harvest` finds a value spanning k incomparable top-level list siblings (pairwise mutually invariant, **fully uncrossed** — no axis of the combine appears in any constructed product), reading the FULL span off `Annotate.valueAxes` (so it reaches every axis, not just the first incomparable pair the linear raise names) and demands a `MustCross(flows)`; `solve` dedups by the axis SET; `realise` mints a root-unreachable product — a single `Cross` for k=2, a left-nested `Cross(Cross(x,y),z)` chain for k≥3 — into the node set, reporting one insertion per product. Runs **before** Check (Pipeline), which validates the *completed* program — the inserted product gives the combine a home, so it compiles via the whole-table (cube) emitter at any rank instead of witnessing. Identity for already-committed programs, and the "fully uncrossed" guard leaves an under-covered consumer (a combine whose axes are entangled with a partial/overlapping product — Main 15f/15g) a witness, so every other witness is unchanged. Still ahead: dependent-nesting Nests edges, commute-chain lifts, the canonical heuristic table. |
-| 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; caching those sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
-| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator over an iter driving flow — a single uncollect OR a **flattened (joined) sequence**, e.g. a running sum over a list-of-lists: the levels nest as loops and the ONE accumulator lives outside them all, folding the whole flattened firing order; `prev` aligns with the innermost element because a joined driving flow places it at the join's interior — the fork "dissolves on sequences", `delay-ontology-design.md`; the driving flow may also be **filtered** — `join(list, case-alt)` folds the Some-subsequence, `reg` advancing only on kept firings via the shared `walkFilterLevels` alt-guard, `delay-ontology-design.md` route (b)), **the running view (scanl)** (a sibling collect over the register's OWN driving flow reading `prev` — `emitRunningCollect`: the eager model gives each consumer its own loop, so the reading collect just re-runs the fold and PUSHES the running value each firing instead of only returning the final accumulator; collecting `prev` gives the prefix values BEFORE each element, collecting the stepped value gives them AFTER; the write half's `final` still folds independently in its own loop; supported for the pure-iter driving flow, one or many registers over that same flow, `delay-ontology-design.md` "a register is a feature of the flow"), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). An **under-covered** n-ary consumer now splits: the case where **no product spans the combine's axes at all** (e.g. `f(x,y,z)` with only `{X,Y}` crossed) is witnessed by Check's full-span alignment before codegen runs; what still reaches this backstop is the **partial / sub-product traversal** — a terminal whose span IS covered by a product but which the chain collects over only SOME of its axes while holding the rest — and it declines with a clean `Todo` rather than crashing (soundly compiling it is the rest of the poset round's context-model work). `Todo`/deferred, each citing its design doc: filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes and the partial/sub-product consumer (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); a register over a **partial** merged driving flow (the k-arm-dispatch cell-set case) or a **product** driving flow (a grid — the Delay ontology open problem); a **filtered / partial / product running view** (a sibling `prev`-read over a case-alt / partial / cross driving flow — the shared-loop-skeleton case, which `emitRunningCollect` guards out with a clean `Todo`). The `DelayRead` arm of `compileValue` now `Todo`s (not `failwith`s) when `prev` reaches it: a well-formed boundary `prev` is witnessed by Check's flow-borne rule, so a memo miss there is always a deferred running-view gap, not a compiler bug. |
+| 3 annotate | `Annotate.res` | write index + species + **flow-variable sets** (`introducedAxes`/`sourceAxes`/`valueAxes` and the `crossViolation` mutual-invariance demand — the invariance fact, pure structural non-merging walks) implemented; the walks themselves now live in `Context` (they return flow refs there, which the collect-remainder context report needs) and these are their key-set views. Caching the sets in the annotations record and the deferred placement/strictness/consumer-set annotations have their slot reserved. |
+| 4 codegen | `Codegen.res` | **machinery real and running**: pure let-floating placement, (node, port, context) memo with prefix reuse, thunk-tagged context instantiation, flow spines. Emitters done: Lit, App (fn as a wire — computed functions work), iter collect (list/option chains with Join, any-list rule), **case collect** (exhaustive if-chain, else-throw), **filter collect** (join(list, case-alt), a unified iter/dispatch level walk — option leading levels skip the absent option per firing, and a **non-trailing dispatch** `join(join(list, case-alt), inner-list)` nests a for-of inside the alt guard to flatten the kept alt's payload, i.e. filter-then-flatmap; conditional push), **partial collect, direct slice** (a merged flow of k covered cells, terminated by a join → multi-cell filter, or alone → option; k-arm non-exhaustive dispatch; leading levels may be list, option, or a case-alt dispatch via the same unified `filterPlan` walk as filter collect — a `join(join(list, option), partial)` skips the absent option per firing, and a `join(join(list, case-alt), partial)` is a filter-then-partial, the k-arm dispatch nested inside the kept-alt guard), **registers** (the Delay pair: mutable accumulator over an iter driving flow — a single uncollect OR a **flattened (joined) sequence**, e.g. a running sum over a list-of-lists: the levels nest as loops and the ONE accumulator lives outside them all, folding the whole flattened firing order; `prev` aligns with the innermost element because a joined driving flow places it at the join's interior — the fork "dissolves on sequences", `delay-ontology-design.md`; the driving flow may also be **filtered** — `join(list, case-alt)` folds the Some-subsequence, `reg` advancing only on kept firings via the shared `walkFilterLevels` alt-guard, `delay-ontology-design.md` route (b); and the driving flow may be ONE AXIS OF A PRODUCT with the step spanning the product — a **fibered register**, "reduce along an axis, fibered over the rest": the loop is emitted inside the holding loop and folds each fiber independently, `final` a flow of rank n−1 rather than a scalar, which is just the ordinary register with the other axis as its surrounding context), **the running view (scanl)** (a sibling collect over the register's OWN driving flow reading `prev` — `emitRunningCollect`: the eager model gives each consumer its own loop, so the reading collect just re-runs the fold and PUSHES the running value each firing instead of only returning the final accumulator; collecting `prev` gives the prefix values BEFORE each element, collecting the stepped value gives them AFTER; the write half's `final` still folds independently in its own loop; supported for the pure-iter driving flow, one or many registers over that same flow, `delay-ontology-design.md` "a register is a feature of the flow" — and now over a **fibered** register too: the view is placed at the fiber its register folds over, read off the write half, so a scan along one axis of a product keeps the FULL product shape while `final` drops the folded axis, `product-flows-design.md` "The running view keeps the shape"), **cross, whole-table (any rank)** (the product of **n** top-level list axes — a binary two-axis product OR a rank-3+ cube authored by nesting binary Crosses, `cross(cross(x,y),z)`: one shared point-indexed table/cube built once in the Cross's stored orientation, all k! collect orders indexing it — every transpose/permutation is free, the user's computation runs once per point; `product-flows-design.md`'s "Compile" / "smallest first step" 2 and its N-ary section, "the table indexing generalises verbatim"). **the fibered (partial) product traversal** (a chain collecting only SOME of a product's axes, the rest HELD by enclosing loops — "reduce along an axis, fibered over the rest", `product-flows-design.md`: `matchPartialProductChain` + the shared `emitTableTraversal`, which the full chain now routes through too. A product axis is traversed by INDEX wherever it is iterated — `seg` carries the loop's `idxVar` — so a traversal nested inside a holding loop indexes the one shared table at the held coordinate; the user's computation still runs once per point, and both fiberings of a rank-2 product read the same table. Supported at a **one-axis fiber**, the reading `Context.valueContext` reports exactly). An **under-covered** n-ary consumer now splits three ways: the case where **no product spans the combine's axes at all** (e.g. `f(x,y,z)` with only `{X,Y}` crossed) is witnessed by Check's full-span alignment before codegen runs; a one-axis fiber compiles; what still reaches this backstop is a **≥2-axis fiber** — a covered span collected over so few of its axes that a genuine *product* context survives — and it declines with a clean `Todo` rather than crashing (that is the rest of the poset round's context-model work). `Todo`/deferred, each citing its design doc: a **≥2-axis fiber** (a rank-3 product collected over one axis — the surviving `{Y,Z}` is a product context no linear path holds); filter over only option levels (the accumulator-shape question) and its non-trailing-dispatch cousin; commute; cross of non-top-level / non-list axes (the rest of the poset round — the general poset-valued context); partial collect's **merged-context computation** (the doc's `logAndFallback` step — lives at a cell-set context the linear model can't represent, the *same* non-tree generalization as Cross's poset, so bundled with it); a register over a **partial** merged driving flow (the k-arm-dispatch cell-set case) or over the **whole product** (a grid — "reduce the whole product as one sequence", ill-formed for the ordinary reason: no order exists, remedy "fold one axis, or Join first"; today it is rejected via the step's combine rather than by the doc's "no order" rule, which is owed); a **filtered / partial / product running view** (a sibling `prev`-read over a case-alt / partial / cross driving flow — the shared-loop-skeleton case, which `emitRunningCollect` guards out with a clean `Todo`). The `DelayRead` arm of `compileValue` now `Todo`s (not `failwith`s) when `prev` reaches it: a well-formed boundary `prev` is witnessed by Check's flow-borne rule, so a memo miss there is always a deferred running-view gap, not a compiler bug. |
 | runtime | `Runtime.res` | the emitted prelude (the three lazy helpers) + builders. Grows the stream/async cells later; owns the inline-vs-imported packaging question. |
 | entry | `Pipeline.res` | derive → complete → check → annotate → codegen → `JsPrint`. Witnesses come back as data (`result`); a not-yet-written emitter raises `Codegen.Todo` (a compiler gap, surfaced to the caller). |
 
@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 167 checks.
+gaps). Currently 185 checks.
 
 ## The single engine
 
@@ -117,7 +117,10 @@ pushing the running value each firing (collect `prev` → prefix values
 before each element, collect the stepped value → after; the write half's
 `final` folds independently; one or many registers over the one flow;
 Main 8h/8i, hand-validated) — a filtered / partial / product running
-view declines with a clean `Todo` (Main 8j), and the **whole-table Cross of any rank** (a
+view declines with a clean `Todo` (Main 8j) — a **fibered** running view
+(a scan along one axis of a product, keeping the full product shape while
+`final` drops the folded axis) now compiles, Main 15n — and the
+**whole-table Cross of any rank** (a
 product of n top-level list axes — the binary two-axis product consumed
 by a two-collect chain in either order, and the rank-3 cube authored by
 nesting binary Crosses `cross(cross(x,y),z)` consumed by a three-collect
@@ -128,9 +131,32 @@ check. An under-covered n-ary consumer, where no constructed product
 spans the combine's axes at all, is now **witnessed as `time-travel` by
 Check's full-span alignment** — `Context.posetValueContext` re-verifies
 the whole value through the constructed products, so `f(x,y,z)` with only
-`{X,Y}` crossed no longer admits on its first pair; the residual
-partial/sub-product traversal (a covered span collected over only some of
-its axes) still declines at Codegen with a clean `Todo`), and the
+`{X,Y}` crossed no longer admits on its first pair), the **fibered
+(partial) product traversal** — "reduce along an axis, fibered over the
+rest" (product-flows-design.md): a chain collecting only SOME of a
+product's axes while enclosing loops HOLD the rest, e.g. collecting the
+X axis of an `{X,Y}` product to get one column per y, reducing each
+column, and gathering — both fiberings read the SAME shared table (the
+holding loop is traversed by index and the traversal indexes the table at
+that coordinate), so the user's computation still runs once per point;
+validated against hand-computed per-fiber values with a non-commutative
+reducer pinning the axis order, plus an add-once golden (Main 15h/15i). A
+**≥2-axis fiber** (a rank-3 product collected over one axis, leaving a
+product context standing) still declines at Codegen with a clean `Todo`
+(Main 15j) — and a **register** may fold along one axis of a product too:
+the loop is emitted inside the holding loop and folds each fiber
+independently, `final` a flow of rank n−1 rather than a scalar (Main
+15k, both fiberings, hand-computed with a non-commutative operator), and
+its running view scans each fiber while keeping the full product shape
+(Main 15n). Reducing a product all the way down is two registers
+composed — fold one axis, then fold the surviving flow — so the full
+reduction is an **axis permutation**: the two orders agree for a
+commutative operator and differ for a non-commutative one (Main 15o),
+which is the doc's "one order-free exception" showing up as a test
+rather than as machinery. A
+register over the **whole product** stays rejected (Main 15m — the
+grid's "no order", though by the step's combine rather than by the
+rule the doc names). And the
 **completion of a
 sibling-opens time-travel program at any rank** — a k≥2 lists combine
 with no hand-drawn Cross has the product spanning exactly its axes
@@ -142,8 +168,9 @@ the hand-drawn form (product-flows-design.md's "smallest first step" 3
 and N-ary). Representable-but-not-compilable
 (prints, checks, and now round-trips through the text surface): commute
 (its standalone `commute out of` form authorable in text — Main 15c),
-non-top-level-list cross and the partial/sub-product consumer (the rest of
-the poset round; the flat rank-n top-level product now compiles — 15d/15e),
+non-top-level-list cross and the ≥2-axis fiber (the rest of
+the poset round; the flat rank-n top-level product now compiles — 15d/15e,
+and its one-axis fiber — 15h/15i),
 explicit `in` nesting, partial collects whose merged
 value is *computed at the merged context* (needs the cell-set/poset
 round), and registers over a **partial** merged driving flow (the k-arm-
@@ -222,7 +249,15 @@ Compile pipeline (this round):
   the binding was placed in; lookup reuses on prefix** (the legacy
   `isAncestor` scan, re-plumbed). Lits memoise at the empty context. A
   structural required context (from `Context.res`) is *instantiated*
-  against the current chain — a mismatch asserts, per check-and-tag.
+  against the current chain — as the **shortest prefix of the chain that
+  opens every flow the path names** (`matchChain`), not as path equality.
+  The chain may carry segments the path does not mention, which is what a
+  product needs: a fibering axis is a sibling and so sits on no linear
+  path, yet a value compiled inside a fibered traversal legitimately has
+  it open. A flow the chain does not open at all still asserts, per
+  check-and-tag; for an all-nesting program the path IS a prefix and this
+  is the plain prefix rule it replaces (same for the level-adjacency
+  assert, now `chainOpens`).
   Incomparable-context demands lift to a product context (point-indexed
   table) — that case arrives with the Cross emitter and must stay
   unreachable until the checker admits products.
@@ -490,16 +525,59 @@ live work is item 8, the poset round.
    that stops at the first pair — so the full span is re-verified and the
    uncovered step raises `Poset.Incomparable` (Main 15f/15g; the doc's "no
    least upper bound ⇒ no context to combine at", including two overlapping
-   sub-products with no common superset). What still reaches Codegen's
-   `underCoveredProduct` backstop is the **partial/sub-product traversal**
-   — a covered span collected over only SOME of its axes while holding the
-   rest — which declines with a clean `Todo` rather than crashing on a
-   sibling element port; soundly COMPILING it is deferred with the rest of
-   the context-model check. Still deferred (the context-model
+   sub-products with no common superset). **The fibered (partial) product
+   traversal now COMPILES at a one-axis fiber** — "reduce along an axis,
+   fibered over the rest" (`product-flows-design.md`, Registers over
+   products; Main 15h/15i). Three pieces landed together, and they are the
+   first real bite of the context report: (i) `Context` gained
+   `collectRemainderFlows` — the axes a collect branch's value varies over
+   that the branch's flow neither iterates nor sources — and
+   `valueContext` now reports **the surviving axis** for such a collect
+   ("a collect over a crossed axis reports `{Y}`"), which is what places
+   its consumers inside the holding loop instead of at the top level; the
+   flow-variable walks moved into `Context` (returning flow *refs*) to
+   make that nameable, `Annotate` keeping the key-set views. (ii) A
+   product axis is traversed by **index** wherever it is iterated (`seg`
+   carries the loop's `idxVar`), so a nested traversal can index the one
+   shared table at the held coordinate. (iii) `matchPartialProductChain` +
+   the shared `emitTableTraversal` (the full chain routes through it too)
+   emit the read; both fiberings of a rank-2 product index the same table,
+   so the user's computation still runs once per point. What still reaches
+   Codegen's `underCoveredProduct` backstop is a **≥2-axis fiber** — a
+   covered span collected over so few of its axes that a genuine *product*
+   context survives, which no linear path can hold (Main 15j) — declining
+   with a clean `Todo`. The same one-axis fiber carries the **register**
+   form ("Registers over products", the finding: "for each fixed y, run an
+   ordinary register along the X-fiber; state does not cross between
+   different y's"): `Context.valueContext` reports the surviving axis for a
+   `final` whose step spans a product, so `emitRegister` puts its loop
+   inside the holding loop and folds each fiber independently, `final` a
+   flow of rank n−1 (Main 15k — both fiberings in one program, a
+   non-commutative operator pinning the within-fiber order). Which flow
+   fixes the axis — the doc's open Delay-ontology question — does not
+   arise here: the Delay names its driving flow, so the axis is the one it
+   names. What is still owed is the doc's step 1, the **"no order" witness**
+   for a register over the WHOLE product: today that program is rejected
+   through its step's combine (a Cross output port is not yet an axis set
+   in the poset), not by the rule (Main 15m). `instantiate` was
+   generalised for this: the required context is the shortest prefix of the
+   chain opening every flow the structural path names, so a value inside a
+   fiber may report just `[X]` while the chain holds `[Y, X]`. The
+   **running view** follows the register (`product-flows-design.md`, "The
+   running view keeps the shape"): `emitRunningCollect` places itself at the
+   fiber its registers fold over — read off the write half, since a
+   `DelayRead` does not name its step — so a scan along one axis of a
+   product keeps the FULL product shape while `final` drops the folded axis
+   (Main 15n, `prev` for the values before each element and the stepped
+   value for after). The two product matchers and the
+   `underCoveredProduct` backstop now skip a terminal that reads `prev`: a
+   running value is not a per-point function of the product (it depends on
+   the fold so far along the register's axis), so it belongs to the
+   register's loop, never to a table. Still deferred (the context-model
    generalization proper): cross of **non-top-level / non-list axes** and
-   the partial/sub-product consumer (the general poset-valued context,
-   Cross output ports for the barrier shape, and the "collect over a
-   crossed axis reports `{Y}`" context report land together);
+   the ≥2-axis fiber (the general poset-valued context and
+   Cross output ports for the barrier shape — the poset-VALUED context
+   report, of which the one-axis case above is the linear projection);
    Check admitting products in more shapes; **commute** (transpose over a
    Cross — lawful only there, `lazy-stream-commute-design.md`); and
    partial collect's **merged-context computation** (the cell-set /

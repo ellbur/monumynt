@@ -1832,6 +1832,329 @@ header("cross: overlapping sub-products {X,Y} and {Y,Z} still leave the span unc
   }
 }
 
+// 15h. Reduce along an axis, fibered over the rest (product-flows-design.md,
+//      "Registers over products" / the context model's "a collect over a crossed
+//      axis reports {Y}"). A collect over ONE axis of a product, with the other
+//      axis still standing: `collect ~fx` over the {X,Y}-spanning value yields
+//      one list PER Y — a value that still varies with Y — which an ordinary
+//      per-fiber computation consumes and a second collect gathers. The two
+//      fiberings (reduce X holding Y, reduce Y holding X) are the two readings of
+//      the ONE shared table, so the user's computation still runs once per point.
+//      The reducer is deliberately non-commutative (join with "-") so the axis
+//      order is observable in the result, per the doc's smallest-first-step 2.
+header("cross: reduce along one axis, fibered over the other (both fiberings)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
+  let joinL = Build.raw(b, "(l) => l.join(\"-\")")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Fiber over Y: collect the X axis (holding y), reduce each column, gather.
+  let colX = Build.collect(b, ~flow=itX.flow, s.value)
+  let totX = Build.app(b, sumL.value, [colX.value])
+  let outX = Build.collect(b, ~flow=itY.flow, totX.value)
+  // Fiber over X: the transpose — collect the Y axis (holding x), join each row.
+  let rowY = Build.collect(b, ~flow=itY.flow, s.value)
+  let joinedY = Build.app(b, joinL.value, [rowY.value])
+  let outY = Build.collect(b, ~flow=itX.flow, joinedY.value)
+  let p = Build.finish(b, ~outputs=[("outX", outX.value), ("outY", outY.value)])
+
+  // Per y: [1+y, 2+y, 3+y] summed — y=10 ⇒ 36, y=20 ⇒ 66.
+  expectOutput(p, "outX", array_([int_(36), int_(66)]))
+  // Per x: [x+10, x+20] joined — the non-commutative reducer pins the Y order.
+  expectOutput(p, "outY", array_([str("11-21"), str("12-22"), str("13-23")]))
+
+  // Golden: the user's add still appears once — the two fiberings index the one
+  // shared table, exactly as the two full traversals do (test 15).
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outX") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b,")
+      if n === 1 {
+        pass("add's work appears once (both fiberings share the table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outX to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("fibered product failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15i. The same fibered reading authored in text — no new surface was needed,
+//      the ordinary postfix chain expresses it: collect one axis, compute per
+//      fiber, collect the other.
+header("cross: the fibered reduce authored in text, round-trips")
+{
+  let src = `
+add = js "(a, b) => a + b"
+sum = js "(l) => l.reduce((a, b) => a + b, 0)"
+[1, 2, 3] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+~fx ~> cross with ~fy => ~fxy
+ex, ey -> add => s
+s -~> collect ~fx => col
+col -> sum => tot
+tot -~> collect ~fy => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(36), int_(66)]))
+  expectRoundTrip(p)
+}
+
+// 15l. The sub-product traversal: a rank-3 cube collected over TWO of its axes
+//      with the third held. The fiber is still one axis, so the same machinery
+//      carries it — the chain's two loops index the shared cube at their own
+//      coordinates and the holding loop supplies the third. This is the shape
+//      the `underCoveredProduct` backstop used to decline ("a covered span
+//      collected over only SOME of its axes while holding the rest").
+header("cross: a rank-3 cube collected over two axes, the third held")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let sum2 = Build.raw(b, "(m) => m.reduce((a, r) => a + r.reduce((u, v) => u + v, 0), 0)")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Collect X then Y — a per-z matrix — reduce it, then gather over z.
+  let inner = Build.collect(b, ~flow=itX.flow, s.value)
+  let plane = Build.collect(b, ~flow=itY.flow, inner.value)
+  let tot = Build.app(b, sum2.value, [plane.value])
+  let out = Build.collect(b, ~flow=itZ.flow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // z=100: 111+112+121+122 = 466; z=200: 211+212+221+222 = 866.
+  expectOutput(p, "out", array_([int_(466), int_(866)]))
+}
+
+// 15k. A REGISTER along one axis of a product, fibered over the other
+//      (product-flows-design.md, "Registers over products", the finding: "for
+//      each fixed y, run an ordinary register along the X-fiber; state does not
+//      cross between different y's"). The Delay names its driving flow, so the
+//      axis is the one it names; `final` is not a scalar but a Y-FLOW — rank
+//      n−1, the reduced axis gone, the surviving axis still a flow — which the
+//      second collect gathers. Both fiberings are drawn in one program: the same
+//      register machinery, its surrounding context now the other axis. The
+//      operator is non-commutative (a*2+b) so the within-fiber order is
+//      observable, per the doc's smallest-first-step 2.
+header("cross: a register folds along one axis, fibered over the other")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let mixF = Build.raw(b, "(a, b) => a * 2 + b")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  // Along X, fibered over Y: one fold per column, `final` a Y-flow.
+  let regX = Build.delay(b, ~flow=itX.flow, ~init=zero.value)
+  let stepX = Build.app(b, mixF.value, [regX.prev, s.value])
+  let wX = Build.writeBack(b, ~read=regX, ~step=stepX.value)
+  let outX = Build.collect(b, ~flow=itY.flow, wX.final)
+  // Along Y, fibered over X: the transpose fold, `final` an X-flow.
+  let regY = Build.delay(b, ~flow=itY.flow, ~init=zero.value)
+  let stepY = Build.app(b, mixF.value, [regY.prev, s.value])
+  let wY = Build.writeBack(b, ~read=regY, ~step=stepY.value)
+  let outY = Build.collect(b, ~flow=itX.flow, wY.final)
+  let p = Build.finish(b, ~outputs=[("outX", outX.value), ("outY", outY.value)])
+
+  // Along X at y=10: 0*2+11=11, 11*2+12=34, 34*2+13=81; at y=20: 21, 64, 151.
+  expectOutput(p, "outX", array_([int_(81), int_(151)]))
+  // Along Y at x=1: 0*2+11=11, 11*2+21=43; x=2: 12, 46; x=3: 13, 49.
+  expectOutput(p, "outY", array_([int_(43), int_(46), int_(49)]))
+}
+
+// 15n. The RUNNING VIEW of a fibered register — scan along an axis
+//      (product-flows-design.md, "The running view keeps the shape"): unlike
+//      `final`, which drops the folded axis, the scan keeps the FULL product
+//      shape (rank unchanged), the value at each point being the accumulation so
+//      far along X *within that point's fiber*. A sibling collect over the
+//      register's own driving flow re-runs the fold and pushes each running
+//      value (emitRunningCollect), now placed at the fiber rather than at the
+//      top level. Collecting `prev` gives the values BEFORE each element,
+//      collecting the stepped value gives them AFTER — the same pair a register
+//      over a list gives, one rank higher.
+header("cross: the running view of a fibered register (scan along an axis)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let reg = Build.delay(b, ~flow=itX.flow, ~init=zero.value)
+  let step = Build.app(b, addF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+  // Before: collect `prev` along X, per fiber, then gather the fibers.
+  let runBefore = Build.collect(b, ~flow=itX.flow, reg.prev)
+  let outBefore = Build.collect(b, ~flow=itY.flow, runBefore.value)
+  // After: collect the stepped value instead.
+  let runAfter = Build.collect(b, ~flow=itX.flow, step.value)
+  let outAfter = Build.collect(b, ~flow=itY.flow, runAfter.value)
+  // And the reduce, for contrast: rank n−1, the folded axis gone.
+  let outFinal = Build.collect(b, ~flow=itY.flow, w.final)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", outBefore.value), ("after", outAfter.value), ("total", outFinal.value)],
+  )
+
+  // y=10: s = 11,12,13 ⇒ prefix values before each element 0, 11, 23.
+  // y=20: s = 21,22,23 ⇒ 0, 21, 43.
+  expectOutput(
+    p,
+    "before",
+    array_([array_([int_(0), int_(11), int_(23)]), array_([int_(0), int_(21), int_(43)])]),
+  )
+  // The same fold read after each step.
+  expectOutput(
+    p,
+    "after",
+    array_([array_([int_(11), int_(23), int_(36)]), array_([int_(21), int_(43), int_(66)])]),
+  )
+  // The reduce: one total per fiber (rank 1, not 2).
+  expectOutput(p, "total", array_([int_(36), int_(66)]))
+}
+
+// 15o. Full reduction as an AXIS PERMUTATION (product-flows-design.md's
+//      smallest-first-step 4): reducing a product all the way down is two
+//      registers composed — fold one axis, then fold the resulting lower-rank
+//      flow — and *which axis first* is the permutation. For a commutative,
+//      associative operator the two orders agree (the doc's "one order-free
+//      exception": the operator's own law discharges the order demand); for a
+//      non-commutative one they differ, which is why the axis must be named.
+//      Nothing new in the compiler — a register whose step reads a fibered
+//      register's `final` is an ordinary register over the surviving axis.
+header("cross: full reduction is two registers — the axis order shows in the result")
+{
+  let mk = (op: string, init: JsAst.expr) => {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let opF = Build.raw(b, op)
+    let seed = Build.lit(b, init)
+    let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+    let ys = Build.lit(b, array_([int_(10), int_(20)]))
+    let itX = Build.uncollectList(b, xs.value)
+    let itY = Build.uncollectList(b, ys.value)
+    let s = Build.app(b, addF.value, [itX.element, itY.element])
+    let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+    // X first, then Y: fold each column, then fold the column results.
+    let rX = Build.delay(b, ~flow=itX.flow, ~init=seed.value)
+    let wX = Build.writeBack(b, ~read=rX, ~step=Build.app(b, opF.value, [rX.prev, s.value]).value)
+    let rXY = Build.delay(b, ~flow=itY.flow, ~init=seed.value)
+    let wXY = Build.writeBack(b, ~read=rXY, ~step=Build.app(b, opF.value, [rXY.prev, wX.final]).value)
+    // Y first, then X: the other permutation.
+    let rY = Build.delay(b, ~flow=itY.flow, ~init=seed.value)
+    let wY = Build.writeBack(b, ~read=rY, ~step=Build.app(b, opF.value, [rY.prev, s.value]).value)
+    let rYX = Build.delay(b, ~flow=itX.flow, ~init=seed.value)
+    let wYX = Build.writeBack(b, ~read=rYX, ~step=Build.app(b, opF.value, [rYX.prev, wY.final]).value)
+    Build.finish(b, ~outputs=[("xFirst", wXY.final), ("yFirst", wYX.final)])
+  }
+
+  // Commutative and associative: the two orders agree (1+2+3 = 6, over two y's
+  // ⇒ 6+6 + 3*10 + 3*20 = 102 either way).
+  let sums = mk("(a, b) => a + b", int_(0))
+  expectOutput(sums, "xFirst", int_(102))
+  expectOutput(sums, "yFirst", int_(102))
+
+  // Non-commutative: the nesting order is visible in the result.
+  let cats = mk("(a, b) => a + \"|\" + b", str(""))
+  expectOutput(cats, "xFirst", str("||11|12|13||21|22|23"))
+  expectOutput(cats, "yFirst", str("||11|21||12|22||13|23"))
+}
+
+// 15m. The boundary the fibered register does NOT cross: a register whose
+//      driving flow is the PRODUCT itself (a grid) — "reduce the whole product
+//      as one sequence", which the doc calls ill-formed for the ordinary reason
+//      (no order exists), the remedy being "fold one axis, or Join first"
+//      (product-flows-design.md; the commutative-monoid exception needs the
+//      catalog row's commutativity flag, which does not exist yet). It is
+//      REJECTED today, but not yet by the rule the doc names: the step combines
+//      `prev` (borne on the product flow) with a value at {X, Y}, and since a
+//      Cross OUTPUT port is not yet an axis set in the poset (the deferred half
+//      of the context model), that combine surfaces as a `time-travel` witness
+//      rather than a "no order" one. This pins the current behaviour and where
+//      the owed check goes.
+header("cross: a register over the whole product is rejected (the no-order case)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let prod = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let reg = Build.delay(b, ~flow=prod.flow, ~init=zero.value)
+  let step = Build.app(b, addF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+  let p = Build.finish(b, ~outputs=[("out", w.final)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) =>
+    pass("a whole-product register declines at Codegen (the grid — no order to fold along)")
+  | Error(_) =>
+    pass("a whole-product register is witnessed (via the step's combine — the no-order rule is owed)")
+  | Ok(_) => fail("a whole-product register unexpectedly compiled")
+  }
+}
+
+// 15j. The fiber that is still deferred: a rank-3 product collected over ONE
+//      axis leaves TWO axes standing, and a two-axis fiber is a genuine product
+//      context — no linear path holds it, so `Context.valueContext` keeps
+//      reporting the exterior and Codegen declines with a clean Todo rather than
+//      mis-placing the consumer. This is the remaining half of the poset round's
+//      context model (the general poset-valued context); the one-axis fiber above
+//      is what the linear report can carry exactly.
+header("cross: a two-axis fiber (rank 3, one axis collected) still declines cleanly")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Collect X only: {Y, Z} survive — a product context, not a path.
+  let col = Build.collect(b, ~flow=itX.flow, s.value)
+  let tot = Build.app(b, sumL.value, [col.value])
+  let mid = Build.collect(b, ~flow=itY.flow, tot.value)
+  let out = Build.collect(b, ~flow=itZ.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("a two-axis fiber declines with a clean Todo (poset round)")
+  | Ok(_) => fail("a two-axis fiber unexpectedly compiled")
+  | Error(ws) =>
+    fail(
+      "expected a Codegen Todo, got witnesses:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+}
+
 // 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser
 //      catch-up — the last of the standalone flow-combine forms). A commute
 //      swaps a list opened inside an option's absent-or-present flow: the
