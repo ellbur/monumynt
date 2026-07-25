@@ -112,10 +112,20 @@ and remain live.
 
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
-  `Codegen.Todo` gaps wait on: cross of non-list axes, or of axes that
-  are join chains rather than single opens,
+  `Codegen.Todo` gaps wait on: cross of non-list axes, a *fibered* read
+  over a filtered axis,
   and a running view over a product driving flow the reading collect
-  does not itself scan. A product opened *inside an enclosing loop* — the
+  does not itself scan. A **filtered axis** is now crossable — an axis
+  may be a join chain (`join(list, case-alt)`) rather than a single
+  open, which is the first of the three filtering regimes: filter an
+  axis by its own element and the same rows survive for every point of
+  the other, so it is "rectangular, just smaller". The table is built
+  by walking each axis's chain, one row per kept firing; a consumer
+  traverses by index over the axis's kept count, walked once and
+  shared, so both orders still read the one table and the user's
+  computation still runs once per point. Filtering by the *other*
+  axis's element is the third regime — no product exists, and the
+  invariance rule witnesses it. A product opened *inside an enclosing loop* — the
   per-group cartesian product — now compiles, and completes: a product
   carries its own exterior, so its shared table is built once per point
   of that exterior and everything the top-level product had (both

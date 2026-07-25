@@ -185,7 +185,24 @@ type compiled = {name: string, floated: array<placed>}
 
 // One axis of a product: its flow key, the uncollect that opens it, and the
 // list source feeding it.
-type productAxis = {axisKey: string, uncollect: node, feed: valueRef, flow: flowRef}
+//
+// An axis is usually a single list open, but it may also be a JOIN CHAIN — a
+// filtered axis, `join(list, case-alt)`, whose extent is the kept subsequence.
+// product-flows-design.md's first filtering regime licenses it directly: "filter
+// an axis by its own element … the same rows survive for every x. Still a
+// product, still crossable, still transposable. Rectangular, just smaller."
+// `chain` says which; `spanKeys` is the axis's own iteration layers as keys (one
+// for a plain open, `{list, alt}` for a filtered one), because a value borne on a
+// filtered axis names the layers, not the join. `uncollect`/`feed` are the
+// chain's LEADING list open — its extent — and are read only for a plain axis.
+type productAxis = {
+  axisKey: string,
+  uncollect: node,
+  feed: valueRef,
+  flow: flowRef,
+  chain: bool,
+  spanKeys: array<string>,
+}
 
 // A product a Cross node constructs. `axes` is the stored orientation
 // (outer-first), read off the Cross's (left, right) operands. `exterior` is the
@@ -206,12 +223,63 @@ type product = {
 // dependent nesting, which Check's `invariance` rule witnesses before codegen
 // runs (product-flows-design.md, "smallest first step" 1). What is left — axes
 // sharing an outer loop — is a product with a non-empty exterior.
+//
+// A FILTERED axis (a join chain) is supported as well: its layers must be a
+// leading list open — the extent to iterate — followed by any number of iter
+// (list / option) or dispatch (case-alt / partial) layers. The leading layer has
+// to be a list because the axis's extent is what the table's rank is built from;
+// everything after it only decides which firings survive, which is the design's
+// "rectangular, just smaller". A Cross or a Commute inside a would-be axis is not
+// an axis chain (the poset round's nested-product question) and declines here.
+let rec axisChainOk = (f: flowRef, ~lead: bool): bool =>
+  switch f {
+  | FlowPort(n, port) =>
+    switch n.kind {
+    | Uncollect({flowKind: List}) => port === "flow"
+    | Uncollect({flowKind: Option}) => !lead && port === "flow"
+    | Uncollect({flowKind: Case(_)}) => !lead
+    | Join({outer, inner}) => axisChainOk(outer, ~lead) && axisChainOk(inner, ~lead=false)
+    | Collect(_) => !lead // a partial collect's merged flow: a k-cell dispatch
+    | _ => false
+    }
+  }
+
+// The chain's leading list open and the value feeding it — the axis's extent.
+let rec leadOpen = (f: flowRef): option<(node, valueRef)> =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Join({outer}) => leadOpen(outer)
+    | Uncollect({input}) => Some((n, input))
+    | _ => None
+    }
+  }
+
+let axisSpanKeys = (f: flowRef): array<string> =>
+  Context.introducedAxisFlows(f)->Array.map(Context.flowKey)
+
 let productAxisOf = (f: flowRef): option<productAxis> =>
   switch f {
   | FlowPort(n, "flow") =>
     switch n.kind {
     | Uncollect({flowKind: List, input}) =>
-      Some({axisKey: Context.flowKey(f), uncollect: n, feed: input, flow: f})
+      Some({
+        axisKey: Context.flowKey(f),
+        uncollect: n,
+        feed: input,
+        flow: f,
+        chain: false,
+        spanKeys: axisSpanKeys(f),
+      })
+    | Join(_) if axisChainOk(f, ~lead=true) =>
+      leadOpen(f)->Option.map(((u, input)) => {
+        axisKey: Context.flowKey(f),
+        uncollect: u,
+        feed: input,
+        flow: f,
+        chain: true,
+        spanKeys: axisSpanKeys(f),
+      })
     | _ => None
     }
   | _ => None
@@ -275,11 +343,16 @@ let productOf = (n: node): option<product> =>
 // holds open, so they are coordinates of *which* table this is, not of a point
 // within it. For a top-level product the exterior is empty and this is the
 // exact-axis test it replaces.
+//
+// An axis counts as varied-over when the value names ANY of its own layers: a
+// filtered axis `join(list, alt)` is named by the alt payload (which reports both
+// layers) or by the list element alone, and either is "varies with this axis".
+// For a plain open there is one layer and this is the exact-key test it replaces.
 let spansProduct = (p: product, sAxes: array<string>): bool => {
-  let need = p.axes->Array.map(a => a.axisKey)
-  need->Array.every(k => sAxes->Array.includes(k)) &&
+  let own = p.axes->Array.reduce([], (acc, a) => Array.concat(acc, a.spanKeys))
+  p.axes->Array.every(a => a.spanKeys->Array.some(k => sAxes->Array.includes(k))) &&
     sAxes->Array.every(k =>
-      need->Array.includes(k) || p.exteriorAxisKeys->Array.includes(k)
+      own->Array.includes(k) || p.exteriorAxisKeys->Array.includes(k)
     )
 }
 
@@ -295,6 +368,14 @@ type state = {
   // name. Keyed separately from `memo` because a table is indexed (force(t)[i][j]),
   // not referenced as a scalar, and it is shared by every consumer chain.
   tableMemo: Map.t<string, array<(ctxPath, string)>>,
+  // A FILTERED product axis's extent: its axis key -> the binding whose forced
+  // value is the number of kept firings. A plain axis's extent is its source
+  // array's length; a filtered axis has to walk its chain to count, and every
+  // consumer indexes the same table, so the count is computed once and shared.
+  extentMemo: Map.t<string, array<(ctxPath, string)>>,
+  // Thunk tags for emitted scopes that are not a node's own (the extent walks).
+  // Negative, so they never collide with a node id.
+  synthTag: unit => int,
 }
 
 let memoKey = (id: int, port: string): string => Int.toString(id) ++ ":" ++ port
@@ -430,16 +511,20 @@ type filterPlan =
       payloadName: string, // the __lazyDone__(s.value) binding, memoised at altCtx
     })
 
-// A C-style `for (let i = 0; i < arr.length; i++) { body }` over an already-
-// forced array binding — the index-based loop the table build and its consumers
-// use (a product axis is traversed by index so two orders share one table).
-let cForArr = (iv: string, arrName: string, body: array<JsAst.stmt>): JsAst.stmt =>
+// A C-style `for (let i = 0; i < bound; i++) { body }` — the index-based loop a
+// product's consumers use (an axis is traversed by index so every order shares
+// one table). The bound is an array's `length` for a plain axis (`cForArr`) and a
+// filtered axis's kept count for a chain one.
+let cForCount = (iv: string, bound: JsAst.expr, body: array<JsAst.stmt>): JsAst.stmt =>
   JsAst.SFor({
     init: Some(JsAst.FIVar({kind: Let, decls: [{name: iv, init: Some(JsBuild.int_(0))}]})),
-    test: Some(JsBuild.lt(JsBuild.id(iv), JsBuild.member(JsBuild.id(arrName), "length"))),
+    test: Some(JsBuild.lt(JsBuild.id(iv), bound)),
     update: Some(JsAst.EUpdate({op: PostInc, operand: JsBuild.id(iv)})),
     body: JsAst.SBlock(body),
   })
+
+let cForArr = (iv: string, arrName: string, body: array<JsAst.stmt>): JsAst.stmt =>
+  cForCount(iv, JsBuild.member(JsBuild.id(arrName), "length"), body)
 
 // --- The running view (scanl) ------------------------------------------------
 //
@@ -565,8 +650,14 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
 // Is this uncollect an axis of some product the program constructs? Such a level
 // is traversed by INDEX rather than by for-of, so that a partial product
 // traversal nested inside it can index the shared table at this coordinate.
+// (A FILTERED axis's leading open is not itself the axis — the kept firings are
+// — so it is not traversed by index and does not answer yes here. Holding a
+// filtered axis while collecting another is the fibered case, which stays with
+// the rest of the poset round.)
 let isProductAxisNode = (st: state, uncollect: node): bool =>
-  st.products->Array.some(p => p.axes->Array.some(a => a.uncollect.id === uncollect.id))
+  st.products->Array.some(p =>
+    p.axes->Array.some(a => !a.chain && a.uncollect.id === uncollect.id)
+  )
 
 // The same question asked of a flow reference (resolved through a transposing
 // commute, which denotes its operand swapped): is this chain level a product
@@ -2073,95 +2164,47 @@ and getOrBuildTable = (
   switch existing {
   | Some(name) => (name, [])
   | None =>
-    // The product context, stored orientation, tagged with the Cross's id so
-    // the two consumer chains share this one table's scope. It hangs off the
-    // product's exterior: the axes go parallel *inside* whatever loop opened
-    // them (`L > {X || Y}`).
-    let axisSegs = p.axes->Array.map(a => {flow: a.flow, thunkOf: p.crossId, idxVar: None})
-    let segs = Array.concat(place, axisSegs)
-    let placeLen = Array.length(place)
-    // The sub-context axis i's element lives at: the exterior plus axes 0..i.
-    let axisCtx = (i: int): ctxPath => segs->Array.slice(~start=0, ~end=placeLen + i + 1)
-    // Feeds (the list sources) are invariant in the product's own axes, so they
-    // compile at its exterior — the top level for a top-level product, the
-    // enclosing loop body for a nested one (where they legitimately vary).
-    let feedCs = p.axes->Array.map(a => compileValue(st, place, a.feed))
-    let arrNames = p.axes->Array.map(_ => st.fresh())
-    let idxVars = p.axes->Array.map(_ => st.fresh())
-    // Pre-memoise each axis's element at its sub-context, so compiling sVal
-    // resolves the elements; the bindings are emitted manually into the loops.
-    let elemNames = p.axes->Array.mapWithIndex((a, i) => {
-      let elemName = st.fresh()
-      recordMemo(st, a.uncollect.id, "element", axisCtx(i), elemName)
-      elemName
-    })
-
-    let fullCtx = segs
-    let floatedAcc: array<placed> = []
-    feedCs->Array.forEach(c => c.floated->Array.forEach(pl => Array.push(floatedAcc, pl)))
-    let valC = compileValue(st, fullCtx, sVal)
-    valC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-    // Bucket sVal's statements into the loop bodies; work invariant in the
-    // product's axes floats out of the table thunk (the feeds, the discriminator
-    // externs, …) to the exterior or above.
-    let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-    p.axes->Array.forEachWithIndex((_, i) => Map.set(buckets, ctxPathKey(axisCtx(i)), []))
-    let escaped: array<placed> = []
-    floatedAcc->Array.forEach(pl =>
-      switch Map.get(buckets, ctxPathKey(pl.at)) {
-      | Some(bk) => Array.push(bk, pl.stmt)
-      | None =>
-        if isCtxPrefix(pl.at, place) {
-          Array.push(escaped, pl)
-        } else {
-          failwith("Codegen: a statement floated to a context unrelated to the product table — placement bug")
-        }
-      }
-    )
-
-    // Assemble the n-dimensional cube innermost-out. Each axis j contributes a
-    // level: the outer levels accumulate rows, the innermost pushes force(val).
+    // Assemble the n-dimensional cube outermost-in, one axis at a time. Each
+    // axis is walked by `buildChain` — the same level walk the cell chain and the
+    // register use — so a plain open is one for-of and a FILTERED axis is its own
+    // chain of loops and guards, contributing one table row per KEPT firing
+    // ("rectangular, just smaller"). Every level opens its own context tagged
+    // with the Cross's id, so the two consumer chains share this one table's
+    // scope, and sVal compiles at the innermost context of the last axis, with
+    // everything invariant floating out of the thunk by the ordinary rule.
+    //
     // `product-flows-design.md`, N-ary: "The table indexing generalises verbatim
-    // … a point-indexed structure, one entry per point" — the two-axis nested
-    // for-of becomes n nested index-loops over the same shape.
+    // … a point-indexed structure, one entry per point".
     let n = Array.length(p.axes)
     let tName = st.fresh()
-    let bucketFor = (i: int): array<JsAst.stmt> => Map.get(buckets, ctxPathKey(axisCtx(i)))->Option.getOr([])
-    // buildLevel(j, accName): the loop over axis j, pushing into `accName`. At the
-    // innermost axis it pushes the computed value; otherwise it opens a fresh row,
-    // builds the next axis into it, and pushes that row.
-    let rec buildLevel = (j: int, accName: string): JsAst.stmt => {
-      let aj = arrNames->Array.getUnsafe(j)
-      let ij = idxVars->Array.getUnsafe(j)
-      let ej = elemNames->Array.getUnsafe(j)
-      let head = Array.concat(
-        [JsBuild.const(ej, Runtime.lazyDoneOf(JsBuild.index(JsBuild.id(aj), JsBuild.id(ij))))],
-        bucketFor(j),
+    let push = (accName: string, e: JsAst.expr): JsAst.stmt =>
+      JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [e]))
+    let rec buildAxis = (
+      j: int,
+      ctx: ctxPath,
+      accName: string,
+    ): (array<JsAst.stmt>, array<placed>) => {
+      let a = p.axes->Array.getUnsafe(j)
+      buildChain(st, p.crossId, ctx, spine(a.flow), innerCtx =>
+        if j === n - 1 {
+          let valC = compileValue(st, innerCtx, sVal)
+          ([push(accName, Runtime.forceOf(JsBuild.id(valC.name)))], valC.floated)
+        } else {
+          let childAcc = st.fresh()
+          let (inner, fl) = buildAxis(j + 1, innerCtx, childAcc)
+          (
+            Array.concat(
+              Array.concat([JsBuild.const(childAcc, JsBuild.array_([]))], inner),
+              [push(accName, JsBuild.id(childAcc))],
+            ),
+            fl,
+          )
+        }
       )
-      let tail = if j === n - 1 {
-        [
-          JsBuild.exprStmt(
-            JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [Runtime.forceOf(JsBuild.id(valC.name))]),
-          ),
-        ]
-      } else {
-        let childAcc = st.fresh()
-        [
-          JsBuild.const(childAcc, JsBuild.array_([])),
-          buildLevel(j + 1, childAcc),
-          JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [JsBuild.id(childAcc)])),
-        ]
-      }
-      cForArr(ij, aj, Array.concat(head, tail))
     }
+    let (axisStmts, escaped) = buildAxis(0, place, tName)
     let thunkBody = Array.concat(
-      Array.concat(
-        feedCs->Array.mapWithIndex((c, j) =>
-          JsBuild.const(arrNames->Array.getUnsafe(j), Runtime.forceOf(JsBuild.id(c.name)))
-        ),
-        [JsBuild.const(tName, JsBuild.array_([])), buildLevel(0, tName)],
-      ),
+      Array.concat([JsBuild.const(tName, JsBuild.array_([]))], axisStmts),
       [JsBuild.ret(JsBuild.id(tName))],
     )
 
@@ -2179,6 +2222,50 @@ and getOrBuildTable = (
       tableName,
       Array.concat(escaped, [{at: place, stmt: JsBuild.const(tableName, Runtime.lazyOf(thunkBody))}]),
     )
+  }
+}
+
+// The EXTENT of a filtered axis: how many firings survive its chain
+// (product-flows-design.md's first filtering regime — "the same rows survive for
+// every x … rectangular, just smaller"). The table build walks the chain and
+// pushes one row per kept firing; a consumer traverses the axis by index, so all
+// it needs is the count, and it must be the SAME count the table was built with.
+// It is therefore computed once — the same walk, with `c++` for a payload — and
+// shared at the product's exterior, keyed by axis. (A plain open needs none of
+// this: its extent is its source array, whose length the loop reads directly.)
+and getOrBuildExtent = (st: state, ~place: ctxPath, a: productAxis): (string, array<placed>) => {
+  let existing =
+    Map.get(st.extentMemo, a.axisKey)
+    ->Option.flatMap(entries =>
+      entries
+      ->Array.find(((stored, _)) => isCtxPrefix(stored, place))
+      ->Option.map(((_, name)) => name)
+    )
+  switch existing {
+  | Some(name) => (name, [])
+  | None =>
+    let cnt = st.fresh()
+    // Its own thunk tag: this walk's bindings live in a scope neither the table
+    // build's nor any consumer's, so they must not be memo-reused across them.
+    let (stmts, escaped) = buildChain(st, st.synthTag(), place, spine(a.flow), _inner => (
+      [JsBuild.exprStmt(JsAst.EUpdate({op: PostInc, operand: JsBuild.id(cnt)}))],
+      [],
+    ))
+    let thunkBody = Array.concat(
+      Array.concat([JsBuild.let_(cnt, JsBuild.int_(0))], stmts),
+      [JsBuild.ret(JsBuild.id(cnt))],
+    )
+    let name = st.fresh()
+    let entries = switch Map.get(st.extentMemo, a.axisKey) {
+    | Some(es) => es
+    | None => {
+        let es: array<(ctxPath, string)> = []
+        Map.set(st.extentMemo, a.axisKey, es)
+        es
+      }
+    }
+    Array.push(entries, (place, name))
+    (name, Array.concat(escaped, [{at: place, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]))
   }
 }
 
@@ -2239,15 +2326,31 @@ and emitTableTraversal = (
   tableFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
   let k = Array.length(chainAxes)
-  // The consumer's per-axis feeds, in traversal order — the same list sources,
-  // memo-shared with the table build, so they compile once.
-  let feedCs = chainAxes->Array.map(a => {
-    let c = compileValue(st, place, a.feed)
-    c.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    c
+  // The consumer's per-axis EXTENTS, in traversal order. A plain axis's extent is
+  // its list source, memo-shared with the table build so it compiles once; a
+  // FILTERED axis's is the count of its kept firings, walked once at the
+  // product's exterior and shared by every consumer (getOrBuildExtent). Either
+  // way the axis is traversed by index, which is what lets all k! orders — and a
+  // fibering — index the one shared table.
+  let extentCs = chainAxes->Array.map(a => {
+    let (nm, fl) = if a.chain {
+      getOrBuildExtent(st, ~place=tablePlace, a)
+    } else {
+      let c = compileValue(st, place, a.feed)
+      (c.name, c.floated)
+    }
+    fl->Array.forEach(pl => Array.push(floatedAcc, pl))
+    nm
   })
   let idxVars = chainAxes->Array.map(_ => st.fresh())
-  let arrNames = chainAxes->Array.map(_ => st.fresh())
+  // One binding per axis inside the thunk: the forced source array, or the forced
+  // kept count.
+  let extentVars = chainAxes->Array.map(_ => st.fresh())
+  // The loop bound: an array's length, or a filtered axis's kept count.
+  let boundOf = (j: int): JsAst.expr => {
+    let aj = JsBuild.id(extentVars->Array.getUnsafe(j))
+    (chainAxes->Array.getUnsafe(j)).chain ? aj : JsBuild.member(aj, "length")
+  }
   let tbl = st.fresh()
 
   // Index the table in its STORED orientation: each stored product axis is
@@ -2273,7 +2376,6 @@ and emitTableTraversal = (
   // buildLevel(j, accName): the loop over chain axis j, pushing into `accName` —
   // the table lookup at the innermost level, an accumulated row otherwise.
   let rec buildLevel = (j: int, accName: string): JsAst.stmt => {
-    let aj = arrNames->Array.getUnsafe(j)
     let ij = idxVars->Array.getUnsafe(j)
     let body = if j === k - 1 {
       [JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [lookup]))]
@@ -2285,15 +2387,15 @@ and emitTableTraversal = (
         JsBuild.exprStmt(JsBuild.call(JsBuild.member(JsBuild.id(accName), "push"), [JsBuild.id(childAcc)])),
       ]
     }
-    cForArr(ij, aj, body)
+    cForCount(ij, boundOf(j), body)
   }
 
   let outName = st.fresh()
   let thunkBody = Array.concat(
     Array.concat(
       [JsBuild.const(tbl, Runtime.forceOf(JsBuild.id(tableName)))],
-      feedCs->Array.mapWithIndex((c, j) =>
-        JsBuild.const(arrNames->Array.getUnsafe(j), Runtime.forceOf(JsBuild.id(c.name)))
+      extentCs->Array.mapWithIndex((nm, j) =>
+        JsBuild.const(extentVars->Array.getUnsafe(j), Runtime.forceOf(JsBuild.id(nm)))
       ),
     ),
     [JsBuild.const(outName, JsBuild.array_([])), buildLevel(0, outName), JsBuild.ret(JsBuild.id(outName))],
@@ -2329,7 +2431,20 @@ let codegen = (ann: Annotate.annotations, p: Program.program): generated => {
     "v" ++ Int.toString(n)
   }
   let products = p.nodes->Array.filterMap(productOf)
-  let st: state = {fresh, ann, memo: Map.make(), products, tableMemo: Map.make()}
+  let synth = ref(0)
+  let synthTag = () => {
+    synth := synth.contents - 1
+    synth.contents
+  }
+  let st: state = {
+    fresh,
+    ann,
+    memo: Map.make(),
+    products,
+    tableMemo: Map.make(),
+    extentMemo: Map.make(),
+    synthTag,
+  }
   let topStmts: array<JsAst.stmt> = []
   // Outputs share one state, so a node consumed by several outputs
   // compiles once — single-module multi-output compilation.

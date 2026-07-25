@@ -3771,6 +3771,270 @@ header("cross: a fibered traversal of a per-group product (reduce each column)")
   expectOutput(p, "out", array_([array_([int_(23), int_(43)]), array_([int_(103)])]))
 }
 
+// 15r. A FILTERED axis in a product — product-flows-design.md's first filtering
+//      regime, "Partial products: filtering, in three regimes": *filter an axis
+//      by its own element* (the predicate reads only x), so "the filtered flow's
+//      shape is still invariant of ~x — the same rows survive for every x. Still
+//      a product, still crossable, still transposable. Rectangular, just
+//      smaller."
+//
+//      An axis is therefore not only a single list open: it may be a join CHAIN,
+//      `join(list, case-alt)`, whose extent is the kept subsequence. The table is
+//      built by walking that chain (one row per kept firing) and each consumer
+//      traverses the axis by index over its kept COUNT, so both orders still read
+//      the one shared table and the user's computation still runs once per point.
+// ============================================================================
+
+header("cross: a FILTERED axis, both orders, one shared table")
+{
+  let src = `
+add = js "(a, b) => a + b"
+parity = js "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}"
+[1, 2, 3, 4] -> open list => ex, ~fx
+ex -> split parity of Even, Odd => cs
+~cs.Even ~> join into ~fx => ~kx
+[10, 20] -> open list => ey, ~fy
+~kx ~> cross with ~fy => ~fxy
+cs.Even, ey -> add => s
+s -~> collect ~kx => inner1
+inner1 -~> collect ~fy => out1
+s -~> collect ~fy => inner2
+inner2 -~> collect ~kx => out2
+out out1
+out out2
+`
+  let fromText = TextResolve.parseProgram(src)
+
+  // The same program via handles.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let inner1 = Build.collect(b, ~flow=kx.flow, s.value)
+  let out1 = Build.collect(b, ~flow=itY.flow, inner1.value)
+  let inner2 = Build.collect(b, ~flow=itY.flow, s.value)
+  let out2 = Build.collect(b, ~flow=kx.flow, inner2.value)
+  let fromHandles = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+
+  if Program.equal(fromText, fromHandles) {
+    pass("filtered-axis product: text and handles build identical wiring")
+  } else {
+    fail(
+      "text vs handles wiring differs\n-- text --\n" ++
+      Program.dump(fromText) ++
+      "\n-- handles --\n" ++
+      Program.dump(fromHandles),
+    )
+  }
+  // The kept axis is [2, 4]; the table is 2x2 over ([2,4], [10,20]).
+  // out1 groups per y: [[2+10, 4+10], [2+20, 4+20]].
+  expectOutput(
+    fromText,
+    "out1",
+    array_([array_([int_(12), int_(14)]), array_([int_(22), int_(24)])]),
+  )
+  // out2 is the transpose — grouped per kept x.
+  expectOutput(
+    fromText,
+    "out2",
+    array_([array_([int_(12), int_(22)]), array_([int_(14), int_(24)])]),
+  )
+
+  // Golden: the user's add still appears exactly once — filtering an axis
+  // changes the table's extent, not the fact that there is one table.
+  switch Pipeline.compile(fromText) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out1") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b")
+      if n === 1 {
+        pass("add's work appears once (both orders share the filtered table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out1 to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail("filtered-axis product failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(fromText)
+}
+
+// 15r2. BOTH axes filtered. The table build nests one chain inside the other,
+//       and each axis's kept count is walked once and shared, so the two
+//       traversal orders still index the one table. A non-commutative operator
+//       pins which coordinate is which.
+// ============================================================================
+
+header("cross: both axes filtered — the rectangle is just smaller on both sides")
+{
+  let b = Build.make()
+  let combine = Build.raw(b, "(a, bb) => a * 100 + bb")
+  let even = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let odd = Build.raw(b, "y => y % 2 === 1 ? {tag: 'Odd', value: y} : {tag: 'Even', value: y}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let csX = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=even.value, itX.element)
+  let evX = Build.alt(csX, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=evX.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(11), int_(12), int_(13)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let csY = Build.caseSplit(b, ~alts=["Odd", "Even"], ~discriminator=odd.value, itY.element)
+  let oddY = Build.alt(csY, "Odd")
+  let ky = Build.join(b, ~outer=itY.flow, ~inner=oddY.altFlow)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=ky.flow)
+  let s = Build.app(b, combine.value, [evX.altValue, oddY.altValue])
+  let inner1 = Build.collect(b, ~flow=kx.flow, s.value)
+  let out1 = Build.collect(b, ~flow=ky.flow, inner1.value)
+  let inner2 = Build.collect(b, ~flow=ky.flow, s.value)
+  let out2 = Build.collect(b, ~flow=kx.flow, inner2.value)
+  let p = Build.finish(b, ~outputs=[("out1", out1.value), ("out2", out2.value)])
+  // kept x = [2, 4]; kept y = [11, 13]; s = x*100 + y.
+  expectOutput(
+    p,
+    "out1", // per kept y: [x0, x1]
+    array_([array_([int_(211), int_(411)]), array_([int_(213), int_(413)])]),
+  )
+  expectOutput(
+    p,
+    "out2", // the transpose: per kept x
+    array_([array_([int_(211), int_(213)]), array_([int_(411), int_(413)])]),
+  )
+  expectRoundTrip(p)
+}
+
+// 15r3. The regime the product does NOT survive: a predicate that reads the
+//       OTHER axis's element. product-flows-design.md's third regime — "shape
+//       depends on the other flow's value … no product exists. This is true
+//       raggedness; the nesting is dependent; one order is meaningful and the
+//       transpose is not. An attempt to cross such flows … fails the invariance
+//       demand, with the dependence-introducing node as the witness." Filtering
+//       per POINT is a legitimate program (regime two), but it is authored by
+//       absorbing the per-point option in each consumer chain, not by folding
+//       the predicate into an axis, which is what this is.
+// ============================================================================
+
+header("cross: an axis filtered by the OTHER axis's element is not a product")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let disc = Build.raw(b, "n => n % 2 === 0 ? {tag: 'Even', value: n} : {tag: 'Odd', value: n}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  // The predicate reads BOTH elements: the surviving x's differ per y.
+  let mixed = Build.app(b, addF.value, [itX.element, itY.element])
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=disc.value, mixed.value)
+  let ev = Build.alt(cs, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
+  let inner = Build.collect(b, ~flow=kx.flow, ev.altValue)
+  let out = Build.collect(b, ~flow=itY.flow, inner.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.Check.rule === "invariance") {
+      pass("a per-point-filtered axis is witnessed by the invariance rule, not crossed")
+    } else {
+      fail(
+        "expected an invariance witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("expected the dependent filter to be witnessed, but it compiled")
+  | exception Codegen.Todo(g) => fail("expected an invariance witness, got a codegen gap: " ++ g)
+  }
+}
+
+// 15r4. The other thing an axis chain must not be: a REPEATED axis. Crossing X
+//       with `join(X, Z)` reaches one axis through both operands, which is
+//       `Poset.res`'s repeated-flow DIAMOND — "one axis reached by two
+//       incomparable ancestry paths, left unresolved between ALIGN (zip) and
+//       CROSS", the incoherent middle the checker witnesses rather than
+//       represents. It is the invariance rule's second cell: not a dependent
+//       nesting, but an operand pair that is not two axes at all.
+// ============================================================================
+
+header("cross: an operand that repeats the other's axis is witnessed, not crossed")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let inner = Build.raw(b, "n => [n, n + 1]")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let zsrc = Build.app(b, inner.value, [itX.element])
+  let itZ = Build.uncollectList(b, ~nesting=itX.flow, zsrc.value)
+  let jxz = Build.join(b, ~outer=itX.flow, ~inner=itZ.flow)
+  let _ = Build.cross(b, ~left=itX.flow, ~right=jxz.flow)
+  let s = Build.app(b, addF.value, [itX.element, itZ.element])
+  let innerC = Build.collect(b, ~flow=jxz.flow, s.value)
+  let out = Build.collect(b, ~flow=itX.flow, innerC.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.Check.rule === "invariance") {
+      pass("a repeated axis is witnessed by the invariance rule")
+    } else {
+      fail(
+        "expected an invariance witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("expected the repeated axis to be witnessed, but it compiled")
+  | exception Codegen.Todo(g) => fail("expected an invariance witness, got a codegen gap: " ++ g)
+  }
+}
+
+// 15r5. The boundary this round did NOT cross: a filtered axis HELD by an
+//       enclosing loop while another is collected — the fibered traversal over a
+//       filtered axis. A product axis is held by being traversed by INDEX, and
+//       the kept firings of a chain are not an indexed loop, so the chain is not
+//       matched and the router declines with a clean gap rather than compiling
+//       the wrong table read. Full chains over filtered axes (15r/15r2) are
+//       unaffected; this is the fibered row of the poset round, one step on.
+// ============================================================================
+
+header("cross: a FIBERED read over a filtered axis declines cleanly (a gap)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let row = Build.collect(b, ~flow=itY.flow, s.value) // one row per kept x
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=kx.flow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("a fibered read over a filtered axis declines with a clean Todo")
+  | Ok(_) => fail("expected a codegen gap for the fibered filtered axis, but it compiled")
+  | Error(ws) =>
+    fail(
+      "expected a codegen gap, got witnesses:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+  // It still prints and reparses — representable, just not yet compilable.
+  expectRoundTrip(p)
+}
+
 // ============================================================================
 // Coverage ported from the previous compiler's value-test suite. These exercise
 // distinct compiler behaviours the sections above do not: value-fragment
