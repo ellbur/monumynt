@@ -3572,6 +3572,86 @@ header("cross: a product opened inside an enclosing loop (the per-group product)
   expectRoundTrip(p)
 }
 
+// 10e. Completion of a per-group sibling combine — the nested counterpart of
+//      test 10. The combine's axis SPAN names the enclosing loop too (`{G, A,
+//      B}`), but G is not a sibling of A or B: it is the context both were
+//      opened in. Completion crosses the span's sibling FRONTIER — the axes
+//      that do not determine another axis in the span — so the inserted product
+//      is `{A || B}` with exterior `L`, and the completed program is identical
+//      to the hand-drawn 15q.
+header("complete: a per-group sibling combine gets its product inserted, then compiles")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let bOf = Build.raw(b, "g => [[10, 20], [100]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let bv = Build.app(b, bOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let itB = Build.uncollectList(b, ~nesting=itG.flow, bv.value)
+  // No hand-drawn Cross: the under-committed per-group time-travel program.
+  let s = Build.app(b, addF.value, [itA.element, itB.element])
+  let inner = Build.collect(b, ~flow=itA.flow, s.value)
+  let mid = Build.collect(b, ~flow=itB.flow, inner.value)
+  let out = Build.collect(b, ~flow=itG.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([array_([int_(11), int_(12)]), array_([int_(21), int_(22)])]),
+      array_([array_([int_(103)])]),
+    ]),
+  )
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion inserted one per-group product for the sibling combine")
+    } else {
+      fail("expected one inserted product, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail("per-group sibling program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 10f. The guard on that frontier rule. Here one axis is top-level and the
+//      other is opened inside a loop, so the span's dropped axis (the loop) is
+//      an ancestor of ONE frontier member and not the other. Which nesting to
+//      commit — `G > {X || A}` or `{G || X} > A` — is a genuine ambiguity, not
+//      something this pass gets to settle by convenience, so it stays a
+//      time-travel witness and asks for a hand-drawn Cross.
+header("complete: an ancestor shared by only SOME frontier axes is not completed")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let aOf = Build.raw(b, "g => [[1, 2], [3]][g]")
+  let gs = Build.lit(b, array_([int_(0), int_(1)]))
+  let xs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itG = Build.uncollectList(b, gs.value)
+  let itX = Build.uncollectList(b, xs.value)
+  let av = Build.app(b, aOf.value, [itG.element])
+  let itA = Build.uncollectList(b, ~nesting=itG.flow, av.value)
+  let s = Build.app(b, addF.value, [itX.element, itA.element])
+  let inner = Build.collect(b, ~flow=itA.flow, s.value)
+  let mid = Build.collect(b, ~flow=itX.flow, inner.value)
+  let out = Build.collect(b, ~flow=itG.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Ok(_) => fail("a partially-shared ancestor was completed — the frontier guard did not hold")
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "time-travel") {
+      pass("a partially-shared ancestor stays a time-travel witness (needs a hand-drawn Cross)")
+    } else {
+      fail("expected a time-travel witness, got:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  | exception Codegen.Todo(m) => fail("expected a Check witness, got a Codegen Todo: " ++ m)
+  }
+}
+
 // 15q2. The same per-group product read in BOTH orders. Everything the
 //       top-level product's shared table gives (test 15) holds one layer in:
 //       the two chains share one table per group, so the user's computation
