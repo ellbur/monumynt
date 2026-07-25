@@ -2335,21 +2335,28 @@ header("cross: a register over the whole product is rejected by the order-demand
   // witness points at is a real program, not a dead end.
 }
 
-// 15j. The fiber that is still deferred: a rank-3 product collected over ONE
-//      axis leaves TWO axes standing, and a two-axis fiber is a genuine product
-//      context — no linear path holds it, so `Context.valueContext` keeps
-//      reporting the exterior and Codegen declines with a clean Todo rather than
-//      mis-placing the consumer. This is the remaining half of the poset round's
-//      context model (the general poset-valued context); the one-axis fiber above
-//      is what the linear report can carry exactly.
-header("cross: a two-axis fiber (rank 3, one axis collected) still declines cleanly")
+// 15j. The ≥2-AXIS FIBER: a rank-3 product collected over ONE axis leaves TWO
+//      axes standing. The fiber is then a genuine product context, which no
+//      linear path holds as a NESTING — but the placement question only needs
+//      to know WHICH axes must be open, and the consuming chain supplies the
+//      order it chose. So `Context.remainderPath` reports both surviving axes
+//      (flattened in the combine's own operand order) and `Codegen.matchChain`
+//      matches a structural path's flows as a SET, which is what its own
+//      contract always said ("the shortest prefix of the chain that opens every
+//      flow the path names"). The traversal itself was already k-general: index
+//      the one shared cube at the held coordinates.
+//
+//      Here: reduce along X, fibered over {Y, Z}. For each (y, z) the X-fiber
+//      [x + y + z for x in xs] is summed; then Y is collected, then Z. The
+//      user's computation still runs once per point, out of the one cube.
+header("cross: the two-axis fiber — reduce along X, fibered over {Y, Z}")
 {
   let b = Build.make()
   let f3 = Build.raw(b, "(a, b, c) => a + b + c")
   let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
   let xs = Build.lit(b, array_([int_(1), int_(2)]))
   let ys = Build.lit(b, array_([int_(10), int_(20)]))
-  let zs = Build.lit(b, array_([int_(100)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
   let itX = Build.uncollectList(b, xs.value)
   let itY = Build.uncollectList(b, ys.value)
   let itZ = Build.uncollectList(b, zs.value)
@@ -2362,15 +2369,117 @@ header("cross: a two-axis fiber (rank 3, one axis collected) still declines clea
   let mid = Build.collect(b, ~flow=itY.flow, tot.value)
   let out = Build.collect(b, ~flow=itZ.flow, mid.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
-  switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("a two-axis fiber declines with a clean Todo (poset round)")
-  | Ok(_) => fail("a two-axis fiber unexpectedly compiled")
-  | Error(ws) =>
-    fail(
-      "expected a Codegen Todo, got witnesses:\n  " ++
-      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-    )
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("the two-axis fiber passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
+  // fiber sums: (1+y+z) + (2+y+z) = 3 + 2y + 2z.
+  //   z=100: y=10 -> 223, y=20 -> 243.   z=200: y=10 -> 423, y=20 -> 443.
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([int_(223), int_(243)]),
+      array_([int_(423), int_(443)]),
+    ]),
+  )
+}
+
+// 15j2. Both two-axis fiberings of one rank-3 product, in ONE program: reduce
+//       along X (fibered over {Y, Z}) and along Y (fibered over {X, Z}). They
+//       read the SAME cube — the rank-3 analogue of 15h/15i's two readings, and
+//       the golden below pins it: the user's computation still appears once, so
+//       it runs once per point however many fiberings read it.
+header("cross: both two-axis fiberings of one product share the one cube")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Fiber along X, gathered Y-then-Z.
+  let colX = Build.collect(b, ~flow=itX.flow, s.value)
+  let totX = Build.app(b, sumL.value, [colX.value])
+  let midX = Build.collect(b, ~flow=itY.flow, totX.value)
+  let outX = Build.collect(b, ~flow=itZ.flow, midX.value)
+  // Fiber along Y, gathered Z-then-X.
+  let colY = Build.collect(b, ~flow=itY.flow, s.value)
+  let totY = Build.app(b, sumL.value, [colY.value])
+  let midY = Build.collect(b, ~flow=itZ.flow, totY.value)
+  let outY = Build.collect(b, ~flow=itX.flow, midY.value)
+  let p = Build.finish(b, ~outputs=[("outX", outX.value), ("outY", outY.value)])
+  // Along X: (1+y+z) + (2+y+z) = 3 + 2y + 2z, gathered [z][y].
+  //   z=100: y=10 -> 223, y=20 -> 243.   z=200: y=10 -> 423, y=20 -> 443.
+  expectOutput(
+    p,
+    "outX",
+    array_([array_([int_(223), int_(243)]), array_([int_(423), int_(443)])]),
+  )
+  // Along Y: (x+10+z) + (x+20+z) = 2x + 2z + 30, gathered [x][z].
+  //   x=1: z=100 -> 232, z=200 -> 432.   x=2: z=100 -> 234, z=200 -> 434.
+  expectOutput(
+    p,
+    "outY",
+    array_([array_([int_(232), int_(432)]), array_([int_(234), int_(434)])]),
+  )
+  // Golden: the per-point computation appears once — both fiberings index the
+  // one shared cube (test 15h's add-once, at rank 3 with a wider fiber).
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outX") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b + c")
+      if n === 1 {
+        pass("the per-point computation appears once (both fiberings share the cube)")
+      } else {
+        fail("expected the computation once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outX to inspect for the shared-cube golden")
+    }
+  | Error(ws) =>
+    fail("two-axis fibering failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15j3. A REGISTER folding along one axis of a rank-3 product, fibered over the
+//       other two — 15k's fibered register with a wider fiber. The step spans
+//       the product, so `final` is a flow of rank n−2 rather than a scalar: one
+//       accumulator per (y, z) point, state never crossing between fibers. A
+//       non-commutative operator pins the within-fiber order.
+header("cross: a register folding one axis of a rank-3 product (two-axis fiber)")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  // (acc, v) => acc * 2 + v — order-sensitive, so the fiber's traversal order
+  // is observable in the value.
+  let stepF = Build.raw(b, "(a, v) => a * 2 + v")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  let reg = Build.delay(b, ~flow=itX.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, stepF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=stepped.value)
+  let mid = Build.collect(b, ~flow=itY.flow, w.final)
+  let out = Build.collect(b, ~flow=itZ.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // Per (y, z) fiber over x = 1, 2: acc = ((0*2 + (1+y+z))*2 + (2+y+z)).
+  //   z=100: y=10 -> (111)*2 + 112 = 334.  y=20 -> (121)*2 + 122 = 364.
+  expectOutput(p, "out", array_([array_([int_(334), int_(364)])]))
 }
 
 // 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser

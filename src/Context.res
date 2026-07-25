@@ -245,16 +245,11 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
           // exterior. But a collect whose branch value varies over an axis it
           // does NOT iterate does not return a value there: that axis survives,
           // one result per point of it — product-flows-design.md's "a collect
-          // over a crossed axis reports {Y}". The report is exact where exactly
-          // ONE axis survives (the fibered reading of a rank-2 product, and of
-          // any product all but one of whose axes the chain collects); a wider
-          // remainder is a genuine product context no linear path can hold, so
-          // it keeps the exterior report and the poset round owns it (Codegen
-          // declines those with a Todo rather than mis-placing them).
-          switch collectRemainderFlows(flow, value) {
-          | [g] => Array.concat(flowContext(g), [g])
-          | _ => flowContext(flow)
-          }
+          // over a crossed axis reports {Y}". Where SEVERAL axes survive (a
+          // rank-3 product collected over one axis leaves `{Y, Z}` standing)
+          // the surviving context is a genuine product, and this linear path
+          // is its *flattening*: see `remainderPath`.
+          remainderPath(flow, value)
         }
       }
     | Join(_) | Commute(_) | Cross(_) =>
@@ -273,15 +268,12 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       switch read.kind {
       | DelayRead({flow}) =>
         // `final` is the accumulator after the driving flow completes — at the
-        // flow's exterior. But a register whose STEP varies over an axis the
-        // driving flow neither iterates nor sources folds per FIBER of that axis
-        // (product-flows-design.md, "reduce along an axis, fibered over the
+        // flow's exterior. But a register whose STEP varies over axes the
+        // driving flow neither iterates nor sources folds per FIBER of those
+        // axes (product-flows-design.md, "reduce along an axis, fibered over the
         // rest": state never crosses axes, so there is one final per point of
-        // the surviving axis). Same one-axis exactness as the collect above.
-        switch collectRemainderFlows(flow, step) {
-        | [g] => Array.concat(flowContext(g), [g])
-        | _ => flowContext(flow)
-        }
+        // the surviving fiber). Same report as the collect above.
+        remainderPath(flow, step)
       | _ => failwith("Context.valueContext: DelayWrite whose read is not a DelayRead")
       }
     | Aggregate({fields}) =>
@@ -348,6 +340,30 @@ and flowContext = (r: flowRef): array<flowRef> =>
         kindName(n.kind) ++ " has no flow ports (ref to port " ++ port ++ ")",
       )
     }
+  }
+
+// The context report for a collect (or a register's `final`) whose branch value
+// varies over axes its flow does not supply: the SURVIVING axes, each with its
+// own exterior, as one path — product-flows-design.md's "a collect over a
+// crossed axis reports {Y}", generalised to the whole remainder.
+//
+// With one surviving axis the report is exact: the fiber is a single layer and a
+// linear path holds it. With several — a rank-3 product collected over one axis
+// leaves `{Y, Z}` — the true context is a PRODUCT, which no linear path can
+// hold, and this path is its flattening in the combine's own operand order (the
+// order `valueAxisFlows` walks, the same fact `Complete` reads when it mints a
+// product's stored orientation — a property of the wiring, not of node ids).
+// Consumers must therefore read a multi-axis report as the SET of axes that must
+// be open, not as a nesting: the consuming chain supplies the order it chose,
+// and `Codegen.matchChain` matches these flows set-wise for exactly that reason.
+// (The poset-VALUED report — `Poset.t` in place of this path, so the axes'
+// order-freedom is in the type rather than in a convention — stays with the rest
+// of the poset round; this is the linear projection of it, which is all the
+// placement question needs.)
+and remainderPath = (flow: flowRef, value: valueRef): array<flowRef> =>
+  switch collectRemainderFlows(flow, value) {
+  | [] => flowContext(flow)
+  | gs => gs->Array.reduce([], (acc, g) => dedupFlows(Array.concat(acc, Array.concat(flowContext(g), [g]))))
   }
 
 // The INTERIOR context of a flow: the context at its innermost element, i.e.

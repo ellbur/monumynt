@@ -97,27 +97,30 @@ let flowsKey = (flows: array<flowRef>): string =>
 
 // Instantiate a structural context (a Context.res path) against the current
 // chain context: the SHORTEST PREFIX of `ctx` that opens every flow the path
-// names, matched in order. This is the "deepest prefix covering the
-// flow-variable set" rule — let-floating stated directly. A structural flow the
-// chain does not open at all means the reference is ill-formed and pass 1 should
-// have witnessed it.
+// names. This is the "deepest prefix covering the flow-variable set" rule —
+// let-floating stated directly. A structural flow the chain does not open at all
+// means the reference is ill-formed and pass 1 should have witnessed it.
 //
-// The chain is allowed to carry segments the path does not mention, which is
-// what a PRODUCT needs: a fibering (held) axis is a sibling, so it appears on no
-// linear path, yet a value compiled inside a fibered traversal legitimately has
-// it open (a register folding along X inside the Y loop, whose `prev`-derived
-// values report just `[X]`). For an all-nesting program the structural path is
-// exactly a prefix and this is the plain prefix rule it replaces.
+// The flows are matched as a SET, not as a sequence, which is the rule as
+// stated. Two reasons it must be: the chain is allowed to carry segments the
+// path does not mention (a fibering axis is a sibling, so it sits on no linear
+// path, yet a value compiled inside a fibered traversal legitimately has it
+// open), and a path may NAME sibling axes, which have no order between them — a
+// collect over one axis of a rank-3 product reports the surviving `{Y, Z}`
+// flattened in the combine's operand order while the consuming chain opens them
+// in whatever order it chose (`Context.remainderPath`). Ordered matching would
+// reject the transposed reading of a product for no reason but the flattening's
+// arbitrary order. For an all-nesting program the path is exactly a prefix and
+// both readings agree, so this is the plain prefix rule it replaces.
 let matchChain = (structural: array<flowRef>, ctx: ctxPath): option<int> => {
   let pos = ref(0)
   let ok = ref(true)
   structural->Array.forEach(f => {
-    let rest = ctx->Array.slice(~start=pos.contents, ~end=Array.length(ctx))
-    let j = rest->Array.findIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
+    let j = ctx->Array.findLastIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
     if j < 0 {
       ok := false
-    } else {
-      pos := pos.contents + j + 1
+    } else if j + 1 > pos.contents {
+      pos := j + 1
     }
   })
   ok.contents ? Some(pos.contents) : None
@@ -487,10 +490,13 @@ let isProductAxisNode = (st: state, uncollect: node): bool =>
 // product-axis loops, whose index variables the emitted thunk reads to index the
 // shared table.
 //
-// Supported where exactly ONE axis is held — the fiber `Context.valueContext`
-// can report (its collect-remainder rule), so consumers of this collect are
-// placed inside the holding loop. A wider fiber is a genuine product context no
-// linear path can hold; it stays with the poset round and declines below.
+// Any number of axes may be held. With one, the fiber is a single layer; with
+// several — a rank-3 product collected over one axis holds `{Y, Z}` — the fiber
+// is a genuine product context, and what places this collect's consumers inside
+// BOTH holding loops is `Context.remainderPath` naming both surviving axes plus
+// `matchChain` matching them set-wise (siblings have no order; the chain
+// supplies the one it chose). Either way the emitted read is the same: index the
+// one shared table at the held coordinates.
 type partialProductMatch = {
   pProduct: product,
   pChainAxes: array<productAxis>, // outer-first, one per collect in the chain
@@ -516,11 +522,13 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
         if Option.isNone(found.contents) {
           let axisKeys = p.axes->Array.map(a => a.axisKey)
           let held = p.axes->Array.filter(a => !(keys->Array.includes(a.axisKey)))
-          // The chain must read only this product's axes, hold exactly one of
-          // them, and its terminal must span the whole product.
+          // The chain must read only this product's axes, hold at least one of
+          // them (holding none is the FULL chain, matchProductChain's), and its
+          // terminal must span the whole product.
           if (
             keys->Array.every(k => axisKeys->Array.includes(k)) &&
-            Array.length(held) === 1 &&
+            Array.length(held) >= 1 &&
+            Array.length(keys) >= 1 &&
             sameKeySet(axisKeys, sAxes)
           ) {
             // Every held axis must be an indexed loop already open on this chain.
@@ -829,9 +837,17 @@ and emitIterCollect = (
   branch: collectBranch,
   levels: array<level>,
 ): compiled => {
+  // Where the collect's own result lives — `Context.valueContext` of its value
+  // port, which is the flow's exterior for an ordinary collect and the SURVIVING
+  // (fibering) axes for a collect whose branch value varies over axes it does not
+  // iterate: collecting the X axis of an {X, Y} product returns one list per y,
+  // so the thunk belongs inside the loop holding y, not at the top level
+  // (product-flows-design.md, "a collect over a crossed axis reports {Y}"). This
+  // is the same report `emitRegister` places a fibered `final` by; for every
+  // non-fibered collect it IS `flowContext(branch.flow)`, unchanged.
   let exterior = instantiate(
     ~what="Collect node " ++ Int.toString(cn.id),
-    Context.flowContext(branch.flow),
+    Context.valueContext(ValuePort(cn, "value")),
     ctx,
   )
 
