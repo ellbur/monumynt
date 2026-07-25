@@ -236,6 +236,24 @@ let parseStage = (st: p): stage =>
       }
       StSplit({disc, alts})
     }
+  | TokName("aggregate") => {
+      advance(st)
+      let fields: array<string> = [expectName(st, "a field name")]
+      while peek(st) == TokComma {
+        advance(st)
+        Array.push(fields, expectName(st, "a field name"))
+      }
+      StAggregate({fields: fields})
+    }
+  | TokName("disaggregate") => {
+      advance(st)
+      let fields: array<string> = [expectName(st, "a field name")]
+      while peek(st) == TokComma {
+        advance(st)
+        Array.push(fields, expectName(st, "a field name"))
+      }
+      StDisaggregate({fields: fields})
+    }
   | TokName("collect") => {
       advance(st)
       let flowArg = if peek(st) == TokTilde {
@@ -433,7 +451,15 @@ let rec parseStatement = (st: p): statement =>
       let name = expectName(st, "an output name")
       let from = if peek(st) == TokEq {
         advance(st)
-        Some(expectName(st, "a source name"))
+        // A name, or a projection off one (a split's alt payload, a
+        // disaggregate's field) — not a general term: an output names a wire.
+        let base = expectName(st, "a source name")
+        if peek(st) == TokDot {
+          advance(st)
+          Some(TextAst.TProj(base, expectName(st, "a field or alt name after '.'")))
+        } else {
+          Some(TextAst.TName(base))
+        }
       } else {
         None
       }

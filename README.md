@@ -13,8 +13,8 @@ The code is ReScript 12 compiled to ES modules and run on Node.
 
 The design work has run well ahead of the code. The code implements
 list/option iteration, case splits, join and filter, partial collects,
-registers (the Delay pair), the whole-table Cross, and a textual
-surface that round-trips; everything else in the design documents is
+registers (the Delay pair), the whole-table Cross, structs, and a
+textual surface that round-trips; everything else in the design documents is
 design-only so far.
 
 **Start with [`plans/README.md`](plans/README.md)** — the index, with
@@ -56,8 +56,9 @@ handles (Build)  ────────┘        derive → complete → chec
   representation. A program is a node set plus distinguished outputs
   (no root expression). Node kinds are `Lit`, `App`, `Uncollect`
   (list / option / case — the opener), `Collect` (the consumer),
-  binary `Join`, `Commute`, `Cross`, and the `DelayRead`/`DelayWrite`
-  register pair; ports are named value/flow refs, with per-alt ports
+  binary `Join`, `Commute`, `Cross`, the `DelayRead`/`DelayWrite`
+  register pair, and `Aggregate`/`Disaggregate` (struct construction and
+  field projection); ports are named value/flow refs, with per-alt ports
   on a case split (no Branch node). Sharing is opt-in via node
   identity: bind once in ReScript, reference twice.
 - `src/Build.res` — typed handles over `Program` (strings below,
@@ -75,13 +76,13 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 265 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 278 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
   placement, list/option/join flows (multi-collect, nested, flatten),
-  case splits and filters, partial collects, registers, and the
-  whole-table Cross.
+  case splits and filters, partial collects, registers, structs, and
+  the whole-table Cross (including one opened inside an enclosing loop).
 
 **[`src/ARCHITECTURE.md`](src/ARCHITECTURE.md)** is the deep map:
 module status, the decisions taken, and the worklist.
@@ -159,7 +160,14 @@ and remain live.
   projection.~~ DONE (as pure value nodes — Aggregate builds an object
   literal, Disaggregate projects one value port per field; both compile
   like an App, let-floated to where the fields jointly live). The textual
-  surface for them is still owed (a separate text-surface round).
+  surface has since landed too: `x, y -> aggregate name, age => p` mirrors
+  an application (the chain's sources, in order, are the field values), and
+  `p -> disaggregate name, age => d` mirrors `split` (a multi-output node
+  named once, its fields reached as `d.name`). Both print and round-trip,
+  which makes the printer total for the first time — its last `failwith`
+  was the struct case. Still owed on the literal side: an object-literal
+  leaf term, so a struct-valued *source* need not go through the
+  `js "..."` escape hatch.
 - **Diagrams as the top-level structure** — the spec's `Diagram`
   type, compiling to a JS function per diagram. Now has a forcing
   argument beyond spec fidelity: a Delay write half can be

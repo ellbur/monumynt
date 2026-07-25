@@ -74,7 +74,8 @@ let nodeKey = (n: node): string => "node:" ++ Int.toString(n.id)
 // Nodes whose refs print as projections off a node name.
 let namedAsNode = (n: node): bool =>
   switch n.kind {
-  | Uncollect({flowKind: Case(_)}) | Commute(_) => true
+  // Multi-output nodes: their refs print as projections off one node name.
+  | Uncollect({flowKind: Case(_)}) | Commute(_) | Disaggregate(_) => true
   | _ => false
   }
 
@@ -89,6 +90,7 @@ let nodeName = (nm: namer, n: node): string =>
   | None => {
       let prefix = switch n.kind {
       | Uncollect({flowKind: Case(_)}) => "cs"
+      | Disaggregate(_) => "d"
       | Commute(_) => "c"
       | _ => "n"
       }
@@ -801,11 +803,27 @@ let print = (~inserted: array<int>=[], p: program): string => {
             valueName(ValuePort(n, "final")),
           )
         }
-      | Aggregate(_) | Disaggregate(_) =>
-        // Aggregate/Disaggregate are representable and compile, but the textual
-        // surface has no struct-construction/projection syntax yet (the spelling
-        // is a separate text-surface round). Authored via handles only for now.
-        failwith("TextPrint: struct construction/projection has no textual surface yet")
+      | Aggregate({fields}) => {
+          mark(n)
+          push(
+            fields->Array.map(((_, v)) => termOf(v))->Array.join(", ") ++
+            " -> aggregate " ++
+            fields->Array.map(((f, _)) => f)->Array.join(", ") ++
+            " => " ++
+            valueName(ValuePort(n, "value")),
+          )
+        }
+      | Disaggregate({struct_, fields}) => {
+          mark(n)
+          // Named as a NODE (like a split): the fields are reached as d.<field>.
+          push(
+            termOf(struct_) ++
+            " -> disaggregate " ++
+            fields->Array.join(", ") ++
+            " => " ++
+            nodeName(nm, n),
+          )
+        }
       }
     }
   )

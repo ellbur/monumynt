@@ -4078,6 +4078,7 @@ header("aggregate: build a struct, project a field, output the whole struct")
   expectOutput(p, "pt", obj([("x", int_(3)), ("y", int_(7))]))
   expectOutput(p, "x", int_(3))
   expectOutput(p, "sum", int_(10))
+  expectRoundTrip(p)
 }
 
 header("aggregate: a per-element struct across a list collect (placement inside the loop)")
@@ -4101,6 +4102,7 @@ header("aggregate: a per-element struct across a list collect (placement inside 
       obj([("v", int_(3)), ("sq", int_(9))]),
     ]),
   )
+  expectRoundTrip(p)
 }
 
 header("disaggregate: project a per-element field, then collect")
@@ -4120,6 +4122,11 @@ header("disaggregate: project a per-element field, then collect")
   let out = Build.collect(b, ~flow=it.flow, Build.field(d, "x"))
   let p = Build.finish(b, ~outputs=[("out", out.value)])
   expectOutput(p, "out", array_([int_(10), int_(20), int_(30)]))
+  // No round-trip here: the SOURCE is an array of object literals, and the text
+  // grammar has no object-literal leaf term, so the printer sends it through the
+  // `js "..."` escape hatch and it reparses as an ERaw. That is the literal
+  // renderer's own recorded limitation (TextPrint.litText), not the struct
+  // surface's — the disaggregate statement itself round-trips in the tests below.
 }
 
 header("aggregate then disaggregate is identity (project both fields back out)")
@@ -4132,6 +4139,53 @@ header("aggregate then disaggregate is identity (project both fields back out)")
   let p = Build.finish(b, ~outputs=[("a", Build.field(d, "a")), ("b", Build.field(d, "b"))])
   expectOutput(p, "a", int_(7))
   expectOutput(p, "b", int_(9))
+  expectRoundTrip(p)
+}
+
+// The struct surface authored in TEXT (textual-representation-design.md's
+// grammar grown by two stages). `aggregate` mirrors an application — the
+// chain's sources, in order, are the field values — and `disaggregate` mirrors
+// `split`: a multi-output node named once, its fields reached by projection off
+// that name. That symmetry is the whole design: nothing new to learn beyond the
+// two words, and the printer's existing node-naming machinery already knew how
+// to render a projected node.
+header("struct: aggregate and disaggregate authored in text, round-tripped")
+{
+  let src = `
+add = js "(a, b) => a + b"
+one = 1
+two = 2
+three = 3
+four = 4
+one, two -> add => xv
+three, four -> add => yv
+xv, yv -> aggregate x, y => pt
+pt -> disaggregate x, y => d
+d.x, d.y -> add => total
+out pt
+out total
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "pt", obj([("x", int_(3)), ("y", int_(7))]))
+  expectOutput(p, "total", int_(10))
+  expectRoundTrip(p)
+}
+
+header("struct: a per-element struct built and projected inside a loop, in text")
+{
+  let src = `
+mul = js "(a, b) => a * b"
+xs = [1, 2, 3]
+xs -> open list => e, ~L
+e, e -> mul => sq
+e, sq -> aggregate v, sq => rec
+rec -> disaggregate v, sq => d
+d.sq -~> collect ~L => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  expectOutput(p, "out", array_([int_(1), int_(4), int_(9)]))
+  expectRoundTrip(p)
 }
 
 // ============================================================================
