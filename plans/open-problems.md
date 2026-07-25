@@ -210,11 +210,13 @@ anchor (filed from end-when's round); the self-driven source opener the port for
 now worked (`source-openers-design.md`: a bare flow-minting opener, no
 value ports, kind answered as the sourceless stream; the
 counted↔conditional seam it opens is filed back here as that round's
-open question); and operator identities for reduce-close — now worked
-jointly with the collect family (`collect-family-design.md`: the
-identity question reframed as the empty-collect question, a three-tier
-availability ladder, identities as catalog rows carrying the identity
-value as witness).
+open question); and operator identities for reduce-close — now
+**adopted** with the collect family's availability ladder
+(2026-07-23, `collect-family-design.md`: the identity question
+reframed as the empty-collect question; monoid total, semigroup
+option-shaped, non-associative augment-only; identities as catalog
+rows carrying the identity value as witness; the runtime-error and
+fake-∞ poles confirmed rejected).
 
 Beside the surface decision sits the row's open problem, now its own
 document: the **Delay ontology** — what a Delay *is* and which flow
