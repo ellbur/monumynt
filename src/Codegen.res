@@ -351,7 +351,7 @@ type altPlan = {
 }
 
 // Per-level assembly plan for a filter / filter-then-flatmap collect (see
-// emitFilterCollect): iter levels (loops) and dispatch levels (case-alt
+// emitCellChain): iter levels (loops) and dispatch levels (case-alt
 // guards) interleaved in any order. An `FIter` opens a for-of (list) or
 // defined-check (option); an `FAlt` computes `s = disc(input)` then guards its
 // alt, binding the payload for iter levels nested *inside* the dispatch.
@@ -817,10 +817,8 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
       let readsPrev = Array.length(readsPrevRegs(branch.value)) > 0
       if readsPrev {
         emitRunningCollect(st, ctx, cn, branch, levels)
-      } else if hasPartial {
-        emitPartialCollect(st, ctx, cn, branch, levels)
-      } else if hasAlt {
-        emitFilterCollect(st, ctx, cn, branch, levels)
+      } else if hasPartial || hasAlt {
+        emitCellChain(st, ctx, cn, branch, levels)
       } else {
         emitIterCollect(st, ctx, cn, branch, levels)
       }
@@ -828,7 +826,7 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
   | CaseFull => emitCaseCollect(st, ctx, cn, branches)
   | CasePartial(_) =>
     // A partial collect's value output is the MERGED value — flow-borne on its
-    // own merged flow. The emitters that OPEN that flow (emitPartialCollect,
+    // own merged flow. The emitters that OPEN that flow (emitCellChain,
     // emitCaseCollect) pre-memoise it per arm, so reaching it here means it was
     // read from inside one of its cells by a chain that opened that cell some
     // OTHER way — an ordinary filter on one alt, say. That is well-formed by the
@@ -1514,7 +1512,7 @@ and emitCaseCollect = (
 // interior resolves — an iter level's element, a dispatch's alt payload.
 // Feeds (an iter input, a split's discriminator + dispatched value) compile in
 // the context built so far and float to where they belong. Shared by
-// emitFilterCollect (the accumulator is a collect) and emitRegister (the
+// emitCellChain (the accumulator is a collect) and emitRegister (the
 // accumulator is a register fold), so the alt-guard logic is written once.
 and walkFilterLevels = (
   st: state,
@@ -1579,75 +1577,78 @@ and walkFilterLevels = (
   (plans, floatedAcc)
 }
 
-// The filter shape: a `join` chain whose levels are iter levels (list/option
-// loops) and case-alt dispatch levels, interleaved in any order, at least one
-// of which is a dispatch. One thunk = an accumulator, then the levels nested
-// outermost-in: a list level loops (for-of), an option level is a defined-check
-// (an absent option skips its body), and a dispatch level is
+// --- The cell chain: filter, partial collect, and everything between ---------
 //
-//   const s = force(disc)(force(input));
-//   if (s.tag === alt) { const payload = __lazyDone__(s.value); … }
+// One emitter for every `join` chain that DISPATCHES somewhere. Its levels are
+// iter levels (list / option loops) and dispatch levels, interleaved in any
+// order, at least one of which dispatches. One thunk = an accumulator, then the
+// levels nested outermost-in:
 //
-// keeping only its matching alt and binding the payload. The trailing case
-// `join(list, case-alt)` is the plain filter; a NON-trailing dispatch (an iter
-// level nested inside a dispatch — `join(join(list, case-alt), inner-list)`) is
-// filter-then-flatmap, iterating the kept alt's payload. Each level pre-memoises
-// the binding its interior resolves (an iter element, an alt payload) at that
-// level's context; loop-invariant work floats out of the thunk. The any-list
-// rule (lazy-compile-design.md) decides the accumulator — any list level ⇒ a
-// list (push per kept firing), an all-option filter ⇒ an option (`let out;`
-// assign, the single-alt case of emitPartialCollect's collected-alone reading).
-// The non-trailing dispatch and option levels go beyond a dispatch-innermost
-// filter close (where the dispatch is always the deepest level).
-and emitFilterCollect = (
+//   - a list level loops (for-of); an option level is a defined-check (an absent
+//     option skips its body, contributing nothing);
+//   - a CASE-ALT level keeps one cell —
+//
+//       const s = force(disc)(force(input));
+//       if (s.tag === alt) { const payload = __lazyDone__(s.value); … }
+//
+//   - a PARTIAL level keeps k cells, one arm each, additionally binding every
+//     merged value on the path down to that cell (`memoiseMergedValues` — the
+//     containment theorem, "each arm binds the same name to its branch's
+//     value"). NON-exhaustive: an uncovered cell makes the merged flow not fire.
+//
+// The two dispatch levels are the same construct at two widths, which is why
+// they share an emitter: a case-alt level is the all-singletons instance, and
+// `partial-collect-design.md`'s three terminations (join-absorbed filter,
+// collected alone, covering) differ only in the accumulator and in who owns the
+// arms. The trailing case `join(list, case-alt)` is the plain filter; a
+// NON-trailing dispatch (`join(join(list, case-alt), inner-list)`) is
+// filter-then-flatmap, iterating the kept cell's payload; a partial level may be
+// non-trailing too — `join(partial, inner-list)`, "for each error firing,
+// iterate its details".
+//
+// Each level pre-memoises the binding its interior resolves (an iter element, a
+// cell payload, a merged value) at that level's context; loop-invariant work
+// floats out of the thunk. The any-list rule (lazy-compile-design.md) decides
+// the accumulator — any list level ⇒ a list (push per kept firing), an all-
+// option chain ⇒ an option (`let out;` assign, which is also the collected-alone
+// reading of a merged flow).
+
+// Assemble a level chain into the statements that belong in `exterior`'s scope,
+// calling `mkPayload` at each innermost context the chain reaches.
+//
+// A PARTIAL level BRANCHES, and that is the one thing the flat plan-then-
+// assemble walk could not express: every level after it — and the payload — is
+// assembled once per covered cell, under that cell's own context and its own
+// bindings. So the walk is recursive: levels up to the first partial go through
+// the flat `walkFilterLevels`, the partial becomes a k-arm dispatch, and each
+// arm recurses on the rest. A chain with no partial level recurses zero times
+// and is exactly the flat walk it was before.
+//
+// Returns the statements to emit at `exterior`, plus the `placed` statements
+// addressed to `exterior` or shallower, which the caller places (an arm claims
+// those addressed to itself; the top-level caller floats them out of the thunk).
+and buildChain = (
   st: state,
-  ctx: ctxPath,
-  cn: node,
-  branch: collectBranch,
+  ownerId: int,
+  exterior: ctxPath,
   levels: array<level>,
-): compiled => {
-  levels->Array.forEach(l =>
+  mkPayload: ctxPath => (array<JsAst.stmt>, array<placed>),
+): (array<JsAst.stmt>, array<placed>) => {
+  let partialAt = levels->Array.findIndex(l =>
     switch l {
-    | PartialLevel(_) =>
-      failwith("Codegen.emitFilterCollect: a PartialLevel in a filter chain — routed to emitPartialCollect upstream")
-    | IterLevel(_) | AltLevel(_) => ()
+    | PartialLevel(_) => true
+    | IterLevel(_) | AltLevel(_) => false
     }
   )
-  if !(levels->Array.some(l => switch l { | AltLevel(_) => true | IterLevel(_) | PartialLevel(_) => false })) {
-    failwith("Codegen.emitFilterCollect: no dispatch level — routed to emitIterCollect upstream")
-  }
-  // The any-list rule (lazy-compile-design.md) decides the accumulator: any
-  // list level ⇒ a list output (push per kept firing); an all-option filter ⇒
-  // an option output (`let out;` assigned only when every option fires and the
-  // alt matches). A single-alt filter over options is the single-arm case of
-  // emitPartialCollect's collected-alone reading (test 7c), so the two emitters
-  // stay consistent.
-  let anyList = levels->Array.some(l =>
-    switch l {
-    | IterLevel({isList}) => isList
-    | AltLevel(_) | PartialLevel(_) => false
-    }
-  )
-
-  let exterior = instantiate(
-    ~what="Filter collect node " ++ Int.toString(cn.id),
-    Context.flowContext(branch.flow),
-    ctx,
-  )
-
-  let (plans, floatedAcc) = walkFilterLevels(st, exterior, levels, cn.id)
-
-  // At the innermost level's context: compile the kept value.
+  let pre = partialAt < 0 ? levels : levels->Array.slice(~start=0, ~end=partialAt)
+  let (plans, floatedAcc) = walkFilterLevels(st, exterior, pre, ownerId)
   let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
   | Some(FIter({bodyCtx})) => bodyCtx
   | Some(FAlt({altCtx})) => altCtx
   | None => exterior
   }
-  let valueC = compileValue(st, innerCtx, branch.value)
-  valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
 
-  // Partition: each level's body claims what is addressed to it; everything at
-  // the exterior or shallower floats out of the thunk.
+  // One bucket per level body, plus one per dispatch arm below.
   let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
   plans->Array.forEach(p =>
     switch p {
@@ -1655,6 +1656,68 @@ and emitFilterCollect = (
     | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
     }
   )
+
+  // Compile everything that goes *inside* the innermost level first, so the
+  // buckets are complete before any body is assembled. Either the payload
+  // (no partial level) or the k arms, each carrying the rest of the chain.
+  let armData = if partialAt < 0 {
+    None
+  } else {
+    let (partialCollect, split, pbranches) = switch levels->Array.getUnsafe(partialAt) {
+    | PartialLevel({collect, split, branches}) => (collect, split, branches)
+    | IterLevel(_) | AltLevel(_) => failwith("Codegen.buildChain: partialAt is not a PartialLevel")
+    }
+    let (discriminator, csInput) = switch split.kind {
+    | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
+    | _ =>
+      failwith(
+        "Codegen.buildChain: a partial level's split is not a case split — " ++
+        "`spine` resolves it through `branchCells`, so this is a compiler bug",
+      )
+    }
+    let cells = switch classifyCollect(pbranches) {
+    | CasePartial(cs) => cs
+    | _ => failwith("Codegen.buildChain: a partial level's collect is not partial")
+    }
+    let post = levels->Array.slice(~start=partialAt + 1, ~end=Array.length(levels))
+    // The dispatched value and the discriminator compile in the context built so
+    // far (`s = disc(input)` is recomputed per firing there).
+    let inputC = compileValue(st, innerCtx, csInput)
+    inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    let discC = compileValue(st, innerCtx, discriminator)
+    discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
+    let splitName = st.fresh()
+    let arms = cells->Array.map(cell => {
+      let armCtx = Array.concat(
+        innerCtx,
+        [{flow: FlowPort(split, cell), thunkOf: ownerId, idxVar: None}],
+      )
+      Map.set(buckets, ctxPathKey(armCtx), [])
+      let payloadName = st.fresh()
+      recordMemo(st, split.id, cell, armCtx, payloadName)
+      memoiseMergedValues(
+        st,
+        armCtx,
+        FlowPort(partialCollect, "flow"),
+        cell,
+      )->Array.forEach(pl => Array.push(floatedAcc, pl))
+      let (armStmts, armFloated) = buildChain(st, ownerId, armCtx, post, mkPayload)
+      armFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
+      (cell, armCtx, payloadName, armStmts)
+    })
+    Some((splitName, discC.name, inputC.name, arms))
+  }
+  let payloadStmts = switch armData {
+  | Some(_) => []
+  | None => {
+      let (stmts, fl) = mkPayload(innerCtx)
+      fl->Array.forEach(pl => Array.push(floatedAcc, pl))
+      stmts
+    }
+  }
+
+  // Partition: each level body and each arm claims what is addressed to it;
+  // everything at `exterior` or shallower goes back to the caller.
   let escaped: array<placed> = []
   floatedAcc->Array.forEach(pl =>
     switch Map.get(buckets, ctxPathKey(pl.at)) {
@@ -1663,28 +1726,61 @@ and emitFilterCollect = (
       if isCtxPrefix(pl.at, exterior) {
         Array.push(escaped, pl)
       } else {
-        failwith("Codegen: a statement floated to a context unrelated to the filter collect being assembled — placement bug")
+        failwith(
+          "Codegen: a statement floated to a context unrelated to the chain " ++
+          "being assembled — placement bug",
+        )
       }
     }
   )
 
-  let outName = st.fresh()
-  // Any list ⇒ push per kept firing; all options ⇒ assign the single kept value.
-  let payloadAction = if anyList {
-    JsBuild.exprStmt(
-      JsBuild.call(
-        JsBuild.member(JsBuild.id(outName), "push"),
-        [Runtime.forceOf(JsBuild.id(valueC.name))],
-      ),
-    )
-  } else {
-    JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
+  // The innermost statements: the payload, or the k-arm cell dispatch built in
+  // reverse — NON-exhaustive, no else, so an uncovered cell drops.
+  let core = switch armData {
+  | None => payloadStmts
+  | Some((splitName, discName, inputName, arms)) => {
+      let chain = ref(None)
+      for i in Array.length(arms) - 1 downto 0 {
+        let (cell, armCtx, payloadName, armStmts) = arms->Array.getUnsafe(i)
+        let bucket = Map.get(buckets, ctxPathKey(armCtx))->Option.getOr([])
+        let body = Array.concat(
+          [
+            JsBuild.const(
+              payloadName,
+              Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")),
+            ),
+          ],
+          Array.concat(bucket, armStmts),
+        )
+        chain :=
+          Some(
+            JsAst.SIf({
+              test: JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(cell)),
+              cons: JsAst.SBlock(body),
+              alt: chain.contents,
+            }),
+          )
+      }
+      Array.concat(
+        [
+          JsBuild.const(
+            splitName,
+            JsBuild.call(
+              Runtime.forceOf(JsBuild.id(discName)),
+              [Runtime.forceOf(JsBuild.id(inputName))],
+            ),
+          ),
+        ],
+        switch chain.contents {
+        | Some(s) => [s]
+        | None => []
+        },
+      )
+    }
   }
 
-  // Assemble innermost-out: an iter level loops (for-of) or checks (option
-  // defined); a dispatch level computes `s = disc(input)` then guards its alt,
-  // binding the payload for any level nested inside.
-  let nested = ref([payloadAction])
+  // Wrap in the walked levels, innermost-out.
+  let nested = ref(core)
   for i in Array.length(plans) - 1 downto 0 {
     switch plans->Array.getUnsafe(i) {
     | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
@@ -1706,13 +1802,21 @@ and emitFilterCollect = (
     | FAlt({alt, altCtx, splitName, discName, inputName, payloadName}) => {
         let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
         let altBody = Array.concat(
-          [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")))],
+          [
+            JsBuild.const(
+              payloadName,
+              Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")),
+            ),
+          ],
           Array.concat(bucket, nested.contents),
         )
         nested := [
           JsBuild.const(
             splitName,
-            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
+            JsBuild.call(
+              Runtime.forceOf(JsBuild.id(discName)),
+              [Runtime.forceOf(JsBuild.id(inputName))],
+            ),
           ),
           JsBuild.if_(
             JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(alt)),
@@ -1722,314 +1826,68 @@ and emitFilterCollect = (
       }
     }
   }
-  let accDecl = if anyList {
-    JsBuild.const(outName, JsBuild.array_([]))
-  } else {
-    JsBuild.letDecl(outName)
-  }
-  let thunkBody = Array.concat(
-    [accDecl],
-    Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]),
-  )
-
-  let name = st.fresh()
-  recordMemo(st, cn.id, "value", exterior, name)
-  {
-    name,
-    floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
-  }
+  (nested.contents, escaped)
 }
 
-// A partial collect's merged flow, terminated downstream (partial-collect-design.md,
-// the "direct" slice — worklist item 9). The merged flow is a k-arm dispatch
-// over the covered alts of one split, each arm carrying its own branch value
-// into the shared merged-value port, then the terminating collect's payload
-// action. NON-exhaustive: an uncovered alt makes the merged flow not fire —
-// dropped for a list, left unset for an option (the any-list rule again).
-//
-//   for (const x of feed) {                  // leading levels (from a Join):
-//     const elem = __lazyDone__(x);           // list ⇒ for-of, option ⇒ if-defined
-//     const s = force(disc)(force(input));
-//     if (s.tag === alt1) { const p1 = __lazyDone__(s.value); …v1…; out.push(force(v1)) }
-//     else if (s.tag === alt2) { … }         // no else — uncovered alts drop
-//   }
-//
-// Leading levels may be list or option (an absent option skips its firing,
-// contributing nothing — mirrors emitFilterCollect) or a case-alt dispatch (a
-// filter-then-partial, `join(join(list, case-alt), partial)`: keep the alt, then
-// partial-collect a subset of a second split over its payload). The any-list
-// rule decides the accumulator (any list ⇒ push, else the option `let out;` and
-// the arms assign, which is also the no-leading-level collected-alone reading).
-// Mirrors emitFilterCollect for the leading levels and emitCaseCollect for the
-// per-arm payload, minus exhaustiveness. A leading PartialLevel (a partial
-// feeding a partial) still raises Todo — the merged-flow-into-merged-flow shape
-// is the cell-set / poset round's. DEFERRED to the poset round: computation AT the merged
-// context (the doc's logAndFallback step) lives at a cell-set context the
-// linear model cannot represent, so the terminating value must reference the
-// merged value directly (its structural context is the merged flow, which does
-// not match an alt arm's — a merged-context App would trip `instantiate`).
-and emitPartialCollect = (
+// The thunk around a cell chain: the accumulator, the nested levels, the return.
+and emitCellChain = (
   st: state,
   ctx: ctxPath,
   cn: node,
   branch: collectBranch,
   levels: array<level>,
 ): compiled => {
-  let n = Array.length(levels)
-  let (partialCollect, split, pbranches) = switch levels->Array.getUnsafe(n - 1) {
-  | PartialLevel({collect, split, branches}) => (collect, split, branches)
-  | IterLevel(_) | AltLevel(_) =>
-    failwith("Codegen.emitPartialCollect: innermost level is not a PartialLevel")
-  }
-  let leadingLevels = levels->Array.slice(~start=0, ~end=n - 1)
-  // Leading levels are the list / option loops and case-alt dispatches feeding
-  // the terminal partial, in any order — walked exactly as emitFilterCollect's
-  // levels (a filter-then-partial: `join(join(list, case-alt), partial)`). A
-  // leading PartialLevel (a partial feeding a partial) is the merged-flow-into-
-  // merged-flow shape the cell-set / poset round owns.
-  leadingLevels->Array.forEach(l =>
-    switch l {
-    | IterLevel(_) | AltLevel(_) => ()
-    | PartialLevel(_) =>
-      throw(
-        Todo(
-          "partial collect fed by another partial collect — the merged-flow-into-" ++
-          "merged-flow shape (the cell-set / poset round, product-flows-design.md)",
-        ),
+  if (
+    !(
+      levels->Array.some(l =>
+        switch l {
+        | AltLevel(_) | PartialLevel(_) => true
+        | IterLevel(_) => false
+        }
       )
+    )
+  ) {
+    failwith("Codegen.emitCellChain: no dispatch level — routed to emitIterCollect upstream")
+  }
+  // The any-list rule (lazy-compile-design.md): any list level ⇒ a list output
+  // (push per kept firing); an all-option chain ⇒ an option output (`let out;`
+  // assigned only when every option fires and a covered cell matches).
+  let anyList = levels->Array.some(l =>
+    switch l {
+    | IterLevel({isList}) => isList
+    | AltLevel(_) | PartialLevel(_) => false
     }
   )
-  let (discriminator, csInput) = switch split.kind {
-  | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
-  | _ =>
-    failwith(
-      "Codegen.emitPartialCollect: PartialLevel's split is not a case split — " ++
-      "`spine` resolves it through `branchCells`, so this is a compiler bug",
-    )
-  }
-  // The dispatch is over the merged flow's CELLS, not over its branches: a
-  // branch may itself be a partial collect's merged flow spanning several cells
-  // (a partial built over a partial), and each cell still gets its own arm.
-  let coveredCells = switch classifyCollect(pbranches) {
-  | CasePartial(cells) => cells
-  | _ =>
-    failwith(
-      "Codegen.emitPartialCollect: PartialLevel's collect is not partial — " ++
-      "`spine` classified it, so this is a compiler bug",
-    )
-  }
-
   let exterior = instantiate(
-    ~what="Partial collect node " ++ Int.toString(cn.id),
+    ~what="Cell chain collect node " ++ Int.toString(cn.id),
     Context.flowContext(branch.flow),
     ctx,
   )
-
-  // Walk the leading levels outermost-in, exactly as emitFilterCollect: a list /
-  // option iter level or a case-alt dispatch, interleaved in any order. Each
-  // opens its body context (tagged with this collect) and pre-memoises the
-  // binding its interior resolves (an iter element, an alt payload).
-  let floatedAcc: array<placed> = []
-  let plans: array<filterPlan> = []
-  let parentCtx = ref(exterior)
-  leadingLevels->Array.forEach(l =>
-    switch l {
-    | PartialLevel(_) =>
-      failwith("Codegen.emitPartialCollect: leading PartialLevel — guarded above")
-    | IterLevel({uncollect, isList}) => {
-        let input = switch uncollect.kind {
-        | Uncollect({input}) => input
-        | _ => failwith("Codegen.emitPartialCollect: IterLevel is not an Uncollect")
-        }
-        let own = FlowPort(uncollect, "flow")
-        if !chainOpens(Context.flowContext(own), parentCtx.contents) {
-          failwith(
-            "Codegen: level " ++
-            Int.toString(uncollect.id) ++
-            " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
-          )
-        }
-        let feedC = compileValue(st, parentCtx.contents, input)
-        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: cn.id, idxVar: None}])
-        let iterVar = st.fresh()
-        let elemName = st.fresh()
-        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-        Array.push(plans, FIter({uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName}))
-        parentCtx := bodyCtx
-      }
-    | AltLevel({split: aSplit, alt}) => {
-        let (aDisc, aInput) = switch aSplit.kind {
-        | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
-        | _ => failwith("Codegen.emitPartialCollect: alt level's node is not a case split — placement bug")
-        }
-        let inputC = compileValue(st, parentCtx.contents, aInput)
-        inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let discC = compileValue(st, parentCtx.contents, aDisc)
-        discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let altFlow = FlowPort(aSplit, alt)
-        let altCtx = Array.concat(parentCtx.contents, [{flow: altFlow, thunkOf: cn.id, idxVar: None}])
-        let payloadName = st.fresh()
-        recordMemo(st, aSplit.id, alt, altCtx, payloadName)
-        let splitName = st.fresh()
-        Array.push(
-          plans,
-          FAlt({split: aSplit, alt, altCtx, splitName, discName: discC.name, inputName: inputC.name, payloadName}),
-        )
-        parentCtx := altCtx
-      }
-    }
-  )
-  let innerCtx = parentCtx.contents
-
-  // The terminal partial's split input feeds the dispatch (once per innermost
-  // firing); the discriminator extern is loop-invariant.
-  let inputC = compileValue(st, innerCtx, csInput)
-  inputC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-  let discC = compileValue(st, innerCtx, discriminator)
-  discC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-
-  let splitName = st.fresh()
-
-  // Per covered arm: open the alt's context, pre-memoise the alt payload and the
-  // (shared) merged-value port to this arm's branch value, then compile the
-  // terminating collect's value (which references the merged value directly).
-  let arms = coveredCells->Array.map(alt => {
-    let armCtx = Array.concat(innerCtx, [{flow: FlowPort(split, alt), thunkOf: cn.id, idxVar: None}])
-    let payloadName = st.fresh()
-    recordMemo(st, split.id, alt, armCtx, payloadName)
-    // Bind every merged value on the path down to this cell — the terminal
-    // partial's own, and any partial it was built over. Same call the covering
-    // configuration makes (`emitCaseCollect`): the containment theorem read
-    // operationally, "each arm binds the same name to its branch's value".
-    memoiseMergedValues(st, armCtx, FlowPort(partialCollect, "flow"), alt)->Array.forEach(pl =>
-      Array.push(floatedAcc, pl)
-    )
-    let termC = compileValue(st, armCtx, branch.value)
-    termC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    (alt, armCtx, payloadName, termC.name)
-  })
-
-  // Partition: each leading level body and each arm claim what is addressed to
-  // them; everything at the exterior or shallower floats out of the thunk.
-  let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p =>
-    switch p {
-    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
-    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
-    }
-  )
-  arms->Array.forEach(((_, armCtx, _, _)) => Map.set(buckets, ctxPathKey(armCtx), []))
-  let escaped: array<placed> = []
-  floatedAcc->Array.forEach(pl =>
-    switch Map.get(buckets, ctxPathKey(pl.at)) {
-    | Some(bk) => Array.push(bk, pl.stmt)
-    | None =>
-      if isCtxPrefix(pl.at, exterior) {
-        Array.push(escaped, pl)
-      } else {
-        failwith("Codegen: a statement floated to a context unrelated to the partial collect being assembled — placement bug")
-      }
-    }
-  )
-
-  let anyList = plans->Array.some(p =>
-    switch p {
-    | FIter({isList}) => isList
-    | FAlt(_) => false
-    }
-  )
   let outName = st.fresh()
-  let payloadAction = (termName: string): JsAst.stmt =>
-    if anyList {
+  // Compiled once per innermost context the chain reaches — once per covered
+  // cell where a partial level branches (code duplicated, evaluation still once:
+  // exactly one arm runs).
+  let mkPayload = (innerCtx: ctxPath) => {
+    let valueC = compileValue(st, innerCtx, branch.value)
+    let action = if anyList {
       JsBuild.exprStmt(
-        JsBuild.call(JsBuild.member(JsBuild.id(outName), "push"), [Runtime.forceOf(JsBuild.id(termName))]),
+        JsBuild.call(
+          JsBuild.member(JsBuild.id(outName), "push"),
+          [Runtime.forceOf(JsBuild.id(valueC.name))],
+        ),
       )
     } else {
-      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(termName))))
+      JsBuild.exprStmt(JsBuild.assign(JsBuild.id(outName), Runtime.forceOf(JsBuild.id(valueC.name))))
     }
-
-  // The k-arm if-chain, built in reverse — NON-exhaustive, no else.
-  let chain = ref(None)
-  for i in Array.length(arms) - 1 downto 0 {
-    let (alt, armCtx, payloadName, termName) = arms->Array.getUnsafe(i)
-    let bucket = Map.get(buckets, ctxPathKey(armCtx))->Option.getOr([])
-    let body = Array.concat(
-      Array.concat(
-        [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")))],
-        bucket,
-      ),
-      [payloadAction(termName)],
-    )
-    chain := Some(JsAst.SIf({
-      test: JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(alt)),
-      cons: JsAst.SBlock(body),
-      alt: chain.contents,
-    }))
+    ([action], valueC.floated)
   }
-  let dispatch = Array.concat(
-    [
-      JsBuild.const(
-        splitName,
-        JsBuild.call(Runtime.forceOf(JsBuild.id(discC.name)), [Runtime.forceOf(JsBuild.id(inputC.name))]),
-      ),
-    ],
-    switch chain.contents {
-    | Some(s) => [s]
-    | None => []
-    },
-  )
-
-  // Wrap in the leading levels, innermost-out; the terminal partial's dispatch is
-  // the innermost payload. A list level loops (for-of); an option level is a
-  // single defined-check (an absent option skips its body, contributing nothing);
-  // a case-alt dispatch computes `s = disc(input)` then guards its alt, binding
-  // the payload for anything nested inside (mirrors emitFilterCollect).
-  let nested = ref(dispatch)
-  for i in Array.length(plans) - 1 downto 0 {
-    switch plans->Array.getUnsafe(i) {
-    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
-        let body = Array.concat(
-          [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))],
-          Array.concat(bucket, nested.contents),
-        )
-        nested :=
-          if isList {
-            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
-          } else {
-            [
-              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
-              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
-            ]
-          }
-      }
-    | FAlt({alt, altCtx, splitName: aSplitName, discName, inputName, payloadName}) => {
-        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
-        let altBody = Array.concat(
-          [JsBuild.const(payloadName, Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(aSplitName), "value")))],
-          Array.concat(bucket, nested.contents),
-        )
-        nested := [
-          JsBuild.const(
-            aSplitName,
-            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
-          ),
-          JsBuild.if_(
-            JsBuild.eq(JsBuild.member(JsBuild.id(aSplitName), "tag"), JsBuild.str(alt)),
-            altBody,
-          ),
-        ]
-      }
-    }
-  }
+  let (stmts, escaped) = buildChain(st, cn.id, exterior, levels, mkPayload)
   let accDecl = if anyList {
     JsBuild.const(outName, JsBuild.array_([]))
   } else {
     JsBuild.letDecl(outName)
   }
-  let thunkBody = Array.concat([accDecl], Array.concat(nested.contents, [JsBuild.ret(JsBuild.id(outName))]))
-
+  let thunkBody = Array.concat([accDecl], Array.concat(stmts, [JsBuild.ret(JsBuild.id(outName))]))
   let name = st.fresh()
   recordMemo(st, cn.id, "value", exterior, name)
   {
@@ -2068,7 +1926,7 @@ and emitPartialCollect = (
 // advancing only on the firings whose alt matches (delay-ontology-design.md,
 // route (b) "filter inside": the Delay's flow is the kept subsequence, so the
 // register "only updates when the option is Some"). The alt-guard logic is
-// shared with emitFilterCollect via walkFilterLevels, so the accumulator step
+// shared with emitCellChain via walkFilterLevels, so the accumulator step
 // and `prev` sit inside the alt guard and the one `let reg` lives outside every
 // loop and guard. Still Todo: a PARTIAL merged driving flow (the k-arm-dispatch
 // cell-set case, the poset round) and a register over a genuine PRODUCT (a grid

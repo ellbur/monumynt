@@ -400,7 +400,7 @@ a -~> collect ~keep => evens
 // 7d. Nested flatten + filter — join(join(list, list), case-alt). Flatten a
 //     list-of-lists and keep the evens. The join whose OUTER is itself a join
 //     stacks two list layers before the filter: Codegen's per-level spine walk
-//     compiles it (emitFilterCollect loops its leading list levels), but the
+//     compiles it (emitCellChain loops its leading list levels), but the
 //     join-adjacency check formerly rejected it — it compared the alt's exterior
 //     (two layers) against a single-layer `[outer]` interior of the inner join.
 //     Fixed by Context.flowInterior computing a Join's flattened interior.
@@ -543,7 +543,7 @@ picked -~> collect ~keep => out
 // ============================================================================
 // 7c. Partial collect collected alone — the merged flow of two cells
 //     terminated at the parent as an option (0-or-1). Exercises the
-//     no-leading-level (option accumulator) path of emitPartialCollect.
+//     no-leading-level (option accumulator) path of emitCellChain.
 // ============================================================================
 
 header("partial collect: merged flow collected alone yields an option")
@@ -1098,6 +1098,78 @@ header("partial collect: disjoint cell sets are bundle mixing, wide meets need c
 }
 
 // ============================================================================
+// 7s. A merged flow as a NON-TRAILING level — `join(join(list, partial), inner)`:
+//     keep the error firings, then flatten a list derived from each. This is the
+//     multi-cell twin of the filter-then-flatmap shape (7g), and it is what made
+//     the level walk recursive: a partial level BRANCHES, so every level after it
+//     — and the payload — is assembled once per covered cell, under that cell's
+//     own context. The list being flattened is itself computed at the merged
+//     context, so the whole chain rides on the containment theorem.
+//
+//     Both fiberings of the shape are drawn: the partial nested inside a list
+//     loop, and the partial as the outermost level with no loop above it.
+// ============================================================================
+
+header("partial collect: a merged flow as a non-trailing level (filter-then-flatmap)")
+{
+  let mk = (~overList: bool) => {
+    let b = Build.make()
+    let disc = Build.raw(
+      b,
+      "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
+    )
+    // A per-error detail list, computed AT the merged context {CE, SE}.
+    let expand = Build.raw(b, "c => [c, c + 1]")
+    let src = overList
+      ? Build.lit(b, array_([int_(200), int_(404), int_(301), int_(500)]))
+      : Build.lit(b, int_(404))
+    let (elem, outerFlow) = if overList {
+      let it = Build.uncollectList(b, src.value)
+      (it.element, Some(it.flow))
+    } else {
+      (src.value, None)
+    }
+    let h = Build.caseSplit(
+      b,
+      ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
+      ~discriminator=disc.value,
+      elem,
+    )
+    let clientErr = Build.alt(h, "ClientError")
+    let serverErr = Build.alt(h, "ServerError")
+    let errs = Build.collectCases(
+      b,
+      [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+    )
+    let errFlow = Program.FlowPort(errs.node, "flow")
+    let details = Build.app(b, expand.value, [errs.value])
+    let inner = Build.uncollectList(b, details.value)
+    // Filter to the error firings, then flatten each one's detail list: the
+    // partial level sits ABOVE an iter level, not at the end of the chain.
+    let filtered = switch outerFlow {
+    | Some(lf) => Build.join(b, ~outer=lf, ~inner=errFlow).flow
+    | None => errFlow
+    }
+    let flat = Build.join(b, ~outer=filtered, ~inner=inner.flow)
+    let out = Build.collect(b, ~flow=flat.flow, inner.element)
+    Build.finish(b, ~outputs=[("out", out.value)])
+  }
+
+  // Over a list: 200 (Ok) and 301 (Redirect) drop; 404 expands to [404, 405]
+  // and 500 to [500, 501], flattened in firing order.
+  expectOutput(
+    mk(~overList=true),
+    "out",
+    array_([int_(404), int_(405), int_(500), int_(501)]),
+  )
+  expectRoundTrip(mk(~overList=true))
+  // With no loop above it, the partial level is the outermost: one error
+  // firing, its detail list flattened. The any-list rule still gives a list.
+  expectOutput(mk(~overList=false), "out", array_([int_(404), int_(405)]))
+  expectRoundTrip(mk(~overList=false))
+}
+
+// ============================================================================
 // 7d. Partial collect over an option leading level —
 //     join(join(list, option), <partial>). Per list element, open an option
 //     (present iff n >= 2); per present value, dispatch a covered subset {A, B}
@@ -1141,7 +1213,7 @@ header("partial collect: option leading level — join(join(list, option), parti
 //     "Even" alt of a first split (an ordinary filter); for the kept payload,
 //     dispatch a second split (n % 3) and partial-collect the covered subset
 //     {A, B}, dropping C. The kept-alt guard nests the k-arm partial dispatch —
-//     the dispatch-leading-level shape, mirroring emitFilterCollect's level walk.
+//     the dispatch-leading-level shape, mirroring the shared level walk.
 //     Any-list ⇒ list output. Validated against a hand-computed value like
 //     7b/7c/7d.
 // ============================================================================
