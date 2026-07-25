@@ -982,6 +982,39 @@ header("register pair: a filtered running view declines cleanly (Todo, not a cra
 }
 
 // ============================================================================
+// 8k. The other side of the order-demand rule: DEGENERATE order is well-formed,
+//     not ill-formed. A bare option (or case alt) is totally ordered trivially,
+//     because it has at most one firing — so a register there never steps and
+//     `prev` only ever reads the seed. delay-ontology-design.md makes the point
+//     that this is a fact about CARDINALITY, not about the kind ("the async
+//     value supplies no next *because it is one firing, not because it is
+//     async* — the same reason a bare option doesn't, and nobody ever felt a
+//     need to write 'Delay is meaningless over options' as a kind fact"). So
+//     the check must ADMIT it, and the compiler must produce the inert fold:
+//     seed when the option is absent, one step when it fires.
+// ============================================================================
+
+header("register pair: a register over a bare option is inert, not ill-formed")
+{
+  let mk = (input: JsAst.expr) => {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+    let v = Build.lit(b, input)
+    let optIn = Build.app(b, optSrc.value, [v.value])
+    let i = Build.uncollectOption(b, optIn.value)
+    let reg = Build.delay(b, ~flow=i.flow, ~init=Build.lit(b, int_(100)).value)
+    let step = Build.app(b, addF.value, [reg.prev, i.element])
+    let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+    Build.finish(b, ~outputs=[("total", w.final)])
+  }
+  // One firing: `prev` reads the seed, the single step runs. 100 + 5.
+  expectOutput(mk(int_(5)), "total", int_(105))
+  // No firing: the fold is the seed itself.
+  expectOutput(mk(int_(1)), "total", int_(100))
+}
+
+// ============================================================================
 // 9. Witness surface: a bad port reference
 // ============================================================================
 
@@ -1092,6 +1125,89 @@ header("complete: a rank-3 sibling-opens combine gets a product inserted, then c
     }
   | Error(ws) =>
     fail("rank-3 sibling-opens program failed to complete:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 10d. The completion LENS, in text: everything completion inserted prints
+//      faint — a leading `+` (time-travel-programs-design.md, "in the textual
+//      form, faint is a leading `+`"; textual-representation-design.md, "the
+//      printer renders the derived insertions as `+` lines"). The program is
+//      authored under-committed IN TEXT — two sibling opens, no `cross with`
+//      line — and `Pipeline.completionText` shows it back with the product the
+//      compiler supplied.
+//
+//      The three laws the design states for the lens are checked here rather
+//      than asserted, and each one is a property of machinery that already
+//      existed: CONSERVATIVITY — parse discards `+` lines, so reparsing the
+//      completed print gives back the AUTHORED program, byte-identical wiring
+//      to what the source built; DETERMINISM/IDEMPOTENCE — completing that
+//      reparse reproduces the same text; and the completed program has no `+`
+//      lines of its own when printed plainly (the insertions are re-derived,
+//      never stored). The statement ORDER needs no new machinery either: the
+//      printer's topological sort already places the inserted `cross with`
+//      after the statements binding its two operand flows, which is the doc's
+//      "reordering statements as needed to restore token-order-is-time".
+header("complete: the inserted product prints faint (`+` lines) and reparses away")
+{
+  let src = `
+add = js "(a, b) => a + b"
+[1, 2] -> open list => ~fx, ex
+[10, 20] -> open list => ~fy, ey
+ex, ey -> add => s
+s -~> collect ~fx => inner
+inner -~> collect ~fy => out1
+out out1
+`
+  let authored = TextResolve.parseProgram(src)
+  let lens = Pipeline.completionText(authored)
+  Console.log("COMPLETION LENS:")
+  Console.log(lens)
+
+  // The lens shows exactly one derived line, and it is the inserted product.
+  let plusLines =
+    lens->String.split("\n")->Array.filter(l => l->String.startsWith("+"))
+  switch plusLines {
+  | [one] if one->String.includes("cross with") =>
+    pass("the completion lens renders the inserted product as one `+` line")
+  | _ =>
+    fail(
+      "expected exactly one `+ … cross with …` line, got:\n  " ++
+      plusLines->Array.join("\n  "),
+    )
+  }
+
+  // Conservativity: `+` lines are derived, not stored — reparsing the lens
+  // gives back the authored program, not the completed one.
+  let reparsed = TextResolve.parseProgram(lens)
+  if Program.equal(authored, reparsed) {
+    pass("reparsing the lens discards the `+` lines — the authored program comes back")
+  } else {
+    fail(
+      "lens reparse changed the wiring\n-- authored --\n" ++
+      Program.dump(authored) ++
+      "\n-- reparsed --\n" ++
+      Program.dump(reparsed),
+    )
+  }
+
+  // Determinism + idempotence: re-deriving the lens from that reparse
+  // reproduces it exactly.
+  if Pipeline.completionText(reparsed) === lens {
+    pass("the lens is deterministic and idempotent (re-derived, never stored)")
+  } else {
+    fail("re-deriving the lens produced different text")
+  }
+
+  // And a program that IS complete has no `+` lines: the same wiring with the
+  // product drawn solid is its own completion (constraint 1, "explicit
+  // structure is fixed").
+  let solid = TextResolve.parseProgram(
+    src->String.replace("ex, ey -> add => s", "~fx ~> cross with ~fy => ~fxy\nex, ey -> add => s"),
+  )
+  if !(Pipeline.completionText(solid)->String.includes("\n+")) {
+    pass("a program authored with the product drawn solid completes to no `+` lines")
+  } else {
+    fail("a complete program produced completion lines:\n" ++ Pipeline.completionText(solid))
   }
 }
 
@@ -2086,14 +2202,17 @@ header("cross: full reduction is two registers — the axis order shows in the r
 //      as one sequence", which the doc calls ill-formed for the ordinary reason
 //      (no order exists), the remedy being "fold one axis, or Join first"
 //      (product-flows-design.md; the commutative-monoid exception needs the
-//      catalog row's commutativity flag, which does not exist yet). It is
-//      REJECTED today, but not yet by the rule the doc names: the step combines
-//      `prev` (borne on the product flow) with a value at {X, Y}, and since a
-//      Cross OUTPUT port is not yet an axis set in the poset (the deferred half
-//      of the context model), that combine surfaces as a `time-travel` witness
-//      rather than a "no order" one. This pins the current behaviour and where
-//      the owed check goes.
-header("cross: a register over the whole product is rejected (the no-order case)")
+//      catalog row's commutativity flag, which does not exist yet). It is now
+//      rejected BY THE RULE the doc names — Check's `order-demand` rule
+//      (delay-ontology-design.md, "The order-demand check, named"): the driving
+//      flow classifies as SURPLUS order (every axis order real, none
+//      privileged), so the Delay's demand for *one* previous firing has no
+//      answer. Before the rule landed the program was still rejected, but only
+//      incidentally, through its step's combine (a `time-travel` witness) —
+//      the right answer for the wrong reason. That witness still fires too (a
+//      Cross OUTPUT port is not yet an axis set in the poset), so the assertion
+//      is that the owed rule is AMONG the witnesses, not that it is alone.
+header("cross: a register over the whole product is rejected by the order-demand rule")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -2109,12 +2228,20 @@ header("cross: a register over the whole product is rejected (the no-order case)
   let w = Build.writeBack(b, ~read=reg, ~step=step.value)
   let p = Build.finish(b, ~outputs=[("out", w.final)])
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) =>
-    pass("a whole-product register declines at Codegen (the grid — no order to fold along)")
-  | Error(_) =>
-    pass("a whole-product register is witnessed (via the step's combine — the no-order rule is owed)")
+  | exception Codegen.Todo(m) => fail("expected an order-demand witness, got a Codegen Todo: " ++ m)
   | Ok(_) => fail("a whole-product register unexpectedly compiled")
+  | Error(ws) =>
+    if ws->Array.some(w => w.Check.rule === "order-demand") {
+      pass("a whole-product register is witnessed by the order-demand rule (surplus order)")
+    } else {
+      fail(
+        "expected an order-demand witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
   }
+  // And the same register with an AXIS named compiles (15k) — the remedy the
+  // witness points at is a real program, not a dead end.
 }
 
 // 15j. The fiber that is still deferred: a rank-3 product collected over ONE

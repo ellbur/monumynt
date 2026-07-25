@@ -36,10 +36,24 @@
 //     named (they are referenced by standalone statements, which spell flows
 //     by name).
 //
+// `+` COMPLETION LINES are now printed (`~inserted`, the node ids `Complete`
+// minted). The faint rendering of the editor's derived structure is a leading
+// `+` in the textual form (time-travel-programs-design.md, "faint is a leading
+// `+`"; textual-representation-design.md, "the printer renders the derived
+// insertions as `+` lines"). Three properties fall out of the existing
+// machinery rather than being arranged for: the statements are already
+// topologically ordered by name dependency, so an inserted operator prints
+// after the statements binding its operands ("reordering statements as needed
+// to restore token-order-is-time"); `TextParse` already SKIPS `+` lines, so a
+// completed print reparses to the AUTHORED program — the conservativity law;
+// and re-deriving the completion of that reparse reproduces the same lines —
+// idempotence and determinism. Printing without `~inserted` is unchanged, so a
+// complete program has no `+` lines at all.
+//
 // Deliberately still deferred to a later round (kept out to keep this one
 // focused): junction TAPS (`|`) — named fan-out is the total stand-in; bare
 // `join` in a chain (joins print as the standalone `join into` form); derived
-// indentation by flow depth and the span lint; `+` completion lines. Forms the
+// indentation by flow depth and the span lint. Forms the
 // printer emits that are still ahead of the parser (they print so the
 // constructs can be seen): `commute out of` / `cross with` standalone forms.
 
@@ -125,8 +139,11 @@ let litText = (e: JsAst.expr): string =>
 
 // --- the print --------------------------------------------------------------
 
-let print = (p: program): string => {
+let print = (~inserted: array<int>=[], p: program): string => {
   let nm = {names: Map.make(), counter: 0}
+  // The nodes a completion minted: their statements print faint (`+`).
+  let insertedSet: Map.t<int, bool> = Map.make()
+  inserted->Array.forEach(id => Map.set(insertedSet, id, true))
 
   // Emission order: post-order DFS from the outputs, then any remainder. Every
   // input precedes its node, so a name is always defined before it is used —
@@ -388,6 +405,12 @@ let print = (p: program): string => {
   // --- emission ---------------------------------------------------------------
 
   let lines: array<string> = []
+  // Every statement goes through `push`, which prefixes `+ ` while `faint` is
+  // set — the textual analogue of the editor's fainter color. `faint` is set
+  // per STATEMENT HEAD (below), so a multi-line unit (a lane group) marks all
+  // of its lines, which is what a derived lane group would want.
+  let faint = ref(false)
+  let push = (s: string) => Array.push(lines, faint.contents ? "+ " ++ s : s)
   let emitted: Map.t<int, bool> = Map.make()
   let mark = (n: node) => Map.set(emitted, n.id, true)
 
@@ -473,7 +496,7 @@ let print = (p: program): string => {
     } else {
       srcTxt ++ " " ++ stages->Array.join(" ") ++ " " ++ binder
     }
-    Array.push(lines, body)
+    push(body)
   }
 
   // --- statement units and their ordering -------------------------------------
@@ -635,17 +658,20 @@ let print = (p: program): string => {
 
   sortedHeads->Array.forEach(n =>
     if !Map.has(emitted, n.id) {
+      // Statements a completion minted print faint. Set per head, so everything
+      // this unit emits (including a fused chain) carries the mark.
+      faint := Map.has(insertedSet, n.id)
       switch n.kind {
       | Lit(js) => {
           mark(n)
-          Array.push(lines, valueName(ValuePort(n, "value")) ++ " = " ++ litText(js))
+          push(valueName(ValuePort(n, "value")) ++ " = " ++ litText(js))
         }
       | App({fn, args}) =>
         if Array.length(args) === 0 {
           // Zero-arg application: no topic. Prints as a call (grammar growth
           // path — not yet reparsed, but total).
           mark(n)
-          Array.push(lines, termOf(fn) ++ "() => " ++ valueName(ValuePort(n, "value")))
+          push(termOf(fn) ++ "() => " ++ valueName(ValuePort(n, "value")))
         } else {
           let sources = args->Array.map(termOf)
           emitChainHead(n, sources, "-> " ++ termOf(fn), ValuePort(n, "value"))
@@ -665,9 +691,7 @@ let print = (p: program): string => {
           } else {
             // named flow: a terminal open binding element + flow.
             mark(n)
-            Array.push(
-              lines,
-              termOf(input) ++
+            push(termOf(input) ++
               " -> open " ++
               word ++
               nestTxt ++
@@ -684,9 +708,7 @@ let print = (p: program): string => {
           | Some(f) => " in ~" ++ flowName(f)
           | None => ""
           }
-          Array.push(
-            lines,
-            termOf(input) ++
+          push(termOf(input) ++
             " -> split " ++
             termOf(discriminator) ++
             " of " ++
@@ -715,23 +737,19 @@ let print = (p: program): string => {
             // lane group gathered by a postfix collect (case collect, full or
             // partial). Emitted as its own multi-line statement.
             branches->Array.forEach(b =>
-              Array.push(lines, "~" ++ flowName(b.flow) ++ ": " ++ termOf(b.value))
+              push("~" ++ flowName(b.flow) ++ ": " ++ termOf(b.value))
             )
             let flowOut = switch classifyCollect(branches) {
             | CasePartial(_) => ", ~" ++ flowName(FlowPort(n, "flow"))
             | _ => ""
             }
-            Array.push(
-              lines,
-              "-~> collect => " ++ valueName(ValuePort(n, "value")) ++ flowOut,
+            push("-~> collect => " ++ valueName(ValuePort(n, "value")) ++ flowOut,
             )
           }
         }
       | Join({outer, inner}) => {
           mark(n)
-          Array.push(
-            lines,
-            "~" ++
+          push("~" ++
             flowName(inner) ++
             " ~> join into ~" ++
             flowName(outer) ++
@@ -741,9 +759,7 @@ let print = (p: program): string => {
         }
       | Commute({outer, inner}) => {
           mark(n)
-          Array.push(
-            lines,
-            "~" ++
+          push("~" ++
             flowName(inner) ++
             " ~> commute out of ~" ++
             flowName(outer) ++
@@ -758,9 +774,7 @@ let print = (p: program): string => {
           // surface spelling itself is still provisional at the design level
           // (product-flows-design.md's textual form is owed); the wiring it
           // denotes is settled.
-          Array.push(
-            lines,
-            "~" ++
+          push("~" ++
             flowName(left) ++
             " ~> cross with ~" ++
             flowName(right) ++
@@ -770,9 +784,7 @@ let print = (p: program): string => {
         }
       | DelayRead({flow, init}) => {
           mark(n)
-          Array.push(
-            lines,
-            "~" ++
+          push("~" ++
             flowName(flow) ++
             " ~> delay init " ++
             termOf(init) ++
@@ -782,9 +794,7 @@ let print = (p: program): string => {
         }
       | DelayWrite({read, step}) => {
           mark(n)
-          Array.push(
-            lines,
-            termOf(step) ++
+          push(termOf(step) ++
             " -> step of " ++
             valueName(ValuePort(read, "prev")) ++
             " => " ++
@@ -800,6 +810,7 @@ let print = (p: program): string => {
     }
   )
 
+  faint := false // outputs are authored, never derived
   p.outputs->Array.forEach(o => {
     let bound = switch o.source {
     | ValuePort(n, port) =>
@@ -810,9 +821,9 @@ let print = (p: program): string => {
       }
     }
     if bound === o.name {
-      Array.push(lines, "out " ++ o.name)
+      push("out " ++ o.name)
     } else {
-      Array.push(lines, "out " ++ o.name ++ " = " ++ bound)
+      push("out " ++ o.name ++ " = " ++ bound)
     }
   })
 

@@ -72,6 +72,21 @@ let compile = (p: Program.program): result<compiled, array<Check.witness>> =>
     }
   }
 
+// The COMPLETION LENS: the program as text with everything completion inserted
+// rendered faint — a leading `+` (time-travel-programs-design.md, "Safety: the
+// completion is a lens"; textual-representation-design.md, "the printer renders
+// the derived insertions as `+` lines"). Derive + complete only; no checking, so
+// a program that will not compile can still be *seen* with its inferred
+// structure. The lens is re-derived, never stored: parse discards `+` lines, so
+// reparsing this text gives back the authored program.
+let completionText = (p: Program.program): string => {
+  let completed = Complete.complete(Derive.derive(p))
+  TextPrint.print(
+    ~inserted=completed.insertions->Array.flatMap(i => i.insertedNodeIds),
+    completed.program,
+  )
+}
+
 // Convenience for the single-output case.
 let compileOne = (p: Program.program): result<compiledOutput, array<Check.witness>> =>
   switch compile(p) {

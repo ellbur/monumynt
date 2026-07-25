@@ -53,9 +53,17 @@ type plannedCross = {anchorNodeId: int, flows: array<flowRef>}
 // commute chain, incorporate — and its operand refs); the description
 // string is the piece that survives into TextPrint's `+` rendering either
 // way.
+//
+// `insertedNodeIds` are the nodes this insertion minted — ONE reported
+// crossing may be backed by several binary Cross nodes (a k-axis product is a
+// left-nested chain of k-1 of them). It is what the faint-rendering lens needs
+// to point at: `TextPrint.print(~inserted, …)` marks exactly these statements
+// with a leading `+`, and parse discards those lines, so the completed print
+// reparses to the AUTHORED program (the conservativity law, testable).
 type insertion = {
   anchorNodeId: int,
   description: string,
+  insertedNodeIds: array<int>,
 }
 
 type completed = {
@@ -150,11 +158,18 @@ let harvest = (p: program): array<constraint_> => {
           allInvariant(flows) &&
           vaxes->Array.every(k => !(crossedAxes->Array.includes(k)))
         ) {
-          // Canonical orientation: axes sorted by flow key. The stored
-          // orientation is free (every collect order indexes one shared table),
-          // so a deterministic order is all that is needed.
-          let ordered =
-            flows->Array.toSorted((a, b) => Context.flowKey(a) < Context.flowKey(b) ? -1. : 1.)
+          // Canonical orientation: the order the COMBINE names its axes — the
+          // structural walk order of `valueAxes` (fn, then args left to right).
+          // The stored orientation is free (every collect order indexes one
+          // shared table), so any deterministic order serves, but it must be
+          // deterministic in the right sense: derived from the WIRING, not from
+          // node ids. Sorting by flow key was the earlier spelling and is not
+          // that — reparsing a printed program renumbers its nodes, which
+          // flipped the inserted operand order and broke the lens's
+          // re-derivation law (time-travel-programs-design.md: "`+` lines are
+          // derived, deterministic, and not stored … re-derivation reproduces
+          // them"; Main 10d).
+          let ordered = flows
           Array.push(
             out,
             MustCross({
@@ -176,9 +191,11 @@ let harvest = (p: program): array<constraint_> => {
 
 // 2. SOLVE: turn the harvested demands into planned insertions. Each MustCross
 // implies one product; several combines over the same axis SET collapse to one
-// product (deduped by the canonical flow-key sequence — the flows arrive sorted,
-// so the join is a set key; first seen wins — deterministic by node-scan order,
-// the v0 tie-break standing in for the canonical table + heuristicOrderV0).
+// product. The dedup key is the SORTED flow keys — an identity question, so
+// order must not matter here, unlike the product's stored orientation, which
+// harvest takes from the combine's own operand order. First seen wins —
+// deterministic by node-scan order, the v0 tie-break standing in for the
+// canonical table + heuristicOrderV0.
 // Contradictions (within-chain cycles, reversed dependent nestings, bundle
 // mixing) are never harvested, so they stay Check's witnesses.
 let solve = (_p: program, constraints: array<constraint_>): array<plannedCross> => {
@@ -187,7 +204,11 @@ let solve = (_p: program, constraints: array<constraint_>): array<plannedCross> 
   constraints->Array.forEach(c =>
     switch c {
     | MustCross({flows, anchor}) =>
-      let key = flows->Array.map(Context.flowKey)->Array.join("|")
+      let key =
+        flows
+        ->Array.map(Context.flowKey)
+        ->Array.toSorted((a, b) => a < b ? -1. : 1.)
+        ->Array.join("|")
       if !Map.has(seen, key) {
         Map.set(seen, key, true)
         Array.push(out, {anchorNodeId: anchor, flows})
@@ -222,10 +243,12 @@ let realise = (p: program, planned: array<plannedCross>): completed =>
     planned->Array.forEach(pc => {
       // Fold the sorted axis flows into a left-nested Cross chain.
       let acc = ref(pc.flows->Array.getUnsafe(0))
+      let minted: array<int> = []
       for i in 1 to Array.length(pc.flows) - 1 {
         nextId := nextId.contents + 1
         let cross = {id: nextId.contents, kind: Cross({left: acc.contents, right: pc.flows->Array.getUnsafe(i)})}
         Array.push(newNodes, cross)
+        Array.push(minted, cross.id)
         acc := FlowPort(cross, "flow")
       }
       Array.push(
@@ -235,6 +258,7 @@ let realise = (p: program, planned: array<plannedCross>): completed =>
           description: "Cross(" ++
           pc.flows->Array.map(Context.flowKey)->Array.join(", ") ++
           ") — sibling opens crossed to give the combine a product home",
+          insertedNodeIds: minted,
         },
       )
     })
