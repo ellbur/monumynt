@@ -145,8 +145,8 @@ type program = {nodes: array<node>, outputs: array<output>}
 // Coverage classification for a Collect, read off its branch flows.
 type coverage =
   | IterCollect // closes a list/option/join chain: single branch, not alt-flows
-  | CaseFull // one branch per alt of one case split
-  | CasePartial(array<string>) // covered alts only; merged-flow port exists
+  | CaseFull // branches cover every cell of one case split
+  | CasePartial(array<string>) // covered cells only; merged-flow port exists
   | Malformed(string)
 
 let altsOfSplit = (n: node): option<array<string>> =>
@@ -155,35 +155,84 @@ let altsOfSplit = (n: node): option<array<string>> =>
   | _ => None
   }
 
-let classifyCollect = (branches: array<collectBranch>): coverage => {
+// The CELLS of one bundle a branch flow spans, with the split they belong to
+// (partial-collect-design.md, "Representation and compile": "keying by
+// AlternativeName survives as the all-singletons display, but a branch may now
+// reference a merged flow spanning several cells"; the set "is computed by
+// walking, never stored").
+//
+//   - a case-alt flow port is the singleton `{A}` — the all-singletons instance;
+//   - a partial collect's merged flow port is the union of its own branches',
+//     which recurses, so a partial built over partials still names cells of the
+//     one underlying split.
+//
+// `None` for anything that is not a bundle flow (a list/option axis, a join, a
+// product): those flows terminate rather than merge.
+let rec branchCells = (f: flowRef): option<(node, array<string>)> =>
+  switch f {
+  | FlowPort(n, port) =>
+    switch n.kind {
+    | Uncollect({flowKind: Case(_)}) => Some((n, [port]))
+    | Collect({branches}) =>
+      // Only a PARTIAL collect has a merged flow port at all; a covering one
+      // hands back a plain value, and an iter collect leaves flow-land.
+      switch classifyCollect(branches) {
+      | CasePartial(covered) =>
+        switch branches[0] {
+        | Some({flow}) => branchCells(flow)->Option.map(((split, _)) => (split, covered))
+        | None => None
+        }
+      | CaseFull | IterCollect | Malformed(_) => None
+      }
+    | _ => None
+    }
+  }
+
+// A collect's coverage. Branches are cells of ONE bundle — single alt flows,
+// merged flows of partial collects over that bundle, or a mix (the design's HTTP
+// program: two singletons and a pair). Covering ⇒ a plain value at the parent
+// (`CaseFull`); a proper subset ⇒ the merged flow output (`CasePartial`). The
+// exhaustive case collect "is not a sibling construct to the partial collect; it
+// is the covering configuration of the same node".
+//
+// A LONE branch on anything but a direct alt port terminates its flow instead of
+// merging: an ordinary iter/filter chain, or the option-close lift of a merged
+// flow ("collected alone"). Only a direct alt port makes a single branch a
+// one-cell merge — the distinction that keeps `~pf -~> collect` a termination
+// rather than a no-op re-merge of the same cells.
+and classifyCollect = (branches: array<collectBranch>): coverage =>
   switch branches[0] {
   | None => Malformed("collect with no branches")
-  | Some({flow: FlowPort(target, _)}) =>
-    switch altsOfSplit(target) {
-    | Some(alts) =>
-      // Branches target alt flows of a case split: a case collect.
-      let covered = branches->Array.filterMap(b =>
-        switch b.flow {
-        | FlowPort(t, p) if t.id === target.id => Some(p)
-        | _ => None
+  | Some({flow: first}) =>
+    let isDirectAlt = switch first {
+    | FlowPort(t, _) => Option.isSome(altsOfSplit(t))
+    }
+    if Array.length(branches) === 1 && !isDirectAlt {
+      IterCollect
+    } else {
+      switch branchCells(first) {
+      | None => Malformed("multi-branch collect whose branches are not alt flows")
+      | Some((target, _)) =>
+        let alts = altsOfSplit(target)->Option.getOr([])
+        let per = branches->Array.map(b =>
+          switch branchCells(b.flow) {
+          | Some((t, cs)) if t.id === target.id => Some(cs)
+          | _ => None
+          }
+        )
+        if per->Array.some(o => Option.isNone(o)) {
+          Malformed("case collect mixes branches of different splits")
+        } else {
+          let covered = per->Array.reduce([], (acc, o) => Array.concat(acc, o->Option.getOr([])))
+          if Array.length(covered) === Array.length(alts) {
+            CaseFull
+          } else {
+            CasePartial(covered)
+          }
         }
-      )
-      if Array.length(covered) !== Array.length(branches) {
-        Malformed("case collect mixes branches of different splits")
-      } else if Array.length(covered) === Array.length(alts) {
-        CaseFull
-      } else {
-        CasePartial(covered)
-      }
-    | None =>
-      if Array.length(branches) === 1 {
-        IterCollect
-      } else {
-        Malformed("multi-branch collect whose branches are not alt flows")
       }
     }
   }
-}
 
 let valuePorts = (k: kind): array<string> =>
   switch k {

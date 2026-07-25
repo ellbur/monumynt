@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 201 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 233 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -112,14 +112,29 @@ and remain live.
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
   `Codegen.Todo` gaps wait on: commute (transpose over a Cross),
-  cross of non-top-level / non-list axes, and partial collect's
-  merged-context computation. Fibered products (a product collected
+  cross of non-top-level / non-list axes, and a register (or its
+  running view) over a partial merged driving flow. Fibered products (a product collected
   over some of its axes while enclosing loops hold the rest) now
   compile at any fiber width, on a flattened path read as a set of
   axes — the poset-*valued* context report, which would put that
   order-freedom in the type rather than in a convention, is still
   ahead. `Poset.res` has the algebra; `src/ARCHITECTURE.md` worklist
   item 8 is the map.
+- ~~**The partial collect's cell-set lattice.**~~ DONE. The design's
+  HTTP program compiles end to end: a partial collect merges two of
+  four cells, one handler runs *at* the merged context (the
+  `logAndFallback` step, admitted by the containment theorem
+  `{A} ⊆ {A, B}` stated as a step-availability relation), and a
+  covering collect reconverges over disjoint *cell sets* — two
+  singletons and a pair. Merges nest; a merged value can be read from
+  inside one of its cells by a chain that opened that cell some other
+  way; a merged flow can sit anywhere in a join chain, not just at its
+  end; and values on *overlapping* cell sets combine at their meet
+  (`{A,B}` and `{B,C}` at `{B}`) — subject to the same discipline a
+  product combine gets: the meet must be a set the program
+  constructed. Cell-set work that remains lives on other rows —
+  a register over a partial merged driving flow, and a partial
+  running view — both about a `prev` and a loop skeleton, not cells.
 - ~~**`Aggregate`/`Disaggregate`** for struct construction and field
   projection.~~ DONE (as pure value nodes — Aggregate builds an object
   literal, Disaggregate projects one value port per field; both compile

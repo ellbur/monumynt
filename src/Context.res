@@ -22,8 +22,10 @@
 //     its innermost segment. That is what lets Check classify an incomparable
 //     merge: two divergent segments on the *same* case node are sibling cells
 //     (bundle mixing); the `Incomparable` payload carries the paths so the
-//     classifier can see this. The cell-*set* generalisation (partial overlap)
-//     is the deferred poset round.
+//     classifier can see this. A bundle step is now a cell SET (`cellSet`
+//     below), so a merged flow's step compares by containment — the remaining
+//     cell-set gap is partial OVERLAP (`{A,B}` vs `{B,C}`, which meets at
+//     `{B}` as an inferred incorporate), still the poset round's.
 //   - No memoisation yet; programs are test-sized. When Annotate becomes a
 //     real pass it should compute these once per (node, port) and hand them
 //     down, per the pipeline discipline.
@@ -44,24 +46,129 @@ let flowKey = (f: flowRef): string =>
 let contextToString = (ctx: array<flowRef>): string =>
   "[" ++ ctx->Array.map(flowKey)->Array.join(" > ") ++ "]"
 
+// --- Cell sets (bundle-provenance-design.md, "Sketch: merged branches as cell
+//     sets"; partial-collect-design.md, "The merged flow as parent scope") -----
+//
+// A bundle step in a context path is not always a single cell. A case-alt flow
+// is the singleton `{A}`; a partial collect's merged flow spans the UNION of its
+// branches' cells, `{A, B}`. The set is computed by WALKING, never stored
+// (partial-collect-design.md, "the cell set is computed by walking"), and only
+// cells the program actually engaged ever appear — the full inventory lives on
+// the Open node, not in any path.
+//
+// `None` for a flow that is not a bundle step at all (a list/option axis, a
+// join, a product): those steps compare by identity exactly as before.
+//
+// The walk itself is `Program.branchCells` (the one the coverage classification
+// reads); here the cells are keyed as alt FLOW keys, so two bundles with
+// same-named alts never compare equal.
+let cellSet = (f: flowRef): option<array<string>> =>
+  branchCells(f)->Option.map(((split, cells)) =>
+    cells->Array.map(c => flowKey(FlowPort(split, c)))
+  )
+
+// The containment theorem (partial-collect-design.md, "The merged flow as parent
+// scope"): a value borne on a bundle step with cell set S is available inside any
+// step whose cell set is a SUBSET of S — `{A} ⊆ {A, B}`, so a merged value is
+// directly usable inside either of its constituent cells, by the same rule that
+// lets a root-context value into any cell. No capture node, no scope
+// declaration: "parent scope" is subset order doing what it always did.
+//
+// The relation is strictly one-directional. It never moves a value OUT of a
+// constituent — getting a value to the merged context from inside cells is
+// exactly what the partial collect's value threading is for, and coarsening
+// happens only at that explicit node.
+//
+// Sibling cells (`{A}` vs `{B}`) contain each other in neither direction, so
+// bundle mixing is untouched. Partial OVERLAP (`{A,B}` vs `{B,C}`) is likewise
+// not containment: that combination lives at the meet `{B}` as an inferred
+// incorporate (bundle-provenance-design.md, "Revision: overlap is incorporate,
+// not a clash"), which is still the poset round's.
+let cellContains = (outer: flowRef, inner: flowRef): bool =>
+  switch (cellSet(outer), cellSet(inner)) {
+  | (Some(o), Some(i)) => i->Array.every(c => o->Array.includes(c))
+  | _ => false
+  }
+
+// A path step is matched either by identity or by cell containment: the step the
+// value asks for is available at the step the context actually opens.
+let stepAvailableAt = (required: flowRef, open_: flowRef): bool =>
+  flowKey(required) === flowKey(open_) || cellContains(required, open_)
+
 let isPrefix = (shorter: array<flowRef>, longer: array<flowRef>): bool => {
   Array.length(shorter) <= Array.length(longer) &&
   shorter->Array.everyWithIndex((f, i) =>
     switch longer[i] {
-    | Some(g) => flowKey(f) === flowKey(g)
+    | Some(g) => stepAvailableAt(f, g)
     | None => false
     }
   )
 }
 
-// Prefix-rule merge: the deeper context wins if the other is its prefix.
+// The MEET of two bundle steps (bundle-provenance-design.md, "Revision: overlap
+// is incorporate, not a clash"): two values on partially overlapping cell sets —
+// `{A, B}` and `{B, C}` — DO combine, at `{A,B} ∩ {B,C} = {B}`, "the greatest
+// cell set contained in both, the intersection in the subset lattice, and it is
+// *unique*". Only a DISJOINT meet is bundle mixing.
+//
+// The meet has to be a set the program CONSTRUCTED, exactly as a sibling
+// combine's home has to be a constructed product (`Poset.merge`, "an
+// under-determined cross is just another time-travel program"). A SINGLE cell
+// always is — the split's own alt flow port, engaged by both merges — and that
+// is the case resolved here. A wider meet would need a partial collect the
+// program actually built spanning those cells, which no local walk can find, so
+// it stays `Incomparable` and `Check` reports it by name.
+let cellMeetStep = (l: flowRef, r: flowRef): option<flowRef> =>
+  switch (branchCells(l), branchCells(r)) {
+  | (Some((sa, ca)), Some((sb, cb))) if sa.id === sb.id =>
+    switch ca->Array.filter(c => cb->Array.includes(c)) {
+    | [one] => Some(FlowPort(sa, one))
+    | _ => None // disjoint (bundle mixing) or a wider, unconstructed meet
+    }
+  | _ => None
+  }
+
+// Two paths of the same depth combined step by step: the narrower step wins
+// where one is available at the other, and a partial cell overlap descends to
+// its meet. `None` when any step pair has no common home.
+let meetPath = (a: array<flowRef>, b: array<flowRef>): option<array<flowRef>> =>
+  if Array.length(a) !== Array.length(b) {
+    None
+  } else {
+    let out: array<flowRef> = []
+    let ok = ref(true)
+    a->Array.forEachWithIndex((l, i) =>
+      switch b[i] {
+      | Some(r) =>
+        if stepAvailableAt(l, r) {
+          Array.push(out, r)
+        } else if stepAvailableAt(r, l) {
+          Array.push(out, l)
+        } else {
+          switch cellMeetStep(l, r) {
+          | Some(m) => Array.push(out, m)
+          | None => ok := false
+          }
+        }
+      | None => ok := false
+      }
+    )
+    ok.contents ? Some(out) : None
+  }
+
+// Prefix-rule merge: the deeper context wins if the other is its prefix; failing
+// that, two equally deep contexts meet if every step pair has a common home (the
+// cell meet above). Otherwise incomparable.
 let merge = (~where: string, a: array<flowRef>, b: array<flowRef>): array<flowRef> =>
   if isPrefix(a, b) {
     b
   } else if isPrefix(b, a) {
     a
   } else {
-    throw(Incomparable({left: a, right: b, where}))
+    switch meetPath(a, b) {
+    | Some(m) => m
+    | None => throw(Incomparable({left: a, right: b, where}))
+    }
   }
 
 // --- Poset wiring (product-flows-design.md, "The context model") -------------
@@ -205,9 +312,14 @@ and valueAxisFlows = (v: valueRef): array<flowRef> =>
 // traverse (product-flows-design.md, "reduce along an axis, fibered over the
 // rest").
 and collectRemainderFlows = (flow: flowRef, value: valueRef): array<flowRef> => {
-  let excluded =
-    Array.concat(introducedAxisFlows(flow), sourceAxisFlows(flow))->Array.map(flowKey)
-  dedupFlows(valueAxisFlows(value))->Array.filter(g => !(excluded->Array.includes(flowKey(g))))
+  let excluded = Array.concat(introducedAxisFlows(flow), sourceAxisFlows(flow))
+  // "Supplied by the flow" is availability, not identity: a value borne on a
+  // merged `{A, B}` is supplied by a collect that iterates the single cell `{A}`,
+  // since `{A} ⊆ {A, B}` (the containment theorem). `stepAvailableAt` is key
+  // equality plus that containment, so this is the identity test it generalises.
+  dedupFlows(valueAxisFlows(value))->Array.filter(g =>
+    !(excluded->Array.some(e => stepAvailableAt(g, e)))
+  )
 }
 
 let rec valueContext = (r: valueRef): array<flowRef> =>
