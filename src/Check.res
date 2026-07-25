@@ -22,7 +22,12 @@
 //                     travel (unrelated opens — completable). The classifier
 //                     walks the two paths to their first divergent step.
 //   - join-adjacency  Join/Commute operands must be nesting-adjacent
-//                     (lazy-stream-join-design.md).
+//                     (lazy-stream-join-design.md), with one carve-out that is
+//                     the Cross's own law rather than a loosening: two axes of
+//                     one CONSTRUCTED product are adjacent BY the product
+//                     (rectangularity), so a commute over a crossed pair —
+//                     transpose — passes, while a commute of two flows nothing
+//                     crosses still witnesses.
 //   - invariance      Cross operands must be mutually invariant — neither
 //                     axis's firings vary with the other's element
 //                     (product-flows-design.md, the Cross round's first step).
@@ -375,10 +380,45 @@ let checkAlignment = (p: program): array<witness> => {
 // must end exactly at the outer flow (lazy-stream-join-design.md). This is
 // the structural fact Codegen's spine walk asserts; checking it here keeps
 // that an assert, not a user-facing crash.
+//
+// One carve-out, and it is the Cross's law rather than a loosening: two axes of
+// one CONSTRUCTED product are nesting-adjacent BY the product. Their own
+// exteriors are sibling — both at the product's exterior, neither inside the
+// other — but "the crossed pair fires once per pair of operand firings" makes
+// the inner traversal the same sequence per outer firing (product-flows-
+// design.md, theorem 1 rectangularity), which is exactly the adjacency the rule
+// asks for. So a commute over a crossed pair — transpose, theorem 2 — is
+// adjacent, while a commute over two unrelated flows still witnesses.
+// The test is CONTAINMENT, not the exact-span discipline `Poset.merge` applies
+// to a combine. A combine's home must be the product of exactly its axes (a flat
+// three-way cross builds no {X, Z} sub-product to live in); but a transpose asks
+// only "are these two axes of one product?", which is availability — monotone
+// `⊆`, `Poset.leq`. The two differ at rank ≥ 3, and the difference is real:
+// inside one cube every pair of axes is order-free, so swapping the reading of X
+// and Z is lawful even though Y sits between them in the stored orientation.
+// There is no "between" in a product.
+let crossedPair = (~products: array<Poset.t>, a: flowRef, b: flowRef): bool =>
+  try {
+    let pa = Context.fullPoset(a)
+    let pb = Context.fullPoset(b)
+    // Comparability is what excludes an ordinary nesting: an option opened
+    // inside a list element is `≤`-related, never crossed — that commute is the
+    // sequence operation, and this rule still owns its adjacency.
+    if Poset.leq(pa, pb) || Poset.leq(pb, pa) {
+      false
+    } else {
+      products->Array.some(p => Poset.leq(pa, p) && Poset.leq(pb, p))
+    }
+  } catch {
+  | Context.Incomparable(_) => false
+  }
+
 let checkJoinAdjacency = (p: program): array<witness> => {
   let out: array<witness> = []
+  let products = Context.productsIndex(p)
   p.nodes->Array.forEach(n =>
     switch n.kind {
+    | Commute({outer, inner}) if crossedPair(~products, outer, inner) => ()
     | Join({outer, inner}) | Commute({outer, inner}) =>
       try {
         let innerExterior = Context.flowContext(inner)

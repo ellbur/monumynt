@@ -104,6 +104,12 @@ and kind =
   | Join({outer: flowRef, inner: flowRef})
   // Swap two nesting-adjacent layers. Ports: flow "outer" (the flow that
   // was inner, now outermost) and flow "inner". Operand order is semantic.
+  // One node, two operations (lazy-stream-commute-design.md, "it currently
+  // names two operations"): over a CROSSED pair it is TRANSPOSE — a re-reading
+  // of the product, total and value-preserving, which compiles as another
+  // permutation indexing the shared table (Context.throughCommutes); over a
+  // genuine nesting it is the directed SEQUENCE (option out of a stream, which
+  // short-circuits), still deferred.
   | Commute({outer: flowRef, inner: flowRef})
   // Product of two sibling (mutually invariant) flows
   // (product-flows-design.md). Stored oriented, read symmetric. Ports:

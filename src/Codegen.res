@@ -319,7 +319,21 @@ let rec spine = (f: flowRef): array<level> =>
       }
     | Join({outer, inner}) => Array.concat(spine(outer), spine(inner))
     | Commute(_) =>
-      throw(Todo("commute in a collect chain — the swapped-orientation walk (lazy-stream-commute-design.md)"))
+      // Reaching `spine` means this commute is NOT over a crossed pair: the
+      // transposing commute is resolved away by `Context.throughCommutes` before
+      // the product matchers key the chain, so it never gets here. What is left
+      // is the other operation the word names — the directed SEQUENCE (option
+      // out of a stream), which restructures rather than re-reads and whose
+      // emitter waits on stream flows (lazy-stream-commute-design.md, "the
+      // vocabulary should name the two operations distinctly").
+      throw(
+        Todo(
+          "commute over a non-product nesting — the sequence operation (option out of " ++
+          "stream, short-circuiting), whose output construction waits on stream flows " ++
+          "(lazy-stream-commute-design.md); commute over a CROSSED pair is transpose " ++
+          "and compiles as a re-read of the product's shared table",
+        ),
+      )
     | Cross(_) =>
       throw(Todo("cross in a collect chain — the point-indexed table (product-flows-design.md)"))
     | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) =>
@@ -427,14 +441,21 @@ type productMatch = {
 }
 
 // Unwind a nested single-branch collect chain: gather each collect's flow
-// (outer-first) and the terminal non-collect value it carries.
+// (outer-first) and the terminal non-collect value it carries. Each flow is
+// resolved THROUGH any commute ports it is named by: over a crossed pair a
+// commute is transpose, a re-reading of the same product, so a chain that names
+// `~c.outer` / `~c.inner` is the same product chain in the swapped order
+// (`Context.throughCommutes`). A commute over a non-product nesting resolves to
+// flows no Cross crosses, so the product match below simply fails and the chain
+// takes the ordinary route (`spine`, whose Commute arm is the sequence
+// operation's still-deferred emitter).
 let rec chainFlows = (v: valueRef): (array<flowRef>, valueRef) =>
   switch v {
   | ValuePort(n, "value") =>
     switch n.kind {
     | Collect({branches: [{flow, value}]}) =>
       let (rest, term) = chainFlows(value)
-      (Array.concat([flow], rest), term)
+      (Array.concat([Context.throughCommutes(flow)], rest), term)
     | _ => ([], v)
     }
   | _ => ([], v)
@@ -454,7 +475,7 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
   switch cn.kind {
   | Collect({branches: [{flow: f0, value: v1}]}) =>
     let (rest, sVal) = chainFlows(v1)
-    let flows = Array.concat([f0], rest)
+    let flows = Array.concat([Context.throughCommutes(f0)], rest)
     let keys = flows->Array.map(Context.flowKey)
     // Distinct axes only — a chain that revisits an axis is not a product read.
     let distinct = keys->Array.everyWithIndex((k, i) => keys->Array.indexOf(k) === i)
@@ -526,7 +547,7 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
   switch cn.kind {
   | Collect({branches: [{flow: f0, value: v1}]}) =>
     let (rest, sVal) = chainFlows(v1)
-    let flows = Array.concat([f0], rest)
+    let flows = Array.concat([Context.throughCommutes(f0)], rest)
     let keys = flows->Array.map(Context.flowKey)
     let distinct = keys->Array.everyWithIndex((k, i) => keys->Array.indexOf(k) === i)
     // As above: a `prev`-reading terminal belongs to the running-view loop.

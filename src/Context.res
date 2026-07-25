@@ -497,6 +497,44 @@ and flowInterior = (r: flowRef): array<flowRef> =>
     }
   }
 
+// --- Commute over a crossed pair: transpose ---------------------------------
+//
+// Commute swaps two nesting-adjacent layers, and over a CROSSED pair that swap
+// is TRANSPOSE — total, value-preserving, and confluent
+// (product-flows-design.md, theorem 2 "commute is total on crossed pairs";
+// lazy-stream-commute-design.md's taxonomy row "Transpose", the lawful
+// exception to the same-kind commute it otherwise declines). Transpose RE-READS
+// a product in the other order rather than restructuring anything, so a commute
+// output port simply DENOTES one of its operand flows: "outer" is the ex-inner,
+// now read outermost; "inner" the ex-outer, now read innermost. Stacked
+// commutes resolve by recursion.
+//
+// That is the whole of the transposing commute's compilation: resolving through
+// it makes a transposed consumer an ordinary product chain in its own order,
+// and the shared point-indexed table already serves every k! reading, so the
+// transpose costs nothing (Codegen's `matchProductChain`).
+//
+// The lawfulness GATE is at the call sites, not here: only the product matchers
+// resolve, and they then require the resolved flows to be axes of ONE
+// constructed product. A commute over a genuine (dependent) nesting — the
+// option-out-of-stream SEQUENCE operation, which is directed, short-circuits,
+// and is a different operation wearing the same name (lazy-stream-commute-
+// design.md, "it currently names two operations") — resolves to flows no Cross
+// crosses, so its chain declines exactly as before.
+let rec throughCommutes = (f: flowRef): flowRef =>
+  switch f {
+  | FlowPort(n, port) =>
+    switch n.kind {
+    | Commute({outer, inner}) =>
+      switch port {
+      | "outer" => throughCommutes(inner)
+      | "inner" => throughCommutes(outer)
+      | _ => f
+      }
+    | _ => f
+    }
+  }
+
 // The full poset context of a flow operand of a Cross: its exterior chain plus
 // the axis (or axes) it opens. A plain Uncollect opens ONE axis, so this is the
 // linear path made into a Series (`pathToPoset(flowContext(f) ++ [f])`). A Cross
