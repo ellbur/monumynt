@@ -1,9 +1,19 @@
 # The Collect Family: Operator Identities, Named Collects, and the Keyed Collect
 
-Status: exploration — this chapter teaches leanings, not an adopted
-design. Nothing here is implemented; the compiler knows only the
-list/case/option/filter closes. Read each construct below as a
-candidate with the case for it, not as a settled feature.
+Status: mixed — **the availability ladder is adopted** (design
+conversation, 2026-07-23): monoid → total, the empty collect
+returning the identity carried as a value witness on the catalog
+row; semigroup → option-shaped, the result firing iff the walk
+fired (where `max`/`min` deliberately live); non-associative → no
+reduce-close, the augment form the honest spelling. Both recorded
+dead ends were confirmed as rejections at adoption: the empty
+collect never runtime-errors (the Dyalog pole), and the catalog
+never blesses `-∞`/`+∞` as fake identities. The rest of the
+chapter — the named-collect spellings, the keyed collect, the
+partition surface — remains exploration; nothing is implemented
+(the compiler knows only the list/case/option/filter closes).
+Read the unadopted constructs as candidates with the case for
+them.
 
 ## A first program, and the chapter's first question
 

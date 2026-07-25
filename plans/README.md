@@ -187,7 +187,11 @@ they change how everything else is read.
   only some branches of a case split; one k-ary partial-collect node.
 - [`collect-family-design.md`](collect-family-design.md) — the empty
   collect (what does an empty sum/max return?), identities as catalog
-  rows, and the keyed collect (group-by as flows). *Exploration.*
+  rows, and the keyed collect (group-by as flows). *Mixed: the
+  availability ladder adopted (2026-07-23 — monoid total, semigroup
+  option-shaped, non-associative augment-only; the runtime-error and
+  fake-∞ poles confirmed rejected); spellings and the keyed collect
+  still exploration.*
 
 ### Products of flows
 
