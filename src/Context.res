@@ -22,8 +22,10 @@
 //     its innermost segment. That is what lets Check classify an incomparable
 //     merge: two divergent segments on the *same* case node are sibling cells
 //     (bundle mixing); the `Incomparable` payload carries the paths so the
-//     classifier can see this. The cell-*set* generalisation (partial overlap)
-//     is the deferred poset round.
+//     classifier can see this. A bundle step is now a cell SET (`cellSet`
+//     below), so a merged flow's step compares by containment — the remaining
+//     cell-set gap is partial OVERLAP (`{A,B}` vs `{B,C}`, which meets at
+//     `{B}` as an inferred incorporate), still the poset round's.
 //   - No memoisation yet; programs are test-sized. When Annotate becomes a
 //     real pass it should compute these once per (node, port) and hand them
 //     down, per the pipeline discipline.
@@ -44,11 +46,72 @@ let flowKey = (f: flowRef): string =>
 let contextToString = (ctx: array<flowRef>): string =>
   "[" ++ ctx->Array.map(flowKey)->Array.join(" > ") ++ "]"
 
+// --- Cell sets (bundle-provenance-design.md, "Sketch: merged branches as cell
+//     sets"; partial-collect-design.md, "The merged flow as parent scope") -----
+//
+// A bundle step in a context path is not always a single cell. A case-alt flow
+// is the singleton `{A}`; a partial collect's merged flow spans the UNION of its
+// branches' cells, `{A, B}`. The set is computed by WALKING, never stored
+// (partial-collect-design.md, "the cell set is computed by walking"), and only
+// cells the program actually engaged ever appear — the full inventory lives on
+// the Open node, not in any path.
+//
+// `None` for a flow that is not a bundle step at all (a list/option axis, a
+// join, a product): those steps compare by identity exactly as before.
+let rec cellSet = (f: flowRef): option<array<string>> =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Uncollect({flowKind: Case(_)}) => Some([flowKey(f)])
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      | CasePartial(_) =>
+        branches->Array.reduce(Some([]), (acc, b) =>
+          switch (acc, cellSet(b.flow)) {
+          | (Some(cs), Some(more)) =>
+            Some(more->Array.reduce(cs, (a, c) => a->Array.includes(c) ? a : Array.concat(a, [c])))
+          | _ => None
+          }
+        )
+      | _ => None
+      }
+    | _ => None
+    }
+  }
+
+// The containment theorem (partial-collect-design.md, "The merged flow as parent
+// scope"): a value borne on a bundle step with cell set S is available inside any
+// step whose cell set is a SUBSET of S — `{A} ⊆ {A, B}`, so a merged value is
+// directly usable inside either of its constituent cells, by the same rule that
+// lets a root-context value into any cell. No capture node, no scope
+// declaration: "parent scope" is subset order doing what it always did.
+//
+// The relation is strictly one-directional. It never moves a value OUT of a
+// constituent — getting a value to the merged context from inside cells is
+// exactly what the partial collect's value threading is for, and coarsening
+// happens only at that explicit node.
+//
+// Sibling cells (`{A}` vs `{B}`) contain each other in neither direction, so
+// bundle mixing is untouched. Partial OVERLAP (`{A,B}` vs `{B,C}`) is likewise
+// not containment: that combination lives at the meet `{B}` as an inferred
+// incorporate (bundle-provenance-design.md, "Revision: overlap is incorporate,
+// not a clash"), which is still the poset round's.
+let cellContains = (outer: flowRef, inner: flowRef): bool =>
+  switch (cellSet(outer), cellSet(inner)) {
+  | (Some(o), Some(i)) => i->Array.every(c => o->Array.includes(c))
+  | _ => false
+  }
+
+// A path step is matched either by identity or by cell containment: the step the
+// value asks for is available at the step the context actually opens.
+let stepAvailableAt = (required: flowRef, open_: flowRef): bool =>
+  flowKey(required) === flowKey(open_) || cellContains(required, open_)
+
 let isPrefix = (shorter: array<flowRef>, longer: array<flowRef>): bool => {
   Array.length(shorter) <= Array.length(longer) &&
   shorter->Array.everyWithIndex((f, i) =>
     switch longer[i] {
-    | Some(g) => flowKey(f) === flowKey(g)
+    | Some(g) => stepAvailableAt(f, g)
     | None => false
     }
   )

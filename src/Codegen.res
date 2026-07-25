@@ -112,11 +112,20 @@ let flowsKey = (flows: array<flowRef>): string =>
 // reject the transposed reading of a product for no reason but the flattening's
 // arbitrary order. For an all-nesting program the path is exactly a prefix and
 // both readings agree, so this is the plain prefix rule it replaces.
+//
+// A step is matched by `Context.stepAvailableAt`, not by raw key equality: a
+// BUNDLE step is a cell SET, and a value borne on a merged flow `{A, B}` is
+// available inside each constituent cell the chain opens (`{A} ⊆ {A, B}` — the
+// containment theorem, partial-collect-design.md "The merged flow as parent
+// scope"). That is what lets a merged-context computation — the doc's
+// `logAndFallback` step — be emitted per arm of a partial collect's dispatch,
+// where the chain opens one alt rather than the merged flow itself. Code
+// duplicated across arms, evaluation still once: exactly one arm runs.
 let matchChain = (structural: array<flowRef>, ctx: ctxPath): option<int> => {
   let pos = ref(0)
   let ok = ref(true)
   structural->Array.forEach(f => {
-    let j = ctx->Array.findLastIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
+    let j = ctx->Array.findLastIndex(s => Context.stepAvailableAt(f, s.flow))
     if j < 0 {
       ok := false
     } else if j + 1 > pos.contents {

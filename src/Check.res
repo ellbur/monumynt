@@ -553,18 +553,26 @@ let checkCoverage = (p: program): array<witness> => {
 //     stating it here turns that crash into a
 //     witness.
 //
-// The interior is computed only where it is EXACT: a list/option element or a
-// case alt payload — the branch's flow port targets an Uncollect, and the
-// interior is that flow's own layer over its exterior. A branch that iterates a
-// Join / Commute / Cross flow descends into the poset round (the interior lives
-// deeper than the join's own layer); `branchInterior` returns None there and
-// the branch is left to the indirect coverage (alignment + the codegen
-// backstop), per ARCHITECTURE.md's "covered indirectly" note.
+// The interior is computed only where it is EXACT: a list/option element, a
+// case alt payload, or a partial collect's MERGED FLOW — in each case the
+// branch's flow port names one layer, and the interior is that layer over its
+// exterior (the merged flow is option-kind relative to the parent, so it is one
+// layer exactly as a single alt is; `Context.valueContext` reports the same
+// thing for the merged value port). A branch that iterates a Join / Commute /
+// Cross flow descends into the poset round (the interior lives deeper than the
+// join's own layer); `branchInterior` returns None there and the branch is left
+// to the indirect coverage (alignment + the codegen backstop), per
+// ARCHITECTURE.md's "covered indirectly" note.
 let branchInterior = (flow: flowRef): option<array<flowRef>> =>
   switch flow {
   | FlowPort(n, _) =>
     switch n.kind {
     | Uncollect(_) => Some(Array.concat(Context.flowContext(flow), [flow]))
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      | CasePartial(_) => Some(Array.concat(Context.flowContext(flow), [flow]))
+      | _ => None
+      }
     | _ => None
     }
   }
@@ -619,13 +627,18 @@ let checkFlowBorne = (p: program): array<witness> => {
           try {
             let vctx = Context.valueContext(b.value)
             // Containment, read as a SET so a crossed sibling axis passes: every
-            // flow the value's context names must be on the interior, or be an
-            // axis crossed with one of the interior's axes (held open by the
-            // enclosing traversal). For an all-nesting program `vctx` is a
-            // prefix of `interior` and this is the prefix test it generalises.
+            // flow the value's context names must be AVAILABLE on the interior,
+            // or be an axis crossed with one of the interior's axes (held open
+            // by the enclosing traversal). For an all-nesting program `vctx` is
+            // a prefix of `interior` and this is the prefix test it generalises.
+            // Availability is `Context.stepAvailableAt` — identity, or cell
+            // containment for a bundle step, so a merged `{A, B}`-borne value is
+            // readable inside its constituent `{A}` (the containment theorem)
+            // while an `{A}`-borne value read at `{A, B}` still witnesses: the
+            // relation never moves a value OUT of a constituent.
             let interiorKeys = interior->Array.map(Context.flowKey)
             let borneElsewhere = vctx->Array.filter(f =>
-              !(interiorKeys->Array.includes(Context.flowKey(f)))
+              !(interior->Array.some(g => Context.stepAvailableAt(f, g)))
             )
             let heldByCross = (f: flowRef) =>
               crossed->Array.some(

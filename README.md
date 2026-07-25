@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 201 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 210 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -112,14 +112,22 @@ and remain live.
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
   `Codegen.Todo` gaps wait on: commute (transpose over a Cross),
-  cross of non-top-level / non-list axes, and partial collect's
-  merged-context computation. Fibered products (a product collected
+  cross of non-top-level / non-list axes, and the cell-set remainder
+  of the partial collect. Fibered products (a product collected
   over some of its axes while enclosing loops hold the rest) now
   compile at any fiber width, on a flattened path read as a set of
   axes — the poset-*valued* context report, which would put that
   order-freedom in the type rather than in a convention, is still
   ahead. `Poset.res` has the algebra; `src/ARCHITECTURE.md` worklist
   item 8 is the map.
+- **The partial collect's cell-set lattice** — computation *at* the
+  merged context (the design's `logAndFallback` step) now compiles,
+  via the containment theorem `{A} ⊆ {A, B}` stated as a
+  step-availability relation on path steps. What is left: a partial
+  feeding a partial, a merged value read outside its own emitter, a
+  collect whose branches are keyed by disjoint covering *cell sets*
+  rather than single alts, and partial overlap (`{A,B}` vs `{B,C}`)
+  meeting at `{B}` as an inferred incorporate.
 - ~~**`Aggregate`/`Disaggregate`** for struct construction and field
   projection.~~ DONE (as pure value nodes — Aggregate builds an object
   literal, Disaggregate projects one value port per field; both compile

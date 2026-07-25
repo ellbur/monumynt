@@ -30,9 +30,15 @@
 //
 // Cells (partial-collect merged flows) are also set-valued layers but with the
 // OPPOSITE polarity (a bigger cell set is more agnostic — `⊇`, not `⊆`) and no
-// product-style traversal split; they are not modeled here yet (they arrive with
-// the partial-collect merged-context sub-step). This module is products +
-// nesting.
+// product-style traversal split; they are not modeled here. The
+// partial-collect merged-context sub-step landed WITHOUT needing them: cell
+// containment is a relation between two *steps* of a path (`Context.cellSet` /
+// `stepAvailableAt`), and every consumer of it — the prefix-rule merge, Check's
+// flow-borne containment, Codegen's `matchChain` — asks only "is this step
+// available at that one?", which the linear path answers step-wise. A cell layer
+// enters *this* module when a cell set has to be composed with axes in one
+// structure, i.e. with the poset-VALUED context report. This module stays
+// products + nesting until then.
 
 type rec t =
   | Root // no axes — the top-level context (the linear path's `[]`)

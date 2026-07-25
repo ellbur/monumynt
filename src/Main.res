@@ -563,6 +563,148 @@ picked -~> collect ~pf => out
 }
 
 // ============================================================================
+// 7i. COMPUTATION AT THE MERGED CONTEXT — the doc's `logAndFallback` step
+//     (partial-collect-design.md, "The construct" and "The merged flow as
+//     parent scope"). A value computed FROM a partial collect's merged value
+//     lives at the cell-set context {A, B}, which no chain segment names: the
+//     chain opens one alt per dispatch arm. What admits it is the containment
+//     theorem — `{A} ⊆ {A, B}`, so a merged-context value is available inside
+//     each constituent cell (Context.cellSet / cellContains, consulted by
+//     Codegen.matchChain). The emission is the doc's sanctioned choice: once
+//     per arm, code duplicated, evaluation still once, since exactly one arm
+//     runs. Collected-alone (option) shape, mirroring 7c.
+// ============================================================================
+
+header("partial collect: a computation AT the merged context (collected alone)")
+{
+  let b = Build.make()
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let dbl = Build.raw(b, "x => x * 2")
+  let four = Build.lit(b, int_(4))
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, four.value)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // `fb` is the merged-context computation: its structural context is the
+  // merged flow {A, B}, not either alt.
+  let fb = Build.app(b, dbl.value, [picked.value])
+  let out = Build.collect(b, ~flow=pf, fb.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // 4 % 3 == 1 -> B (covered) -> merged value 4 -> doubled = 8.
+  expectOutput(p, "out", int_(8))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7j. The merged-context computation over a MULTI-CELL FILTER — the doc's HTTP
+//     program in miniature: per list firing, dispatch a split, merge two of the
+//     three cells, and run ONE computation over the merged value ("handle these
+//     two cases the same way," said once). Extends 7b, whose terminating value
+//     referenced the merged value directly. Hand-computed, with a golden that
+//     pins the doc's emission choice: the merged computation appears once per
+//     covered arm (two arms ⇒ two occurrences), and each firing runs one arm.
+// ============================================================================
+
+header("partial collect: merged-context computation over a multi-cell filter")
+{
+  let src = `
+classify = js "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})"
+label = js "n => (globalThis.__mcRuns = (globalThis.__mcRuns || 0) + 1, 'n=' + n)"
+[1, 2, 3, 4, 5, 6] -> open list => a, ~L
+a -> split classify of A, B, C => cs
+~cs.A: cs.A
+~cs.B: cs.B
+-~> collect => picked, ~pf
+picked -> label => tagged
+~pf ~> join into ~L => ~keep
+tagged -~> collect ~keep => out
+`
+  let p = TextResolve.parseProgram(src)
+  let _: int = evalJs("globalThis.__mcRuns = 0")
+  // Kept firings (n%3 in {0,1}): 1(B) 3(A) 4(B) 6(A); 2 and 5 are C, dropped.
+  // `label` runs once per kept firing, at the merged context, whichever cell
+  // fired — "handle these two cases the same way," said once.
+  expectOutput(
+    p,
+    "out",
+    array_([str("n=1"), str("n=3"), str("n=4"), str("n=6")]),
+  )
+
+  // The doc's emission choice, pinned from both sides. Syntactically the
+  // merged computation is DUPLICATED — one dispatch arm per covered cell.
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, ".push(")
+      if n === 2 {
+        pass("the merged-context computation is emitted once per covered arm")
+      } else {
+        fail("expected two dispatch arms, found " ++ Int.toString(n))
+      }
+    | None => fail("no out to inspect")
+    }
+  | Error(ws) =>
+    fail(
+      "merged-context program failed check:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+  // Semantically it EVALUATES ONCE per firing: exactly one arm runs, so the
+  // counter reads one run per kept firing (4), not one per arm per firing (8).
+  let runs: int = evalJs("globalThis.__mcRuns")
+  if runs === 4 {
+    pass("the merged computation evaluates once per kept firing (4), not once per arm")
+  } else {
+    fail("expected 4 merged-context evaluations, got " ++ Int.toString(runs))
+  }
+
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7k. The containment theorem is ONE-DIRECTIONAL (partial-collect-design.md,
+//     "The merged flow as parent scope": "It never moves a value *out* of a
+//     constituent"). A `{A}`-borne value — one cell's own payload — read at the
+//     merged `{A, B}` context is ill-formed: it does not exist on the firings
+//     where B fired. Getting a value TO the merged context from inside cells is
+//     what the partial collect's value threading is for, so the only door is
+//     that explicit node. Now a `flow-borne` witness rather than a codegen
+//     crash: `branchInterior` computes a merged flow's interior exactly, so the
+//     rule reaches this branch instead of leaving it to the backstop.
+// ============================================================================
+
+header("partial collect: a cell-borne value cannot escape to the merged context")
+{
+  let b = Build.make()
+  let classify = Build.raw(b, "n => ({tag: n % 3 === 0 ? 'A' : (n % 3 === 1 ? 'B' : 'C'), value: n})")
+  let four = Build.lit(b, int_(4))
+  let cs = Build.caseSplit(b, ~alts=["A", "B", "C"], ~discriminator=classify.value, four.value)
+  let ca = Build.alt(cs, "A")
+  let cb = Build.alt(cs, "B")
+  let picked = Build.collectCases(b, [(ca.altFlow, ca.altValue), (cb.altFlow, cb.altValue)])
+  let pf = Program.FlowPort(picked.node, "flow")
+  // The terminating collect iterates the merged flow {A, B} but reads alt A's
+  // OWN payload — the coarsening direction the theorem denies.
+  let out = Build.collect(b, ~flow=pf, ca.altValue)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "flow-borne") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("flow-borne witness: a cell-borne value does not coarsen to the merged context")
+    } else {
+      fail(
+        "expected a flow-borne witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("a cell-borne value escaped to the merged context without a witness")
+  }
+}
+
+// ============================================================================
 // 7d. Partial collect over an option leading level —
 //     join(join(list, option), <partial>). Per list element, open an option
 //     (present iff n >= 2); per present value, dispatch a covered subset {A, B}
