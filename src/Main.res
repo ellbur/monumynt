@@ -941,20 +941,23 @@ header("register pair: running view over a flattened list-of-lists")
 }
 
 // ============================================================================
-// 8j. The FILTERED running view — a sibling collect reads `prev` over a filtered
-//     (case-alt) driving flow — is well-formed (passes Check) but the emitter is
-//     the shared-loop-skeleton case, deferred with the rest of the running-view
-//     work. It must decline with a clean Codegen.Todo, not a raw failwith crash
-//     (the error-discipline fix: a well-formed program never crashes the
-//     compiler). ARCHITECTURE worklist item 6.
+// 8j. The FILTERED running view: a sibling collect reads `prev` over a filtered
+//     (case-alt) driving flow. The register itself already folds the kept
+//     subsequence (tests 8e–8g, delay-ontology-design.md route (b) "filter
+//     inside"); the view is that same fold re-run with a push, so it walks the
+//     SAME levels — `walkFilterLevels`, shared with the register and the filter
+//     collect — and both the push and the advance sit inside the alt guard. One
+//     output element per KEPT firing: a dropped firing contributes nothing to
+//     the view and does not step the register. Filter-then-scan, which is what
+//     the composition ought to mean.
 // ============================================================================
 
-header("register pair: a filtered running view declines cleanly (Todo, not a crash)")
+header("register pair: the running view over a filtered (case-alt) driving flow")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
   let disc = Build.raw(b, "x => x > 0 ? {tag: 'Keep', value: x} : {tag: 'Drop', value: x}")
-  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3)]))
+  let xs = Build.lit(b, array_([int_(1), int_(-2), int_(3), int_(-4), int_(5)]))
   let it = Build.uncollectList(b, xs.value)
   let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=it.flow, it.element)
   let keep = Build.alt(cs, "Keep")
@@ -962,23 +965,111 @@ header("register pair: a filtered running view declines cleanly (Todo, not a cra
   let sum = Build.delay(b, ~flow=filtered.flow, ~init=Build.lit(b, int_(0)).value)
   let stepped = Build.app(b, addF.value, [sum.prev, keep.altValue])
   let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
-  // A sibling collect over the SAME filtered flow reads prev.
-  let running = Build.collect(b, ~flow=filtered.flow, sum.prev)
-  let p = Build.finish(b, ~outputs=[("running", running.value), ("total", w.final)])
+  // Sibling collects over the SAME filtered flow. Kept subsequence: 1, 3, 5.
+  // Running-before (collect prev): [0, 1, 4]; running-after (collect the
+  // stepped value): [1, 4, 9]; the write half's own fold: 9.
+  let before = Build.collect(b, ~flow=filtered.flow, sum.prev)
+  let after = Build.collect(b, ~flow=filtered.flow, stepped.value)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", before.value), ("after", after.value), ("total", w.final)],
+  )
   let ws = Check.check(p)
   if Array.length(ws) === 0 {
     pass("filtered running view passes the implemented checks (well-formed)")
   } else {
     fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
-  switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("filtered running view declines with a clean Todo (not a crash)")
-  | Ok(_) => fail("filtered running view unexpectedly compiled — its emitter is deferred")
-  | Error(ws) =>
-    fail("filtered running view failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
-  }
+  expectOutput(p, "before", array_([int_(0), int_(1), int_(4)]))
+  expectOutput(p, "after", array_([int_(1), int_(4), int_(9)]))
+  expectOutput(p, "total", int_(9))
   // (No round-trip: the text surface for a nested case split in a chain is a
   // known TextPrint gap, shared with the filtered register tests 8e–8g.)
+}
+
+// ============================================================================
+// 8j2. The filtered running view over a NON-TRAILING dispatch (filter-then-
+//      flatmap): keep an alt, then flatten the kept payload's list. The register
+//      folds the flattened kept order (test 8g); the view pushes once per
+//      innermost element of that order. Same walk, one more level.
+// ============================================================================
+
+header("register pair: running view over a filter-then-flatmap driving flow")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  // Keep the rows whose head is positive; the alt payload is the row itself.
+  let disc = Build.raw(b, "r => r[0] > 0 ? {tag: 'Keep', value: r} : {tag: 'Drop', value: r}")
+  let rows = Build.lit(
+    b,
+    array_([
+      array_([int_(1), int_(2)]),
+      array_([int_(-9), int_(100)]),
+      array_([int_(3), int_(4)]),
+    ]),
+  )
+  let ito = Build.uncollectList(b, rows.value)
+  let cs = Build.caseSplit(b, ~alts=["Keep", "Drop"], ~discriminator=disc.value, ~nesting=ito.flow, ito.element)
+  let keep = Build.alt(cs, "Keep")
+  let iti = Build.uncollectList(b, ~nesting=keep.altFlow, keep.altValue)
+  let kept = Build.join(b, ~outer=ito.flow, ~inner=keep.altFlow)
+  let flat = Build.join(b, ~outer=kept.flow, ~inner=iti.flow)
+  let sum = Build.delay(b, ~flow=flat.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, iti.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  // Kept flattened order 1,2,3,4 (the -9 row is dropped whole) -> running-after
+  // prefix sums 1,3,6,10; total 10.
+  let after = Build.collect(b, ~flow=flat.flow, stepped.value)
+  let p = Build.finish(b, ~outputs=[("after", after.value), ("total", w.final)])
+  expectOutput(p, "after", array_([int_(1), int_(3), int_(6), int_(10)]))
+  expectOutput(p, "total", int_(10))
+}
+
+// ============================================================================
+// 8j3. What the running view still declines: a PARTIAL (cell-set) driving flow.
+//      A register over a partial collect's merged flow is the k-arm-dispatch
+//      cell-set case the poset round owns, and so is its view. It must decline
+//      with a clean Codegen.Todo, not a raw failwith crash (the error discipline:
+//      a well-formed program never crashes the compiler).
+// ============================================================================
+
+header("register pair: a partial (cell-set) running view still declines cleanly")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let disc = Build.raw(
+    b,
+    "x => x % 3 === 0 ? {tag: 'Three', value: x} : (x % 2 === 0 ? {tag: 'Two', value: x} : {tag: 'Other', value: x})",
+  )
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let it = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(
+    b,
+    ~alts=["Three", "Two", "Other"],
+    ~discriminator=disc.value,
+    ~nesting=it.flow,
+    it.element,
+  )
+  let three = Build.alt(cs, "Three")
+  let two = Build.alt(cs, "Two")
+  // A partial collect over two of the three alts: the merged flow of the
+  // covered cells.
+  let pc = Build.collectCases(
+    b,
+    [(three.altFlow, three.altValue), (two.altFlow, two.altValue)],
+  )
+  let merged = Program.FlowPort(pc.node, "flow")
+  let inner = Build.join(b, ~outer=it.flow, ~inner=merged)
+  let sum = Build.delay(b, ~flow=inner.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, pc.value])
+  let _ = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let running = Build.collect(b, ~flow=inner.flow, sum.prev)
+  let p = Build.finish(b, ~outputs=[("running", running.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("a partial running view declines with a clean Todo (not a crash)")
+  | Ok(_) => fail("a partial running view unexpectedly compiled — its emitter is deferred")
+  | Error(_) => pass("a partial running view is rejected before codegen (a witness, not a crash)")
+  }
 }
 
 // ============================================================================
@@ -2244,21 +2335,28 @@ header("cross: a register over the whole product is rejected by the order-demand
   // witness points at is a real program, not a dead end.
 }
 
-// 15j. The fiber that is still deferred: a rank-3 product collected over ONE
-//      axis leaves TWO axes standing, and a two-axis fiber is a genuine product
-//      context — no linear path holds it, so `Context.valueContext` keeps
-//      reporting the exterior and Codegen declines with a clean Todo rather than
-//      mis-placing the consumer. This is the remaining half of the poset round's
-//      context model (the general poset-valued context); the one-axis fiber above
-//      is what the linear report can carry exactly.
-header("cross: a two-axis fiber (rank 3, one axis collected) still declines cleanly")
+// 15j. The ≥2-AXIS FIBER: a rank-3 product collected over ONE axis leaves TWO
+//      axes standing. The fiber is then a genuine product context, which no
+//      linear path holds as a NESTING — but the placement question only needs
+//      to know WHICH axes must be open, and the consuming chain supplies the
+//      order it chose. So `Context.remainderPath` reports both surviving axes
+//      (flattened in the combine's own operand order) and `Codegen.matchChain`
+//      matches a structural path's flows as a SET, which is what its own
+//      contract always said ("the shortest prefix of the chain that opens every
+//      flow the path names"). The traversal itself was already k-general: index
+//      the one shared cube at the held coordinates.
+//
+//      Here: reduce along X, fibered over {Y, Z}. For each (y, z) the X-fiber
+//      [x + y + z for x in xs] is summed; then Y is collected, then Z. The
+//      user's computation still runs once per point, out of the one cube.
+header("cross: the two-axis fiber — reduce along X, fibered over {Y, Z}")
 {
   let b = Build.make()
   let f3 = Build.raw(b, "(a, b, c) => a + b + c")
   let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
   let xs = Build.lit(b, array_([int_(1), int_(2)]))
   let ys = Build.lit(b, array_([int_(10), int_(20)]))
-  let zs = Build.lit(b, array_([int_(100)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
   let itX = Build.uncollectList(b, xs.value)
   let itY = Build.uncollectList(b, ys.value)
   let itZ = Build.uncollectList(b, zs.value)
@@ -2271,15 +2369,117 @@ header("cross: a two-axis fiber (rank 3, one axis collected) still declines clea
   let mid = Build.collect(b, ~flow=itY.flow, tot.value)
   let out = Build.collect(b, ~flow=itZ.flow, mid.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
-  switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("a two-axis fiber declines with a clean Todo (poset round)")
-  | Ok(_) => fail("a two-axis fiber unexpectedly compiled")
-  | Error(ws) =>
-    fail(
-      "expected a Codegen Todo, got witnesses:\n  " ++
-      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-    )
+  let ws = Check.check(p)
+  if Array.length(ws) === 0 {
+    pass("the two-axis fiber passes the implemented checks")
+  } else {
+    fail("unexpected witnesses:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
   }
+  // fiber sums: (1+y+z) + (2+y+z) = 3 + 2y + 2z.
+  //   z=100: y=10 -> 223, y=20 -> 243.   z=200: y=10 -> 423, y=20 -> 443.
+  expectOutput(
+    p,
+    "out",
+    array_([
+      array_([int_(223), int_(243)]),
+      array_([int_(423), int_(443)]),
+    ]),
+  )
+}
+
+// 15j2. Both two-axis fiberings of one rank-3 product, in ONE program: reduce
+//       along X (fibered over {Y, Z}) and along Y (fibered over {X, Z}). They
+//       read the SAME cube — the rank-3 analogue of 15h/15i's two readings, and
+//       the golden below pins it: the user's computation still appears once, so
+//       it runs once per point however many fiberings read it.
+header("cross: both two-axis fiberings of one product share the one cube")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  let sumL = Build.raw(b, "(l) => l.reduce((a, b) => a + b, 0)")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100), int_(200)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  // Fiber along X, gathered Y-then-Z.
+  let colX = Build.collect(b, ~flow=itX.flow, s.value)
+  let totX = Build.app(b, sumL.value, [colX.value])
+  let midX = Build.collect(b, ~flow=itY.flow, totX.value)
+  let outX = Build.collect(b, ~flow=itZ.flow, midX.value)
+  // Fiber along Y, gathered Z-then-X.
+  let colY = Build.collect(b, ~flow=itY.flow, s.value)
+  let totY = Build.app(b, sumL.value, [colY.value])
+  let midY = Build.collect(b, ~flow=itZ.flow, totY.value)
+  let outY = Build.collect(b, ~flow=itX.flow, midY.value)
+  let p = Build.finish(b, ~outputs=[("outX", outX.value), ("outY", outY.value)])
+  // Along X: (1+y+z) + (2+y+z) = 3 + 2y + 2z, gathered [z][y].
+  //   z=100: y=10 -> 223, y=20 -> 243.   z=200: y=10 -> 423, y=20 -> 443.
+  expectOutput(
+    p,
+    "outX",
+    array_([array_([int_(223), int_(243)]), array_([int_(423), int_(443)])]),
+  )
+  // Along Y: (x+10+z) + (x+20+z) = 2x + 2z + 30, gathered [x][z].
+  //   x=1: z=100 -> 232, z=200 -> 432.   x=2: z=100 -> 234, z=200 -> 434.
+  expectOutput(
+    p,
+    "outY",
+    array_([array_([int_(232), int_(432)]), array_([int_(234), int_(434)])]),
+  )
+  // Golden: the per-point computation appears once — both fiberings index the
+  // one shared cube (test 15h's add-once, at rank 3 with a wider fiber).
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "outX") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + b + c")
+      if n === 1 {
+        pass("the per-point computation appears once (both fiberings share the cube)")
+      } else {
+        fail("expected the computation once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no outX to inspect for the shared-cube golden")
+    }
+  | Error(ws) =>
+    fail("two-axis fibering failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// 15j3. A REGISTER folding along one axis of a rank-3 product, fibered over the
+//       other two — 15k's fibered register with a wider fiber. The step spans
+//       the product, so `final` is a flow of rank n−2 rather than a scalar: one
+//       accumulator per (y, z) point, state never crossing between fibers. A
+//       non-commutative operator pins the within-fiber order.
+header("cross: a register folding one axis of a rank-3 product (two-axis fiber)")
+{
+  let b = Build.make()
+  let f3 = Build.raw(b, "(a, b, c) => a + b + c")
+  // (acc, v) => acc * 2 + v — order-sensitive, so the fiber's traversal order
+  // is observable in the value.
+  let stepF = Build.raw(b, "(a, v) => a * 2 + v")
+  let xs = Build.lit(b, array_([int_(1), int_(2)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let zs = Build.lit(b, array_([int_(100)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let itZ = Build.uncollectList(b, zs.value)
+  let s = Build.app(b, f3.value, [itX.element, itY.element, itZ.element])
+  let cxy = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let _ = Build.cross(b, ~left=cxy.flow, ~right=itZ.flow)
+  let reg = Build.delay(b, ~flow=itX.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, stepF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=stepped.value)
+  let mid = Build.collect(b, ~flow=itY.flow, w.final)
+  let out = Build.collect(b, ~flow=itZ.flow, mid.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // Per (y, z) fiber over x = 1, 2: acc = ((0*2 + (1+y+z))*2 + (2+y+z)).
+  //   z=100: y=10 -> (111)*2 + 112 = 334.  y=20 -> (121)*2 + 122 = 364.
+  expectOutput(p, "out", array_([array_([int_(334), int_(364)])]))
 }
 
 // 15c. The `commute out of` text surface (ARCHITECTURE worklist item 3, parser

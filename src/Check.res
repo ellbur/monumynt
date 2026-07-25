@@ -31,8 +31,11 @@
 //                     to a program output (context must be empty) or read by a
 //                     collect branch that does not iterate the value's flow (the
 //                     general interior rule — exact for element / alt-payload
-//                     interiors; Join/Commute/Cross interiors defer to the poset
-//                     round).
+//                     interiors; containment is read as a SET, so an axis CROSSED
+//                     with one the collect iterates is admitted — a product's
+//                     sibling axis is held open by the enclosing traversal — while
+//                     an uncrossed sibling still witnesses; Join/Commute/Cross
+//                     interiors defer to the poset round).
 //   - coverage        collect branches form a coherent bundle: mixed splits
 //                     and non-alt multi-branch collects (via classifyCollect)
 //                     plus duplicate-alt coverage — pairwise disjoint
@@ -566,8 +569,26 @@ let branchInterior = (flow: flowRef): option<array<flowRef>> =>
     }
   }
 
+// The axis-key sets the program's Cross nodes construct — one per Cross, its
+// operands' introduced axes flattened (a nested cross contributes its whole axis
+// set). A branch value may legitimately vary over an axis the collect does not
+// iterate when the two are CROSSED: a product's sibling axis is held open by
+// whatever loop traverses it (the fibered traversal, product-flows-design.md's
+// "reduce along an axis, fibered over the rest"), so the value is readable at the
+// branch. An uncrossed sibling is not readable there — that is the clash this
+// rule exists for, and alignment/completion own the sibling-opens case.
+let crossedAxisSets = (p: program): array<array<string>> =>
+  p.nodes->Array.filterMap(n =>
+    switch n.kind {
+    | Cross(_) =>
+      Some(Context.introducedAxisFlows(FlowPort(n, "flow"))->Array.map(Context.flowKey))
+    | _ => None
+    }
+  )
+
 let checkFlowBorne = (p: program): array<witness> => {
   let out: array<witness> = []
+  let crossed = crossedAxisSets(p)
   p.outputs->Array.forEach(o =>
     try {
       let ctx = Context.valueContext(o.source)
@@ -597,7 +618,22 @@ let checkFlowBorne = (p: program): array<witness> => {
         | Some(interior) =>
           try {
             let vctx = Context.valueContext(b.value)
-            if !Context.isPrefix(vctx, interior) {
+            // Containment, read as a SET so a crossed sibling axis passes: every
+            // flow the value's context names must be on the interior, or be an
+            // axis crossed with one of the interior's axes (held open by the
+            // enclosing traversal). For an all-nesting program `vctx` is a
+            // prefix of `interior` and this is the prefix test it generalises.
+            let interiorKeys = interior->Array.map(Context.flowKey)
+            let borneElsewhere = vctx->Array.filter(f =>
+              !(interiorKeys->Array.includes(Context.flowKey(f)))
+            )
+            let heldByCross = (f: flowRef) =>
+              crossed->Array.some(
+                axes =>
+                  axes->Array.includes(Context.flowKey(f)) &&
+                  interiorKeys->Array.some(k => axes->Array.includes(k)),
+              )
+            if !(borneElsewhere->Array.every(heldByCross)) {
               Array.push(
                 out,
                 {

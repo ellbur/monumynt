@@ -97,27 +97,30 @@ let flowsKey = (flows: array<flowRef>): string =>
 
 // Instantiate a structural context (a Context.res path) against the current
 // chain context: the SHORTEST PREFIX of `ctx` that opens every flow the path
-// names, matched in order. This is the "deepest prefix covering the
-// flow-variable set" rule — let-floating stated directly. A structural flow the
-// chain does not open at all means the reference is ill-formed and pass 1 should
-// have witnessed it.
+// names. This is the "deepest prefix covering the flow-variable set" rule —
+// let-floating stated directly. A structural flow the chain does not open at all
+// means the reference is ill-formed and pass 1 should have witnessed it.
 //
-// The chain is allowed to carry segments the path does not mention, which is
-// what a PRODUCT needs: a fibering (held) axis is a sibling, so it appears on no
-// linear path, yet a value compiled inside a fibered traversal legitimately has
-// it open (a register folding along X inside the Y loop, whose `prev`-derived
-// values report just `[X]`). For an all-nesting program the structural path is
-// exactly a prefix and this is the plain prefix rule it replaces.
+// The flows are matched as a SET, not as a sequence, which is the rule as
+// stated. Two reasons it must be: the chain is allowed to carry segments the
+// path does not mention (a fibering axis is a sibling, so it sits on no linear
+// path, yet a value compiled inside a fibered traversal legitimately has it
+// open), and a path may NAME sibling axes, which have no order between them — a
+// collect over one axis of a rank-3 product reports the surviving `{Y, Z}`
+// flattened in the combine's operand order while the consuming chain opens them
+// in whatever order it chose (`Context.remainderPath`). Ordered matching would
+// reject the transposed reading of a product for no reason but the flattening's
+// arbitrary order. For an all-nesting program the path is exactly a prefix and
+// both readings agree, so this is the plain prefix rule it replaces.
 let matchChain = (structural: array<flowRef>, ctx: ctxPath): option<int> => {
   let pos = ref(0)
   let ok = ref(true)
   structural->Array.forEach(f => {
-    let rest = ctx->Array.slice(~start=pos.contents, ~end=Array.length(ctx))
-    let j = rest->Array.findIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
+    let j = ctx->Array.findLastIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
     if j < 0 {
       ok := false
-    } else {
-      pos := pos.contents + j + 1
+    } else if j + 1 > pos.contents {
+      pos := j + 1
     }
   })
   ok.contents ? Some(pos.contents) : None
@@ -487,10 +490,13 @@ let isProductAxisNode = (st: state, uncollect: node): bool =>
 // product-axis loops, whose index variables the emitted thunk reads to index the
 // shared table.
 //
-// Supported where exactly ONE axis is held — the fiber `Context.valueContext`
-// can report (its collect-remainder rule), so consumers of this collect are
-// placed inside the holding loop. A wider fiber is a genuine product context no
-// linear path can hold; it stays with the poset round and declines below.
+// Any number of axes may be held. With one, the fiber is a single layer; with
+// several — a rank-3 product collected over one axis holds `{Y, Z}` — the fiber
+// is a genuine product context, and what places this collect's consumers inside
+// BOTH holding loops is `Context.remainderPath` naming both surviving axes plus
+// `matchChain` matching them set-wise (siblings have no order; the chain
+// supplies the one it chose). Either way the emitted read is the same: index the
+// one shared table at the held coordinates.
 type partialProductMatch = {
   pProduct: product,
   pChainAxes: array<productAxis>, // outer-first, one per collect in the chain
@@ -516,11 +522,13 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
         if Option.isNone(found.contents) {
           let axisKeys = p.axes->Array.map(a => a.axisKey)
           let held = p.axes->Array.filter(a => !(keys->Array.includes(a.axisKey)))
-          // The chain must read only this product's axes, hold exactly one of
-          // them, and its terminal must span the whole product.
+          // The chain must read only this product's axes, hold at least one of
+          // them (holding none is the FULL chain, matchProductChain's), and its
+          // terminal must span the whole product.
           if (
             keys->Array.every(k => axisKeys->Array.includes(k)) &&
-            Array.length(held) === 1 &&
+            Array.length(held) >= 1 &&
+            Array.length(keys) >= 1 &&
             sameKeySet(axisKeys, sAxes)
           ) {
             // Every held axis must be an indexed loop already open on this chain.
@@ -598,17 +606,20 @@ let underCoveredProduct = (cn: node): bool =>
   | _ => false
   }
 
-// The opener/dispatch node id a spine level stands on — used to compare a
+// The opener/dispatch a spine level stands on, as a key — used to compare a
 // register's driving flow to a collect's flow (they scan the same sequence iff
-// their spines stand on the same nodes in the same order).
-let levelNodeId = (l: level): int =>
+// their spines stand on the same levels in the same order). An alt level carries
+// its ALT NAME as well as the split id: two different alts of one split are two
+// different subsequences, so a register folding the Keep alt is not scanned by a
+// collect over the Drop alt.
+let levelKey = (l: level): string =>
   switch l {
-  | IterLevel({uncollect}) => uncollect.id
-  | AltLevel({split}) => split.id
-  | PartialLevel({split}) => split.id
+  | IterLevel({uncollect}) => Int.toString(uncollect.id)
+  | AltLevel({split, alt}) => Int.toString(split.id) ++ ":" ++ alt
+  | PartialLevel({split}) => Int.toString(split.id) ++ ":partial"
   }
 
-let sameLevelIds = (a: array<int>, b: array<int>): bool =>
+let sameLevelKeys = (a: array<string>, b: array<string>): bool =>
   Array.length(a) === Array.length(b) &&
   a->Array.everyWithIndex((x, i) => b[i] === Some(x))
 
@@ -826,9 +837,17 @@ and emitIterCollect = (
   branch: collectBranch,
   levels: array<level>,
 ): compiled => {
+  // Where the collect's own result lives — `Context.valueContext` of its value
+  // port, which is the flow's exterior for an ordinary collect and the SURVIVING
+  // (fibering) axes for a collect whose branch value varies over axes it does not
+  // iterate: collecting the X axis of an {X, Y} product returns one list per y,
+  // so the thunk belongs inside the loop holding y, not at the top level
+  // (product-flows-design.md, "a collect over a crossed axis reports {Y}"). This
+  // is the same report `emitRegister` places a fibered `final` by; for every
+  // non-fibered collect it IS `flowContext(branch.flow)`, unchanged.
   let exterior = instantiate(
     ~what="Collect node " ++ Int.toString(cn.id),
-    Context.flowContext(branch.flow),
+    Context.valueContext(ValuePort(cn, "value")),
     ctx,
   )
 
@@ -981,11 +1000,16 @@ and emitIterCollect = (
 // registers' `prev` over the SAME driving flow it iterates. Emitted as a
 // register-driven loop that re-runs the fold and PUSHES the branch value each
 // firing (the running list), rather than only returning the final accumulator
-// (emitRegister). Supported for the pure-iter case — a list (or nested
-// list/option flatten) driving flow, at least one list level so the output is a
-// list. A filtered (case-alt) / partial / product running view, or a register
-// whose driving flow the collect does not directly scan, is deferred with a
-// clean Todo (the shared-loop-skeleton case; ARCHITECTURE worklist item 6).
+// (emitRegister). The levels are walked by `walkFilterLevels`, the same
+// iter-loop / alt-guard walk emitRegister uses, so a FILTERED driving flow
+// (`join(list, case-alt)`) scans the kept subsequence: one output element per
+// KEPT firing, carrying the running value at that firing — the running view of
+// the register delay-ontology-design.md's route (b) already folds ("the
+// register only updates when the option is Some"). The two halves stay
+// consistent because they walk the levels the same way. Still deferred with a
+// clean Todo: a PARTIAL (cell-set) driving flow, a product driving flow
+// (`spine` raises before this), and a register whose driving flow the collect
+// does not directly scan (ARCHITECTURE worklist item 6).
 and emitRunningCollect = (
   st: state,
   ctx: ctxPath,
@@ -993,17 +1017,17 @@ and emitRunningCollect = (
   branch: collectBranch,
   levels: array<level>,
 ): compiled => {
-  // Only pure iter levels loop; an alt / partial level is the deferred filtered
-  // / cell-set running view.
-  let pureIter = levels->Array.every(l =>
+  // Iter levels loop and alt levels guard; a PartialLevel is the deferred
+  // cell-set running view (the poset round owns the merged context).
+  let noPartial = levels->Array.every(l =>
     switch l {
-    | IterLevel(_) => true
-    | AltLevel(_) | PartialLevel(_) => false
+    | IterLevel(_) | AltLevel(_) => true
+    | PartialLevel(_) => false
     }
   )
-  let collectIds = levels->Array.map(levelNodeId)
+  let collectIds = levels->Array.map(levelKey)
   // Each register must (a) have a write half (its step) and (b) scan exactly the
-  // same sequence this collect iterates — same spine node ids in the same order.
+  // same sequence this collect iterates — same spine levels in the same order.
   let regs = readsPrevRegs(branch.value)
   let stepOf = (reg: node): option<valueRef> =>
     st.ann.writeIndex
@@ -1018,19 +1042,19 @@ and emitRunningCollect = (
     switch reg.kind {
     | DelayRead({flow}) =>
       switch spine(flow) {
-      | rl => sameLevelIds(collectIds, rl->Array.map(levelNodeId))
+      | rl => sameLevelKeys(collectIds, rl->Array.map(levelKey))
       | exception Todo(_) => false // a product/commute driving flow — deferred
       }
     | _ => false
     }
   let supported =
-    pureIter &&
+    noPartial &&
     Array.length(regs) > 0 &&
     regs->Array.every(r => stepOf(r)->Option.isSome && regScansSameFlow(r))
   if !supported {
     throw(
       Todo(
-        "running-view collect: `prev` is read over a filtered / partial / product " ++
+        "running-view collect: `prev` is read over a partial (cell-set) or product " ++
         "driving flow, or a flow this collect does not directly scan — the " ++
         "shared-loop-skeleton case (ARCHITECTURE worklist item 6, " ++
         "iteration-with-state-design.md running view)",
@@ -1076,37 +1100,19 @@ and emitRunningCollect = (
     ctx,
   )
 
-  // Walk the levels outermost-in, exactly as emitIterCollect: compile each
-  // level's feed, open its body context (tagged with this collect), pre-memoise
-  // its element there.
+  // Walk the levels outermost-in, exactly as emitRegister: iter levels open a
+  // loop (for-of / defined-check) and alt levels open a dispatch guard, each
+  // pre-memoising the binding its interior resolves (element / alt payload).
+  // The register's own fold walks these same levels, so the view and the fold
+  // agree on which firings are kept.
   let floatedAcc: array<placed> = []
-  let plans: array<levelPlan> = []
-  let parentCtx = ref(exterior)
-  levels->Array.forEach(l =>
-    switch l {
-    | AltLevel(_) | PartialLevel(_) =>
-      failwith("Codegen.emitRunningCollect: dispatch level — guarded by `pureIter` above")
-    | IterLevel({uncollect, isList}) => {
-        let input = switch uncollect.kind {
-        | Uncollect({input}) => input
-        | _ => failwith("Codegen.emitRunningCollect: IterLevel is not an Uncollect")
-        }
-        let own = FlowPort(uncollect, "flow")
-        let feedC = compileValue(st, parentCtx.contents, input)
-        feedC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-        let bodyCtx = Array.concat(parentCtx.contents, [{flow: own, thunkOf: cn.id, idxVar: None}])
-        let iterVar = st.fresh()
-        let elemName = st.fresh()
-        recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
-        Array.push(
-          plans,
-          {uncollect, isList, bodyCtx, feedName: feedC.name, iterVar, elemName, indexed: None},
-        )
-        parentCtx := bodyCtx
-      }
-    }
-  )
-  let innerCtx = parentCtx.contents
+  let (plans, walkFloated) = walkFilterLevels(st, exterior, levels, cn.id)
+  walkFloated->Array.forEach(pl => Array.push(floatedAcc, pl))
+  let innerCtx = switch plans->Array.get(Array.length(plans) - 1) {
+  | Some(FIter({bodyCtx})) => bodyCtx
+  | Some(FAlt({altCtx})) => altCtx
+  | None => exterior
+  }
 
   // One accumulator per register, declared outside all the loops. `prev` is the
   // running value at the top of the innermost body; `reg = force(step)` advances
@@ -1133,7 +1139,15 @@ and emitRunningCollect = (
     (regName, stepC.name)
   })
 
-  let anyList = plans->Array.some(p => p.isList)
+  // The any-list rule (lazy-compile-design.md), as everywhere else: any list
+  // level ⇒ the view is a list (push per firing); an all-option / all-dispatch
+  // scan is option-shaped (`let out;`, assigned on the firing that reaches it).
+  let anyList = plans->Array.some(p =>
+    switch p {
+    | FIter({isList}) => isList
+    | FAlt(_) => false
+    }
+  )
   let outName = st.fresh()
   let valueC = compileValue(st, innerCtx, branch.value)
   valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
@@ -1141,7 +1155,12 @@ and emitRunningCollect = (
   // Partition floated statements into level bodies (compile order preserved);
   // loop-invariant work (init feeds, list sources) floats out of the thunk.
   let buckets: Map.t<string, array<JsAst.stmt>> = Map.make()
-  plans->Array.forEach(p => Map.set(buckets, ctxPathKey(p.bodyCtx), []))
+  plans->Array.forEach(p =>
+    switch p {
+    | FIter({bodyCtx}) => Map.set(buckets, ctxPathKey(bodyCtx), [])
+    | FAlt({altCtx}) => Map.set(buckets, ctxPathKey(altCtx), [])
+    }
+  )
   let escaped: array<placed> = []
   floatedAcc->Array.forEach(pl =>
     switch Map.get(buckets, ctxPathKey(pl.at)) {
@@ -1170,28 +1189,51 @@ and emitRunningCollect = (
     JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName)))
   )
 
-  // Assemble innermost-out. The innermost body carries the `prev` decls (after
-  // its element decl), then the bucketed work, then the push and the advances.
+  // Assemble innermost-out, exactly as emitRegister. The innermost body carries
+  // the `prev` decls (after its element / alt-payload decl), then the bucketed
+  // work, then the push and the advances — so on a filtered flow both the push
+  // and the advance sit inside the alt guard, and a dropped firing contributes
+  // nothing to the view and does not step the register.
   let lastIx = Array.length(plans) - 1
   let nested = ref(Array.concat([pushStmt], regAssigns))
   for i in lastIx downto 0 {
-    let p = plans->Array.getUnsafe(i)
-    let bucket = Map.get(buckets, ctxPathKey(p.bodyCtx))->Option.getOr([])
-    let head = if i === lastIx {
-      Array.concat([JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))], prevDecls)
-    } else {
-      [JsBuild.const(p.elemName, Runtime.lazyDoneOf(JsBuild.id(p.iterVar)))]
-    }
-    let body = Array.concat(head, Array.concat(bucket, nested.contents))
-    nested :=
-      if p.isList {
-        [JsBuild.forOf(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName)), body)]
-      } else {
-        [
-          JsBuild.const(p.iterVar, Runtime.forceOf(JsBuild.id(p.feedName))),
-          JsBuild.if_(JsBuild.neq(JsBuild.id(p.iterVar), JsBuild.undefined), body),
+    let isInner = i === lastIx
+    switch plans->Array.getUnsafe(i) {
+    | FIter({isList, bodyCtx, feedName, iterVar, elemName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(bodyCtx))->Option.getOr([])
+        let elemDecl = JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(iterVar)))
+        let head = isInner ? Array.concat([elemDecl], prevDecls) : [elemDecl]
+        let body = Array.concat(head, Array.concat(bucket, nested.contents))
+        nested :=
+          if isList {
+            [JsBuild.forOf(iterVar, Runtime.forceOf(JsBuild.id(feedName)), body)]
+          } else {
+            [
+              JsBuild.const(iterVar, Runtime.forceOf(JsBuild.id(feedName))),
+              JsBuild.if_(JsBuild.neq(JsBuild.id(iterVar), JsBuild.undefined), body),
+            ]
+          }
+      }
+    | FAlt({alt, altCtx, splitName, discName, inputName, payloadName}) => {
+        let bucket = Map.get(buckets, ctxPathKey(altCtx))->Option.getOr([])
+        let payloadDecl = JsBuild.const(
+          payloadName,
+          Runtime.lazyDoneOf(JsBuild.member(JsBuild.id(splitName), "value")),
+        )
+        let head = isInner ? Array.concat([payloadDecl], prevDecls) : [payloadDecl]
+        let altBody = Array.concat(head, Array.concat(bucket, nested.contents))
+        nested := [
+          JsBuild.const(
+            splitName,
+            JsBuild.call(Runtime.forceOf(JsBuild.id(discName)), [Runtime.forceOf(JsBuild.id(inputName))]),
+          ),
+          JsBuild.if_(
+            JsBuild.eq(JsBuild.member(JsBuild.id(splitName), "tag"), JsBuild.str(alt)),
+            altBody,
+          ),
         ]
       }
+    }
   }
 
   let accDecl = if anyList {
