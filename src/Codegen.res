@@ -358,6 +358,44 @@ let cForArr = (iv: string, arrName: string, body: array<JsAst.stmt>): JsAst.stmt
     body: JsAst.SBlock(body),
   })
 
+// --- The running view (scanl) ------------------------------------------------
+//
+// A register (Delay pair) is a feature of a flow, not a threaded wire
+// (delay-ontology-design.md). Its running value is readable at each firing as
+// the `prev` port. A SIBLING collect over the SAME driving flow may read that
+// `prev` to build the running-view list (a scan / prefix-fold: [init, init⊕x₀,
+// init⊕x₀⊕x₁, …]). In the eager model each consumer gets its OWN loop and
+// re-runs the fold — the documented per-consumer cost — so the reading collect
+// is emitted as a register-driven loop that PUSHES the branch value each firing
+// instead of only returning the final accumulator (emitRunningCollect). The
+// write half's `final` output, if also present, still emits its own loop
+// (emitRegister); the two fold independently.
+
+// The DelayRead nodes whose `prev` a value reads, walked through the value cone
+// (App / Aggregate / Disaggregate); deduped by id, order-preserving.
+let readsPrevRegs = (v: valueRef): array<node> => {
+  let acc: array<node> = []
+  let rec go = (v: valueRef): unit =>
+    switch v {
+    | ValuePort(n, port) =>
+      switch n.kind {
+      | DelayRead(_) =>
+        if port === "prev" && !(acc->Array.some(x => x.id === n.id)) {
+          Array.push(acc, n)
+        }
+      | App({fn, args}) => {
+          go(fn)
+          args->Array.forEach(go)
+        }
+      | Aggregate({fields}) => fields->Array.forEach(((_, fv)) => go(fv))
+      | Disaggregate({struct_}) => go(struct_)
+      | Lit(_) | Uncollect(_) | Collect(_) | Join(_) | Commute(_) | Cross(_) | DelayWrite(_) => ()
+      }
+    }
+  go(v)
+  acc
+}
+
 // A recognized product-consumer chain: k nested collects over the k axes of one
 // product, terminating in a value that spans exactly that product. `chainAxes`
 // is outer-first — one axis per collect in the chain, the order the consumer
@@ -400,7 +438,11 @@ let matchProductChain = (st: state, cn: node): option<productMatch> =>
     let keys = flows->Array.map(Context.flowKey)
     // Distinct axes only — a chain that revisits an axis is not a product read.
     let distinct = keys->Array.everyWithIndex((k, i) => keys->Array.indexOf(k) === i)
-    if !distinct {
+    // A terminal that reads a register's `prev` is not a per-point function of
+    // the product: its value at a point depends on the fold so far along the
+    // register's axis, so it must be emitted by the running-view loop, not
+    // evaluated cell-by-cell into a table.
+    if !distinct || Array.length(readsPrevRegs(sVal)) > 0 {
       None
     } else {
       st.products
@@ -464,7 +506,8 @@ let matchPartialProductChain = (st: state, ctx: ctxPath, cn: node): option<parti
     let flows = Array.concat([f0], rest)
     let keys = flows->Array.map(Context.flowKey)
     let distinct = keys->Array.everyWithIndex((k, i) => keys->Array.indexOf(k) === i)
-    if !distinct {
+    // As above: a `prev`-reading terminal belongs to the running-view loop.
+    if !distinct || Array.length(readsPrevRegs(sVal)) > 0 {
       None
     } else {
       let sAxes = Annotate.valueAxes(sVal)
@@ -541,50 +584,19 @@ let underCoveredProduct = (cn: node): bool =>
   switch cn.kind {
   | Collect({branches: [{value}]}) =>
     let (_, terminal) = chainFlows(value)
-    switch Context.valueContext(terminal) {
-    | _ => false
-    | exception Context.Incomparable(_) => true
+    // A `prev`-reading terminal is a running view, not a table read: its
+    // product-spanning combine is emitted inside the register's own loop
+    // (emitRunningCollect), so an incomparable context here is expected.
+    if Array.length(readsPrevRegs(terminal)) > 0 {
+      false
+    } else {
+      switch Context.valueContext(terminal) {
+      | _ => false
+      | exception Context.Incomparable(_) => true
+      }
     }
   | _ => false
   }
-
-// --- The running view (scanl) ------------------------------------------------
-//
-// A register (Delay pair) is a feature of a flow, not a threaded wire
-// (delay-ontology-design.md). Its running value is readable at each firing as
-// the `prev` port. A SIBLING collect over the SAME driving flow may read that
-// `prev` to build the running-view list (a scan / prefix-fold: [init, init⊕x₀,
-// init⊕x₀⊕x₁, …]). In the eager model each consumer gets its OWN loop and
-// re-runs the fold — the documented per-consumer cost — so the reading collect
-// is emitted as a register-driven loop that PUSHES the branch value each firing
-// instead of only returning the final accumulator (emitRunningCollect). The
-// write half's `final` output, if also present, still emits its own loop
-// (emitRegister); the two fold independently.
-
-// The DelayRead nodes whose `prev` a value reads, walked through the value cone
-// (App / Aggregate / Disaggregate); deduped by id, order-preserving.
-let readsPrevRegs = (v: valueRef): array<node> => {
-  let acc: array<node> = []
-  let rec go = (v: valueRef): unit =>
-    switch v {
-    | ValuePort(n, port) =>
-      switch n.kind {
-      | DelayRead(_) =>
-        if port === "prev" && !(acc->Array.some(x => x.id === n.id)) {
-          Array.push(acc, n)
-        }
-      | App({fn, args}) => {
-          go(fn)
-          args->Array.forEach(go)
-        }
-      | Aggregate({fields}) => fields->Array.forEach(((_, fv)) => go(fv))
-      | Disaggregate({struct_}) => go(struct_)
-      | Lit(_) | Uncollect(_) | Collect(_) | Join(_) | Commute(_) | Cross(_) | DelayWrite(_) => ()
-      }
-    }
-  go(v)
-  acc
-}
 
 // The opener/dispatch node id a spine level stands on — used to compare a
 // register's driving flow to a collect's flow (they scan the same sequence iff
@@ -1026,9 +1038,41 @@ and emitRunningCollect = (
     )
   }
 
+  // Where the re-run fold lives. Normally the driving flow's exterior — but a
+  // running view over a register that folds along ONE AXIS OF A PRODUCT lives at
+  // the fiber, exactly where that register's `final` does: the scan keeps the
+  // FULL product shape, the value at each point being the accumulation so far
+  // along the folded axis *within that point's fiber* (product-flows-design.md,
+  // "The running view keeps the shape"). A `DelayRead` does not name its step,
+  // so the fiber is read off the write half; for a non-fibered register this is
+  // the driving flow's exterior and nothing changes.
+  let regFinalContext = (reg: node): array<flowRef> =>
+    switch st.ann.writeIndex->Map.get(reg.id) {
+    | Some(wn) => Context.valueContext(ValuePort(wn, "final"))
+    | None => Context.flowContext(branch.flow)
+    }
+  let structuralExterior = switch regs->Array.get(0) {
+  | Some(r) => regFinalContext(r)
+  | None => Context.flowContext(branch.flow)
+  }
+  // Several registers over one flow must share a fiber (they share this loop).
+  let oneFiber =
+    regs->Array.every(r =>
+      Context.contextToString(regFinalContext(r)) ===
+        Context.contextToString(structuralExterior)
+    )
+  if !oneFiber || !chainOpens(structuralExterior, ctx) {
+    throw(
+      Todo(
+        "running-view collect: the registers do not share one fiber, or the view " ++
+        "is read outside the fiber its register folds over (product-flows-design.md, " ++
+        "\"The running view keeps the shape\")",
+      ),
+    )
+  }
   let exterior = instantiate(
     ~what="Running-view collect node " ++ Int.toString(cn.id),
-    Context.flowContext(branch.flow),
+    structuralExterior,
     ctx,
   )
 

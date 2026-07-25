@@ -1980,6 +1980,60 @@ header("cross: a register folds along one axis, fibered over the other")
   expectOutput(p, "outY", array_([int_(43), int_(46), int_(49)]))
 }
 
+// 15n. The RUNNING VIEW of a fibered register — scan along an axis
+//      (product-flows-design.md, "The running view keeps the shape"): unlike
+//      `final`, which drops the folded axis, the scan keeps the FULL product
+//      shape (rank unchanged), the value at each point being the accumulation so
+//      far along X *within that point's fiber*. A sibling collect over the
+//      register's own driving flow re-runs the fold and pushes each running
+//      value (emitRunningCollect), now placed at the fiber rather than at the
+//      top level. Collecting `prev` gives the values BEFORE each element,
+//      collecting the stepped value gives them AFTER — the same pair a register
+//      over a list gives, one rank higher.
+header("cross: the running view of a fibered register (scan along an axis)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+  let reg = Build.delay(b, ~flow=itX.flow, ~init=zero.value)
+  let step = Build.app(b, addF.value, [reg.prev, s.value])
+  let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+  // Before: collect `prev` along X, per fiber, then gather the fibers.
+  let runBefore = Build.collect(b, ~flow=itX.flow, reg.prev)
+  let outBefore = Build.collect(b, ~flow=itY.flow, runBefore.value)
+  // After: collect the stepped value instead.
+  let runAfter = Build.collect(b, ~flow=itX.flow, step.value)
+  let outAfter = Build.collect(b, ~flow=itY.flow, runAfter.value)
+  // And the reduce, for contrast: rank n−1, the folded axis gone.
+  let outFinal = Build.collect(b, ~flow=itY.flow, w.final)
+  let p = Build.finish(
+    b,
+    ~outputs=[("before", outBefore.value), ("after", outAfter.value), ("total", outFinal.value)],
+  )
+
+  // y=10: s = 11,12,13 ⇒ prefix values before each element 0, 11, 23.
+  // y=20: s = 21,22,23 ⇒ 0, 21, 43.
+  expectOutput(
+    p,
+    "before",
+    array_([array_([int_(0), int_(11), int_(23)]), array_([int_(0), int_(21), int_(43)])]),
+  )
+  // The same fold read after each step.
+  expectOutput(
+    p,
+    "after",
+    array_([array_([int_(11), int_(23), int_(36)]), array_([int_(21), int_(43), int_(66)])]),
+  )
+  // The reduce: one total per fiber (rank 1, not 2).
+  expectOutput(p, "total", array_([int_(36), int_(66)]))
+}
+
 // 15m. The boundary the fibered register does NOT cross: a register whose
 //      driving flow is the PRODUCT itself (a grid) — "reduce the whole product
 //      as one sequence", which the doc calls ill-formed for the ordinary reason
