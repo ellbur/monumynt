@@ -351,7 +351,9 @@ consumes, and whether it needs an input list at all:
   request/response port pair on the boundary — the client end of a
   served flow; binding is wiring a provider on; unmet demands travel
   outward like the placeholder story's residue; the facet supplies
-  the grouping identity. *Exploration.*
+  the grouping identity. *Adopted (2026-07-23, in the joint
+  adoption; the op-pair/slot identification carries the boundary
+  round's provisional-confidence marker); spellings still owed.*
 - [`facets-design-notes.md`](facets-design-notes.md) — early, deliberately
   undeveloped intuitions about *facets*: authorable, attachable
   abstractions (interfaces, algebras, state machines) you hang on code.
