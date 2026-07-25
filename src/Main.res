@@ -2034,6 +2034,53 @@ header("cross: the running view of a fibered register (scan along an axis)")
   expectOutput(p, "total", array_([int_(36), int_(66)]))
 }
 
+// 15o. Full reduction as an AXIS PERMUTATION (product-flows-design.md's
+//      smallest-first-step 4): reducing a product all the way down is two
+//      registers composed — fold one axis, then fold the resulting lower-rank
+//      flow — and *which axis first* is the permutation. For a commutative,
+//      associative operator the two orders agree (the doc's "one order-free
+//      exception": the operator's own law discharges the order demand); for a
+//      non-commutative one they differ, which is why the axis must be named.
+//      Nothing new in the compiler — a register whose step reads a fibered
+//      register's `final` is an ordinary register over the surviving axis.
+header("cross: full reduction is two registers — the axis order shows in the result")
+{
+  let mk = (op: string, init: JsAst.expr) => {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let opF = Build.raw(b, op)
+    let seed = Build.lit(b, init)
+    let xs = Build.lit(b, array_([int_(1), int_(2), int_(3)]))
+    let ys = Build.lit(b, array_([int_(10), int_(20)]))
+    let itX = Build.uncollectList(b, xs.value)
+    let itY = Build.uncollectList(b, ys.value)
+    let s = Build.app(b, addF.value, [itX.element, itY.element])
+    let _ = Build.cross(b, ~left=itX.flow, ~right=itY.flow)
+    // X first, then Y: fold each column, then fold the column results.
+    let rX = Build.delay(b, ~flow=itX.flow, ~init=seed.value)
+    let wX = Build.writeBack(b, ~read=rX, ~step=Build.app(b, opF.value, [rX.prev, s.value]).value)
+    let rXY = Build.delay(b, ~flow=itY.flow, ~init=seed.value)
+    let wXY = Build.writeBack(b, ~read=rXY, ~step=Build.app(b, opF.value, [rXY.prev, wX.final]).value)
+    // Y first, then X: the other permutation.
+    let rY = Build.delay(b, ~flow=itY.flow, ~init=seed.value)
+    let wY = Build.writeBack(b, ~read=rY, ~step=Build.app(b, opF.value, [rY.prev, s.value]).value)
+    let rYX = Build.delay(b, ~flow=itX.flow, ~init=seed.value)
+    let wYX = Build.writeBack(b, ~read=rYX, ~step=Build.app(b, opF.value, [rYX.prev, wY.final]).value)
+    Build.finish(b, ~outputs=[("xFirst", wXY.final), ("yFirst", wYX.final)])
+  }
+
+  // Commutative and associative: the two orders agree (1+2+3 = 6, over two y's
+  // ⇒ 6+6 + 3*10 + 3*20 = 102 either way).
+  let sums = mk("(a, b) => a + b", int_(0))
+  expectOutput(sums, "xFirst", int_(102))
+  expectOutput(sums, "yFirst", int_(102))
+
+  // Non-commutative: the nesting order is visible in the result.
+  let cats = mk("(a, b) => a + \"|\" + b", str(""))
+  expectOutput(cats, "xFirst", str("||11|12|13||21|22|23"))
+  expectOutput(cats, "yFirst", str("||11|21||12|22||13|23"))
+}
+
 // 15m. The boundary the fibered register does NOT cross: a register whose
 //      driving flow is the PRODUCT itself (a grid) — "reduce the whole product
 //      as one sequence", which the doc calls ill-formed for the ordinary reason

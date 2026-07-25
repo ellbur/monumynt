@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 181 checks.
+gaps). Currently 185 checks.
 
 ## The single engine
 
@@ -148,7 +148,12 @@ the loop is emitted inside the holding loop and folds each fiber
 independently, `final` a flow of rank n−1 rather than a scalar (Main
 15k, both fiberings, hand-computed with a non-commutative operator), and
 its running view scans each fiber while keeping the full product shape
-(Main 15n). A
+(Main 15n). Reducing a product all the way down is two registers
+composed — fold one axis, then fold the surviving flow — so the full
+reduction is an **axis permutation**: the two orders agree for a
+commutative operator and differ for a non-commutative one (Main 15o),
+which is the doc's "one order-free exception" showing up as a test
+rather than as machinery. A
 register over the **whole product** stays rejected (Main 15m — the
 grid's "no order", though by the step's combine rather than by the
 rule the doc names). And the
