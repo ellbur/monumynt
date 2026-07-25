@@ -108,8 +108,19 @@ let valueAxes = (v: valueRef): array<string> => Context.valueAxisFlows(v)->Array
 let firstShared = (a: array<string>, b: array<string>): option<string> =>
   a->Array.find(k => b->Array.includes(k))
 
+// A REPEATED axis is a violation too, and for the poset's own reason: one axis
+// reached through both operands is the repeated-flow diamond (`Poset.res` — "an
+// N is always a repeated-flow DIAMOND … the incoherent middle, which the checker
+// witnesses rather than representing"), left unresolved between align (zip) and
+// cross. It is stated separately from the source-vs-introduced demand because
+// the two say different things: that one rejects a dependent nesting, this one
+// rejects an operand pair that is not two axes at all.
 let crossViolation = (left: flowRef, right: flowRef): option<string> =>
-  switch firstShared(sourceAxes(left), introducedAxes(right)) {
+  switch firstShared(introducedAxes(left), introducedAxes(right)) {
   | Some(k) => Some(k)
-  | None => firstShared(sourceAxes(right), introducedAxes(left))
+  | None =>
+    switch firstShared(sourceAxes(left), introducedAxes(right)) {
+    | Some(k) => Some(k)
+    | None => firstShared(sourceAxes(right), introducedAxes(left))
+    }
   }

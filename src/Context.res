@@ -239,7 +239,21 @@ and sourceAxisFlows = (f: flowRef): array<flowRef> =>
       | Some(outer) => Array.concat(fromInput, axisFlows(outer))
       | None => fromInput
       }
-    | Join({outer, inner}) => Array.concat(axisFlows(outer), sourceAxisFlows(inner))
+    | Join({outer, inner}) =>
+      // A join INTRODUCES its outer's axes (they are layers of the joined flow,
+      // and `introducedAxisFlows` above says so); they are not what *determines*
+      // its firing structure. So they are removed here — from the outer's own
+      // contribution, and from the inner's, where they arrive as the inner's
+      // source (a filter's discriminator reads the outer element; a dependent
+      // inner list's source is computed from it). Without the removal a collect
+      // over `join(list, case-alt)` would report the list axis as SURVIVING the
+      // collect — the axis is introduced by the join and consumed by the
+      // collect, so nothing survives — which is what kept a filtered flow from
+      // being an axis of a product.
+      let own = introducedAxisFlows(outer)
+      let notOwn = (gs: array<flowRef>) =>
+        gs->Array.filter(g => !(own->Array.some(e => flowKey(e) === flowKey(g))))
+      Array.concat(sourceAxisFlows(outer), notOwn(sourceAxisFlows(inner)))
     | Cross({left, right}) => Array.concat(axisFlows(left), axisFlows(right))
     | Commute({outer, inner}) => Array.concat(axisFlows(outer), sourceAxisFlows(inner))
     | Collect({branches}) =>
@@ -535,9 +549,26 @@ let rec throughCommutes = (f: flowRef): flowRef =>
     }
   }
 
+// The flow LAYERS a flow opens, outermost first. An Uncollect (or a partial
+// collect's merged flow) opens exactly one; a Join opens its outer's layers and
+// then its inner's, because a join chain is a SEQUENCE of layers rather than one
+// opaque axis. That is what gives a FILTERED axis an identity in the poset —
+// `join(list, case-alt)` is the chain `list > alt`, which is how a value borne on
+// it reports itself (`valueAxisFlows` names the same two flows), so the two sides
+// agree and the product `{(list > alt) || Y}` covers the combine.
+let rec flowLayers = (f: flowRef): array<flowRef> =>
+  switch f {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Join({outer, inner}) => Array.concat(flowLayers(outer), flowLayers(inner))
+    | _ => [f]
+    }
+  }
+
 // The full poset context of a flow operand of a Cross: its exterior chain plus
 // the axis (or axes) it opens. A plain Uncollect opens ONE axis, so this is the
-// linear path made into a Series (`pathToPoset(flowContext(f) ++ [f])`). A Cross
+// linear path made into a Series (`pathToPoset(flowContext(f) ++ [f])`); a
+// filtered axis opens its chain's layers in series (`flowLayers`). A Cross
 // OUTPUT flow opens its two operands' axes side by side, so this recurses into a
 // PARALLEL — which is how a *nested* Cross (`cross(cross(x, y), z)`) flattens to
 // a flat product `{X || Y || Z}` rather than treating the inner cross's output
@@ -549,7 +580,7 @@ let rec fullPoset = (f: flowRef): Poset.t =>
   | FlowPort(n, _) =>
     switch n.kind {
     | Cross({left, right}) => Poset.parallel([fullPoset(left), fullPoset(right)])
-    | _ => pathToPoset(Array.concat(flowContext(f), [f]))
+    | _ => pathToPoset(Array.concat(flowContext(f), flowLayers(f)))
     }
   }
 
