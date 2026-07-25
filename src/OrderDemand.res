@@ -1,9 +1,8 @@
-// The order-demand check — which flows supply a "next iteration" —
-// ARCHITECTURE STUB.
+// The order-demand check — which flows supply a "next iteration".
 //
 // Design: plans/delay-ontology-design.md. The PER-KIND HALF is ADOPTED
 // (2026-07-23): the owned-order criterion, the order-demand check, and the
-// hold identification. The linearization residue (which order a register
+// `hold` identification. The linearization residue (which order a register
 // walks a multi-axis product in — plans/product-linearization-design.md)
 // and the value-in-context model remain EXPLORATION; nothing here may
 // prejudge them.
@@ -23,12 +22,24 @@
 // is a parameter supplied by the flow's order-deliverer (walk step / pull /
 // event-loop turn / handle exchange). Nothing is owed per kind.
 //
-// Integration points:
-//   - Check.res: `checkOrderDemand` joins the witness rules (invoked from
-//     Pipeline after annotate, like the others). A register whose driving
-//     flow does not own a total order is witnessed, not crashed.
-//   - The kinds table below is the lookup the rule reads; new flow kinds
-//     (Stream.res, Async.res, Incremental.res) add their rows as they land.
+// LIVE as of the register-over-products round: `orderOf` below is the kinds
+// table cashed for the flow constructors that exist today, and `Check.res`
+// hosts the rule that reads it (`checkOrderDemand`, rule name
+// "order-demand"). The split is a dependency direction, not a change of
+// plan: witnesses are Check's type, so the rule lives there and the table
+// lives here, where new flow kinds (Stream.res, Async.res, Incremental.res)
+// add their rows as they land. This is `product-flows-design.md`'s
+// "smallest first step" 1 for registers over products — "the check rejects
+// a whole-product register with the 'no order' witness, the remedy being
+// 'fold one axis or Join'" — steps 2/3/4 (reduce along an axis, the running
+// view, full reduction as an axis permutation) having landed ahead of it.
+//
+// NOT covered, deliberately: the context-read extension ("a raw `prev` on a
+// wire whose flow owns no order is exactly as ill-formed as a register
+// there"), which the doc makes conditional on the value-in-context model's
+// adoption — that model is unadopted, so the rule stays on Delays.
+
+open Program
 
 // The five-way classification of a flow's order:
 type orderClass =
@@ -55,15 +66,125 @@ type orderProvenance =
   // merge's output; the self-driven opener
   | AmbientOrder // the event loop's arrival order as kind content
 
-let orderOf: (Program.program, Program.flowRef) => orderClass = (_p, _f) =>
-  failwith("stub: the kinds-table lookup — delay-ontology-design.md, 'The kinds table, cashed'")
+let orderClassName = (c: orderClass): string =>
+  switch c {
+  | Owned => "owned"
+  | NoOrder => "none"
+  | Incidental => "incidental"
+  | Degenerate => "degenerate"
+  | Surplus => "surplus"
+  }
 
-// The order-demand check: a Delay's flow must own a total order. "A
-// register is legal exactly downstream of the point where order becomes
-// owned, and the order-minting construct is where the diagram shows the
-// synchronisation."
-let checkOrderDemand: Program.program => array<Check.witness> = _p =>
-  failwith("stub: order-demand check — delay-ontology-design.md, 'The order-demand check, named'")
+// How bad a class is when two of them meet on one flow (a Join). The
+// combination is "the worst operand wins", which cashes the kinds table's
+// rows for the composite constructors rather than adding rows of its own:
+// Owned+Degenerate = Owned is the "segment / filtered sub-flow" row (the
+// parent's order, restricted — join(list, case-alt) folds the Some-
+// subsequence), Owned+Owned = Owned is the flattened sequence (the fork
+// "dissolves on sequences", delay-ontology-design.md), Degenerate+
+// Degenerate stays degenerate (<=1 firing either way), and a surplus or
+// ill-formed operand poisons — nothing today linearizes a product.
+let severity = (c: orderClass): int =>
+  switch c {
+  | NoOrder => 4
+  | Incidental => 3
+  | Surplus => 2
+  | Owned => 1
+  | Degenerate => 0
+  }
+
+let worse = (a: orderClass, b: orderClass): orderClass =>
+  severity(a) >= severity(b) ? a : b
+
+// The kinds table, cashed for the constructors that exist today
+// (delay-ontology-design.md, "The kinds table, cashed"). Structural: the
+// walk reads each constructor's own statement about its output's order, so
+// no program-wide analysis is needed and the argument is the flow ref, not
+// the program.
+//
+//   list walk           owned      walk order of the opened data
+//   option / case alt   degenerate <=1 firing; `prev` reads the seed
+//   join                inherited  the worst of its two operands (above)
+//   commute             inherited  each swapped layer keeps its operand's
+//                                  order (the swap reorders the PAIR, not
+//                                  either layer's own firings; the
+//                                  sequence-vs-transpose commute split —
+//                                  Stream.res — may refine this)
+//   partial merged flow degenerate the covered cells are disjoint, so the
+//                                  merge fires <=1 time per parent firing;
+//                                  its order arrives from the Join that
+//                                  puts it on an ordered parent
+//   cross               surplus    every axis order real, none privileged
+//
+// Rows owed by kinds that are not represented yet (stream, async stream,
+// completions, event stream, exchange flow, keyed lane, var, sever->settle
+// bodies, divide-flow siblings, saturation members) land with their
+// species.
+let rec orderOf = (f: flowRef): orderClass =>
+  switch f {
+  | FlowPort(n, port) =>
+    switch n.kind {
+    | Uncollect({flowKind: List}) => Owned
+    | Uncollect({flowKind: Option | Case(_)}) => Degenerate
+    | Join({outer, inner}) => worse(orderOf(outer), orderOf(inner))
+    | Commute({outer, inner}) =>
+      // Ports: "outer" is the flow that WAS inner, "inner" the ex-outer.
+      switch port {
+      | "outer" => orderOf(inner)
+      | "inner" => orderOf(outer)
+      | _ => failwith("OrderDemand.orderOf: unknown Commute port " ++ port)
+      }
+    | Collect(_) => Degenerate
+    | Cross(_) => Surplus
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) =>
+      failwith(
+        "OrderDemand.orderOf: node kind " ++
+        kindName(n.kind) ++ " has no flow ports (ref to port " ++ port ++ ")",
+      )
+    }
+  }
+
+// Where an owned order came from — the serializer taxonomy
+// (delay-ontology-design.md, "Serializers: where owned order comes from").
+// Descriptive: the check reads `orderOf`, not this. It is what a diagram
+// would point at to show WHERE the synchronisation is ("a register is legal
+// exactly downstream of the point where order becomes owned, and the
+// order-minting construct is where the diagram shows the synchronisation").
+let provenanceOf = (f: flowRef): option<orderProvenance> =>
+  switch orderOf(f) {
+  | Owned =>
+    switch f {
+    | FlowPort(n, _) =>
+      switch n.kind {
+      // The opener states the walk order of the data it opens — the order is
+      // its kind content, not something it restricts from elsewhere.
+      | Uncollect(_) => Some(MintedOrder)
+      // A join flattens or restricts orders that already exist; a commute
+      // re-delivers its operand's.
+      | Join(_) | Commute(_) => Some(InheritedOrder)
+      | _ => None
+      }
+    }
+  | NoOrder | Incidental | Degenerate | Surplus => None
+  }
+
+// The sentence a witness says about a flow's class, and the remedy the
+// design record names for it.
+let classSummary = (c: orderClass): string =>
+  switch c {
+  | Owned => "owns a total order"
+  | Degenerate => "fires at most once, so its order is degenerate"
+  | NoOrder => "owns no firing order"
+  | Incidental => "has only an incidental order — the runtime's schedule, which a program may not observe"
+  | Surplus => "has SURPLUS order: every axis order is real and none is privileged"
+  }
+
+let remedy = (c: orderClass): string =>
+  switch c {
+  | Surplus => "fold one axis — name that axis's flow on the delay — or Join first"
+  | Owned | Degenerate => ""
+  | NoOrder | Incidental => "put the register downstream of the construct that mints an order"
+  }
 
 // --- The hold identification (adopted) ------------------------------------
 //
