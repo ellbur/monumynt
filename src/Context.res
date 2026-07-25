@@ -183,9 +183,13 @@ and valueAxisFlows = (v: valueRef): array<flowRef> =>
       }
     | Join(_) | Commute(_) | Cross(_) => [] // no value ports
     | DelayRead({flow}) => axisFlows(flow)
-    | DelayWrite({read}) =>
+    | DelayWrite({read, step}) =>
       switch read.kind {
-      | DelayRead({flow}) => sourceAxisFlows(flow)
+      // The iterated axis is folded away; its source survives — plus any axis
+      // the step varies over that the driving flow does not supply (the fiber
+      // a register-along-one-axis-of-a-product leaves standing).
+      | DelayRead({flow}) =>
+        Array.concat(sourceAxisFlows(flow), collectRemainderFlows(flow, step))
       | _ => []
       }
     | Aggregate({fields}) =>
@@ -265,9 +269,19 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       // collapses to `flowContext(flow) ++ [flow]` for a non-join flow, so the
       // single-level register is unchanged.
       flowInterior(flow)
-    | DelayWrite({read}) =>
+    | DelayWrite({read, step}) =>
       switch read.kind {
-      | DelayRead({flow}) => flowContext(flow)
+      | DelayRead({flow}) =>
+        // `final` is the accumulator after the driving flow completes — at the
+        // flow's exterior. But a register whose STEP varies over an axis the
+        // driving flow neither iterates nor sources folds per FIBER of that axis
+        // (product-flows-design.md, "reduce along an axis, fibered over the
+        // rest": state never crosses axes, so there is one final per point of
+        // the surviving axis). Same one-axis exactness as the collect above.
+        switch collectRemainderFlows(flow, step) {
+        | [g] => Array.concat(flowContext(g), [g])
+        | _ => flowContext(flow)
+        }
       | _ => failwith("Context.valueContext: DelayWrite whose read is not a DelayRead")
       }
     | Aggregate({fields}) =>

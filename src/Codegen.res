@@ -96,32 +96,51 @@ let flowsKey = (flows: array<flowRef>): string =>
   flows->Array.map(Context.flowKey)->Array.join(">")
 
 // Instantiate a structural context (a Context.res path) against the current
-// chain context: the prefix of `ctx` carrying the same flows, in the same
-// order. This is the "deepest prefix covering the flow-variable set" rule;
-// a mismatch means the reference is ill-formed (or a product case arrived
-// early) and pass 1 should have witnessed it.
-let instantiate = (~what: string, structural: array<flowRef>, ctx: ctxPath): ctxPath => {
-  let n = Array.length(structural)
-  let matches =
-    n <= Array.length(ctx) &&
-    structural->Array.everyWithIndex((f, i) =>
-      switch ctx[i] {
-      | Some(s) => Context.flowKey(s.flow) === Context.flowKey(f)
-      | None => false
-      }
-    )
-  if !matches {
+// chain context: the SHORTEST PREFIX of `ctx` that opens every flow the path
+// names, matched in order. This is the "deepest prefix covering the
+// flow-variable set" rule — let-floating stated directly. A structural flow the
+// chain does not open at all means the reference is ill-formed and pass 1 should
+// have witnessed it.
+//
+// The chain is allowed to carry segments the path does not mention, which is
+// what a PRODUCT needs: a fibering (held) axis is a sibling, so it appears on no
+// linear path, yet a value compiled inside a fibered traversal legitimately has
+// it open (a register folding along X inside the Y loop, whose `prev`-derived
+// values report just `[X]`). For an all-nesting program the structural path is
+// exactly a prefix and this is the plain prefix rule it replaces.
+let matchChain = (structural: array<flowRef>, ctx: ctxPath): option<int> => {
+  let pos = ref(0)
+  let ok = ref(true)
+  structural->Array.forEach(f => {
+    let rest = ctx->Array.slice(~start=pos.contents, ~end=Array.length(ctx))
+    let j = rest->Array.findIndex(s => Context.flowKey(s.flow) === Context.flowKey(f))
+    if j < 0 {
+      ok := false
+    } else {
+      pos := pos.contents + j + 1
+    }
+  })
+  ok.contents ? Some(pos.contents) : None
+}
+
+// Does the chain so far open every flow of a structural exterior, in order? The
+// adjacency assert asks this of each level it opens.
+let chainOpens = (structural: array<flowRef>, ctx: ctxPath): bool =>
+  Option.isSome(matchChain(structural, ctx))
+
+let instantiate = (~what: string, structural: array<flowRef>, ctx: ctxPath): ctxPath =>
+  switch matchChain(structural, ctx) {
+  | Some(pos) => ctx->Array.slice(~start=0, ~end=pos)
+  | None =>
     failwith(
       "Codegen: " ++
       what ++
       " requires flow context " ++
       Context.contextToString(structural) ++
-      " which is not a prefix of the current chain — an ill-formed reference " ++
+      " which the current chain does not open — an ill-formed reference " ++
       "(or early product) that Check should have witnessed",
     )
   }
-  ctx->Array.slice(~start=0, ~end=n)
-}
 
 // --- Compile results and state --------------------------------------------
 
@@ -817,10 +836,12 @@ and emitIterCollect = (
         | _ => failwith("Codegen.emitIterCollect: IterLevel is not an Uncollect")
         }
         let own = FlowPort(uncollect, "flow")
-        // Adjacency: each level must open exactly where the chain so far
-        // ends (Check's join-adjacency rule; assert per check-and-tag).
-        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
-        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+        // Adjacency: each level must open where the chain so far already is
+        // (Check's join-adjacency rule; assert per check-and-tag). Stated as
+        // "the chain opens every flow of this level's exterior" rather than
+        // as path equality, so a fibering axis the chain also holds — a
+        // product's sibling, on no linear path — does not read as a break.
+        if !chainOpens(Context.flowContext(own), parentCtx.contents) {
           failwith(
             "Codegen: level " ++
             Int.toString(uncollect.id) ++
@@ -1324,8 +1345,7 @@ and walkFilterLevels = (
         | _ => failwith("Codegen.walkFilterLevels: IterLevel is not an Uncollect")
         }
         let own = FlowPort(uncollect, "flow")
-        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
-        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+        if !chainOpens(Context.flowContext(own), parentCtx.contents) {
           failwith(
             "Codegen: level " ++
             Int.toString(uncollect.id) ++
@@ -1617,8 +1637,7 @@ and emitPartialCollect = (
         | _ => failwith("Codegen.emitPartialCollect: IterLevel is not an Uncollect")
         }
         let own = FlowPort(uncollect, "flow")
-        let parentFlows = parentCtx.contents->Array.map(s => s.flow)
-        if flowsKey(Context.flowContext(own)) !== flowsKey(parentFlows) {
+        if !chainOpens(Context.flowContext(own), parentCtx.contents) {
           failwith(
             "Codegen: level " ++
             Int.toString(uncollect.id) ++
@@ -1855,9 +1874,15 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   | _ =>
     failwith("Codegen.emitRegister: DelayWrite's read is not a DelayRead — Check should have witnessed this")
   }
+  // Normally the driving flow's exterior. For a register folding along ONE axis
+  // of a product, `Context.valueContext` reports the surviving (fibering) axis
+  // instead, so the loop is emitted INSIDE the holding loop and runs once per
+  // fiber — "reduce along an axis, fibered over the rest"
+  // (product-flows-design.md): state never crosses axes, so this is the ordinary
+  // register with the other axis as its surrounding context.
   let exterior = instantiate(
     ~what="Register final, node " ++ Int.toString(wn.id),
-    Context.flowContext(flow),
+    Context.valueContext(ValuePort(wn, "final")),
     ctx,
   )
   // Iter (list/option) levels loop; a case-alt level guards. A PARTIAL merged
