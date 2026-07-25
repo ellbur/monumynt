@@ -47,7 +47,7 @@ The text surface (`textual-representation-design.md`):
 handles building identical wiring, eval'd results validated against
 author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
-gaps). Currently 304 checks.
+gaps). Currently 306 checks.
 
 ## The single engine
 
@@ -825,7 +825,11 @@ live work is item 8, the poset round.
    held this way still shares the ONE table with a chain that COLLECTS it,
    so both fiberings of a filtered product read the same rows and the
    user's computation runs once per point of the smaller rectangle (both
-   tests carry the add-once golden).
+   tests carry the add-once golden). The REGISTER at that corner needed
+   nothing at all and is pinned as a test (Main 15r7, both fiberings): a
+   register names its driving flow, so the fold is along the axis it
+   names and the fiber is whatever the enclosing context holds — the
+   filtering regime and the fibering simply compose.
 
    **`Complete` then followed over the same axis** (Main 10g/10h), which
    split the deferral recorded here into a done half and a principled

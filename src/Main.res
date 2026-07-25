@@ -4213,6 +4213,50 @@ header("cross: a FIBERED read over a FLATTENED axis (both fiberings, one table)"
   expectRoundTrip(p)
 }
 
+// 15r7. The register at the same corner: a fold along one axis of a product
+//       whose OTHER axis is filtered. Both fiberings again — fold along the
+//       plain axis with the filtered one held (one `final` per KEPT firing), and
+//       fold along the filtered axis with the plain one held (the kept
+//       subsequence folded, once per y). Nothing here is new machinery: a
+//       register names its driving flow, so the fold is along the axis it names,
+//       and the fiber is whatever the enclosing context holds — the filtering
+//       regime and the fibering compose. The operator is non-commutative so the
+//       within-fiber order is observable.
+header("cross: a register folds along one axis of a product whose other is filtered")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let mixF = Build.raw(b, "(a, bb) => a * 2 + bb")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  // Fold along Y, fibered over the FILTERED axis: one final per kept x.
+  let regY = Build.delay(b, ~flow=itY.flow, ~init=zero.value)
+  let stepY = Build.app(b, mixF.value, [regY.prev, s.value])
+  let wY = Build.writeBack(b, ~read=regY, ~step=stepY.value)
+  let outY = Build.collect(b, ~flow=kx.flow, wY.final)
+  // Fold along the FILTERED axis, fibered over Y: the kept subsequence folded.
+  let regX = Build.delay(b, ~flow=kx.flow, ~init=zero.value)
+  let stepX = Build.app(b, mixF.value, [regX.prev, s.value])
+  let wX = Build.writeBack(b, ~read=regX, ~step=stepX.value)
+  let outX = Build.collect(b, ~flow=itY.flow, wX.final)
+  let p = Build.finish(b, ~outputs=[("outY", outY.value), ("outX", outX.value)])
+  // kept x = [2, 4]. Along Y at x: 0*2+(x+10) = x+10, then (x+10)*2 + (x+20)
+  // = 3x+40 — x=2 ⇒ 46, x=4 ⇒ 52.
+  expectOutput(p, "outY", array_([int_(46), int_(52)]))
+  // Along the kept x's at y: 0*2+(2+y) = 2+y, then (2+y)*2 + (4+y) = 8+3y —
+  // y=10 ⇒ 38, y=20 ⇒ 68. The dropped x's never step the register.
+  expectOutput(p, "outX", array_([int_(38), int_(68)]))
+}
+
 // ============================================================================
 // Coverage ported from the previous compiler's value-test suite. These exercise
 // distinct compiler behaviours the sections above do not: value-fragment
