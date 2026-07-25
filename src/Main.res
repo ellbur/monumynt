@@ -3652,6 +3652,98 @@ header("complete: an ancestor shared by only SOME frontier axes is not completed
   }
 }
 
+// 10g. Completion over a FILTERED axis the author drew. A combine whose value is
+//      borne on `join(list, case-alt)` names BOTH of that axis's layers in its
+//      span, so the span has three keys for two axes; resolving it lets the drawn
+//      chain claim its layers at once, and what gets crossed is the join the
+//      author already drew. The completed program is the hand-drawn 15r5 — same
+//      values, same one shared table.
+header("complete: a sibling combine over a drawn filtered axis gets its product")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  // The filtered axis IS drawn — the join is the author's. No Cross is.
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=kx.flow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // The same values the hand-drawn form gives (test 15r5): kept x = [2, 4].
+  expectOutput(p, "out", array_([int_(34), int_(38)]))
+  switch Pipeline.compile(p) {
+  | Ok({insertions}) =>
+    if Array.length(insertions) === 1 {
+      Console.log("insertion: " ++ (insertions->Array.getUnsafe(0)).description)
+      pass("completion crossed the drawn filtered axis with its sibling")
+    } else {
+      fail("expected one inserted product, got " ++ Int.toString(Array.length(insertions)))
+    }
+  | Error(ws) =>
+    fail(
+      "the filtered sibling program failed to complete:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | exception Codegen.Todo(g) => fail("the completed filtered product declined: " ++ g)
+  }
+  // The lens shows the inserted product as one `+` line, over the drawn join.
+  let lens = Pipeline.completionText(p)
+  let plusLines = lens->String.split("\n")->Array.filter(l => l->String.startsWith("+"))
+  switch plusLines {
+  | [one] if one->String.includes("cross with") =>
+    pass("the lens renders the inserted product over the filtered axis as one `+` line")
+  | _ => fail("expected exactly one `+ … cross with …` line, got:\n  " ++ plusLines->Array.join("\n  "))
+  }
+}
+
+// 10h. The guard that keeps 10g honest: an UNDRAWN filtered axis. The same
+//      combine, but the author never joined the alt onto its list — the value is
+//      borne on a bare alt flow, gathered by a collect over that flow. There is
+//      no axis to cross, and completion may not manufacture one: it inserts only
+//      operators whose value-level shadow is the identity, and a join changes
+//      firing structure, which is meaning the author must draw
+//      (time-travel-programs-design.md). So this stays a time-travel witness,
+//      exactly as a non-list axis does, and its remedy is the drawn chain of 10g.
+header("complete: an UNDRAWN filtered axis is not manufactured — it stays a witness")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=ev.altFlow, tot.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | Ok(_) => fail("an undrawn filtered axis was completed — completion minted a join")
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "time-travel") {
+      pass("an undrawn filtered axis stays a time-travel witness (draw the chain)")
+    } else {
+      fail(
+        "expected a time-travel witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | exception Codegen.Todo(m) => fail("expected a Check witness, got a Codegen Todo: " ++ m)
+  }
+}
+
 // 15q2. The same per-group product read in BOTH orders. Everything the
 //       top-level product's shared table gives (test 15) holds one layer in:
 //       the two chains share one table per group, so the user's computation
@@ -3994,20 +4086,25 @@ header("cross: an operand that repeats the other's axis is witnessed, not crosse
   }
 }
 
-// 15r5. The boundary this round did NOT cross: a filtered axis HELD by an
-//       enclosing loop while another is collected — the fibered traversal over a
-//       filtered axis. A product axis is held by being traversed by INDEX, and
-//       the kept firings of a chain are not an indexed loop, so the chain is not
-//       matched and the router declines with a clean gap rather than compiling
-//       the wrong table read. Full chains over filtered axes (15r/15r2) are
-//       unaffected; this is the fibered row of the poset round, one step on.
+// 15r5. A filtered axis HELD while the other is collected — the FIBERED read
+//       over a filtered axis. Holding an axis means having its coordinate, and
+//       for a filtered axis that coordinate is not a loop index: it is the
+//       running count of the firings that SURVIVED the chain, which is exactly
+//       what the table build pushed its rows by. So the holding chain mints a
+//       kept-firing counter and hands each kept firing `const i = c++`, and the
+//       traversal nested inside indexes the shared table at it — the same read
+//       the plain-axis fiber does (15h), over an axis that is "rectangular, just
+//       smaller" (product-flows-design.md's first filtering regime). Both
+//       fiberings are here, and they share the one table: hold the filtered axis
+//       and collect the plain one, and the transpose.
 // ============================================================================
 
-header("cross: a FIBERED read over a filtered axis declines cleanly (a gap)")
+header("cross: a FIBERED read over a filtered axis (both fiberings, one table)")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, bb) => a + bb")
   let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let joinF = Build.raw(b, "l => l.join(\"-\")")
   let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
   let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
   let itX = Build.uncollectList(b, xs.value)
@@ -4018,21 +4115,146 @@ header("cross: a FIBERED read over a filtered axis declines cleanly (a gap)")
   let itY = Build.uncollectList(b, ys.value)
   let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
   let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  // Fiber over the FILTERED axis: hold each kept x, collect the Y axis, reduce.
   let row = Build.collect(b, ~flow=itY.flow, s.value) // one row per kept x
   let tot = Build.app(b, sumF.value, [row.value])
   let out = Build.collect(b, ~flow=kx.flow, tot.value)
-  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  // The transpose: hold each y, collect the filtered X axis, join (a
+  // non-commutative reducer, so the kept-x order is observable).
+  let col = Build.collect(b, ~flow=kx.flow, s.value) // one column per y
+  let joined = Build.app(b, joinF.value, [col.value])
+  let outT = Build.collect(b, ~flow=itY.flow, joined.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value), ("outT", outT.value)])
+  // kept x = [2, 4]; y = [10, 20]; s = x + y.
+  // Per kept x: [x+10, x+20] summed — 2 ⇒ 34, 4 ⇒ 38.
+  expectOutput(p, "out", array_([int_(34), int_(38)]))
+  // Per y: the kept x's, in kept order — [2+y, 4+y] joined.
+  expectOutput(p, "outT", array_([str("12-14"), str("22-24")]))
+
+  // Golden: the user's add still appears once. Both fiberings — one holding the
+  // filtered axis, one collecting it — read the one shared table, so the
+  // computation still runs once per point of the smaller rectangle.
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) => pass("a fibered read over a filtered axis declines with a clean Todo")
-  | Ok(_) => fail("expected a codegen gap for the fibered filtered axis, but it compiled")
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + bb")
+      if n === 1 {
+        pass("add's work appears once (both fiberings share the filtered table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out to inspect for add-once")
+    }
   | Error(ws) =>
     fail(
-      "expected a codegen gap, got witnesses:\n  " ++
+      "the fibered filtered read failed check:\n  " ++
       ws->Array.map(Check.witnessToString)->Array.join("\n  "),
     )
+  | exception Codegen.Todo(g) => fail("the fibered filtered read declined: " ++ g)
   }
-  // It still prints and reparses — representable, just not yet compilable.
   expectRoundTrip(p)
+}
+
+// 15r6. The same sentence with no dispatch in it: a FLATTENED axis
+//       (`join(list, list)` — a list of groups, iterated as one sequence) held
+//       while the other axis is collected. A chain axis's coordinate is the count
+//       of the firings it produces, whether a dispatch dropped some of them or a
+//       flatten multiplied them, so the flattened fiber is the filtered one with
+//       the guard removed. Both fiberings again, over the one shared table.
+// ============================================================================
+
+header("cross: a FIBERED read over a FLATTENED axis (both fiberings, one table)")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let sumF = Build.raw(b, "l => l.reduce((u, v) => u + v, 0)")
+  let joinF = Build.raw(b, "l => l.join(\"-\")")
+  let groups = Build.lit(b, array_([array_([int_(1), int_(2)]), array_([int_(3)])]))
+  let itG = Build.uncollectList(b, groups.value)
+  let itX = Build.uncollectList(b, itG.element)
+  let fx = Build.join(b, ~outer=itG.flow, ~inner=itX.flow) // firings: 1, 2, 3
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=fx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [itX.element, itY.element])
+  // Fiber over the flattened axis: hold each firing, collect Y, reduce.
+  let row = Build.collect(b, ~flow=itY.flow, s.value)
+  let tot = Build.app(b, sumF.value, [row.value])
+  let out = Build.collect(b, ~flow=fx.flow, tot.value)
+  // The transpose: hold each y, collect the flattened axis, join.
+  let col = Build.collect(b, ~flow=fx.flow, s.value)
+  let joined = Build.app(b, joinF.value, [col.value])
+  let outT = Build.collect(b, ~flow=itY.flow, joined.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value), ("outT", outT.value)])
+  // The flattened order is 1, 2, 3 — the groups are gone, one axis remains.
+  expectOutput(p, "out", array_([int_(32), int_(34), int_(36)]))
+  expectOutput(p, "outT", array_([str("11-12-13"), str("21-22-23")]))
+
+  switch Pipeline.compile(p) {
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === "out") {
+    | Some(o) =>
+      let n = countOccurrences(o.js, "a + bb")
+      if n === 1 {
+        pass("add's work appears once (both fiberings share the flattened table)")
+      } else {
+        fail("expected add once, found " ++ Int.toString(n) ++ " occurrences")
+      }
+    | None => fail("no out to inspect for add-once")
+    }
+  | Error(ws) =>
+    fail(
+      "the fibered flattened read failed check:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | exception Codegen.Todo(g) => fail("the fibered flattened read declined: " ++ g)
+  }
+  expectRoundTrip(p)
+}
+
+// 15r7. The register at the same corner: a fold along one axis of a product
+//       whose OTHER axis is filtered. Both fiberings again — fold along the
+//       plain axis with the filtered one held (one `final` per KEPT firing), and
+//       fold along the filtered axis with the plain one held (the kept
+//       subsequence folded, once per y). Nothing here is new machinery: a
+//       register names its driving flow, so the fold is along the axis it names,
+//       and the fiber is whatever the enclosing context holds — the filtering
+//       regime and the fibering compose. The operator is non-commutative so the
+//       within-fiber order is observable.
+header("cross: a register folds along one axis of a product whose other is filtered")
+{
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, bb) => a + bb")
+  let mixF = Build.raw(b, "(a, bb) => a * 2 + bb")
+  let parity = Build.raw(b, "x => x % 2 === 0 ? {tag: 'Even', value: x} : {tag: 'Odd', value: x}")
+  let zero = Build.lit(b, int_(0))
+  let xs = Build.lit(b, array_([int_(1), int_(2), int_(3), int_(4)]))
+  let itX = Build.uncollectList(b, xs.value)
+  let cs = Build.caseSplit(b, ~alts=["Even", "Odd"], ~discriminator=parity.value, itX.element)
+  let ev = Build.alt(cs, "Even")
+  let kx = Build.join(b, ~outer=itX.flow, ~inner=ev.altFlow)
+  let ys = Build.lit(b, array_([int_(10), int_(20)]))
+  let itY = Build.uncollectList(b, ys.value)
+  let _ = Build.cross(b, ~left=kx.flow, ~right=itY.flow)
+  let s = Build.app(b, addF.value, [ev.altValue, itY.element])
+  // Fold along Y, fibered over the FILTERED axis: one final per kept x.
+  let regY = Build.delay(b, ~flow=itY.flow, ~init=zero.value)
+  let stepY = Build.app(b, mixF.value, [regY.prev, s.value])
+  let wY = Build.writeBack(b, ~read=regY, ~step=stepY.value)
+  let outY = Build.collect(b, ~flow=kx.flow, wY.final)
+  // Fold along the FILTERED axis, fibered over Y: the kept subsequence folded.
+  let regX = Build.delay(b, ~flow=kx.flow, ~init=zero.value)
+  let stepX = Build.app(b, mixF.value, [regX.prev, s.value])
+  let wX = Build.writeBack(b, ~read=regX, ~step=stepX.value)
+  let outX = Build.collect(b, ~flow=itY.flow, wX.final)
+  let p = Build.finish(b, ~outputs=[("outY", outY.value), ("outX", outX.value)])
+  // kept x = [2, 4]. Along Y at x: 0*2+(x+10) = x+10, then (x+10)*2 + (x+20)
+  // = 3x+40 — x=2 ⇒ 46, x=4 ⇒ 52.
+  expectOutput(p, "outY", array_([int_(46), int_(52)]))
+  // Along the kept x's at y: 0*2+(2+y) = 2+y, then (2+y)*2 + (4+y) = 8+3y —
+  // y=10 ⇒ 38, y=20 ⇒ 68. The dropped x's never step the register.
+  expectOutput(p, "outX", array_([int_(38), int_(68)]))
 }
 
 // ============================================================================

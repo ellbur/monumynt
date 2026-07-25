@@ -112,8 +112,7 @@ and remain live.
 
 - **The poset round** — the context-model generalisation (linear
   prefix → a genuine series-parallel poset) that the remaining
-  `Codegen.Todo` gaps wait on: cross of non-list axes, a *fibered* read
-  over a filtered axis,
+  `Codegen.Todo` gaps wait on: cross of non-list axes,
   and a running view over a product driving flow the reading collect
   does not itself scan. A **filtered axis** is now crossable — an axis
   may be a join chain (`join(list, case-alt)`) rather than a single
@@ -123,7 +122,14 @@ and remain live.
   by walking each axis's chain, one row per kept firing; a consumer
   traverses by index over the axis's kept count, walked once and
   shared, so both orders still read the one table and the user's
-  computation still runs once per point. Filtering by the *other*
+  computation still runs once per point. Such an axis can be *held*
+  as well as collected — the fibered read over a filtered (or
+  flattened) axis — because holding an axis is having its coordinate,
+  and a chain axis's coordinate is the running count of the firings it
+  produces: the same order the table's rows were pushed in. The
+  holding chain mints one counter and hands each firing `const i =
+  c++`, which the traversal reads exactly where a plain axis's loop
+  index would be. Filtering by the *other*
   axis's element is the third regime — no product exists, and the
   invariance rule witnesses it. A product opened *inside an enclosing loop* — the
   per-group cartesian product — now compiles, and completes: a product
@@ -132,7 +138,14 @@ and remain live.
   traversal orders on one table, the fibered register, the fibered
   traversal) comes along one layer in; and a sibling combine inside a
   loop is completed by crossing its span's sibling *frontier*, the
-  loop's own axis dropped as shared context. The *transposing* commute now compiles: over a
+  loop's own axis dropped as shared context. Completion reaches a
+  filtered axis too, when the author drew it: such a combine names both
+  of the axis's layers in its span, and the drawn chain claims them as
+  one axis. What completion will not do is manufacture the join — it
+  inserts only operators whose value-level shadow is the identity, and a
+  join changes firing structure, which is meaning the author must draw —
+  so an *undrawn* filtered axis stays a witness whose remedy is the drawn
+  chain. The *transposing* commute now compiles: over a
   crossed pair commute is transpose, and transpose re-reads a product
   rather than restructuring it, so a commute output port simply denotes
   its operand swapped and the transposed consumer is another
