@@ -1,7 +1,15 @@
 # The divide flow: recursion over virtual structure
 
-Status: exploration — a worked proposal with leanings, prepared for a
-design conversation and *not* adopted. This is the round the
+Status: **adopted** (design conversation, 2026-07-23 — the joint
+adoption with the function-boundary round): the link
+transformation tree-shaped, per-instance membership derived,
+leaves as linkless alts, the three-species measure discipline
+with warned trust as the floor, and sibling-instances-have-no-time
+— under the recorded anchor constraint (open question 1: the
+anchor is an identity, never a value wire; the link's
+correspondences are thread-species identifications). The open
+questions keep their own status where marked; nothing is
+implemented. This is the round the
 recursion row (`open-problems.md`) owed: the divide flow was proposed
 in `tough-use-cases-design.md` (use case 3, the mergesort limit) as
 the candidate primitive for recursion whose tree exists only as call

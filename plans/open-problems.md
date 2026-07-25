@@ -378,8 +378,9 @@ binding; the node-set consequence's second client); five dead ends,
 including exchange-as-two-messages, whose field witness is the
 correlation ID as hand-rolled provenance).
 
-Remaining: the adoption conversation (joint with the late-bound
-round's — one construct's two ends); the chooser family (also owning
+Remaining: the served flow's two-ends core is now **adopted**
+(2026-07-23, riding the joint adoption — one construct's two
+ends); the rest of that round stays exploration; the chooser family (also owning
 merge fairness *and now cross-client arbitration* — a serving
 provider bound at two boundaries has no cross-client order, the
 served round's question 2); pacing's per-consumer/per-source bit
@@ -432,8 +433,9 @@ termination. See `flix-comparison.md`.
 
 **Functions, reuse, and facets — I 3, W 4.**
 The row's center — the demand the record could previously not answer
-at all — is now worked: **late-bound operations and the test double**
-(`late-bound-operations-design.md`, exploration). An unbound
+at all — is now **adopted**: **late-bound operations and the test double**
+(`late-bound-operations-design.md`, 2026-07-23, in the joint
+adoption). An unbound
 operation is a request/response port pair on the diagram boundary,
 and binding a meaning is wiring a provider onto it at a boundary; the
 round is a unification of three worked pieces rather than a new
@@ -464,7 +466,7 @@ block; reverse-mode AD is fenced out honestly
 transformation-levels derived view).
 
 The row's other center — **the function boundary itself** — is now
-worked too (`function-boundary-design.md`, exploration, the round
+**adopted** too (`function-boundary-design.md`, 2026-07-23, the round
 three clients jointly demanded): a function is a **remembered cut**
 through the wiring, not a container — its ports are the wires the
 cut crosses (read off the drawing at extraction, never declared;
@@ -513,9 +515,14 @@ merge — settled by the conversation; the slot species; the
 obligatory declared signature; first-class functions restated; the
 argument list).
 
-Still open on the row's center: the joint adoption conversation
-(with the divide flow, the late-bound round, and the textual
-catch-up); the cut's edit gestures (editing round); boundary
+The joint adoption is **done** (2026-07-23): the cut ontology, the
+call/link substrate with no-named-recursion, the use-case account,
+partial cuts, and no first-class functions — under the
+anchor-is-identity constraint, and with a provisional-confidence
+marker on the slot-dissolves-into-op-pair piece (adopted as the
+working position without the conversation fully engaging it; a
+later look may reopen that piece alone). Still open on the row's
+center: the cut's edit gestures (editing round); boundary
 identity across versions (transformation-levels;
 `time-travel-programs-design.md` question 5 rides along); the
 conditional signature (checking question 3, unblocked not
@@ -783,9 +790,10 @@ graph features); the frequency question stays on the evidence-owed list.
 See `saturation-design.md`, `flix-comparison.md`,
 `collect-family-design.md`, `effekt-comparison.md`.
 
-**Recursion: the divide flow and trees — I 3, W 3.**
-Recursion over virtual structure is now worked
-(`divide-flow-design.md`, exploration — moved down from Tier 2 by
+**Recursion: the divide flow and trees — I 2, W 3.**
+Recursion over virtual structure is now **adopted**
+(`divide-flow-design.md`, 2026-07-23, in the joint adoption with
+the function-boundary round; previously moved down from Tier 2 by
 this index's maintenance rule): the divide flow is **the link
 transformation, tree-shaped** — write one level concretely (an
 ordinary case split; a leaf is an alt with no links, dissolving the
@@ -814,12 +822,11 @@ precedent), traversal orders dissolve into combines, and whole-tree
 collects are order-free iff commutative (the product-round law). Five
 dead ends recorded.
 
-Remaining: the adoption conversation (now joint with the
-function-boundary round's, and carrying a recorded constraint from
-2026-07-23 — the anchor is an identity, a level label or boundary,
+Remaining (the adoption is done, under the recorded constraint —
+the anchor is an identity, a level label or boundary,
 never a value wire; the link's correspondences are thread-species
 identity assertions; wire-anchoring survives only as an editing
-gesture — see the doc's question 1); the link's spelling and anchor — the
+gesture — see the doc's question 1): the link's spelling and anchor — the
 **level boundary**, the first construct-driven demand for the
 functions row's flow skeleton — now worked
 (`function-boundary-design.md`, revised in its first design

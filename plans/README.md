@@ -241,7 +241,9 @@ consumes, and whether it needs an input list at all:
   transformation, tree-shaped. Termination is a three-species measure
   discipline (structural shrink, cursor progress, drawn fuel); the
   left-recursion parser bug falls out as the progress measure's
-  violation. *Exploration.*
+  violation. *Adopted (2026-07-23, in the joint adoption, under the
+  anchor-is-identity constraint); the link's spelling and mutual
+  recursion's fine print remain open.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
@@ -311,7 +313,9 @@ consumes, and whether it needs an input list at all:
   sub-diagrams with ports, existing for naming, reuse, and modularity —
   deliberately *not* for map/filter bodies (flows do that) and *not*
   first-class values (a function waiting to be called has no honest
-  visual form). *Exploration.*
+  visual form). *Superseded-and-adopted: the boundary round
+  (`function-boundary-design.md`) carries this chapter's stances and
+  is adopted (2026-07-23).*
 - [`function-boundary-design.md`](function-boundary-design.md) — the
   boundary construct itself, the round three worked rounds jointly
   demanded: a function is a **remembered cut** through the wiring, not
@@ -329,7 +333,12 @@ consumes, and whether it needs an input list at all:
   wires; the prefix rule derives the validity region; linear values
   force port-ification); the spec's slot dissolves into the op pair;
   function, level, provider, and the top-level program share one
-  substrate under four bindings. *Exploration.*
+  substrate under four bindings. *Adopted (2026-07-23, the joint
+  adoption with the divide flow and late-bound operations), under
+  the anchor-is-identity constraint and with a
+  provisional-confidence marker on the slot-dissolution piece; edit
+  gestures, spellings, and version identity remain with their
+  rounds.*
 - [`configuration-scopes.md`](configuration-scopes.md) — the replacement
   for higher-order arguments (comparators, predicates): instead of
   passing a function, open the operation as a scope and wire the
@@ -398,7 +407,9 @@ case/option are implemented; the rest are designed:
   k-operation provider as a pre-split bundle, the recursive provider as
   the link in exchange costume, the keyed cache as a
   partition-plus-lane-register middleware, and the first joint working
-  of the top-down/bottom-up duality with saturation. *Exploration.*
+  of the top-down/bottom-up duality with saturation. *Mixed: the
+  two-ends core adopted (2026-07-23, riding the joint adoption); the
+  rest exploration.*
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
   values into a "necessity frontier."

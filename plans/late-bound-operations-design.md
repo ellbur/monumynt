@@ -1,9 +1,15 @@
 # Late-bound operations: one program, many meanings
 
-Status: design-only exploration — this chapter teaches a worked
-proposal that has not been adopted yet; none of it is implemented.
-Read it as "here is the candidate and the case for it," prepared for
-a design conversation. It is the round the functions/reuse/facets row
+Status: **adopted** (design conversation, 2026-07-23 — the joint
+adoption with the function-boundary round): the op pair as the
+client end of a served flow, binding as wiring a provider on at a
+boundary, orderedness-equals-provider-state, the test double as an
+ordinary program, and the policy layer as middleware-as-splice.
+The op pair's identification with the spec's slot machinery
+carries the function-boundary round's provisional-confidence
+marker (adopted as the working position, not yet fully engaged by
+the adopting conversation). Spellings and the other open questions
+stay open where marked; none of it is implemented. It is the round the functions/reuse/facets row
 of `open-problems.md` has owed since the Effekt comparison: the
 capability four independent languages put at their center of mass —
 write a program against named operations whose meaning is supplied

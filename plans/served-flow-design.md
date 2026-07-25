@@ -1,8 +1,15 @@
 # The served flow: the two ends of an exchange
 
-Status: exploration — this chapter teaches a worked proposal with
-stated leanings; none of it has been adopted, and none of it is
-implemented (it presumes the async runtime, the settle node, the
+Status: mixed — the **two-ends core is adopted** (design
+conversation, 2026-07-23, riding the function-boundary /
+late-bound joint adoption): one construct with two ends, the
+client end being late-bound operations' op pair, the server end a
+provider diagram, "which one is the server" a property of a
+binding. The rest of the chapter — the exchange law's fine print,
+the serving blocks' catalog rows, the k-operation provider, the
+recursive provider, the keyed cache, and this round's own open
+questions — remains exploration with stated leanings. None of it
+is implemented (it presumes the async runtime, the settle node, the
 keyed partition, and registers, none of which exist in the compiler).
 Read it as "here is a candidate and the case for it." Code samples
 use the textual syntax of `textual-representation-design.md`; every

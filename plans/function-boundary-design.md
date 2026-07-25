@@ -1,14 +1,29 @@
 # The function boundary: a cut, not a container
 
-Status: exploration — a worked proposal with leanings, prepared for a
-design conversation and *not* adopted. One constraint is already
-recorded on the eventual adoption (design conversation, 2026-07-23,
+Status: **adopted** (design conversation, 2026-07-23 — the joint
+adoption with the divide flow, late-bound operations, and the
+served flow's two-ends core). Adopted: the cut ontology (a
+function is a remembered cut; ports are the crossing wires, read
+off at extraction — no argument list; membership derived;
+closure capture dissolved into prefix sharing; reusability a
+derived check with a drawable witness); the call/link substrate
+sharing with recursion never routing through a named function;
+the use-case account (functions exist for reuse only); partial
+cuts; and no first-class function values. One piece carries a
+**provisional-confidence marker**: the slot-dissolves-into-op-pair
+result was adopted as the working position *without the adopting
+conversation fully engaging it* — "what we're doing for now,
+unless and until looked into further" — so a later look may
+reopen that piece specifically without disturbing the rest. One
+constraint binds the adoption (recorded 2026-07-23,
 at `divide-flow-design.md` open question 1): **a level/boundary is
 referenced by identity — a label or the boundary object — never by
 a value wire** (the "innumerable 0s" argument: a value can't name a
 cut point), and the link's correspondences are thread-species
 identity assertions; anchoring-by-wire survives only as an editing
-gesture that resolves to a boundary identity at creation. This is the round three worked
+gesture that resolves to a boundary identity at creation. The
+open questions below keep their own status; nothing is
+implemented. This is the round three worked
 rounds jointly demanded ("one decision, three clients"): the divide
 flow needs the **level boundary** as its link's anchor
 (`divide-flow-design.md`, open question 1); late-bound operations put
