@@ -302,9 +302,8 @@ let checkAlignment = (p: program): array<witness> => {
 //
 // Rules for constructs that are planned but not yet represented live with
 // their construct's architecture stub, each typed against `witness` so they
-// join this pass's result when wired in via Pipeline: OrderDemand.res (the
-// adopted order-demand rule for Delays — a register's driving flow must OWN
-// a total order), Fail.res (discharge exhaustiveness against the derived
+// join this pass's result when wired in via Pipeline: Fail.res (discharge
+// exhaustiveness against the derived
 // endings inventory), Cut.res (stop-operand admissibility), Stream.res
 // (stack well-formedness), Async.res (race pair coherence; no register in
 // the sever->settle interior), Boundary.res (reusability; the measure
@@ -378,6 +377,86 @@ let checkCross = (p: program): array<witness> => {
           },
         )
       | None => ()
+      }
+    | _ => ()
+    }
+  )
+  out
+}
+
+// The order-demand check (delay-ontology-design.md, "The order-demand check,
+// named", adopted 2026-07-23):
+//
+//   A Delay's flow must own a total order.
+//
+// A Delay is a demand for the previous firing under its flow's owned total
+// order, so it means something exactly where such an order exists. The
+// classification lives in `OrderDemand.orderOf` — the kinds table as a
+// structural provenance walk, no analysis — and this rule turns its three
+// failing cells into witnesses; `Owned` and `Degenerate` both pass (a
+// degenerate flow's Delay is inert, not ill-formed: `prev` only ever reads the
+// seed).
+//
+// The cell this reaches today is SURPLUS: a register whose driving flow is a
+// PRODUCT. product-flows-design.md's "smallest first step" 1 asks for exactly
+// this witness — "the check rejects a whole-product register with the 'no
+// order' witness, the remedy being 'fold one axis or Join'". Until now such a
+// program was rejected only incidentally, through its step's combine (a
+// `time-travel` alignment witness), which is the right answer for the wrong
+// reason; it is now named by the rule that owns it. The commutative-monoid
+// exception — where the operator's own law discharges the order demand — needs
+// the catalog row's commutativity flag (`CollectFamily.res`), so a
+// whole-product reduce-close is not admitted here yet.
+//
+// This rule is the complement of `checkProductivity` below: productivity says
+// every cycle must cross a Delay, the order demand says a Delay must sit on an
+// order-owning flow. State is legal exactly where a drawn order can carry it.
+let checkOrderDemand = (p: program): array<witness> => {
+  let out: array<witness> = []
+  let axesOf = (f: flowRef) =>
+    Context.introducedAxisFlows(f)->Array.map(Context.flowKey)->Array.join(" || ")
+  p.nodes->Array.forEach(n =>
+    switch n.kind {
+    | DelayRead({flow}) =>
+      let classified = try {Some(OrderDemand.orderOf(p, flow))} catch {
+      | Context.Incomparable(_) => None // alignment reports that clash
+      }
+      switch classified {
+      | None | Some(Owned) | Some(Degenerate) => ()
+      | Some(Surplus) =>
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "order-demand",
+            message: "a register's driving flow must own a total order, but this one is a " ++
+            "product {" ++
+            axesOf(flow) ++
+            "}: every axis order is real and none is privileged (surplus order), so there " ++
+            "is no order to fold along — fold one axis, or Join the product first",
+          },
+        )
+      | Some(NoOrder) =>
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "order-demand",
+            message: "a register's driving flow must own a total order, but this flow owns " ++
+            "none — there is no previous firing for `prev` to read",
+          },
+        )
+      | Some(Incidental) =>
+        Array.push(
+          out,
+          {
+            nodeId: n.id,
+            rule: "order-demand",
+            message: "a register's driving flow must own a total order, but this flow's " ++
+            "firings are ordered only incidentally (by the runtime's schedule, not by the " ++
+            "flow's meaning) — a register there would read the scheduler",
+          },
+        )
       }
     | _ => ()
     }
@@ -550,6 +629,7 @@ let check = (p: program): array<witness> =>
     checkAlignment(p),
     checkJoinAdjacency(p),
     checkCross(p),
+    checkOrderDemand(p),
     checkProductivity(p),
     checkProvenance(p),
     checkCoverage(p),

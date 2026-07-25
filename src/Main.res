@@ -982,6 +982,39 @@ header("register pair: a filtered running view declines cleanly (Todo, not a cra
 }
 
 // ============================================================================
+// 8k. The other side of the order-demand rule: DEGENERATE order is well-formed,
+//     not ill-formed. A bare option (or case alt) is totally ordered trivially,
+//     because it has at most one firing — so a register there never steps and
+//     `prev` only ever reads the seed. delay-ontology-design.md makes the point
+//     that this is a fact about CARDINALITY, not about the kind ("the async
+//     value supplies no next *because it is one firing, not because it is
+//     async* — the same reason a bare option doesn't, and nobody ever felt a
+//     need to write 'Delay is meaningless over options' as a kind fact"). So
+//     the check must ADMIT it, and the compiler must produce the inert fold:
+//     seed when the option is absent, one step when it fires.
+// ============================================================================
+
+header("register pair: a register over a bare option is inert, not ill-formed")
+{
+  let mk = (input: JsAst.expr) => {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let optSrc = Build.raw(b, "n => n >= 2 ? n : undefined")
+    let v = Build.lit(b, input)
+    let optIn = Build.app(b, optSrc.value, [v.value])
+    let i = Build.uncollectOption(b, optIn.value)
+    let reg = Build.delay(b, ~flow=i.flow, ~init=Build.lit(b, int_(100)).value)
+    let step = Build.app(b, addF.value, [reg.prev, i.element])
+    let w = Build.writeBack(b, ~read=reg, ~step=step.value)
+    Build.finish(b, ~outputs=[("total", w.final)])
+  }
+  // One firing: `prev` reads the seed, the single step runs. 100 + 5.
+  expectOutput(mk(int_(5)), "total", int_(105))
+  // No firing: the fold is the seed itself.
+  expectOutput(mk(int_(1)), "total", int_(100))
+}
+
+// ============================================================================
 // 9. Witness surface: a bad port reference
 // ============================================================================
 
@@ -2086,14 +2119,17 @@ header("cross: full reduction is two registers — the axis order shows in the r
 //      as one sequence", which the doc calls ill-formed for the ordinary reason
 //      (no order exists), the remedy being "fold one axis, or Join first"
 //      (product-flows-design.md; the commutative-monoid exception needs the
-//      catalog row's commutativity flag, which does not exist yet). It is
-//      REJECTED today, but not yet by the rule the doc names: the step combines
-//      `prev` (borne on the product flow) with a value at {X, Y}, and since a
-//      Cross OUTPUT port is not yet an axis set in the poset (the deferred half
-//      of the context model), that combine surfaces as a `time-travel` witness
-//      rather than a "no order" one. This pins the current behaviour and where
-//      the owed check goes.
-header("cross: a register over the whole product is rejected (the no-order case)")
+//      catalog row's commutativity flag, which does not exist yet). It is now
+//      rejected BY THE RULE the doc names — Check's `order-demand` rule
+//      (delay-ontology-design.md, "The order-demand check, named"): the driving
+//      flow classifies as SURPLUS order (every axis order real, none
+//      privileged), so the Delay's demand for *one* previous firing has no
+//      answer. Before the rule landed the program was still rejected, but only
+//      incidentally, through its step's combine (a `time-travel` witness) —
+//      the right answer for the wrong reason. That witness still fires too (a
+//      Cross OUTPUT port is not yet an axis set in the poset), so the assertion
+//      is that the owed rule is AMONG the witnesses, not that it is alone.
+header("cross: a register over the whole product is rejected by the order-demand rule")
 {
   let b = Build.make()
   let addF = Build.raw(b, "(a, b) => a + b")
@@ -2109,12 +2145,20 @@ header("cross: a register over the whole product is rejected (the no-order case)
   let w = Build.writeBack(b, ~read=reg, ~step=step.value)
   let p = Build.finish(b, ~outputs=[("out", w.final)])
   switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) =>
-    pass("a whole-product register declines at Codegen (the grid — no order to fold along)")
-  | Error(_) =>
-    pass("a whole-product register is witnessed (via the step's combine — the no-order rule is owed)")
+  | exception Codegen.Todo(m) => fail("expected an order-demand witness, got a Codegen Todo: " ++ m)
   | Ok(_) => fail("a whole-product register unexpectedly compiled")
+  | Error(ws) =>
+    if ws->Array.some(w => w.Check.rule === "order-demand") {
+      pass("a whole-product register is witnessed by the order-demand rule (surplus order)")
+    } else {
+      fail(
+        "expected an order-demand witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
   }
+  // And the same register with an AXIS named compiles (15k) — the remedy the
+  // witness points at is a real program, not a dead end.
 }
 
 // 15j. The fiber that is still deferred: a rank-3 product collected over ONE

@@ -1,5 +1,4 @@
-// The order-demand check — which flows supply a "next iteration" —
-// ARCHITECTURE STUB.
+// The order-demand check — which flows supply a "next iteration".
 //
 // Design: plans/delay-ontology-design.md. The PER-KIND HALF is ADOPTED
 // (2026-07-23): the owned-order criterion, the order-demand check, and the
@@ -7,6 +6,17 @@
 // walks a multi-axis product in — plans/product-linearization-design.md)
 // and the value-in-context model remain EXPLORATION; nothing here may
 // prejudge them.
+//
+// This module is no longer a pure stub: `orderOf` — the kinds-table lookup —
+// is IMPLEMENTED for the flow constructors the representation has today
+// (list / option / case uncollects, Join, Cross, Commute, a partial
+// collect's merged flow). The rule that consumes it lives in `Check.res`
+// (`checkOrderDemand`), beside the other witness rules and mirroring how
+// `checkCross` consumes `Annotate.crossViolation` — the table is the fact,
+// the witness is the check. The rows for flow kinds that do not exist yet
+// (stream, async, incremental, the sever→settle body flow, divide-flow
+// siblings, saturation members) are recorded below and land with their
+// kinds.
 //
 // The criterion: a flow supplies a "next iteration" exactly when its
 // firings are totally ordered BY THE FLOW'S OWN MEANING — an OWNED order.
@@ -55,15 +65,84 @@ type orderProvenance =
   // merge's output; the self-driven opener
   | AmbientOrder // the event loop's arrival order as kind content
 
-let orderOf: (Program.program, Program.flowRef) => orderClass = (_p, _f) =>
-  failwith("stub: the kinds-table lookup — delay-ontology-design.md, 'The kinds table, cashed'")
+// --- The kinds table, cashed (delay-ontology-design.md) ---------------------
+//
+// A Join flattens its two operands into one walk: outer-then-inner, so the
+// order is lexicographic and is owned exactly when both operands' are. The
+// two shapes that occur today are `join(list, list)` — the flattened walk,
+// Owned ⊗ Owned — and `join(list, case-alt)` — the filtered sub-flow, Owned ⊗
+// Degenerate, which is the table's "segment / filtered sub-flow" row: the
+// parent's order restricted, and the sub-order of a sequence is a sequence.
+// A missing order dominates a present one; a SURPLUS operand stays surplus
+// (a product under a join is the linearization residue, not resolved here —
+// the doc's "Join the product" joins its AXES, each of which owns an order).
+let joinOrder = (outer: orderClass, inner: orderClass): orderClass =>
+  switch (outer, inner) {
+  | (NoOrder, _) | (_, NoOrder) => NoOrder
+  | (Incidental, _) | (_, Incidental) => Incidental
+  | (Surplus, _) | (_, Surplus) => Surplus
+  | (Degenerate, Degenerate) => Degenerate
+  | (Owned, _) | (_, Owned) => Owned
+  }
 
-// The order-demand check: a Delay's flow must own a total order. "A
-// register is legal exactly downstream of the point where order becomes
-// owned, and the order-minting construct is where the diagram shows the
-// synchronisation."
-let checkOrderDemand: Program.program => array<Check.witness> = _p =>
-  failwith("stub: order-demand check — delay-ontology-design.md, 'The order-demand check, named'")
+// The kinds-table lookup, as the structural provenance walk the design calls
+// for ("every flow constructor states what its output's order is … so 'does
+// this flow own an order' is a provenance walk — the check is structural, no
+// analysis"). No program-wide analysis is consulted; the `program` argument is
+// kept because the later rows (a served facet's exchange flow, a divide-flow
+// instance) are stated by a node elsewhere in the graph.
+let rec orderOf = (p: Program.program, f: Program.flowRef): orderClass =>
+  switch f {
+  | Program.FlowPort(n, port) =>
+    switch n.kind {
+    // "list walk | yes | walk order of the opened data" — the paradigm row.
+    | Uncollect({flowKind: List}) => Owned
+    // "case / option, bare | degenerate | ≤1 firing; `prev` reads the seed."
+    // A Delay here is well-formed but inert, which is a property of CARDINALITY,
+    // not of the kind — the same reason nobody writes "Delay is meaningless over
+    // options" as a kind fact.
+    | Uncollect({flowKind: Option}) => Degenerate
+    | Uncollect({flowKind: Case(_)}) => Degenerate
+    | Join({outer, inner}) => joinOrder(orderOf(p, outer), orderOf(p, inner))
+    // "product {X, Y} | surplus | every axis order real, none privileged."
+    // Not disorder but an embarrassment of orders: the register's demand for ONE
+    // is the linearization residue, located here as the surplus cell rather than
+    // resolved (product-linearization-design.md is unadopted).
+    | Cross(_) => Surplus
+    // A commute transposes two layers; each output port re-delivers the order of
+    // the operand it swapped with (inherited — the firings are the same firings,
+    // re-grouped).
+    | Commute({outer, inner}) =>
+      switch port {
+      | "outer" => orderOf(p, inner)
+      | "inner" => orderOf(p, outer)
+      | _ => failwith("OrderDemand.orderOf: unknown Commute port " ++ port)
+      }
+    // A partial collect's merged flow is a SEGMENT of the flow the split lives
+    // in — the parent's order restricted to the covered cells (inherited). Its
+    // exterior's innermost layer is that parent; an empty exterior means one
+    // firing at the top level, which is degenerate.
+    | Collect(_) =>
+      let exterior = Context.flowContext(f)
+      switch exterior[Array.length(exterior) - 1] {
+      | Some(parent) => orderOf(p, parent)
+      | None => Degenerate
+      }
+    | Lit(_) | App(_) | DelayRead(_) | DelayWrite(_) | Aggregate(_) | Disaggregate(_) =>
+      failwith(
+        "OrderDemand.orderOf: node kind " ++
+        Program.kindName(n.kind) ++ " has no flow ports (ref to port " ++ port ++ ")",
+      )
+    }
+  }
+
+// The order-demand check itself — "a Delay's flow must own a total order" —
+// lives in `Check.res` (`checkOrderDemand`), where it joins the other witness
+// rules and reads this table, the way `checkCross` reads Annotate's invariance
+// fact. Its complement is the productivity check; together they are the whole
+// discipline of drawn state: productivity says a cycle must cross a Delay, the
+// order demand says a Delay must sit on an order-owning flow. State is legal
+// exactly where a drawn order can carry it.
 
 // --- The hold identification (adopted) ------------------------------------
 //
