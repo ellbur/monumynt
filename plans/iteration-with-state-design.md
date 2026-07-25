@@ -272,6 +272,32 @@ assertion works equally well feeding the *next* frame as reading
 from the *previous* one — either alone suffices, and doing both
 overspecifies.
 
+Two later additions to this account (same conversation):
+
+- **A fifth reason `prev` fails, purely visual.** Textually, "the
+  previous x" reads tolerably because `x` is a *word*. Visually
+  there is no word — there is a wire, and the wire runs to the
+  *current* node; nothing about it says "previous." Decorating the
+  wire with the label "prev" is not visual language, it is a word
+  glued onto a picture that says otherwise — frankly confusing.
+  The construct must *look like* what it means, and an
+  identity-across-frames reference looks like a distinct species
+  of line between two places, not a labeled value wire.
+- **The generalization (recorded half-finished, deliberately).**
+  Many of the record's iteration patterns are versions of one
+  idea — *this value, but in that context*: the previous iteration
+  (`prev`/the thread), the child realm (the divide flow's link),
+  the child realms again (the zipper's computed-value ports, now
+  retired as stored surface). All bizarro world. The standing
+  challenge is a visual form for cross-context reference that
+  doesn't get messy; the **thread** — a little dotted line saying
+  "these two nodes share part of their identity despite being in
+  different places" — is the best form found so far, adopted as
+  the framing and honestly held as *best-so-far, not fully
+  satisfying*. (This observation is a supporting datum for the
+  value-in-context model, `delay-ontology-design.md`, which owes
+  its frequency check before its own conversation.)
+
 (This is a recorded set-aside — but with a caveat: the
 value-in-context model of `delay-ontology-design.md` recasts `prev` as
 a readout on a wire's context rather than a name lookup, which

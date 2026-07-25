@@ -226,7 +226,10 @@ consumes, and whether it needs an input list at all:
 - [`trees-and-recursion.md`](trees-and-recursion.md) — iterating over
   trees and other recursive structures without writing a recursive
   function: a zipper-based uncollect walks the structure and exposes
-  each node with its full context. *Exploration.*
+  each node with its full context. *Exploration, with the soundness
+  seam decided (2026-07-23): the verifier retires, computed-value
+  zipper ports re-read as drawn crossings, the compact form a
+  derived view.*
 - [`divide-flow-design.md`](divide-flow-design.md) — recursion whose
   tree exists only as call structure (mergesort's splits, a parser's
   descent, a quadtree build): write one level concretely, then *link*

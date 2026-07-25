@@ -1,7 +1,12 @@
 # Trees and recursive structures
 
-Status: design-only exploration — this chapter teaches a worked
-proposal that has not been adopted, and none of it is implemented.
+Status: design-only exploration, with **the soundness seam decided**
+(design conversation, 2026-07-23 — see the end of "Soundness:
+verify an ordering, or fall back lazy"): the verifier retires, the
+computed-value zipper ports retire as stored surface (the
+`childSizes`-from-nowhere ruling), those accesses are drawn
+crossings, input-structure zipper reads stay, and the compact form
+survives as a derived view. None of it is implemented.
 Code samples use the textual syntax of
 `textual-representation-design.md`; where the language has no settled
 spelling for a recursive construct, the sample is marked *spelling
@@ -97,9 +102,41 @@ is the stronger current — and the divide-flow round strengthened it
 the verifier's three access directions all have drawn counterparts
 there (children→parent = link answers, parent→children = problem
 components, sibling→sibling = a register on the drawn children
-walk), so the leaning on record is that the zipper's computed-value
-accesses re-read as drawn crossings and the verifier retires. Not
-decided; this doc still owns the question.
+walk), so the leaning on record was that the zipper's computed-value
+accesses re-read as drawn crossings and the verifier retires.
+
+**Decided (design conversation, 2026-07-23), on amended grounds.**
+The conversation set the soundness motivation aside entirely
+("compile with lazy values; maybe it's sound, maybe it isn't — not
+trying to do Agda"; the measure ladder's warned-trust rung is the
+record's own accepted floor, so no new guarantee obligation
+arrives). What decided the seam was **readability**:
+
+- **The `childSizes`-from-nowhere ruling.** In the subtree-size
+  program above, nothing on the page connects `childSizes` to the
+  `add(1)` output it must denote — the port is an *undrawn
+  self-reference resolved by a magic name*, condemned by the
+  record's oldest rejection. Two computed values per node (a size
+  and a hash) break it open: two ports, bound to which pipeline,
+  by what? The collect binder would be doing invisible double duty
+  as a port declaration — the link's job, done secretly. The link
+  is not machinery added to this program; it is the wire the
+  program was already using and not drawing.
+- So: the **verifier retires** (soundness machinery, unwanted on
+  its own terms); **computed-value ports retire as stored
+  surface** and re-read as drawn crossings (children→parent = link
+  answers, parent→children = problem components, sibling→sibling =
+  a register on the children walk); **input-structure zipper
+  reads** (`node.value`, `node.parent`, the path) **stay** — they
+  are innocent data reads.
+- **What survives as derived views**: the compact two-layer
+  rendering (the link's answer wires drawn as an already-computed
+  layer), and the *schedule word* — "post-order" is a data-flow
+  fact ("the parent consumes the children's answers", the drawn
+  direction of the crossing), never authored, but derivable and
+  displayable as a traversal-order view toggle
+  (`facets-design-notes.md`, "Facets as view toggles"). Legibility
+  over enforcement, applied to traversal order.
 
 ## You get this for free: derivation from recursive types
 
