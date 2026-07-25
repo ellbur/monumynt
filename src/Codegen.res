@@ -303,8 +303,16 @@ let rec spine = (f: flowRef): array<level> =>
       // nothing at the top level) — exactly as a single alt flow does.
       switch classifyCollect(branches) {
       | CasePartial(_) =>
-        switch branches->Array.getUnsafe(0) {
-        | {flow: FlowPort(split, _)} => [PartialLevel({collect: n, split, branches})]
+        // The dispatch is over the underlying case split's cells, found by
+        // walking (a branch may itself be another partial collect's merged
+        // flow, so the split is not always the branch flow's own node).
+        switch branchCells(f) {
+        | Some((split, _)) => [PartialLevel({collect: n, split, branches})]
+        | None =>
+          failwith(
+            "Codegen.spine: a partial collect's merged flow names no bundle cells — " ++
+            "Check's coverage rule should have witnessed this",
+          )
         }
       | _ =>
         failwith("Codegen.spine: a Collect with no flow port reached as a flow — Check's port-exists rule should have witnessed this")
@@ -1770,33 +1778,22 @@ and emitPartialCollect = (
   let (discriminator, csInput) = switch split.kind {
   | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
   | _ =>
-    throw(
-      Todo(
-        "partial collect over another partial collect's merged flow — the " ++
-        "merged-flow-into-merged-flow shape (the cell-set round, " ++
-        "partial-collect-design.md)",
-      ),
+    failwith(
+      "Codegen.emitPartialCollect: PartialLevel's split is not a case split — " ++
+      "`spine` resolves it through `branchCells`, so this is a compiler bug",
     )
   }
-  // Each arm reads its cell off the branch's flow PORT, so every branch must be a
-  // direct alt port. A branch that is itself a merged flow is the same
-  // merged-flow-into-merged-flow shape (the covering configuration handles it —
-  // `emitCaseCollect` / `memoiseMergedValues` — the partial one does not yet).
-  pbranches->Array.forEach(pb =>
-    switch pb.flow {
-    | FlowPort(t, _) =>
-      switch t.kind {
-      | Uncollect({flowKind: Case(_)}) => ()
-      | _ =>
-        throw(
-          Todo(
-            "partial collect with a merged-flow branch — the merged-flow-into-" ++
-            "merged-flow shape (the cell-set round, partial-collect-design.md)",
-          ),
-        )
-      }
-    }
-  )
+  // The dispatch is over the merged flow's CELLS, not over its branches: a
+  // branch may itself be a partial collect's merged flow spanning several cells
+  // (a partial built over a partial), and each cell still gets its own arm.
+  let coveredCells = switch classifyCollect(pbranches) {
+  | CasePartial(cells) => cells
+  | _ =>
+    failwith(
+      "Codegen.emitPartialCollect: PartialLevel's collect is not partial — " ++
+      "`spine` classified it, so this is a compiler bug",
+    )
+  }
 
   let exterior = instantiate(
     ~what="Partial collect node " ++ Int.toString(cn.id),
@@ -1873,16 +1870,17 @@ and emitPartialCollect = (
   // Per covered arm: open the alt's context, pre-memoise the alt payload and the
   // (shared) merged-value port to this arm's branch value, then compile the
   // terminating collect's value (which references the merged value directly).
-  let arms = pbranches->Array.map(pb => {
-    let alt = switch pb.flow {
-    | FlowPort(_, port) => port
-    }
+  let arms = coveredCells->Array.map(alt => {
     let armCtx = Array.concat(innerCtx, [{flow: FlowPort(split, alt), thunkOf: cn.id, idxVar: None}])
     let payloadName = st.fresh()
     recordMemo(st, split.id, alt, armCtx, payloadName)
-    let branchValC = compileValue(st, armCtx, pb.value)
-    branchValC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
-    recordMemo(st, partialCollect.id, "value", armCtx, branchValC.name)
+    // Bind every merged value on the path down to this cell — the terminal
+    // partial's own, and any partial it was built over. Same call the covering
+    // configuration makes (`emitCaseCollect`): the containment theorem read
+    // operationally, "each arm binds the same name to its branch's value".
+    memoiseMergedValues(st, armCtx, FlowPort(partialCollect, "flow"), alt)->Array.forEach(pl =>
+      Array.push(floatedAcc, pl)
+    )
     let termC = compileValue(st, armCtx, branch.value)
     termC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
     (alt, armCtx, payloadName, termC.name)

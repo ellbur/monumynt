@@ -841,54 +841,64 @@ header("covering cell-set collect: overlapping branch cell sets are witnessed")
 }
 
 // ============================================================================
-// 7n. The cell-set remainder: a PARTIAL collect built over another partial
-//     collect's merged flow (merge {A, B}, then merge that with {C} into a
-//     still-partial {A, B, C} of a four-cell bundle). The representation and the
-//     coverage classification handle it — `branchCells` recurses, so the outer
-//     node names cells of the one underlying split, and it prints and checks —
-//     but the emitter is the covering configuration's only: `emitPartialCollect`
-//     reads each arm's cell off its branch's flow PORT, which a merged flow does
-//     not carry. Declines with a clean Todo rather than crashing.
+// 7n. A PARTIAL collect built over another partial collect's merged flow —
+//     merge {ClientError, ServerError} into `~err`, then merge THAT with
+//     {Redirect} into a still-partial `~nonOk` spanning three of the bundle's
+//     four cells. Nothing new was written for it: the cell walk recurses, so the
+//     outer node names cells of the one underlying split, and the dispatch is
+//     over CELLS rather than branches, each arm binding every merged value on
+//     the path down to it. Two levels of merged-context computation ride along —
+//     one at {ClientError, ServerError}, one at {ClientError, ServerError,
+//     Redirect} — so containment is exercised at both depths.
 // ============================================================================
 
-header("partial collect over a partial collect declines with a clean Todo")
+header("partial collect over a partial collect: nested cell merges")
 {
   let b = Build.make()
   let disc = Build.raw(
     b,
     "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
   )
-  let one = Build.lit(b, int_(404))
+  let describe = Build.raw(b, "s => 'err:' + s")
+  let mark = Build.raw(b, "s => '[' + s + ']'")
+  let codes = Build.lit(b, array_([int_(200), int_(301), int_(404), int_(500)]))
+  let it = Build.uncollectList(b, codes.value)
   let h = Build.caseSplit(
     b,
     ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
     ~discriminator=disc.value,
-    one.value,
+    it.element,
   )
+  let redirect = Build.alt(h, "Redirect")
   let clientErr = Build.alt(h, "ClientError")
   let serverErr = Build.alt(h, "ServerError")
-  let redirect = Build.alt(h, "Redirect")
+  // Inner merge: the two error cells.
   let errs = Build.collectCases(
     b,
     [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
   )
   let errFlow = Program.FlowPort(errs.node, "flow")
-  // {ClientError, ServerError} merged again with {Redirect}: still partial
-  // (3 of 4 cells), so the node keeps a merged flow of its own.
-  let nonOk = Build.collectCases(b, [(errFlow, errs.value), (redirect.altFlow, redirect.altValue)])
+  // A computation at the INNER merged context {ClientError, ServerError}.
+  let described = Build.app(b, describe.value, [errs.value])
+  // Outer merge: that merged flow together with {Redirect} — still partial
+  // (3 of 4 cells), so this node keeps a merged flow of its own.
+  let nonOk = Build.collectCases(
+    b,
+    [(errFlow, described.value), (redirect.altFlow, redirect.altValue)],
+  )
   let nonOkFlow = Program.FlowPort(nonOk.node, "flow")
-  let out = Build.collect(b, ~flow=nonOkFlow, nonOk.value)
+  // A computation at the OUTER merged context {ClientError, ServerError, Redirect}.
+  let marked = Build.app(b, mark.value, [nonOk.value])
+  // Keep the non-Ok firings out of the list; Ok drops.
+  let keep = Build.join(b, ~outer=it.flow, ~inner=nonOkFlow)
+  let out = Build.collect(b, ~flow=keep.flow, marked.value)
   let p = Build.finish(b, ~outputs=[("out", out.value)])
-  switch Pipeline.compile(p) {
-  | exception Codegen.Todo(_) =>
-    pass("a partial-over-partial merge declines with a clean Todo (not a crash)")
-  | Ok(_) => fail("a partial-over-partial merge unexpectedly compiled — its emitter is deferred")
-  | Error(ws) =>
-    fail(
-      "a partial-over-partial merge should classify cleanly, got:\n  " ++
-      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-    )
-  }
+  // 200 -> Ok, dropped. 301 -> Redirect: the outer merge carries 301 itself.
+  // 404 -> ClientError and 500 -> ServerError: the inner merge carries the
+  // status, `describe` runs at the inner merged context, the outer merge
+  // carries that, and `mark` runs at the outer one.
+  expectOutput(p, "out", array_([str("[301]"), str("[err:404]"), str("[err:500]")]))
+  expectRoundTrip(p)
 }
 
 // ============================================================================

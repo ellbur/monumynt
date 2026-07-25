@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 216 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 218 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -126,9 +126,11 @@ and remain live.
   `logAndFallback` step, admitted by the containment theorem
   `{A} ⊆ {A, B}` stated as a step-availability relation), and a
   covering collect reconverges over disjoint *cell sets* — two
-  singletons and a pair. What is left: a partial collect built over
-  another partial's merged flow, a merged value read outside any
-  emitter that binds it, and partial overlap (`{A,B}` vs `{B,C}`)
+  singletons and a pair. Merges nest, too: a partial collect built
+  over another partial's merged flow compiles, with a merged-context
+  computation at each depth. What is left: a partial collect *fed* by
+  a merged flow as a leading join level, a merged value read outside
+  any emitter that binds it, and partial overlap (`{A,B}` vs `{B,C}`)
   meeting at `{B}` as an inferred incorporate.
 - ~~**`Aggregate`/`Disaggregate`** for struct construction and field
   projection.~~ DONE (as pure value nodes — Aggregate builds an object
