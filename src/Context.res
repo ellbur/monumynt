@@ -58,26 +58,14 @@ let contextToString = (ctx: array<flowRef>): string =>
 //
 // `None` for a flow that is not a bundle step at all (a list/option axis, a
 // join, a product): those steps compare by identity exactly as before.
-let rec cellSet = (f: flowRef): option<array<string>> =>
-  switch f {
-  | FlowPort(n, _) =>
-    switch n.kind {
-    | Uncollect({flowKind: Case(_)}) => Some([flowKey(f)])
-    | Collect({branches}) =>
-      switch classifyCollect(branches) {
-      | CasePartial(_) =>
-        branches->Array.reduce(Some([]), (acc, b) =>
-          switch (acc, cellSet(b.flow)) {
-          | (Some(cs), Some(more)) =>
-            Some(more->Array.reduce(cs, (a, c) => a->Array.includes(c) ? a : Array.concat(a, [c])))
-          | _ => None
-          }
-        )
-      | _ => None
-      }
-    | _ => None
-    }
-  }
+//
+// The walk itself is `Program.branchCells` (the one the coverage classification
+// reads); here the cells are keyed as alt FLOW keys, so two bundles with
+// same-named alts never compare equal.
+let cellSet = (f: flowRef): option<array<string>> =>
+  branchCells(f)->Option.map(((split, cells)) =>
+    cells->Array.map(c => flowKey(FlowPort(split, c)))
+  )
 
 // The containment theorem (partial-collect-design.md, "The merged flow as parent
 // scope"): a value borne on a bundle step with cell set S is available inside any

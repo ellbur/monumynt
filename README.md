@@ -75,7 +75,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
 - `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 210 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 216 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -120,13 +120,15 @@ and remain live.
   order-freedom in the type rather than in a convention, is still
   ahead. `Poset.res` has the algebra; `src/ARCHITECTURE.md` worklist
   item 8 is the map.
-- **The partial collect's cell-set lattice** — computation *at* the
-  merged context (the design's `logAndFallback` step) now compiles,
-  via the containment theorem `{A} ⊆ {A, B}` stated as a
-  step-availability relation on path steps. What is left: a partial
-  feeding a partial, a merged value read outside its own emitter, a
-  collect whose branches are keyed by disjoint covering *cell sets*
-  rather than single alts, and partial overlap (`{A,B}` vs `{B,C}`)
+- **The partial collect's cell-set lattice** — the design's HTTP
+  program now compiles end to end: a partial collect merges two of
+  four cells, one handler runs *at* the merged context (the
+  `logAndFallback` step, admitted by the containment theorem
+  `{A} ⊆ {A, B}` stated as a step-availability relation), and a
+  covering collect reconverges over disjoint *cell sets* — two
+  singletons and a pair. What is left: a partial collect built over
+  another partial's merged flow, a merged value read outside any
+  emitter that binds it, and partial overlap (`{A,B}` vs `{B,C}`)
   meeting at `{B}` as an inferred incorporate.
 - ~~**`Aggregate`/`Disaggregate`** for struct construction and field
   projection.~~ DONE (as pure value nodes — Aggregate builds an object

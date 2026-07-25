@@ -705,6 +705,193 @@ header("partial collect: a cell-borne value cannot escape to the merged context"
 }
 
 // ============================================================================
+// 7l. THE COVERING CELL-SET COLLECT — the design's HTTP program, worked in full
+//     (partial-collect-design.md, "The construct"). A response splits four ways;
+//     the two error cases share their handling, so a partial collect merges them
+//     into `~err` and ONE `logAndFallback` runs at the merged context. The final
+//     collect's branches are keyed by disjoint covering cell SETS — two
+//     singletons and a pair — which is the provenance sketch's generalized
+//     coverage demand landing as the node's actual signature: "the exhaustive
+//     case collect is not a sibling construct to the partial collect; it is the
+//     covering configuration of the same node".
+//
+//     Dispatch stays one arm per cell, and each of the pair's arms binds the
+//     merged value to its own branch's — the containment theorem, operationally.
+// ============================================================================
+
+header("covering cell-set collect: the HTTP program (two singletons and a pair)")
+{
+  let b = Build.make()
+  // The four-way split on an HTTP status code; the payload is the code itself.
+  let disc = Build.raw(
+    b,
+    "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
+  )
+  let parse = Build.raw(b, "s => 'parsed:' + s")
+  let follow = Build.raw(b, "u => 'followed:' + u")
+  let logAndFallback = Build.raw(
+    b,
+    "s => (globalThis.__fbRuns = (globalThis.__fbRuns || 0) + 1, 'fallback:' + s)",
+  )
+  let responses = Build.lit(b, array_([int_(200), int_(404), int_(301), int_(500)]))
+  let it = Build.uncollectList(b, responses.value)
+  let h = Build.caseSplit(
+    b,
+    ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
+    ~discriminator=disc.value,
+    it.element,
+  )
+  let ok = Build.alt(h, "Ok")
+  let redirect = Build.alt(h, "Redirect")
+  let clientErr = Build.alt(h, "ClientError")
+  let serverErr = Build.alt(h, "ServerError")
+  // The partial collect: merge the two error cells. `errStatus` is the status
+  // whichever error fired; `~err` is the merged flow spanning both.
+  let errStatus = Build.collectCases(
+    b,
+    [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+  )
+  let err = Program.FlowPort(errStatus.node, "flow")
+  // "handle these two cases the same way," said once — at the merged context.
+  let fb = Build.app(b, logAndFallback.value, [errStatus.value])
+  // The covering collect: {Ok} + {Redirect} + {ClientError, ServerError}.
+  let result = Build.collectCases(
+    b,
+    [
+      (ok.altFlow, Build.app(b, parse.value, [ok.altValue]).value),
+      (redirect.altFlow, Build.app(b, follow.value, [redirect.altValue]).value),
+      (err, fb.value),
+    ],
+  )
+  let out = Build.collect(b, ~flow=it.flow, result.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+
+  let _: int = evalJs("globalThis.__fbRuns = 0")
+  expectOutput(
+    p,
+    "out",
+    array_([
+      str("parsed:200"),
+      str("fallback:404"),
+      str("followed:301"),
+      str("fallback:500"),
+    ]),
+  )
+  // One fallback per error firing, of EITHER kind — two errors in the list, so
+  // two runs, even though the arm-per-cell dispatch emits the call twice.
+  let runs: int = evalJs("globalThis.__fbRuns")
+  if runs === 2 {
+    pass("logAndFallback ran once per error firing, of either kind")
+  } else {
+    fail("expected 2 fallback runs, got " ++ Int.toString(runs))
+  }
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 7m. The covering demand is over CELL SETS, not alt ports: a collect whose
+//     branches are a merged pair {ClientError, ServerError} and a singleton
+//     {ClientError} covers ClientError twice, so "the firing branch" would not
+//     refer — ill-formed at the node (partial-collect-design.md, "Disjointness
+//     is a node demand"). Read off cell sets, this is one witness; read off port
+//     names it would be invisible, since a merged flow's port is always "flow".
+// ============================================================================
+
+header("covering cell-set collect: overlapping branch cell sets are witnessed")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "c => ({tag: c < 300 ? 'Ok' : (c < 500 ? 'ClientError' : 'ServerError'), value: c})",
+  )
+  let one = Build.lit(b, int_(200))
+  let h = Build.caseSplit(
+    b,
+    ~alts=["Ok", "ClientError", "ServerError"],
+    ~discriminator=disc.value,
+    one.value,
+  )
+  let ok = Build.alt(h, "Ok")
+  let clientErr = Build.alt(h, "ClientError")
+  let serverErr = Build.alt(h, "ServerError")
+  let errStatus = Build.collectCases(
+    b,
+    [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+  )
+  let err = Program.FlowPort(errStatus.node, "flow")
+  // {Ok} + {ClientError, ServerError} + {ClientError}: ClientError twice.
+  let result = Build.collectCases(
+    b,
+    [(ok.altFlow, ok.altValue), (err, errStatus.value), (clientErr.altFlow, clientErr.altValue)],
+  )
+  let p = Build.finish(b, ~outputs=[("out", result.value)])
+  switch Pipeline.compile(p) {
+  | Error(ws) =>
+    if ws->Array.some(w => w.rule === "coverage") {
+      Console.log(ws->Array.map(Check.witnessToString)->Array.join("\n"))
+      pass("coverage witness: overlapping branch cell sets")
+    } else {
+      fail(
+        "expected a coverage witness, got:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+  | Ok(_) => fail("overlapping cell sets compiled without a witness")
+  }
+}
+
+// ============================================================================
+// 7n. The cell-set remainder: a PARTIAL collect built over another partial
+//     collect's merged flow (merge {A, B}, then merge that with {C} into a
+//     still-partial {A, B, C} of a four-cell bundle). The representation and the
+//     coverage classification handle it — `branchCells` recurses, so the outer
+//     node names cells of the one underlying split, and it prints and checks —
+//     but the emitter is the covering configuration's only: `emitPartialCollect`
+//     reads each arm's cell off its branch's flow PORT, which a merged flow does
+//     not carry. Declines with a clean Todo rather than crashing.
+// ============================================================================
+
+header("partial collect over a partial collect declines with a clean Todo")
+{
+  let b = Build.make()
+  let disc = Build.raw(
+    b,
+    "c => ({tag: c < 300 ? 'Ok' : (c < 400 ? 'Redirect' : (c < 500 ? 'ClientError' : 'ServerError')), value: c})",
+  )
+  let one = Build.lit(b, int_(404))
+  let h = Build.caseSplit(
+    b,
+    ~alts=["Ok", "Redirect", "ClientError", "ServerError"],
+    ~discriminator=disc.value,
+    one.value,
+  )
+  let clientErr = Build.alt(h, "ClientError")
+  let serverErr = Build.alt(h, "ServerError")
+  let redirect = Build.alt(h, "Redirect")
+  let errs = Build.collectCases(
+    b,
+    [(clientErr.altFlow, clientErr.altValue), (serverErr.altFlow, serverErr.altValue)],
+  )
+  let errFlow = Program.FlowPort(errs.node, "flow")
+  // {ClientError, ServerError} merged again with {Redirect}: still partial
+  // (3 of 4 cells), so the node keeps a merged flow of its own.
+  let nonOk = Build.collectCases(b, [(errFlow, errs.value), (redirect.altFlow, redirect.altValue)])
+  let nonOkFlow = Program.FlowPort(nonOk.node, "flow")
+  let out = Build.collect(b, ~flow=nonOkFlow, nonOk.value)
+  let p = Build.finish(b, ~outputs=[("out", out.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) =>
+    pass("a partial-over-partial merge declines with a clean Todo (not a crash)")
+  | Ok(_) => fail("a partial-over-partial merge unexpectedly compiled — its emitter is deferred")
+  | Error(ws) =>
+    fail(
+      "a partial-over-partial merge should classify cleanly, got:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+}
+
+// ============================================================================
 // 7d. Partial collect over an option leading level —
 //     join(join(list, option), <partial>). Per list element, open an option
 //     (present iff n >= 2); per present value, dispatch a covered subset {A, B}

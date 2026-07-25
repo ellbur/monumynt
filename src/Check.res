@@ -509,22 +509,32 @@ let checkCoverage = (p: program): array<witness> => {
       | Malformed(msg) =>
         Array.push(out, {nodeId: n.id, rule: "coverage", message: "collect is malformed: " ++ msg})
       | CaseFull | CasePartial(_) => {
+          // Disjointness is a node demand (partial-collect-design.md): "two
+          // branches whose cell sets share a cell would both fire when B fires,
+          // and the law's 'the firing branch' would not refer". Read off CELL
+          // SETS, so it covers a merged-flow branch overlapping a singleton one,
+          // not just two branches naming the same alt port.
           let seen: Map.t<string, bool> = Map.make()
           branches->Array.forEach(b =>
-            switch b.flow {
-            | FlowPort(_, port) =>
-              if Map.has(seen, port) {
-                Array.push(
-                  out,
-                  {
-                    nodeId: n.id,
-                    rule: "coverage",
-                    message: "case collect covers alt \"" ++ port ++ "\" more than once (branches must be pairwise disjoint)",
-                  },
-                )
-              } else {
-                Map.set(seen, port, true)
-              }
+            switch branchCells(b.flow) {
+            | None => ()
+            | Some((_, cells)) =>
+              cells->Array.forEach(cell =>
+                if Map.has(seen, cell) {
+                  Array.push(
+                    out,
+                    {
+                      nodeId: n.id,
+                      rule: "coverage",
+                      message: "case collect covers alt \"" ++
+                      cell ++
+                      "\" more than once (branches must be pairwise disjoint)",
+                    },
+                  )
+                } else {
+                  Map.set(seen, cell, true)
+                }
+              )
             }
           )
         }

@@ -1266,6 +1266,47 @@ and emitRunningCollect = (
   }
 }
 
+// The containment theorem, operationally (partial-collect-design.md, "The merged
+// flow as parent scope"): inside cell `alt`, the merged value of a partial
+// collect covering that cell IS that collect's own branch value for it — "the
+// merged value is bound per arm (each arm binds the same name to its branch's
+// value; exactly one arm runs)". Walks the whole chain of partial collects from
+// `flow` down to the cell and pre-memoises each merged-value port at `ctx`,
+// INNERMOST FIRST, so an outer merged value computed from an inner one resolves.
+// Returns the statements that floated; a no-op when `flow` is a direct alt port.
+and memoiseMergedValues = (st: state, ctx: ctxPath, flow: flowRef, alt: string): array<placed> =>
+  switch flow {
+  | FlowPort(n, _) =>
+    switch n.kind {
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      | CasePartial(_) =>
+        switch branches->Array.find(b =>
+          switch branchCells(b.flow) {
+          | Some((_, cs)) => cs->Array.includes(alt)
+          | None => false
+          }
+        ) {
+        | None =>
+          failwith(
+            "Codegen: partial collect node " ++
+            Int.toString(n.id) ++
+            " has no branch covering cell \"" ++
+            alt ++
+            "\" — the consuming collect's coverage should have witnessed this",
+          )
+        | Some(b) =>
+          let inner = memoiseMergedValues(st, ctx, b.flow, alt)
+          let c = compileValue(st, ctx, b.value)
+          recordMemo(st, n.id, "value", ctx, c.name)
+          Array.concat(inner, c.floated)
+        }
+      | CaseFull | IterCollect | Malformed(_) => []
+      }
+    | _ => []
+    }
+  }
+
 // One self-contained thunk per case collect (multi-close independence):
 // `const s = force(disc)(force(input)); let out;` then an exhaustive if-chain
 // on `s.tag`, one arm per alt, ending in else-throw. Each arm pre-memoises the
@@ -1275,6 +1316,16 @@ and emitRunningCollect = (
 // invariant work (the discriminator extern, exterior-context bindings) floats
 // out of the thunk. The discriminator is a wire forced at the call, like
 // emitApp forces fn.
+//
+// Branches are keyed by CELL SETS, not by single alts: a branch's flow may be a
+// partial collect's merged flow spanning several cells, so the covering collect
+// of the design's HTTP program — two singletons and a pair — is this emitter,
+// with the pair's arm-per-cell each binding the merged value ("the exhaustive
+// case collect is not a sibling construct to the partial collect; it is the
+// covering configuration of the same node"). Dispatch stays one arm per cell,
+// which is what makes the per-arm merged-value binding fall out; the doc's
+// alternative spelling (`s.tag === "ClientError" || s.tag === "ServerError"`,
+// one arm for the pair) would need that binding hoisted and buys nothing.
 and emitCaseCollect = (
   st: state,
   ctx: ctxPath,
@@ -1282,8 +1333,13 @@ and emitCaseCollect = (
   branches: array<collectBranch>,
 ): compiled => {
   let branch0 = branches->Array.getUnsafe(0)
-  let split = switch branch0.flow {
-  | FlowPort(s, _) => s
+  let split = switch branchCells(branch0.flow) {
+  | Some((s, _)) => s
+  | None =>
+    failwith(
+      "Codegen.emitCaseCollect: branch flow names no bundle cells — " ++
+      "Check's coverage rule should have witnessed this",
+    )
   }
   let (alts, discriminator, csInput) = switch split.kind {
   | Uncollect({flowKind: Case({alts, discriminator}), input}) => (alts, discriminator, input)
@@ -1315,8 +1371,9 @@ and emitCaseCollect = (
   // branch value under it.
   let plans = alts->Array.map(altName => {
     let branch = switch branches->Array.find(b =>
-      switch b.flow {
-      | FlowPort(t, p) => t.id === split.id && p === altName
+      switch branchCells(b.flow) {
+      | Some((t, cs)) => t.id === split.id && cs->Array.includes(altName)
+      | None => false
       }
     ) {
     | Some(b) => b
@@ -1331,6 +1388,12 @@ and emitCaseCollect = (
     let altCtx = Array.concat(exterior, [{flow: altFlow, thunkOf: cn.id, idxVar: None}])
     let payloadName = st.fresh()
     recordMemo(st, split.id, altName, altCtx, payloadName)
+    // A merged-flow branch: bind every partial collect's merged value on the
+    // path down to this cell, so the branch value (computed at the merged
+    // context) resolves inside the arm.
+    memoiseMergedValues(st, altCtx, branch.flow, altName)->Array.forEach(pl =>
+      Array.push(floatedAcc, pl)
+    )
     let valueC = compileValue(st, altCtx, branch.value)
     valueC.floated->Array.forEach(pl => Array.push(floatedAcc, pl))
     {altName, altCtx, payloadName, valueName: valueC.name}
@@ -1706,8 +1769,34 @@ and emitPartialCollect = (
   )
   let (discriminator, csInput) = switch split.kind {
   | Uncollect({flowKind: Case({discriminator}), input}) => (discriminator, input)
-  | _ => failwith("Codegen.emitPartialCollect: PartialLevel's split is not a case split")
+  | _ =>
+    throw(
+      Todo(
+        "partial collect over another partial collect's merged flow — the " ++
+        "merged-flow-into-merged-flow shape (the cell-set round, " ++
+        "partial-collect-design.md)",
+      ),
+    )
   }
+  // Each arm reads its cell off the branch's flow PORT, so every branch must be a
+  // direct alt port. A branch that is itself a merged flow is the same
+  // merged-flow-into-merged-flow shape (the covering configuration handles it —
+  // `emitCaseCollect` / `memoiseMergedValues` — the partial one does not yet).
+  pbranches->Array.forEach(pb =>
+    switch pb.flow {
+    | FlowPort(t, _) =>
+      switch t.kind {
+      | Uncollect({flowKind: Case(_)}) => ()
+      | _ =>
+        throw(
+          Todo(
+            "partial collect with a merged-flow branch — the merged-flow-into-" ++
+            "merged-flow shape (the cell-set round, partial-collect-design.md)",
+          ),
+        )
+      }
+    }
+  )
 
   let exterior = instantiate(
     ~what="Partial collect node " ++ Int.toString(cn.id),
