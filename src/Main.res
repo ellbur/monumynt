@@ -4978,7 +4978,180 @@ out out
 }
 
 // ============================================================================
-// 16f. The named gaps. A stream layer stacked into an EAGER CHAIN — joined into
+// 16f. The SEQUENCE COMMUTE — `stream<option<X>>` to `option<stream<X>>`, the
+//      operation the whole stream layer exists for (lazy-stream-placement-
+//      design.md step 3; lazy-stream-commute-design.md, "Your first commute":
+//      "give me all the results, or tell me it didn't work out").
+//
+//      The two swapped flows are collected separately (`~c.inner` then
+//      `~c.outer`), which is the design's own "closed separately" spelling, so
+//      the pair is one unit to emit. The doc's worked run is the test: source
+//      [2, 4, 7, 8] with maybeEven resolves to None having forced cells 0-2 and
+//      abandoned the rest; source [2, 4, 8] resolves to Some of a stream of the
+//      values. The counter is what makes the short-circuit visible rather than
+//      asserted — the `8` is never computed.
+//
+//      The fold uses two of the runtime's three moves and not the third: it
+//      never emits a cons, because a commuted collect answers ONE question about
+//      the whole stream and cannot hand out a cell before it knows the answer.
+//      Each firing BECOMES THE REST (accumulating on the side) and an absent
+//      option ABANDONS THE REST — which is also what keeps the walk a redirect
+//      chain that `__forceD__` follows iteratively rather than a recursion.
+// ============================================================================
+
+header("stream: the sequence commute (option out of a stream, short-circuiting)")
+{
+  let bumpEven = `js "(x) => { globalThis.__pull = (globalThis.__pull || 0) + 1; return x % 2 === 0 ? x * 10 : undefined }"`
+  let program = (source: string) =>
+    `
+xs = js "` ++
+    source ++
+    `"
+even = ` ++
+    bumpEven ++
+    `
+xs -> open stream => x, ~S
+x -> even => m
+m -> open option in ~S => ~opt, ov
+~opt ~> commute out of ~S => c
+ov -~> collect ~c.inner -~> collect ~c.outer => out
+out out
+`
+
+  // The result is option<stream<X>>: `undefined` when some element's option was
+  // absent, else a stream whose cells are all already resolved. The probe reads
+  // it the way a consumer would — pattern-match first, then walk — and reports
+  // the pull count beside it.
+  let expectCommuted = (label: string, source: string, expected: JsAst.expr) => {
+    let p = TextResolve.parseProgram(source)
+    switch Pipeline.compileOne(p) {
+    | exception Codegen.Todo(gap) => fail(label ++ ": codegen has no emitter: " ++ gap)
+    | Error(ws) =>
+      fail(label ++ " failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    | Ok(o) => {
+        Console.log("JS (out):")
+        Console.log(o.js)
+        let probe = arrow(
+          [],
+          Array.concat(
+            Runtime.streamPreludeStmts,
+            [
+              exprStmt(assign(member(id("globalThis"), "__pull"), int_(0))),
+              JsBuild.const("v", o.iife),
+              ret(
+                array_([
+                  cond(eq(id("v"), undefined), null, Runtime.streamToArrayOf(id("v"))),
+                  member(id("globalThis"), "__pull"),
+                ]),
+              ),
+            ],
+          ),
+        )
+        let actual = jsonStringify(evalExpression(JsPrint.printExpr(call(probe, []))))
+        let want = jsonStringify(evalExpression(JsPrint.printExpr(expected)))
+        if actual === want {
+          pass(label ++ " = " ++ actual)
+        } else {
+          fail(label ++ ": expected " ++ want ++ ", got " ++ actual)
+        }
+      }
+    }
+    expectRoundTrip(p)
+  }
+
+  // [2, 4, 7, 8]: the option at 7 is absent, so the whole thing is None — and
+  // the `8` is never pulled (three computations, not four).
+  expectCommuted(
+    "commute over [2, 4, 7, 8] short-circuits",
+    program("[2, 4, 7, 8]"),
+    array_([null, int_(3)]),
+  )
+  // [2, 4, 8]: every option fired, so Some of the stream of payloads.
+  expectCommuted(
+    "commute over [2, 4, 8] resolves to Some",
+    program("[2, 4, 8]"),
+    array_([array_([int_(20), int_(40), int_(80)]), int_(3)]),
+  )
+
+  // The empty source: nothing was absent, so the answer is Some of an empty
+  // stream — "all-empty input yields Some of an empty structure", the
+  // empty-input answer carried over from commute-design-notes.md.
+  expectCommuted("commute over [] resolves to Some(empty)", program("[]"), array_([array_([]), int_(0)]))
+
+  // The become-the-rest chain has to stay ITERATIVE, which is the reason the
+  // fold accumulates on the side instead of inspecting the tail to build a cons:
+  // a fold that forced the tail inside its own step would cost one stack frame
+  // per element. 50k firings is far past what a recursive walk survives, so this
+  // is the emitter's shape being load-bearing rather than tidy.
+  {
+    let deep = `
+xs = js "Array.from({length: 50000}, (_, i) => i * 2)"
+even = js "(x) => (x % 2 === 0 ? x : undefined)"
+xs -> open stream => x, ~S
+x -> even => m
+m -> open option in ~S => ~opt, ov
+~opt ~> commute out of ~S => c
+ov -~> collect ~c.inner -~> collect ~c.outer => out
+out out
+`
+    switch Pipeline.compileOne(TextResolve.parseProgram(deep)) {
+    | Ok(o) => {
+        let probe = arrow(
+          [],
+          Array.concat(
+            Runtime.streamPreludeStmts,
+            [
+              JsBuild.const("v", o.iife),
+              ret(
+                cond(
+                  eq(id("v"), undefined),
+                  null,
+                  member(Runtime.streamToArrayOf(id("v")), "length"),
+                ),
+              ),
+            ],
+          ),
+        )
+        let actual = jsonStringify(evalExpression(JsPrint.printExpr(call(probe, []))))
+        if actual === "50000" {
+          pass("50k consecutive become-the-rest firings resolve without overflowing")
+        } else {
+          fail("deep commute: expected 50000, got " ++ actual)
+        }
+      }
+    | Error(ws) =>
+      fail("deep commute failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  }
+
+  // The same program one word away — `open list` instead of `open stream` — is
+  // still a clean decline, and deliberately so: "list flows can't host commute
+  // cleanly without becoming linear, and stream flows are the right place for
+  // it" (commute-design-notes.md). Test 15c is that program; here we only pin
+  // that the new emitter did not quietly claim it.
+  {
+    let listTwin = `
+xs = js "[2, 4, 8]"
+even = js "(x) => (x % 2 === 0 ? x * 10 : undefined)"
+xs -> open list => x, ~S
+x -> even => m
+m -> open option in ~S => ~opt, ov
+~opt ~> commute out of ~S => c
+ov -~> collect ~c.inner -~> collect ~c.outer => out
+out out
+`
+    switch Pipeline.compile(TextResolve.parseProgram(listTwin)) {
+    | exception Codegen.Todo(_) =>
+      pass("the eager twin (`open list`) still declines — commute belongs to stream flows")
+    | Ok(_) => fail("the eager commute compiled — the sequence emitter is stream-only")
+    | Error(ws) =>
+      fail("the eager twin failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  }
+}
+
+// ============================================================================
+// 16g. The named gaps. A stream layer stacked into an EAGER CHAIN — joined into
 //      a flatten, or dispatched — is not an eager level wearing a different
 //      hat: an eager level is a `for-of` that runs the whole source, and
 //      running a stream's whole source is the one thing a stream exists not to
