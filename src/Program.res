@@ -118,7 +118,8 @@ and kind =
   // of the product, total and value-preserving, which compiles as another
   // permutation indexing the shared table (Context.throughCommutes); over a
   // genuine nesting it is the directed SEQUENCE (option out of a stream, which
-  // short-circuits), still deferred.
+  // short-circuits), which compiles over a STREAM outer layer
+  // (Codegen.emitSequenceCommute) and stays deferred over an eager one.
   | Commute({outer: flowRef, inner: flowRef})
   // Product of two sibling (mutually invariant) flows
   // (product-flows-design.md). Stored oriented, read symmetric. Ports:

@@ -1,8 +1,13 @@
 # Commuting Option Out of Stream
 
-Status: current design — the design here is settled, though stream
-flows themselves are not implemented, so nothing in this chapter
-runs yet. The chapter covers two things: how `commute` is expressed
+Status: current design — the design here is settled, and it now RUNS:
+stream flows are implemented and so is this chapter's commute
+(`Codegen.emitSequenceCommute`, `src/ARCHITECTURE.md` worklist item 10;
+the taxonomy's other row, transpose over a Cross, landed with the poset
+round). What is not yet built is the STACKED stages — `Commuted(Joined)`
+and `Commuted(Commuted)` under "Composing Commuted with Joined", with
+the shape discipline's rejection of `Joined(Commuted)` as its check. The
+chapter covers two things: how `commute` is expressed
 and compiled as a per-close output construction on stream flows, and
 the taxonomy of which flow-kind pairs get a commute variant at all.
 
@@ -615,9 +620,18 @@ a variant or note a no-op.
   place for it. This document is the stream-flow side; the
   eager-flow story stays as recorded there.
 
-- **Implementing commute.** This is design; implementation comes
-  after the basic stream-flow runtime is in place — for *this*
-  chapter's commute, the directed sequence. The taxonomy's other row
+- **Implementing commute.** *Now built* — this chapter's commute, the
+  directed sequence, compiles over a stream outer layer
+  (`Codegen.emitSequenceCommute`), and the chapter's claim that commute
+  is per-close output construction and nothing else is what made the
+  emitter cheap: chain placement was untouched, so it is the plain
+  stream collect with the option's guard as one more level. One
+  observation the design did not have to state and the build did: the
+  fold uses become-the-rest at every firing and abandon-the-rest at the
+  first `None` — never emit-and-continue, since one answer about the
+  whole stream cannot be handed out a cell at a time — and that is also
+  what keeps the walk iterative under the primitive's redirect loop.
+  What is still design-only here is the stacked stages. The taxonomy's other row
   is already built: **transpose over a Cross is implemented**
   (`src/ARCHITECTURE.md`, poset round). It needed no output
   construction at all, which is the two-operations distinction below

@@ -590,12 +590,17 @@ Both requirements land on implementation step 1.
 
 ## Implementation order
 
-Staged so we can validate at each step before proceeding. **Steps 1 and 2
+Staged so we can validate at each step before proceeding. **Steps 1, 2 and 3
 are implemented** — see `src/ARCHITECTURE.md` worklist item 10 for what
 landed, including two things this plan expected to cost work and which
 turned out to be free: multi-output (it works on the baseline by
 construction) and level identification for a stream nested inside an
-eager flow (the existing let-floating placement already does it).
+eager flow (the existing let-floating placement already does it). Step 3
+cost no placement work either, exactly as
+`lazy-stream-commute-design.md` predicted ("chain placement is
+untouched"): the commute is output construction, so its emitter is the
+step-2 fold with the option's guard as one more level and a different
+assembled shape.
 
 1. **Runtime primitives.** Port `Delayed`, `stream`, `zipStream`,
    `listToStream` to the compile target. Synchronous (no promise),
@@ -610,7 +615,13 @@ eager flow (the existing let-floating placement already does it).
    stream-map test.
 3. **Commute / sequence on a single-output stream.** The first real
    stream operation and the motivating feature; getting it working
-   validates the runtime shape end-to-end.
+   validates the runtime shape end-to-end. *Implemented.* It validated
+   the shape in the way this plan hoped: the fold turned out to use
+   become-the-rest at every firing (accumulating on the side) and
+   abandon-the-rest at the first absence, never emit-and-continue — and
+   that is also what keeps the walk a redirect chain the iterative force
+   loop follows, so the step-1 requirements are what made the step-3
+   emitter possible rather than merely safe.
 4. **Two-output stream flow.** Introduce the consumer-set bookkeeping
    for two outputs. Verify chain count matches distinct consumer-set
    count on hand-picked examples, and GC behaves (drop one output, see

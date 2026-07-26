@@ -460,19 +460,21 @@ let rec spine = (f: flowRef): array<level> =>
       }
     | Join({outer, inner}) => Array.concat(spine(outer), spine(inner))
     | Commute(_) =>
-      // Reaching `spine` means this commute is NOT over a crossed pair: the
-      // transposing commute is resolved away by `Context.throughCommutes` before
-      // the product matchers key the chain, so it never gets here. What is left
-      // is the other operation the word names — the directed SEQUENCE (option
-      // out of a stream), which restructures rather than re-reads and whose
-      // emitter waits on stream flows (lazy-stream-commute-design.md, "the
-      // vocabulary should name the two operations distinctly").
+      // Reaching `spine` means this commute is neither of the two shapes that
+      // compile. The transposing commute is resolved away by
+      // `Context.throughCommutes` before the product matchers key the chain, so
+      // it never gets here; the directed SEQUENCE over a stream is routed by
+      // `matchSequenceCommute` before `emitCollect` asks for a spine. What is
+      // left is the sequence over an EAGER nesting — option out of a list — which
+      // stays deferred on the design's own grounds: "list flows can't host commute
+      // cleanly without becoming linear, and stream flows are the right place for
+      // it" (commute-design-notes.md, carried into lazy-stream-commute-design.md).
       throw(
         Todo(
-          "commute over a non-product nesting — the sequence operation (option out of " ++
-          "stream, short-circuiting), whose output construction waits on stream flows " ++
-          "(lazy-stream-commute-design.md); commute over a CROSSED pair is transpose " ++
-          "and compiles as a re-read of the product's shared table",
+          "commute over an eager (non-product, non-stream) nesting — the sequence " ++
+          "operation belongs to stream flows, where it compiles (option out of a " ++
+          "stream, short-circuiting: emitSequenceCommute); commute over a CROSSED " ++
+          "pair is transpose and compiles as a re-read of the product's shared table",
         ),
       )
     | Cross(_) =>
@@ -837,6 +839,68 @@ let underCoveredProduct = (st: state, cn: node): bool =>
   | _ => false
   }
 
+// --- The sequence commute: option out of a stream ---------------------------
+//
+// The other operation the word "commute" names (lazy-stream-commute-design.md,
+// "it currently names two operations"): the DIRECTED SEQUENCE — `stream<option<X>>`
+// to `option<stream<X>>`, short-circuiting at the first absence. Transpose over a
+// crossed pair re-reads a product and needs no emitter at all; this one
+// RESTRUCTURES, so it has one.
+//
+// The shape, as the author draws it (Main 16f, and 15c's list twin one word away):
+//
+//   xs -> open stream => x, ~S
+//   maybe(x) -> open option in ~S => ~opt, ov
+//   ~opt ~> commute out of ~S => c
+//   ov -~> collect ~c.inner -~> collect ~c.outer => out
+//
+// The two swapped flows are collected SEPARATELY, which is the design's own
+// "closed separately" spelling ("the compiler treats it as the full commuted
+// close plus an immediate re-open of the still-open layer — internal bookkeeping
+// only"). So the pair of collects is ONE unit to emit: the outer collect (on the
+// ex-inner option, now outermost) is where the whole thing lands, and the inner
+// collect (on the ex-outer stream, now innermost) contributes the per-element
+// value it gathers. Matched here, emitted by `emitSequenceCommute`.
+//
+// The ex-outer must be a bare STREAM open. A commute over an eager list nesting
+// stays a Todo on purpose: "list flows can't host commute cleanly without
+// becoming linear, and stream flows are the right place for it"
+// (commute-design-notes.md, carried into lazy-stream-commute-design.md's "What
+// this doesn't address").
+//
+// Routing is STRUCTURAL (a matcher, like the product chains'), not an `Annotate`
+// species. The species convention is for new RUNTIME SHAPES — a stream collect
+// is routed by `StreamCell` because it emits a different kind of cell — and the
+// commute emits none: it is output construction over the stream cells that
+// already exist, so what identifies it is the wiring, which is what a matcher
+// reads.
+type sequenceCommute = {
+  streamOpen: node, // the ex-outer layer the commute CONSUMES
+  optionOpen: node, // the ex-inner option, opened per stream element
+  innerValue: valueRef, // the inner collect's branch value, borne inside the option
+}
+
+let matchSequenceCommute = (cn: node): option<sequenceCommute> =>
+  switch cn.kind {
+  | Collect({branches: [{flow: FlowPort(cm, "outer"), value: ValuePort(ic, "value")}]}) =>
+    switch (cm.kind, ic.kind) {
+    | (
+        Commute({outer, inner}),
+        Collect({branches: [{flow: FlowPort(cm2, "inner"), value: innerValue}]}),
+      ) if cm2.id === cm.id =>
+      switch (streamOpenOf(outer), inner) {
+      | (Some(streamOpen), FlowPort(optionOpen, "flow")) =>
+        switch optionOpen.kind {
+        | Uncollect({flowKind: Option}) => Some({streamOpen, optionOpen, innerValue})
+        | _ => None
+        }
+      | _ => None
+      }
+    | _ => None
+    }
+  | _ => None
+  }
+
 // The opener/dispatch a spine level stands on, as a key — used to compare a
 // register's driving flow to a collect's flow (they scan the same sequence iff
 // their spines stand on the same levels in the same order). An alt level carries
@@ -1025,30 +1089,37 @@ and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBra
     // standing instruction for how new runtime shapes arrive). `Annotate` reads
     // the species off the flow this collect terminates; here it just routes.
     emitStreamCollect(st, ctx, cn, branches->Array.getUnsafe(0))
-  | IterCollect => {
-      let branch = branches->Array.getUnsafe(0)
-      let levels = spine(branch.flow)
-      let hasPartial = levels->Array.some(l =>
-        switch l {
-        | PartialLevel(_) => true
-        | AltLevel(_) | IterLevel(_) => false
+  | IterCollect =>
+    switch matchSequenceCommute(cn) {
+    // The directed SEQUENCE commute (option out of a stream). Matched before
+    // `spine`, which declines a Commute flow — this is the emitter that decline
+    // names.
+    | Some(m) => emitSequenceCommute(st, ctx, cn, m)
+    | None => {
+        let branch = branches->Array.getUnsafe(0)
+        let levels = spine(branch.flow)
+        let hasPartial = levels->Array.some(l =>
+          switch l {
+          | PartialLevel(_) => true
+          | AltLevel(_) | IterLevel(_) => false
+          }
+        )
+        let hasAlt = levels->Array.some(l =>
+          switch l {
+          | AltLevel(_) => true
+          | PartialLevel(_) | IterLevel(_) => false
+          }
+        )
+        // A branch that reads a register's `prev` is a running view (scanl) over
+        // the same driving flow — it re-runs the fold, pushing the running value.
+        let readsPrev = Array.length(readsPrevRegs(branch.value)) > 0
+        if readsPrev {
+          emitRunningCollect(st, ctx, cn, branch, levels)
+        } else if hasPartial || hasAlt {
+          emitCellChain(st, ctx, cn, branch, levels)
+        } else {
+          emitIterCollect(st, ctx, cn, branch, levels)
         }
-      )
-      let hasAlt = levels->Array.some(l =>
-        switch l {
-        | AltLevel(_) => true
-        | PartialLevel(_) | IterLevel(_) => false
-        }
-      )
-      // A branch that reads a register's `prev` is a running view (scanl) over
-      // the same driving flow — it re-runs the fold, pushing the running value.
-      let readsPrev = Array.length(readsPrevRegs(branch.value)) > 0
-      if readsPrev {
-        emitRunningCollect(st, ctx, cn, branch, levels)
-      } else if hasPartial || hasAlt {
-        emitCellChain(st, ctx, cn, branch, levels)
-      } else {
-        emitIterCollect(st, ctx, cn, branch, levels)
       }
     }
   | CaseFull => emitCaseCollect(st, ctx, cn, branches)
@@ -1429,6 +1500,180 @@ and emitStreamCollect = (st: state, ctx: ctxPath, cn: node, branch: collectBranc
           ),
         },
       ],
+    ),
+  }
+}
+
+// The SEQUENCE commute: `stream<option<X>>` to `option<stream<X>>`, short-
+// circuiting at the first absence (lazy-stream-placement-design.md's
+// implementation step 3, the operation the whole stream layer exists for;
+// lazy-stream-commute-design.md is its semantics).
+//
+// The commute is per-collect OUTPUT CONSTRUCTION and nothing else: the chain
+// feeding it is placed exactly as a plain stream collect's is, which is why this
+// emitter is `emitStreamCollect` with a different assembled shape and no new
+// context machinery. What it builds:
+//
+//   const out = __lazy__(() => {
+//     const acc = [];
+//     const ok = __forceD__(__zipStream__(src, __ready__(true), (h, rest) => {
+//       const e = __lazyDone__(h);          // the stream element
+//       <per-element work>
+//       const t = __force__(optionInput);
+//       if (t === undefined) { return __ready__(false); }   // ABANDON THE REST
+//       const p = __lazyDone__(t);          // the option's payload
+//       <per-firing work>
+//       acc.push(__force__(value));
+//       return __dflatMap__(rest, s => s);  // BECOME THE REST
+//     }));
+//     return ok ? __listToStream__(acc) : undefined;
+//   });
+//
+// Three things are worth naming, because each is the design speaking rather than
+// a choice made here.
+//
+// The fold uses exactly two of the runtime's three moves, and NOT the third: it
+// never emits a cons. A commuted collect answers ONE question about the whole
+// stream, so it cannot hand a consumer a cell before it knows the answer —
+// "commute is exactly the place where laziness has to give". So each firing
+// BECOMES THE REST (accumulating its value on the side, which is the doc's own
+// "it accumulates Some values"), and an absent option ABANDONS THE REST,
+// returning a terminal without ever forcing the tail. The short-circuit is
+// therefore structural: source cells past the first `None` are never pulled.
+//
+// Becoming-the-rest at every firing is also what keeps the walk ITERATIVE. A fold
+// that inspected the tail's result to build a cons would force the tail inside its
+// own thunk and cost O(n) stack; a redirect chain is followed by `__forceD__`'s
+// `while` loop instead, which is the hazard the primitive was built to answer.
+// So the accumulator array is not a shortcut around the fold — it is what lets the
+// fold stay a redirect chain.
+//
+// The `Some` payload is a stream, not the array: "it could equally be a strict
+// list, since every cell is known by the time the outer option resolves. Keeping
+// it a stream is the more uniform choice." `None` is `undefined`, which is how
+// every option-shaped value is spelled here (the `let out;` of an option collect).
+and emitSequenceCommute = (st: state, ctx: ctxPath, cn: node, m: sequenceCommute): compiled => {
+  let sf = FlowPort(m.streamOpen, "flow")
+  let of_ = FlowPort(m.optionOpen, "flow")
+  let inputOf = (n: node, what: string) =>
+    switch n.kind {
+    | Uncollect({input}) => input
+    | _ => failwith("Codegen.emitSequenceCommute: the " ++ what ++ " level is not an Uncollect")
+    }
+
+  // The commute CONSUMES the stream layer, so its one option-shaped result lives
+  // at that layer's exterior — empty for a top-level stream, the enclosing chain
+  // for one opened inside a loop, by the same instantiation every collect uses.
+  let exterior = instantiate(
+    ~what="Sequence commute at collect node " ++ Int.toString(cn.id),
+    Context.flowContext(sf),
+    ctx,
+  )
+  let feedC = compileValue(st, exterior, inputOf(m.streamOpen, "stream"))
+  let bodyCtx = Array.concat(exterior, [{flow: sf, thunkOf: cn.id, idxVar: None}])
+  // The option must open at the stream's interior — Check's join-adjacency rule
+  // owns the user-facing version of this (it is what makes the commute's operands
+  // a nesting at all); assert per check-and-tag.
+  if !chainOpens(Context.flowContext(of_), bodyCtx) {
+    failwith(
+      "Codegen: the commuted option " ++
+      Int.toString(m.optionOpen.id) ++
+      " does not open at the stream's interior — Check's join-adjacency rule should have witnessed this",
+    )
+  }
+
+  let headVar = st.fresh() // the fold step's head parameter
+  let restVar = st.fresh() // the fold over the tail, one Delayed layer deep
+  let elemName = st.fresh()
+  recordMemo(st, m.streamOpen.id, "element", bodyCtx, elemName)
+  let optC = compileValue(st, bodyCtx, inputOf(m.optionOpen, "option"))
+
+  let firedCtx = Array.concat(bodyCtx, [{flow: of_, thunkOf: cn.id, idxVar: None}])
+  let testVar = st.fresh() // the forced option value, tested for absence
+  let payName = st.fresh()
+  recordMemo(st, m.optionOpen.id, "element", firedCtx, payName)
+  let valueC = compileValue(st, firedCtx, m.innerValue)
+
+  // Partition exactly as the loop emitters do: per-firing work inside the guard,
+  // per-element work in the fold step, everything shallower floats onward.
+  let stepStmts: array<JsAst.stmt> = []
+  let firedStmts: array<JsAst.stmt> = []
+  let escaped: array<placed> = []
+  Array.concat(feedC.floated, Array.concat(optC.floated, valueC.floated))->Array.forEach(pl =>
+    if ctxPathKey(pl.at) === ctxPathKey(firedCtx) {
+      Array.push(firedStmts, pl.stmt)
+    } else if ctxPathKey(pl.at) === ctxPathKey(bodyCtx) {
+      Array.push(stepStmts, pl.stmt)
+    } else if isCtxPrefix(pl.at, exterior) {
+      Array.push(escaped, pl)
+    } else {
+      failwith("Codegen: a statement floated to a context unrelated to the sequence commute being assembled — placement bug")
+    }
+  )
+
+  let accName = st.fresh()
+  let atCons = JsBuild.arrow(
+    [JsBuild.p(headVar), JsBuild.p(restVar)],
+    Array.concat(
+      Array.concat(
+        [JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(headVar)))],
+        stepStmts,
+      ),
+      Array.concat(
+        [
+          JsBuild.const(testVar, Runtime.forceOf(JsBuild.id(optC.name))),
+          // Absent: abandon the rest. `rest` is never forced, so the source is
+          // not pulled past this cell — the short-circuit, structurally.
+          JsBuild.if_(
+            JsBuild.eq(JsBuild.id(testVar), JsBuild.undefined),
+            [JsBuild.ret(Runtime.readyOf(JsBuild.bool_(false)))],
+          ),
+          JsBuild.const(payName, Runtime.lazyDoneOf(JsBuild.id(testVar))),
+        ],
+        Array.concat(
+          firedStmts,
+          [
+            JsBuild.exprStmt(
+              JsBuild.call(
+                JsBuild.member(JsBuild.id(accName), "push"),
+                [Runtime.forceOf(JsBuild.id(valueC.name))],
+              ),
+            ),
+            // Fired: become the rest — continue as the tail's fold, emitting no
+            // cell of its own (the answer is not known yet).
+            JsBuild.ret(Runtime.restOf(JsBuild.id(restVar))),
+          ],
+        ),
+      ),
+    ),
+  )
+
+  let source = Runtime.delayedOf(Runtime.listToStreamOf(Runtime.forceOf(JsBuild.id(feedC.name))))
+  let okName = st.fresh()
+  let thunkBody = [
+    JsBuild.const(accName, JsBuild.array_([])),
+    JsBuild.const(
+      okName,
+      Runtime.forceDOf(
+        Runtime.zipStreamOf(source, Runtime.readyOf(JsBuild.bool_(true)), atCons),
+      ),
+    ),
+    JsBuild.ret(
+      JsBuild.cond(
+        JsBuild.id(okName),
+        Runtime.listToStreamOf(JsBuild.id(accName)),
+        JsBuild.undefined,
+      ),
+    ),
+  ]
+
+  let name = st.fresh()
+  recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(
+      escaped,
+      [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}],
     ),
   }
 }

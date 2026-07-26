@@ -80,7 +80,7 @@ handles (Build)  ────────┘        derive → complete → chec
   helpers for the eager fragment, plus the `Delayed`-cell stream
   runtime (iterative force with path compression, `zipStream`,
   `listToStream`) when a program uses a stream flow.
-- `src/Main.res` — the smoke suite (`npm start`): 333 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 344 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -157,7 +157,8 @@ and remain live.
   permutation indexing the one shared table — nothing to emit, and the
   user's computation still runs once per point. (Commute over a genuine
   *nesting* is the other operation the one word names — the directed
-  sequence, with its short-circuit — and waits on stream flows.)
+  sequence, with its short-circuit — and it now compiles too, over a
+  stream: see **Streams** below.)
   Fibered products (a product collected
   over some of its axes while enclosing loops hold the rest) now
   compile at any fiber width, on a flattened path read as a set of
@@ -220,9 +221,19 @@ and remain live.
   flow nested inside an eager list flow needed nothing at all. Multi-
   output works on the baseline by construction, which is why the
   consumer-set bookkeeping is an optimisation pass and not a
-  prerequisite. Ahead: the sequence commute (the motivating operation —
-  `stream<Option<X>>` to `Option<stream<X>>`, short-circuiting at the
-  first `None`), the stream flatten, a register over a stream (the
+  prerequisite. The **sequence commute** — the motivating operation,
+  `stream<option<X>>` to `option<stream<X>>`, short-circuiting at the
+  first absence — now compiles as well, and it cost no placement work
+  at all, because commute is per-collect *output construction* and
+  nothing else: the emitter is the stream collect with the option's
+  guard as one more level. Its fold uses two of the runtime's three
+  moves and pointedly not the third — it never emits a cons, since one
+  answer about the whole stream cannot be handed out a cell at a time,
+  so each firing *becomes the rest* (accumulating on the side) and an
+  absent option *abandons the rest* without ever forcing the tail. That
+  is also what keeps the walk a redirect chain the iterative force loop
+  follows rather than a per-element recursion. Ahead: the stacked
+  commute stages, the stream flatten, a register over a stream (the
   check already admits it — a stream's order is owned), and Shape C
   proper, one memoised cell per node, which is what buys back
   cross-consumer sharing.

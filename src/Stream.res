@@ -51,10 +51,13 @@
 // flow opened inside an eager list flow places its fold inside the enclosing
 // loop by the same let-floating every other collect gets (Main 16e).
 //
-// STILL STAGED: step 3 (the sequence commute — the motivating operation) and
-// step 6's remainder (stream-in-stream nesting and the flatten,
-// `join(stream, stream)`, which `Codegen.spine` declines with a named gap
-// rather than compiling a pull chain as a loop). Shape C PROPER — one memoised
+// STEP 3 (the sequence commute — the motivating operation) has since LANDED as
+// `Codegen.emitSequenceCommute`; see "The sequence commute" below for its shape
+// and its scope. STILL STAGED: the STACKED stages (`Commuted(Joined)` /
+// `Commuted(Commuted)`, the shape discipline below, with `checkStreamStack` the
+// rejection rule) and step 6's remainder (stream-in-stream nesting and the
+// flatten, `join(stream, stream)`, which `Codegen.spine` declines with a named
+// gap rather than compiling a pull chain as a loop). Shape C PROPER — one memoised
 // cell per NODE rather than one fold per collect — is the other piece: the
 // baseline compiles multi-output correctly today (Main 16d), but each collect
 // folds the source independently, so per-element work still runs once per
@@ -154,8 +157,39 @@ let checkStreamStack: Program.program => array<Check.witness> = _p =>
 // everything back to the slowest cursor stays live; a retained head pins the
 // prefix) — a genuinely new cost axis.
 
-let emitStreamCommute: Program.node => array<JsAst.stmt> = _commute =>
-  failwith("stub: sequence-commute output construction — lazy-stream-commute-design.md; step 3, the motivating operation")
+// --- The sequence commute (step 3) — LANDED in Codegen.res -----------------
+//
+// `Codegen.emitSequenceCommute` (routed by `matchSequenceCommute`) is the
+// `SequenceCommute` half of the variant above: `stream<option<X>>` to
+// `option<stream<X>>`, resolving to None at the first absence without forcing
+// the rest. It is per-collect OUTPUT CONSTRUCTION and nothing else — the chain
+// feeding it is placed exactly as a plain stream collect's is — which is the
+// design's own claim ("commute lives entirely in the close's output-construction
+// function"; "chain placement is untouched") showing up as an emitter that
+// needed no new context machinery.
+//
+// Two of the runtime's three moves, and not the third: the fold never emits a
+// cons, because one option about the whole stream cannot be handed out a cell at
+// a time ("commute is exactly the place where laziness has to give"). Each firing
+// BECOMES THE REST, accumulating its value on the side; an absent option ABANDONS
+// THE REST, returning a terminal without forcing the tail. Becoming-the-rest at
+// every firing is also what keeps the walk a redirect chain `__forceD__` follows
+// ITERATIVELY — a fold that inspected the tail to build a cons would cost a stack
+// frame per element (Main 16f pins 50k firings).
+//
+// Scope, and why the rest is not an oversight:
+//   - the ex-outer layer must be a bare STREAM open. The eager twin declines by
+//     design — "list flows can't host commute cleanly without becoming linear,
+//     and stream flows are the right place for it" (commute-design-notes.md).
+//   - the two swapped flows are collected SEPARATELY (`~c.inner` then
+//     `~c.outer`), the design's "closed separately" spelling, which the compiler
+//     "treats as the full commuted close plus an immediate re-open" — here, as
+//     one unit to emit.
+//   - STACKED stages (`Commuted(Joined)`, `Commuted(Commuted)` — the shape
+//     discipline below) are the next width, and `checkStreamStack` is still owed
+//     for the ill-formed stack that must be REJECTED, never repurposed.
+//   - result-commute (short-circuit on the first Err, carrying its payload)
+//     remains the doc's open question 2.
 
 // --- Source openers (exploration rider) -----------------------------------
 //

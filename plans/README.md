@@ -371,7 +371,11 @@ case/option are implemented; the rest are designed:
   binary flow operation (two flows in, one flow out). This is the
   correction the whole record now follows.
 - [`lazy-stream-commute-design.md`](lazy-stream-commute-design.md) —
-  commute across stream flows; the commute-variant taxonomy.
+  commute across stream flows; the commute-variant taxonomy. *Both of
+  the two operations the one word names are now **implemented**:
+  transpose over a Cross (the poset round) and the directed sequence
+  over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
+  their shape discipline are what remain.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   values that arrive later, racing as a barrier, failure as a terminator
   payload.
@@ -428,10 +432,11 @@ case/option are implemented; the rest are designed:
   nothing about placement — the implemented eager strategy transposed
   to streams; the consumer-set analysis that would merge one conceptual
   loop into one emitted loop is a deferred optimisation, not a
-  rejection (see the doc's status header). *Its implementation steps 1
-  and 2 — the runtime primitives and the single-output stream flow —
-  are now **implemented**; see `src/ARCHITECTURE.md` worklist item 10
-  for what landed and what steps 3 and 6 still owe.*
+  rejection (see the doc's status header). *Its implementation steps 1,
+  2 and 3 — the runtime primitives, the single-output stream flow, and
+  the sequence commute — are now **implemented**; see
+  `src/ARCHITECTURE.md` worklist item 10 for what landed and what
+  step 6 and the stacked stages still owe.*
 - [`placement-algorithm-notes.md`](placement-algorithm-notes.md) — the
   retired compile-time placement algorithm; a hybrid revival is deferred,
   not rejected.
