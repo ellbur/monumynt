@@ -32,6 +32,12 @@ open Program
 
 type species =
   | LazyCell // Lit / App / eager collect: one memoised lazy binding
+  | StreamCell // a collect over a stream flow: a `zipStream` fold over
+  //              Delayed cells, pulled on demand rather than iterated
+  //              (lazy-stream-placement-design.md). The eager wrapper is
+  //              unchanged — a stream is a value like any other — so this
+  //              says which SHAPE the collect's thunk has, not which cell
+  //              type its binding is.
   | FlowOnly // Uncollect / Join / Commute / Cross: no runtime residue of
   //            their own; they steer collect thunks
   | RegisterRead // compiles to loop-skeleton `let` init/read
@@ -52,7 +58,20 @@ let annotate = (p: program): annotations => {
   )
   let speciesOf = (n: node): species =>
     switch n.kind {
-    | Lit(_) | App(_) | Collect(_) | Aggregate(_) | Disaggregate(_) => LazyCell
+    // A collect's species is read off the flow it terminates, which is the
+    // point of assigning it here: codegen dispatches on the ANNOTATION, so the
+    // stream shape arrives as a new species rather than as a new match arm
+    // scattered through the emitters.
+    | Collect({branches}) =>
+      switch classifyCollect(branches) {
+      | IterCollect =>
+        switch branches[0] {
+        | Some({flow}) if Option.isSome(streamOpenOf(flow)) => StreamCell
+        | _ => LazyCell
+        }
+      | _ => LazyCell
+      }
+    | Lit(_) | App(_) | Aggregate(_) | Disaggregate(_) => LazyCell
     | Uncollect(_) | Join(_) | Commute(_) | Cross(_) => FlowOnly
     | DelayRead(_) => RegisterRead
     | DelayWrite(_) => RegisterWrite

@@ -209,12 +209,12 @@ let parseStage = (st: p): stage =>
       advance(st)
       let kindWord = expectName(st, "a flow kind after 'open'")
       switch kindWord {
-      | "list" | "option" => ()
+      | "list" | "option" | "stream" => ()
       | other =>
         fail(
           st,
           "unknown flow kind '" ++
-          other ++ "' (v0 knows list and option; stream/async/var arrive with their runtime layers)",
+          other ++ "' (v0 knows list, option and stream; async/var arrive with their runtime layers)",
         )
       }
       let nesting = if peekIsKeyword(st, "in") {

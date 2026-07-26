@@ -428,7 +428,10 @@ case/option are implemented; the rest are designed:
   nothing about placement — the implemented eager strategy transposed
   to streams; the consumer-set analysis that would merge one conceptual
   loop into one emitted loop is a deferred optimisation, not a
-  rejection (see the doc's status header).
+  rejection (see the doc's status header). *Its implementation steps 1
+  and 2 — the runtime primitives and the single-output stream flow —
+  are now **implemented**; see `src/ARCHITECTURE.md` worklist item 10
+  for what landed and what steps 3 and 6 still owe.*
 - [`placement-algorithm-notes.md`](placement-algorithm-notes.md) — the
   retired compile-time placement algorithm; a hybrid revival is deferred,
   not rejected.

@@ -1,6 +1,7 @@
-// Stream flows — ARCHITECTURE STUB. Nothing in this module runs yet; it
-// plans the shape of the stream implementation so the pieces can be filled
-// in later without re-deriving them from the design record.
+// Stream flows — PARTLY LANDED. Implementation steps 1 and 2 are live and
+// live elsewhere (see below); what remains staged here is steps 3 and 6 and
+// the exploration riders, so the pieces can be filled in without re-deriving
+// them from the design record.
 //
 // Design: plans/lazy-stream-placement-design.md (the committed baseline),
 // plans/lazy-stream-join-design.md (join as a binary flow operation — the
@@ -21,34 +22,46 @@
 // then only once. Multi-output is essential: one source can feed several
 // consumers that have pulled to different depths.
 //
-// Integration points (each a local addition, none a restructuring):
-//   - Program.res: `flowKind` gains `| Stream`. A stream uncollect is
-//     structurally identical to a list uncollect (ports: value "element",
-//     flow "flow"); the kind is on the node, chosen explicitly, never
-//     inferred.
-//   - Annotate.res: `species` gains a stream-cell species; level
-//     identification (which source a node's per-element value varies with —
-//     the stream analog of the eager `deeper`) is NOT an optimisation and
-//     lands with the first emitter.
-//   - Runtime.res: grows the Delayed-cell prelude below. This is the point
-//     where the prelude stops being three lines and the inline-vs-imported
-//     packaging question (compile-strategy open q.3) becomes real.
-//   - Codegen.res: a stream collect emitter (each node one memoised
-//     stream-derivation cell chained from its inputs; outputs read the
-//     chain via Delayed.map / a small zipStream).
+// WHAT LANDED (steps 1-2), and where — each was a local addition, none a
+// restructuring, which was the claim:
+//   - Program.res: `flowKind` gained `| Stream`, structurally identical to a
+//     list uncollect (ports: value "element", flow "flow"); the kind is on
+//     the node, chosen explicitly, never inferred. Plus `streamOpenOf`, the
+//     one structural question the two passes below ask.
+//   - Build.res / the Text* surface: `uncollectStream` and `open stream`,
+//     `open list`'s twin down to the handle.
+//   - Annotate.res: `species` gained `StreamCell`, read off the flow a
+//     collect terminates — so codegen dispatches on the ANNOTATION.
+//   - Runtime.res: `streamPreludeStmts` — the Delayed cell (three-state cache
+//     plus redirect), iterative force with path compression, `zipStream`,
+//     `listToStream`. The prelude stopped being three lines, and the
+//     packaging question (compile-strategy open q.3) got its cheapest honest
+//     answer: still inline, but LAYERED, so a program pays for the runtime it
+//     uses and eager output is unchanged.
+//   - Codegen.res: `emitStreamCollect` — `emitIterCollect` with the loop taken
+//     out. Placement, the memo, and the element pre-memoisation are all the
+//     existing machinery; only the assembled shape differs.
 //   - The test runner stays synchronous for streams (forcing is pull, not
 //     await); async streams are Async.res's turn.
 //
-// Implementation order (the doc's, with steps 4-5 moved off the critical
-// path): 1 runtime primitives -> 2 single-output stream flow -> 3 commute
-// on a single-output stream (the motivating operation) -> 6 nested flows.
+// Level identification — which source a node's per-element value varies with,
+// the stream analog of the eager `deeper` — was listed here as the piece that
+// "is NOT an optimisation and lands with the first emitter". It did, and it
+// needed no new code: `Context.valueContext` already answers it, so a stream
+// flow opened inside an eager list flow places its fold inside the enclosing
+// loop by the same let-floating every other collect gets (Main 16e).
+//
+// STILL STAGED: step 3 (the sequence commute — the motivating operation) and
+// step 6's remainder (stream-in-stream nesting and the flatten,
+// `join(stream, stream)`, which `Codegen.spine` declines with a named gap
+// rather than compiling a pull chain as a loop). Shape C PROPER — one memoised
+// cell per NODE rather than one fold per collect — is the other piece: the
+// baseline compiles multi-output correctly today (Main 16d), but each collect
+// folds the source independently, so per-element work still runs once per
+// consumer. That sharing is what Shape C buys back for free, and it is a
+// placement change inside `emitStreamCollect`, not a semantic one.
 
 // --- The planned representation additions ---------------------------------
-
-// Staging type for the Program.flowKind row this round adds. Kept here (not
-// in Program.res) so the live pipeline's matches don't grow arms before the
-// emitter exists; the fill-in replaces this by a real `| Stream` variant.
-type plannedFlowKind = StreamKind
 
 // Commute is settled to be a BINARY NODE (the spec's shape: two flow
 // inputs, flow outputs {inner, outer}, no value ports — Program.Commute
@@ -79,10 +92,12 @@ type commuteVariant =
 let checkStreamStack: Program.program => array<Check.witness> = _p =>
   failwith("stub: stream stack well-formedness — lazy-stream-commute-design.md, 'The shape discipline'")
 
-// --- Runtime: the Delayed cell (implementation step 1) --------------------
+// --- Runtime: the Delayed cell (step 1) — LANDED in Runtime.res ------------
 //
-// Port of the prototype's cells, SYNCHRONOUS (no promise, no event loop —
-// stripping tick() is what creates hazard (a) below). Spec:
+// `Runtime.streamPreludeStmts` is the port of the prototype's cells,
+// SYNCHRONOUS (no promise, no event loop — stripping tick() is what CREATES
+// hazard (a) below, which is why both hard requirements landed in the
+// primitive rather than in any stage). It implements exactly this spec:
 //
 //   Delayed<'a>  — a memoised computation with a THREE-state cache
 //                  (unforced / in-progress / done), plus a REDIRECT state
@@ -103,17 +118,19 @@ let checkStreamStack: Program.program => array<Check.witness> = _p =>
 //                    (c) abandon-the-rest: discard the tail, become a
 //                        terminal (commute at a None).
 //   listToStream(list) — bridge for list-valued sources.
-//   zip          — multi-parent read at the same source position; UNIVERSAL
-//                  under the baseline (every node with >=2 inputs).
 //
-// TWO HARD REQUIREMENTS, both landing here, both correctness-class:
-//   (a) ITERATIVE FORCE: force must follow flatMap/redirect chains in a
-//       loop, never by recursion — a run of K skipped elements otherwise
-//       nests K redirects and a sparse filter over a long source overflows
-//       the stack.
-//   (b) PATH COMPRESSION: while walking, rewrite each visited cell to the
-//       final result, or a retained reference into a skipped run keeps O(K)
-//       indirection objects alive.
+// TWO HARD REQUIREMENTS, both correctness-class, both implemented in
+// `__forceD__`: (a) ITERATIVE FORCE — redirects are followed in a `while`
+// loop, so a run of K skipped elements costs O(1) stack; (b) PATH
+// COMPRESSION — every visited cell is rewritten to the final result while
+// walking. Both are exercised: 200k consecutive become-the-rest steps run
+// without overflowing.
+//
+// STILL OWED here: `zip` — the multi-parent read at the same source position,
+// UNIVERSAL under the baseline (every node with ≥2 inputs). Step 2's fold
+// computes the whole per-element subtree inside one atCons, so nothing yet
+// reads two chains at one position; `zip` arrives with Shape C's per-node
+// cells, which is what creates the second chain to read.
 //
 // Invariant carried by every chain: SOURCE-POSITION ALIGNMENT — one cell
 // per source element, always. A non-firing element does not delete its
@@ -122,21 +139,20 @@ let checkStreamStack: Program.program => array<Check.witness> = _p =>
 // non-firing element never emits a placeholder cell — the fold becomes the
 // rest.
 
-let streamPreludeStmts: unit => array<JsAst.stmt> = () =>
-  failwith("stub: Delayed/stream/zipStream/listToStream prelude — lazy-stream-placement-design.md step 1")
-
-// --- Codegen: the per-node chain (steps 2-3) ------------------------------
+// --- Codegen: the per-node chain (Shape C proper) -------------------------
 //
-// Every node in the graph becomes its own memoised stream-derivation cell,
-// chained from its inputs (a sub-chain derives from its parent via
-// Delayed.flatMap at the same source position). Outputs read the chain via
-// a Delayed.map projection or a small zipStream. The honest costs, accepted
-// with the baseline: allocation count (one cell per node per source element)
-// and RETENTION (memoised history — everything back to the slowest cursor
-// stays live; a retained head pins the prefix) — a genuinely new cost axis.
-
-let emitStreamCollect: Program.node => array<JsAst.stmt> = _collect =>
-  failwith("stub: stream collect emitter — lazy-stream-placement-design.md step 2 (real signature threads Codegen state + context)")
+// Step 2 (LANDED as `Codegen.emitStreamCollect`) is one fold per collect: the
+// branch's whole value subtree runs inside the atCons. That is correct and
+// placement-free, and multi-output works on it by construction — but per-node
+// SHARING is what Shape C adds: every node in the graph becomes its own
+// memoised stream-derivation cell, chained from its inputs (a sub-chain
+// derives from its parent via Delayed.flatMap at the same source position),
+// so sibling collects pull the same cells instead of each re-deriving.
+// Outputs then read the chain via a Delayed.map projection or a small
+// zipStream. The honest costs, accepted with the baseline: allocation count
+// (one cell per node per source element) and RETENTION (memoised history —
+// everything back to the slowest cursor stays live; a retained head pins the
+// prefix) — a genuinely new cost axis.
 
 let emitStreamCommute: Program.node => array<JsAst.stmt> = _commute =>
   failwith("stub: sequence-commute output construction — lazy-stream-commute-design.md; step 3, the motivating operation")

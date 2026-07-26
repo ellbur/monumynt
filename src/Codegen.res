@@ -361,6 +361,15 @@ type state = {
   synthTag: unit => int,
 }
 
+// Does this collect compile to the pull chain rather than to a loop? The fact
+// is Annotate's (it reads the species off the flow the collect terminates);
+// codegen only routes on it.
+let isStreamCell = (st: state, n: node): bool =>
+  switch st.ann.speciesOf(n) {
+  | Annotate.StreamCell => true
+  | _ => false
+  }
+
 let memoKey = (id: int, port: string): string => Int.toString(id) ++ ":" ++ port
 
 let lookupMemo = (st: state, id: int, port: string, ctx: ctxPath): option<string> =>
@@ -407,6 +416,25 @@ let rec spine = (f: flowRef): array<level> =>
     switch n.kind {
     | Uncollect({flowKind: List}) => [IterLevel({uncollect: n, isList: true})]
     | Uncollect({flowKind: Option}) => [IterLevel({uncollect: n, isList: false})]
+    | Uncollect({flowKind: Stream}) =>
+      // A BARE stream open never reaches here — `emitCollect` routes it to
+      // `emitStreamCollect` before asking for a spine. So reaching this arm means
+      // a stream layer is STACKED into an eager chain: under a Join (the flatten,
+      // lazy-stream-join-design.md) or inside a dispatch (the filter) —
+      // implementation steps 3 and 6. Those are not eager levels wearing a
+      // different hat: an eager level is a `for-of` that runs the whole source,
+      // and running a stream's whole source is the one thing a stream exists not
+      // to do. So this declines rather than pretending. (Merely being nested
+      // inside an enclosing flow is not this case — that stream open is still
+      // bare, and it compiles.)
+      throw(
+        Todo(
+          "a stream layer stacked into an eager chain (joined or dispatched) — " ++
+          "the bare stream flow compiles, at the top level or inside an enclosing " ++
+          "flow (lazy-stream-placement-design.md step 2); the flatten, the sequence " ++
+          "commute, and stream-in-stream nesting are its steps 3 and 6",
+        ),
+      )
     | Uncollect({flowKind: Case(_)}) => [AltLevel({split: n, alt: port})]
     | Collect({branches}) =>
       // A partial collect's merged flow, consumed downstream (as a join's inner
@@ -992,6 +1020,11 @@ and emitDisaggregate = (st: state, ctx: ctxPath, n: node, struct_: valueRef, por
 
 and emitCollect = (st: state, ctx: ctxPath, cn: node, branches: array<collectBranch>): compiled =>
   switch classifyCollect(branches) {
+  | IterCollect if isStreamCell(st, cn) =>
+    // Dispatch on the ANNOTATION, not on the kind (compile-strategy-design.md's
+    // standing instruction for how new runtime shapes arrive). `Annotate` reads
+    // the species off the flow this collect terminates; here it just routes.
+    emitStreamCollect(st, ctx, cn, branches->Array.getUnsafe(0))
   | IterCollect => {
       let branch = branches->Array.getUnsafe(0)
       let levels = spine(branch.flow)
@@ -1262,6 +1295,141 @@ and emitIterCollect = (
   {
     name,
     floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// A collect over a bare STREAM flow: the pull chain
+// (lazy-stream-placement-design.md, implementation step 2 — "one Close
+// compiling to a zipStream over the source. No placement concerns yet").
+//
+// Structurally this is `emitIterCollect` with the loop taken out. Everything
+// that made the eager emitter work is unchanged and does the same job:
+//
+//   - the collect's own result is placed by `Context.valueContext`, so the
+//     stream-building binding floats to exactly where a list-building one would;
+//   - the element is pre-memoised at the body context, so the value subtree
+//     compiles against it by the ordinary memo rule;
+//   - statements addressed to the body context are claimed into the fold step
+//     and everything shallower floats out — loop-invariant hoisting, unchanged,
+//     which here means *pull*-invariant: work that does not vary per element
+//     runs once no matter how far the consumer pulls.
+//
+// What changes is only the assembled shape: a `__zipStream__` fold instead of a
+// `for-of`, one output cell per source element, and the branch value computed
+// inside the fold step — so it runs when that cell is pulled, and then once.
+// The eager wrapper stays: the collect is still a `__lazy__` binding whose
+// forced value is the stream, because a stream is a value like any other.
+//
+// Step 2's scope is deliberate: ONE stream level, and it is bare — the flatten
+// (`join(stream, stream)`), the sequence commute, and stream-in-stream nesting
+// are steps 3 and 6, and `spine` declines them with a named gap rather than
+// compiling a pull chain as a loop. Two things are NOT deferred, and neither
+// cost any code. Multi-output works because Shape C (the committed baseline)
+// makes it work by construction, which is why the consumer-set bookkeeping the
+// older draft called steps 4-5 is an optimisation pass and not a prerequisite.
+// And a stream flow opened INSIDE an eager flow works because `exterior` is
+// computed the way every other collect's is: the fold simply lands in the
+// enclosing loop body. "Level identification", which the doc singles out as the
+// piece that is not an optimisation, was already `Context.valueContext`.
+and emitStreamCollect = (st: state, ctx: ctxPath, cn: node, branch: collectBranch): compiled => {
+  let uncollect = switch streamOpenOf(branch.flow) {
+  | Some(u) => u
+  | None =>
+    failwith("Codegen.emitStreamCollect: routed a collect whose flow is not a bare stream open")
+  }
+  let input = switch uncollect.kind {
+  | Uncollect({input}) => input
+  | _ => failwith("Codegen.emitStreamCollect: the stream level is not an Uncollect")
+  }
+  let own = FlowPort(uncollect, "flow")
+
+  let exterior = instantiate(
+    ~what="Stream collect node " ++ Int.toString(cn.id),
+    Context.valueContext(ValuePort(cn, "value")),
+    ctx,
+  )
+  // The same adjacency assert the eager level walk makes (Check's
+  // join-adjacency rule owns the user-facing version).
+  if !chainOpens(Context.flowContext(own), exterior) {
+    failwith(
+      "Codegen: stream level " ++
+      Int.toString(uncollect.id) ++
+      " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
+    )
+  }
+
+  let feedC = compileValue(st, exterior, input)
+  let bodyCtx = Array.concat(exterior, [{flow: own, thunkOf: cn.id, idxVar: None}])
+  let headVar = st.fresh() // the fold step's head parameter
+  let restVar = st.fresh() // the fold over the tail, one Delayed layer deep
+  let elemName = st.fresh()
+  recordMemo(st, uncollect.id, "element", bodyCtx, elemName)
+  let valueC = compileValue(st, bodyCtx, branch.value)
+
+  // Partition exactly as the loop emitters do: per-element work into the fold
+  // step, everything at the exterior or shallower floats onward.
+  let stepStmts: array<JsAst.stmt> = []
+  let escaped: array<placed> = []
+  Array.concat(feedC.floated, valueC.floated)->Array.forEach(pl =>
+    if ctxPathKey(pl.at) === ctxPathKey(bodyCtx) {
+      Array.push(stepStmts, pl.stmt)
+    } else if isCtxPrefix(pl.at, exterior) {
+      Array.push(escaped, pl)
+    } else {
+      failwith("Codegen: a statement floated to a context unrelated to the stream collect being assembled — placement bug")
+    }
+  )
+
+  // The fold step: bind the element, run this element's work, emit-and-continue.
+  // `__dflatMap__(rest, s => s)` is the collapse of the one-Delayed-deep `rest`
+  // — the design's "emit-and-continue" move, the primitive its other two moves
+  // (become-the-rest, abandon-the-rest) are also spellings of.
+  let atCons = JsBuild.arrow(
+    [JsBuild.p(headVar), JsBuild.p(restVar)],
+    Array.concat(
+      Array.concat([JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(headVar)))], stepStmts),
+      [
+        JsBuild.ret(
+          Runtime.readyOf(
+            Runtime.sconsOf(
+              Runtime.forceOf(JsBuild.id(valueC.name)),
+              Runtime.restOf(JsBuild.id(restVar)),
+            ),
+          ),
+        ),
+      ],
+    ),
+  )
+
+  // The source: a list-valued wire bridged by `__listToStream__`, itself inside
+  // a Delayed so that opening the stream does not force the source until the
+  // first cell is pulled.
+  let source = Runtime.delayedOf(Runtime.listToStreamOf(Runtime.forceOf(JsBuild.id(feedC.name))))
+
+  let name = st.fresh()
+  recordMemo(st, cn.id, "value", exterior, name)
+  {
+    name,
+    floated: Array.concat(
+      escaped,
+      [
+        {
+          at: exterior,
+          stmt: JsBuild.const(
+            name,
+            Runtime.lazyOfExpr(
+              // Forcing the collect's binding asks for the stream, which is its
+              // HEAD — and holding a head means holding its value, which is what
+              // `SCons(value, Delayed<tail>)` says. So one element's work runs
+              // here and no more.
+              Runtime.forceDOf(
+                Runtime.zipStreamOf(source, Runtime.readyOf(Runtime.snil), atCons),
+              ),
+            ),
+          ),
+        },
+      ],
+    ),
   }
 }
 
@@ -2563,5 +2731,20 @@ let codegen = (ann: Annotate.annotations, p: Program.program): generated => {
     )
     (o.name, Runtime.forceOf(JsBuild.id(c.name)))
   })
-  {stmts: Array.concat(Runtime.preludeStmts, topStmts), outputs}
+  // The prelude is layered: a program pays for the runtime it uses. The eager
+  // three helpers are unconditional; the stream cells ride along only when a
+  // stream flow is present, so an eager program's generated JS is unchanged by
+  // the stream layer existing (compile-strategy-design.md open question 3 — the
+  // packaging question, answered here in its cheapest honest form; an imported
+  // runtime module remains the target and these arrays are already its modules).
+  let usesStream = p.nodes->Array.some(n =>
+    switch n.kind {
+    | Uncollect({flowKind: Stream}) => true
+    | _ => false
+    }
+  )
+  let prelude = usesStream
+    ? Array.concat(Runtime.preludeStmts, Runtime.streamPreludeStmts)
+    : Runtime.preludeStmts
+  {stmts: Array.concat(prelude, topStmts), outputs}
 }

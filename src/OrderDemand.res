@@ -97,6 +97,11 @@ let rec orderOf = (p: Program.program, f: Program.flowRef): orderClass =>
     switch n.kind {
     // "list walk | yes | walk order of the opened data" — the paradigm row.
     | Uncollect({flowKind: List}) => Owned
+    // A stream is the same row: its firings are the source's, in the source's
+    // order, and the order is the flow's meaning rather than an accident of
+    // when a consumer happens to pull. Pull PACE is not order — a register over
+    // a stream folds the same sequence however slowly it is asked for.
+    | Uncollect({flowKind: Stream}) => Owned
     // "case / option, bare | degenerate | ≤1 firing; `prev` reads the seed."
     // A Delay here is well-formed but inert, which is a property of CARDINALITY,
     // not of the kind — the same reason nobody writes "Delay is meaningless over

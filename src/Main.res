@@ -62,6 +62,82 @@ let expectOutput = (p: Program.program, name: string, expected: JsAst.expr): uni
     }
   }
 
+// --- Observing a stream-valued output ---------------------------------------
+//
+// A stream collect's value is a STREAM — a chain of `Delayed` cells, not
+// something JSON.stringify has anything to say about. So the harness walks it
+// from OUTSIDE the compiled IIFE: the cells are plain objects, so a second copy
+// of the stream prelude declared in the wrapper's own scope forces them just as
+// well as the program's own copy would. Taking a PREFIX rather than the whole
+// stream is the point — it is how the pull is *measured*, not just how the
+// values are read.
+//
+// `~take=None` walks to the end; `~counter` names a `globalThis` slot the
+// program's own externs bump, which the wrapper zeroes before reading and
+// reports alongside the prefix — so a test can pin exactly how much work a
+// given prefix demanded.
+let streamWrapper = (iife: JsAst.expr, ~take: option<int>, ~counter: option<string>): JsAst.expr => {
+  let slot = (nm: string) => member(id("globalThis"), nm)
+  let read = switch take {
+  | None => Runtime.streamToArrayOf(iife)
+  | Some(k) => Runtime.streamTakeOf(iife, int_(k))
+  }
+  let body = Array.concat(
+    Array.concat(
+      switch counter {
+      | Some(nm) => [exprStmt(assign(slot(nm), int_(0)))]
+      | None => []
+      },
+      Runtime.streamPreludeStmts,
+    ),
+    [
+      const("taken", read),
+      ret(
+        switch counter {
+        | Some(nm) => array_([id("taken"), slot(nm)])
+        | None => id("taken")
+        },
+      ),
+    ],
+  )
+  call(arrow([], body), [])
+}
+
+let expectStream = (
+  p: Program.program,
+  name: string,
+  ~take: option<int>=?,
+  ~counter: option<string>=?,
+  expected: JsAst.expr,
+): unit =>
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(gap) =>
+    fail("expected stream output '" ++ name ++ "' but codegen has no emitter: " ++ gap)
+  | Error(ws) =>
+    fail(
+      "expected stream output '" ++
+      name ++
+      "' but check failed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  | Ok({outputs}) =>
+    switch outputs->Array.find(o => o.outputName === name) {
+    | None => fail("no output named " ++ name)
+    | Some(o) => {
+        Console.log("JS (" ++ name ++ "):")
+        Console.log(o.js)
+        let probe = JsPrint.printExpr(streamWrapper(o.iife, ~take, ~counter))
+        let actual = jsonStringify(evalExpression(probe))
+        let want = jsonStringify(evalExpression(JsPrint.printExpr(expected)))
+        if actual === want {
+          pass(name ++ " = " ++ actual)
+        } else {
+          fail(name ++ ": expected " ++ want ++ ", got " ++ actual)
+        }
+      }
+    }
+  }
+
 // Round-trip: print -> parse -> same wiring; and the print is stable.
 let expectRoundTrip = (p: Program.program): unit => {
   let text = TextPrint.print(p)
@@ -4672,6 +4748,297 @@ out out
   let p = TextResolve.parseProgram(src)
   expectOutput(p, "out", array_([int_(1), int_(4), int_(9)]))
   expectRoundTrip(p)
+}
+
+// ============================================================================
+// 16. STREAM FLOWS — the pulled-on-demand axis
+//     (lazy-stream-placement-design.md, implementation steps 1-2)
+//
+//     A list flow opens a whole list and iterates it eagerly; a stream flow
+//     opens a value into a per-element flow PULLED ON DEMAND — each element
+//     computed only when a downstream consumer asks, and then only once. The
+//     kind is on the node, chosen explicitly: `open stream` beside `open list`,
+//     same ports, same context, same order. What differs is only what the
+//     collect emits.
+// ============================================================================
+
+header("stream: map over a stream flow, collected back into a stream")
+{
+  let src = `
+xs = js "[1, 2, 3]"
+xs -> open stream -> * 2 -~> collect => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  expectStream(p, "out", array_([int_(2), int_(4), int_(6)]))
+  expectRoundTrip(p)
+
+  // The same wiring through the handles, so `open stream` is not a text-only
+  // affordance: `uncollectStream` is `uncollectList`'s twin down to the handle.
+  let b = Build.make()
+  let xs = Build.raw(b, "[1, 2, 3]")
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let it = Build.uncollectStream(b, xs.value)
+  let doubled = Build.app(b, mul.value, [it.element, two.value])
+  let c = Build.collect(b, ~flow=it.flow, doubled.value)
+  let handles = Build.finish(b, ~outputs=[("out", c.value)])
+  if Program.equal(p, handles) {
+    pass("stream: text and handles build identical wiring")
+  } else {
+    fail(
+      "stream: wiring differs\n-- text --\n" ++
+      Program.dump(p) ++ "\n-- handles --\n" ++ Program.dump(handles),
+    )
+  }
+}
+
+// ============================================================================
+// 16b. What the kind BUYS: taking a prefix computes only that prefix. The same
+//      program with `open list` computes every element — which is not a defect
+//      of the eager flow, it is what "iterate the whole list" means. The two
+//      spellings differ in exactly one word, and the counter shows the
+//      difference the word makes.
+// ============================================================================
+
+header("stream: taking a prefix pulls only that prefix (the eager contrast)")
+{
+  let bump = `js "(x) => { globalThis.__pull = (globalThis.__pull || 0) + 1; return x * 2 }"`
+  let streamSrc = `
+xs = js "[1, 2, 3, 4, 5]"
+f = ` ++ bump ++ `
+xs -> open stream -> f -~> collect => out
+out out
+`
+  let p = TextResolve.parseProgram(streamSrc)
+  // Two elements taken, two elements computed — and the last three never run.
+  expectStream(
+    p,
+    "out",
+    ~take=2,
+    ~counter="__pull",
+    array_([array_([int_(2), int_(4)]), int_(2)]),
+  )
+  // Walked to the end, all five.
+  expectStream(
+    p,
+    "out",
+    ~counter="__pull",
+    array_([array_([int_(2), int_(4), int_(6), int_(8), int_(10)]), int_(5)]),
+  )
+  expectRoundTrip(p)
+
+  // The eager twin: `open list` runs the whole source before anything is read.
+  let listSrc = `
+xs = js "[1, 2, 3, 4, 5]"
+f = ` ++ bump ++ `
+xs -> open list -> f -~> collect => out
+out out
+`
+  let lp = TextResolve.parseProgram(listSrc)
+  switch Pipeline.compileOne(lp) {
+  | Ok(o) => {
+      let probe =
+        "(() => { globalThis.__pull = 0; const a = " ++
+        o.js ++ "; return [a.slice(0, 2), globalThis.__pull]; })()"
+      let actual = jsonStringify(evalExpression(probe))
+      let want = jsonStringify(evalExpression("[[2, 4], 5]"))
+      if actual === want {
+        pass("list: the same program eagerly computes all five (" ++ actual ++ ")")
+      } else {
+        fail("list contrast: expected " ++ want ++ ", got " ++ actual)
+      }
+    }
+  | Error(ws) =>
+    fail("list contrast failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+}
+
+// ============================================================================
+// 16c. Pull-invariant work floats out of the fold, and is computed once — the
+//      let-floating placement doing exactly what it does for a loop. Here that
+//      reads as: a value the per-element computation uses but does not vary
+//      with is computed once no matter how far the consumer pulls, and not at
+//      all if it never pulls.
+// ============================================================================
+
+header("stream: pull-invariant work floats out of the fold (computed once)")
+{
+  let src = `
+xs = js "[1, 2, 3, 4]"
+base = js "(() => { globalThis.__inv = (globalThis.__inv || 0) + 1; return 100 })()"
+add = js "(a, b) => a + b"
+xs -> open stream => e, ~S
+e, base -> add => shifted
+shifted -~> collect ~S => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  // Three elements pulled; the shared base is computed ONCE, not once per cell.
+  expectStream(
+    p,
+    "out",
+    ~take=3,
+    ~counter="__inv",
+    array_([array_([int_(101), int_(102), int_(103)]), int_(1)]),
+  )
+  // One element pulled: still once. The count does not scale with the pull,
+  // which is the whole claim — and "outside the fold" never means "eagerly",
+  // since the floated binding is still a `__lazy__` cell forced on first use.
+  expectStream(p, "out", ~take=1, ~counter="__inv", array_([array_([int_(101)]), int_(1)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 16d. Multi-output over one stream open. It works on the baseline by
+//      construction — which is the whole reason the consumer-set bookkeeping
+//      (the older plan's steps 4-5) is an OPTIMISATION pass rather than a
+//      prerequisite. What is not yet delivered is the sharing: each collect
+//      folds the source independently, so per-element work runs once per
+//      consumer, the eager model's documented cost. Shape C's per-node stream
+//      cells are what bring that back, and they are the next stream round.
+// ============================================================================
+
+header("stream: two collects over one stream open (multi-output works)")
+{
+  let src = `
+xs = js "[1, 2, 3]"
+xs -> open stream => e, ~S
+e * 2 => doubled
+e * 3 => tripled
+doubled -~> collect ~S => a
+tripled -~> collect ~S => b
+out a
+out b
+`
+  let p = TextResolve.parseProgram(src)
+  expectStream(p, "a", array_([int_(2), int_(4), int_(6)]))
+  expectStream(p, "b", array_([int_(3), int_(6), int_(9)]))
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 16e. A stream flow opened INSIDE an eager list flow needs nothing new, and
+//      that is worth pinning rather than assuming. The stream emitter places
+//      itself by `Context.valueContext` like every other collect, so the fold
+//      lands inside the enclosing for-of and the outer collect gathers a LIST
+//      OF STREAMS — one per group, each still pulled on its own. Placement
+//      being let-floating is what makes cross-kind nesting free: the eager
+//      layer never had to learn what a stream is.
+// ============================================================================
+
+header("stream: a stream flow opened inside an eager list flow")
+{
+  let src = `
+xss = js "[[1, 2], [3]]"
+xss -> open list => xs, ~L
+xs -> open stream in ~L => e, ~S
+e * 2 -~> collect ~S => inner
+inner -~> collect ~L => out
+out out
+`
+  let p = TextResolve.parseProgram(src)
+  switch Pipeline.compileOne(p) {
+  | Ok(o) => {
+      Console.log("JS (out):")
+      Console.log(o.js)
+      // The output is a list of streams, so the probe walks each one.
+      let walk = arrow(
+        [],
+        Array.concat(
+          Runtime.streamPreludeStmts,
+          [
+            ret(
+              call(
+                member(o.iife, "map"),
+                [arrowExpr([JsBuild.p("s")], Runtime.streamToArrayOf(id("s")))],
+              ),
+            ),
+          ],
+        ),
+      )
+      let actual = jsonStringify(evalExpression(JsPrint.printExpr(call(walk, []))))
+      let want = jsonStringify(
+        evalExpression(
+          JsPrint.printExpr(
+            array_([array_([int_(2), int_(4)]), array_([int_(6)])]),
+          ),
+        ),
+      )
+      if actual === want {
+        pass("stream in a list flow: one stream per group = " ++ actual)
+      } else {
+        fail("stream in a list flow: expected " ++ want ++ ", got " ++ actual)
+      }
+    }
+  | Error(ws) =>
+    fail("nested stream failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 16f. The named gaps. A stream layer stacked into an EAGER CHAIN — joined into
+//      a flatten, or dispatched — is not an eager level wearing a different
+//      hat: an eager level is a `for-of` that runs the whole source, and
+//      running a stream's whole source is the one thing a stream exists not to
+//      do. So `spine` declines it rather than compiling a pull chain as a loop
+//      (the flatten is step 3's neighbour; the sequence commute that motivates
+//      the whole stream layer is step 3 itself). A register over a stream is
+//      the same story from the other side: its driving flow OWNS an order, so
+//      Check admits it — a stream's firings are the source's, in the source's
+//      order, and pull PACE is not order — and only the emitter is missing.
+// ============================================================================
+
+header("stream: joined and register-driven stream chains decline cleanly")
+{
+  let declines = (label: string, p: Program.program) => {
+    switch Pipeline.compile(p) {
+    | exception Codegen.Todo(_) => pass(label ++ " declines with a clean Todo")
+    | Ok(_) => fail(label ++ " unexpectedly compiled — its emitter is a named gap")
+    | Error(ws) =>
+      fail(label ++ " failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
+  }
+
+  // The flatten: a stream opened per element of an outer stream, joined into it.
+  {
+    let b = Build.make()
+    let xss = Build.raw(b, "[[1, 2], [3]]")
+    let mul = Build.raw(b, "(a, b) => a * b")
+    let two = Build.lit(b, int_(2))
+    let outer = Build.uncollectStream(b, xss.value)
+    let inner = Build.uncollectStream(b, outer.element)
+    let j = Build.join(b, ~outer=outer.flow, ~inner=inner.flow)
+    let doubled = Build.app(b, mul.value, [inner.element, two.value])
+    let c = Build.collect(b, ~flow=j.flow, doubled.value)
+    let p = Build.finish(b, ~outputs=[("out", c.value)])
+    declines("join(stream, stream) — the flatten", p)
+    expectRoundTrip(p)
+  }
+
+  // A register folding a stream: an emitter gap, not a witness — Check's
+  // order-demand rule admits it, which is the half that is already done.
+  {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let xs = Build.raw(b, "[1, 2, 3]")
+    let it = Build.uncollectStream(b, xs.value)
+    let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+    let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+    let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+    let p = Build.finish(b, ~outputs=[("total", w.final)])
+    switch Check.check(p) {
+    | [] => pass("a register over a stream passes check (a stream's order is owned)")
+    | ws =>
+      fail(
+        "a register over a stream witnessed:\n  " ++
+        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+      )
+    }
+    declines("a register over a stream driving flow", p)
+    expectRoundTrip(p)
+  }
 }
 
 // ============================================================================
