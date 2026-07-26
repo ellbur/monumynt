@@ -41,7 +41,8 @@
 // the representation so the printer, the checks, and authoring experiments
 // can exercise them ahead of the compile catching up.
 //
-// Not represented yet (deliberately): stream/async/incremental flow kinds,
+// Not represented yet (deliberately): async/incremental flow kinds (Stream has
+// landed — the pulled-on-demand axis, structurally a List),
 // race and concurrent-join barriers, partial-collect's None-port decision,
 // diagrams-with-boundaries (a program here is one anonymous diagram: node set
 // + named outputs). Each arrives with its own design round; the port model is
@@ -53,7 +54,7 @@
 // additions now have ARCHITECTURE STUBS — modules that hold the staged
 // types, the adopted decisions, and the settled rejections, each citing its
 // design doc (see ARCHITECTURE.md, "Architecture stubs"). Planned `flowKind`
-// rows: Stream (Stream.res), Async (Async.res), Var (Incremental.res), IO
+// rows: Async (Async.res), Var (Incremental.res), IO
 // (Effects.res). Planned `kind` additions: EndWhen (Cut.res), Fail
 // (Fail.res), Race / Settle / Paced / ReleaseHalf (Async.res), SelfOpen /
 // PullSource (Stream.res), KeyedPartition (CollectFamily.res),
@@ -75,6 +76,14 @@ and flowRef = FlowPort(node, string)
 and flowKind =
   | List
   | Option
+  // Pulled on demand rather than iterated eagerly: one element computed when a
+  // downstream consumer asks, and then only once (lazy-stream-placement-design.md).
+  // STRUCTURALLY IDENTICAL to List — same ports ("element" / "flow"), same
+  // context, same order class — and that is the point: the kind is on the node,
+  // chosen explicitly, never inferred, and it changes only what the collect
+  // EMITS. Everything that reasons about flows treats it as the list-shaped axis
+  // it is.
+  | Stream
   // The discriminator is an ordinary value input (a wire, normally to a Lit
   // holding a JS function `(input) => {tag, value}`), not an embedded JsAst
   // payload — functions are values here.
@@ -244,7 +253,7 @@ let valuePorts = (k: kind): array<string> =>
   switch k {
   | Lit(_) | App(_) => ["value"]
   | Collect(_) => ["value"]
-  | Uncollect({flowKind: List | Option}) => ["element"]
+  | Uncollect({flowKind: List | Option | Stream}) => ["element"]
   | Uncollect({flowKind: Case({alts})}) => alts
   | Join(_) | Commute(_) | Cross(_) => []
   | DelayRead(_) => ["prev"]
@@ -261,7 +270,7 @@ let flowPorts = (k: kind): array<string> =>
     | CasePartial(_) => ["flow"] // the merged flow of the covered alts
     | _ => []
     }
-  | Uncollect({flowKind: List | Option}) => ["flow"]
+  | Uncollect({flowKind: List | Option | Stream}) => ["flow"]
   | Uncollect({flowKind: Case({alts})}) => alts
   | Join(_) | Cross(_) => ["flow"]
   | Commute(_) => ["outer", "inner"]
@@ -278,6 +287,28 @@ let flowBorne = (k: kind, port: string): bool =>
   | Uncollect(_) => true // "element" or an alt payload
   | DelayRead(_) => port === "prev"
   | _ => false
+  }
+
+// Is this flow ref a BARE stream open — the whole of a stream uncollect's own
+// flow, with nothing stacked on it? That is the shape
+// `lazy-stream-placement-design.md`'s implementation step 2 covers ("one Close
+// compiling to a zipStream over the source"). A stream layer STACKED — under a
+// Join (the flatten, step 3's neighbour) or inside a dispatch — is deliberately
+// NOT this, and codegen's spine walk gives it a clean gap rather than an eager
+// loop over a pull chain. Note what this does NOT exclude: a stream open whose
+// EXTERIOR is an enclosing flow is still bare (the nesting is in its context,
+// not in the flow ref), which is why a stream inside a list loop compiles.
+//
+// Asked by Annotate (to assign the stream species) and by Codegen (to route),
+// so it lives here with the other structural questions about a flow.
+let streamOpenOf = (f: flowRef): option<node> =>
+  switch f {
+  | FlowPort(n, "flow") =>
+    switch n.kind {
+    | Uncollect({flowKind: Stream}) => Some(n)
+    | _ => None
+    }
+  | FlowPort(_, _) => None
   }
 
 // --- Structural walking helpers ------------------------------------------
@@ -300,7 +331,7 @@ let inputs = (n: node): nodeInputs =>
   | Uncollect({flowKind, input, nesting}) => {
       values: switch flowKind {
       | Case({discriminator}) => [input, discriminator]
-      | List | Option => [input]
+      | List | Option | Stream => [input]
       },
       flows: switch nesting {
       | Some(f) => [f]
@@ -353,6 +384,7 @@ let kindName = (k: kind): string =>
   | App(_) => "App"
   | Uncollect({flowKind: List}) => "Uncollect list"
   | Uncollect({flowKind: Option}) => "Uncollect option"
+  | Uncollect({flowKind: Stream}) => "Uncollect stream"
   | Uncollect({flowKind: Case(_)}) => "Uncollect case"
   | Collect(_) => "Collect"
   | Join(_) => "Join"
@@ -413,7 +445,7 @@ let dump = (p: program): string => {
       let base = switch flowKind {
       | Case({alts, discriminator}) =>
         base ++ " disc=" ++ vref(discriminator) ++ " alts=[" ++ alts->Array.join(", ") ++ "]"
-      | List | Option => base
+      | List | Option | Stream => base
       }
       switch nesting {
       | Some(f) => base ++ " in " ++ fref(f)

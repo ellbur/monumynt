@@ -308,6 +308,7 @@ let resolveChain = (
         let h = switch kindWord {
         | "list" => Build.uncollectList(st.bld, ~nesting=?nestingRef, input)
         | "option" => Build.uncollectOption(st.bld, ~nesting=?nestingRef, input)
+        | "stream" => Build.uncollectStream(st.bld, ~nesting=?nestingRef, input)
         | other => err("unknown open kind '" ++ other ++ "'")
         }
         cs.cur = Some(h.element)

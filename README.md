@@ -13,7 +13,8 @@ The code is ReScript 12 compiled to ES modules and run on Node.
 
 The design work has run well ahead of the code. The code implements
 list/option iteration, case splits, join and filter, partial collects,
-registers (the Delay pair), the whole-table Cross, structs, and a
+registers (the Delay pair), the whole-table Cross, structs, **stream
+flows** (the pulled-on-demand axis), and a
 textual surface that round-trips; everything else in the design documents is
 design-only so far.
 
@@ -55,7 +56,7 @@ handles (Build)  ────────┘        derive → complete → chec
 - `src/Program.res` — **the program of record**: the ports-first
   representation. A program is a node set plus distinguished outputs
   (no root expression). Node kinds are `Lit`, `App`, `Uncollect`
-  (list / option / case — the opener), `Collect` (the consumer),
+  (list / option / stream / case — the opener), `Collect` (the consumer),
   binary `Join`, `Commute`, `Cross`, the `DelayRead`/`DelayWrite`
   register pair, and `Aggregate`/`Disaggregate` (struct construction and
   field projection); ports are named value/flow refs, with per-alt ports
@@ -75,14 +76,18 @@ handles (Build)  ────────┘        derive → complete → chec
   once". Rationale in `plans/lazy-compile-design.md`.
 - `src/Text*.res` — the textual surface: lexer, parser, resolver
   (into `Build`), and a total printer that round-trips.
-- `src/Runtime.res` — the emitted prelude (three lazy helpers).
-- `src/Main.res` — the smoke suite (`npm start`): 278 checks that
+- `src/Runtime.res` — the emitted prelude, in layers: three lazy
+  helpers for the eager fragment, plus the `Delayed`-cell stream
+  runtime (iterative force with path compression, `zipStream`,
+  `listToStream`) when a program uses a stream flow.
+- `src/Main.res` — the smoke suite (`npm start`): 333 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
   placement, list/option/join flows (multi-collect, nested, flatten),
-  case splits and filters, partial collects, registers, structs, and
-  the whole-table Cross (including one opened inside an enclosing loop).
+  case splits and filters, partial collects, registers, structs,
+  the whole-table Cross (including one opened inside an enclosing loop),
+  and stream flows.
 
 **[`src/ARCHITECTURE.md`](src/ARCHITECTURE.md)** is the deep map:
 module status, the decisions taken, and the worklist.
@@ -198,7 +203,30 @@ and remain live.
   is a node set, not a root expression
   (`plans/iteration-with-state-design.md`, "What it forces to the
   surface: the program is a node set").
-- **Streams, async, incremental** — each a new species in `Annotate`
+- **Streams** — started, and the prediction held: a new species in
+  `Annotate`, cells in `Runtime.res`, and an emitter, with no
+  restructuring anywhere. A stream flow opens a value into a per-element
+  flow *pulled on demand* — each element computed only when a downstream
+  consumer asks, and then only once — and it is spelled `open stream`
+  beside `open list`, structurally identical down to the ports, the
+  order class, and the handle. The runtime is the prototype's `Delayed`
+  cell made synchronous, which is what creates the stack hazard the
+  design names, so both of its hard requirements live in the primitive:
+  force follows redirect chains iteratively and path-compresses as it
+  goes (200k consecutive skips run without overflowing). The emitter is
+  the eager list emitter with the loop taken out — same placement, same
+  memo, same element pre-memoisation — so loop-invariant hoisting became
+  *pull*-invariant hoisting with nothing written for it, and a stream
+  flow nested inside an eager list flow needed nothing at all. Multi-
+  output works on the baseline by construction, which is why the
+  consumer-set bookkeeping is an optimisation pass and not a
+  prerequisite. Ahead: the sequence commute (the motivating operation —
+  `stream<Option<X>>` to `Option<stream<X>>`, short-circuiting at the
+  first `None`), the stream flatten, a register over a stream (the
+  check already admits it — a stream's order is owned), and Shape C
+  proper, one memoised cell per node, which is what buys back
+  cross-consumer sharing.
+- **Async, incremental** — each a new species in `Annotate`
   + cells in `Runtime.res` + an emitter, per
   `plans/implementation-strategy.md`.
 - **Structural tests** — golden-file the generated JS.
@@ -217,7 +245,7 @@ src/
   Context.res  Poset.res             flow-context (linear path + SP poset)
   Derive.res  Complete.res  Check.res  Annotate.res  Codegen.res   the pipeline passes
   Pipeline.res                       pass orchestration
-  Runtime.res                        the emitted prelude
+  Runtime.res                        the emitted prelude (eager + stream layers)
   TextLex.res  TextParse.res  TextAst.res  TextResolve.res  TextPrint.res   the textual surface
   Main.res                           the smoke suite + examples
 rescript.json                        ESM output, lib/es6/, .res.mjs suffix

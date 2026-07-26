@@ -280,7 +280,7 @@ and valueAxisFlows = (v: valueRef): array<flowRef> =>
       // element (list/option) or an alt payload (case): varies over its own
       // flow's axis and everything determining that flow.
       let ownFlow = switch flowKind {
-      | List | Option => FlowPort(n, "flow")
+      | List | Option | Stream => FlowPort(n, "flow")
       | Case(_) => FlowPort(n, port)
       }
       axisFlows(ownFlow)
@@ -350,7 +350,7 @@ let rec valueContext = (r: valueRef): array<flowRef> =>
       // "element" (list/option) or an alt payload (case): per-iteration —
       // the exterior context plus this node's own flow layer.
       let ownFlow = switch flowKind {
-      | List | Option => FlowPort(n, "flow")
+      | List | Option | Stream => FlowPort(n, "flow")
       | Case(_) => FlowPort(n, port) // the alt's flow
       }
       Array.concat(flowContext(ownFlow), [ownFlow])
@@ -656,7 +656,7 @@ let rec posetValueContext = (~products: array<Poset.t>, r: valueRef): Poset.t =>
     | Disaggregate({struct_}) => posetValueContext(~products, struct_)
     | Uncollect({flowKind}) =>
       let ownFlow = switch flowKind {
-      | List | Option => FlowPort(n, "flow")
+      | List | Option | Stream => FlowPort(n, "flow")
       | Case(_) => FlowPort(n, port)
       }
       fullPoset(ownFlow)

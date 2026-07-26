@@ -590,7 +590,12 @@ Both requirements land on implementation step 1.
 
 ## Implementation order
 
-Staged so we can validate at each step before proceeding:
+Staged so we can validate at each step before proceeding. **Steps 1 and 2
+are implemented** — see `src/ARCHITECTURE.md` worklist item 10 for what
+landed, including two things this plan expected to cost work and which
+turned out to be free: multi-output (it works on the baseline by
+construction) and level identification for a stream nested inside an
+eager flow (the existing let-floating placement already does it).
 
 1. **Runtime primitives.** Port `Delayed`, `stream`, `zipStream`,
    `listToStream` to the compile target. Synchronous (no promise),

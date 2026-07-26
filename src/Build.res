@@ -78,6 +78,14 @@ let uncollectOption = (bld: b, ~nesting: option<flowRef>=?, input: valueRef): it
   {node: n, element: ValuePort(n, "element"), flow: FlowPort(n, "flow")}
 }
 
+// The pulled-on-demand axis. Same handle as a list open — same ports, same
+// authoring — because a stream flow IS a list-shaped axis; the kind changes
+// only what a consuming collect emits (lazy-stream-placement-design.md).
+let uncollectStream = (bld: b, ~nesting: option<flowRef>=?, input: valueRef): iterHandle => {
+  let n = uncollect(bld, Stream, ~nesting?, input)
+  {node: n, element: ValuePort(n, "element"), flow: FlowPort(n, "flow")}
+}
+
 let caseSplit = (
   bld: b,
   ~alts: array<string>,

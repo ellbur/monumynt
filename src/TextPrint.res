@@ -69,6 +69,15 @@ type namer = {
 }
 
 let portKey = (n: node, port: string): string => Int.toString(n.id) ++ ":" ++ port
+
+// The word after `open` for a non-case uncollect. One reading per kind; the
+// parser accepts exactly these.
+let openWord = (k: kind): string =>
+  switch k {
+  | Uncollect({flowKind: List}) => "list"
+  | Uncollect({flowKind: Stream}) => "stream"
+  | _ => "option"
+  }
 let nodeKey = (n: node): string => "node:" ++ Int.toString(n.id)
 
 // Nodes whose refs print as projections off a node name.
@@ -234,7 +243,7 @@ let print = (~inserted: array<int>=[], p: program): string => {
             bumpV(discriminator, Some(n))
             Map.set(discNode, nodeOfValue(discriminator).id, true)
           }
-        | List | Option => ()
+        | List | Option | Stream => ()
         }
         switch nesting {
         | Some(f) => addFCons(f, n)
@@ -310,7 +319,7 @@ let print = (~inserted: array<int>=[], p: program): string => {
     switch f {
     | FlowPort(u, "flow") =>
       switch u.kind {
-      | Uncollect({flowKind: List | Option}) => {
+      | Uncollect({flowKind: List | Option | Stream}) => {
           let cons = Map.get(fCons, portKey(u, "flow"))->Option.getOr([])
           Array.length(cons) >= 1 &&
           cons->Array.every(c =>
@@ -441,12 +450,9 @@ let print = (~inserted: array<int>=[], p: program): string => {
           mark(c)
           chainForward(ValuePort(c, "value"), stages)
         }
-      | Uncollect({flowKind: List | Option, input, nesting: None})
+      | Uncollect({flowKind: List | Option | Stream, input, nesting: None})
         if sameValue(input, cur) && implicitFlow(FlowPort(c, "flow")) => {
-          let word = switch c.kind {
-          | Uncollect({flowKind: List}) => "list"
-          | _ => "option"
-          }
+          let word = openWord(c.kind)
           Array.push(stages, "-> open " ++ word)
           mark(c)
           chainForward(ValuePort(c, "element"), stages)
@@ -522,7 +528,7 @@ let print = (~inserted: array<int>=[], p: program): string => {
         | None => false
         }) =>
         Some(c)
-      | Uncollect({flowKind: List | Option, input, nesting: None})
+      | Uncollect({flowKind: List | Option | Stream, input, nesting: None})
         if sameValue(input, cur) && implicitFlow(FlowPort(c, "flow")) =>
         Some(c)
       | Uncollect({flowKind: Case(_), input}) if sameValue(input, cur) => Some(c)
@@ -543,14 +549,14 @@ let print = (~inserted: array<int>=[], p: program): string => {
   let nextCurOf = (c: node): option<valueRef> =>
     switch c.kind {
     | App(_) | Collect(_) => Some(ValuePort(c, "value"))
-    | Uncollect({flowKind: List | Option}) => Some(ValuePort(c, "element"))
+    | Uncollect({flowKind: List | Option | Stream}) => Some(ValuePort(c, "element"))
     | _ => None // a split is terminal (yields a handle)
     }
   // The value a head produces to begin its chain (None => standalone/terminal).
   let headStart = (h: node): option<valueRef> =>
     switch h.kind {
     | App({args}) => Array.length(args) >= 1 ? Some(ValuePort(h, "value")) : None
-    | Uncollect({flowKind: List | Option, nesting: None}) =>
+    | Uncollect({flowKind: List | Option | Stream, nesting: None}) =>
       implicitFlow(FlowPort(h, "flow")) ? Some(ValuePort(h, "element")) : None
     | Collect({branches}) =>
       switch classifyCollect(branches) {
@@ -678,11 +684,8 @@ let print = (~inserted: array<int>=[], p: program): string => {
           let sources = args->Array.map(termOf)
           emitChainHead(n, sources, "-> " ++ termOf(fn), ValuePort(n, "value"))
         }
-      | Uncollect({flowKind: List | Option, input, nesting}) => {
-          let word = switch n.kind {
-          | Uncollect({flowKind: List}) => "list"
-          | _ => "option"
-          }
+      | Uncollect({flowKind: List | Option | Stream, input, nesting}) => {
+          let word = openWord(n.kind)
           let nestTxt = switch nesting {
           | Some(f) => " in ~" ++ flowName(f)
           | None => ""
