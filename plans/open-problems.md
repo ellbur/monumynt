@@ -206,7 +206,10 @@ the thread friendly to the programmer — it owns the crossing rule,
 the one-writeback rule's effect-ordering caveat, and the
 result-level fine print, under the recorded
 generic-iteration-picture constraint); the register final-readout
-anchor (filed from end-when's round); the self-driven source opener the port form must borrow —
+anchor (filed from end-when's round — now worked there as the
+anchor rule, a candidate for this row's conversation; it also
+dissolves the pair's `final`-on-self-driven-streams bullet if
+adopted); the self-driven source opener the port form must borrow —
 now worked (`source-openers-design.md`: a bare flow-minting opener, no
 value ports, kind answered as the sourceless stream; the
 counted↔conditional seam it opens is filed back here as that round's
@@ -666,17 +669,21 @@ split-when relationship was settled at the root in the same
 conversation — end-when is the cut's prefix projection, see the
 variable-rate row), and the
 inclusive/exclusive bit as one bit on the node, exclusive default.
-Remaining: the register final-readout anchor (needs a stated rule;
-touches the iteration-state round); the textual spelling (with a
+Remaining: the register final-readout anchor — now carrying a
+worked candidate rule (`end-when-design.md`, "The register
+final-readout anchor": `final` as a read at a drawn anchor flow's
+completion, admissible iff the anchor's extent is a prefix of the
+update order; not adopted — the spelling and the
+explicit-vs-inferred bit ride the `hold` decisions); the textual spelling (with a
 recorded direction — a word pair like `to`/`until`, never a flag,
 decided jointly with split-when's destination setting); the bit's
 drawing (layout-side, out of scope here); interrupt unification
 stays deliberately unforced; and the continuation seam is now
 cashed by the cut decision (the continuation is a port of the
 root construct; edges filed at the variable-rate row).
-I stays 2 (the anchor rule is genuine semantic residue, not
-polish); W = 5 stands, which is why the anchor and spellings are
-worth closing soon.
+I stays 2 (the anchor rule is worked but unadopted — semantic
+residue until its conversation); W = 5 stands, which is why the
+anchor and spellings are worth closing soon.
 
 Evidence and prior art: the stop/discharge/split-on-tag composition
 survived contact with the textual form and reads well

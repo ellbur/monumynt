@@ -308,7 +308,7 @@ so operationally the final value is the state at the cut. But the
 rule of *meaning* for which extent a write half's `final` reads,
 when subject-flow and shortened-flow consumers coexist, needs
 stating rather than inheriting from evaluation order (open
-question 4).
+question 4, worked below — "The register final-readout anchor").
 
 ## Loops with no source: self-driven flows become usable
 
@@ -737,8 +737,13 @@ is stated; nothing here is settled.
    sits between a register's flow and its consumers, which extent
    does the write half's `final` read — and what does it mean if
    subject-flow and shortened-flow collects coexist with one
-   register? Needs a stated rule; touches the iteration-state
-   round.
+   register? Worked below ("The register final-readout anchor"):
+   the candidate rule is that `final` is a read at a *moment* —
+   the completion of a drawn anchor flow, admissible exactly when
+   its extent is a prefix of the register's update order — with
+   the write half's bare binder as the unanchored default. Not
+   adopted; the spelling and the inference question ride the
+   `hold` decisions in `delay-ontology-design.md`.
 5. **Stacked end-whens.** `end-when(end-when(F, a), b)` versus one
    end-when over the partial-collect merge of a and b. Worked
    below.
@@ -931,3 +936,190 @@ proposed: a warning when stacked stops are not provably
 exclusive — the stacked form is deterministic and lawful; whether
 ties were *meant* is a question for the elaboration/completion
 story (`time-travel-programs-design.md`), not for the checker.
+
+## The register final-readout anchor (open question 4, worked)
+
+Status: worked with a stated candidate rule, **not adopted** — the
+case for a rule, prepared for the iteration-state round's
+ergonomics conversation. It consumes the straddle account of
+`delay-ontology-design.md` ("A stateful value straddles two
+flows") and leaves its own spellings to the rounds that own them.
+
+### The question, concretely
+
+Return to the convergence scan from "Stopping because of carried
+state": the register steps on the subject flow, the stop condition
+splits on the carried state, and every collect hangs off the
+shortened flow. What does the write half's binder — the final
+readout — *mean*? The record says `final` is "the register's value
+after the flow completes" (`iteration-with-state-design.md`, "The
+exit anchor comes for free"), and the register's flow is the
+*subject* — the full walk. But demand never crosses the cut, so
+evaluation yields the state at the cut. If the meaning is "after
+the subject completes," lazy evaluation is quietly computing a
+different value than the one meant; if the meaning is "whatever
+the demand reached," meaning inherits from evaluation order. Both
+readings are wrong, and the second is the one this round exists to
+rule out.
+
+### `final` is a read at a moment
+
+The reframe comes from the straddle account: a register is an
+**update cadence** (one flow, fixed by provenance — read off the
+step wire, never chosen) plus **reads**, which are the consumer's
+(`delay-ontology-design.md`). The record already holds a family of
+register reads: `prev` (per-firing, on the update flow), `hold`
+(per-firing, on any flow the update flow is nested within), the
+running view (per-firing, the collect's derived register —
+`variable-rate-consumption-design.md`, Part II). Each is "the
+state as of a moment," with statefulness supplying totality. The
+final readout is not a different species: it is the **read at
+completion** — the state as of the moment a flow's extent is
+done.
+
+The write half's port made this hard to see. `final` drawn as one
+port of one node reads as intrinsic to the register — one
+register, one exit value. The shortened flow is the smallest case
+that separates the register from its readout: one state history,
+and *several moments* a program might legitimately read it at —
+the cut, the subject's end. So the rule of meaning is a rule
+about which moment a given read names:
+
+> **The anchor rule (candidate).** A final readout reads the
+> register's state as of the completion of a drawn **anchor
+> flow**. The read is well-formed iff the anchor's completed
+> extent identifies a downward-closed set — a prefix — of the
+> update flow's firing order; its value is the state after
+> exactly the steps at those firings, the seed when that prefix
+> is empty. The write half's bare binder is the unanchored
+> default: it anchors to the register's own update flow.
+
+Which flows are admissible anchors is a theorem list, not new
+design:
+
+- **The update flow itself** — the unanchored default; the plain
+  fold's total.
+- **Any cut-derived prefix of it**: end-when's shortened flow
+  (the stacking section's restriction rule already establishes
+  its firings are a prefix of the subject's), interrupt's derived
+  stream, a bounded prefix take. This is the family the question
+  is about.
+- **Any flow the update flow is nested within** — the outer
+  completion completes the inner. This is `hold`'s terminal read:
+  the forward-fill register stepping on the Some-subsequence has
+  its final read at the list's completion.
+- **Not a join/filter of the update flow.** A filtered
+  subsequence is a subset but not a prefix, and "the state after
+  a non-contiguous subset of the steps" is no state the register
+  ever held. **Cuts anchor finals; filters do not.** A program
+  that wants the fold over a filtered subsequence moves the
+  *update cadence* onto the filtered flow — the straddle
+  account's division of labour, applied rather than amended.
+
+### What the rule gives back
+
+**The convergence loop reads right.** Anchored at the shortened
+flow, exclusive bit: the shortened extent is the firings strictly
+before the first Converged firing, so the readout is the state
+after exactly those steps — which is precisely the state the stop
+condition was looking at when it fired. The value you stopped on
+is the value you read. The inclusive bit moves the read one step
+later (the stopping firing's step is included) — the same one-bit
+displacement the compile sketch already has as "the push above or
+below the check." The bit composes with the anchor with no
+additional rule.
+
+**Coexistence is answered, not arbitrated.** Subject-flow and
+shortened-flow collects sharing one register are several reads of
+one state history, each naming its own moment. A subject-anchored
+final and a cut-anchored final coexist the way two `hold` reads
+on different outer flows coexist; demand for each pulls the walk
+to its moment and no further. The operational behaviour the
+question started from — "the final value is the state at the
+cut" — becomes the *correct* value of the cut-anchored read,
+rather than an accident of laziness; the subject-anchored read
+still means the full walk, and demanding it walks the rest.
+Meaning stated; evaluation order back to being an implementation.
+
+**The self-driven residue dissolves into mis-anchoring.**
+"`final` on an unshortened self-driven flow is never available"
+(`iteration-with-state-design.md`, "What stays open on the pair";
+`source-openers-design.md` inherits it) re-reads under the rule:
+the unanchored default names an unending flow, so the read's
+moment never arrives — not a hazard needing a construct, a read
+anchored where no completion exists. The program that stops via
+end-when anchors its final at the shortened flow and has an
+ordinary value. What remains for the checking round is only the
+advisory question it already owns ("no terminator writer
+reachable from this collect").
+
+**The readout is terminator-independent.** The shortened flow
+completes on `Stopped` and on `RanOut` alike, so a cut-anchored
+final is available on both discharge legs — which the readout
+composition wants: the RanOut leg of a search typically reads the
+fold's total, the Stopped leg reads the payload, and either may
+read the register's final.
+
+### A register on the shortened flow itself
+
+The delay-ontology question "which flow is this register over"
+has a tempting answer here: put the register *on* the shortened
+flow, so its extent is the prefix by construction. When the stop
+condition reads the state, that drawing closes a cycle — end-when
+→ shortened flow → read half → `prev` → split → stop → end-when —
+and working the fixpoint splits it by the bit:
+
+- **Exclusive: ill-founded.** Suppose the stop first fires at
+  firing k. Its data is per-firing data *of the shortened flow*,
+  so computing stop-at-k requires the shortened flow to fire at
+  k — but the exclusive law puts k outside the shortened extent.
+  Then stop-at-k was never computed, so nothing stopped the flow,
+  so it fires at k after all. No consistent extent exists.
+- **Inclusive: well-founded.** Whether the shortened flow fires
+  at i consults stops strictly before i only; induction on the
+  firing order grounds it. The one-firing lag that makes the
+  cycle productive lives in the *end-when node* under its
+  inclusive reading — not in any register crossing.
+
+The productivity check as stated ("every cycle crosses a
+register's pairing edge") rejects both drawings — rightly for the
+exclusive one, conservatively for the inclusive one. No extension
+is needed, because the inclusive drawing is a presentation of a
+cycle-free canonical form: **a register on a cut of F is the
+register on F with its reads anchored at the cut.** The shortened
+flow's firings are subject firings carrying the same per-firing
+data, so the two registers agree at every reading either can
+express — a level-1 recognition, with the on-the-cut drawing as
+presentation. Leaning: the canonical form is register-on-subject
+plus anchored reads, and the checker keeps its one rule.
+
+### Where the anchor is drawn
+
+The unanchored default reads the register's own flow; the
+everyday program wants the cut. Two surfaces are possible: the
+author spells the anchor (`final of st over ~W`, provisional —
+the same `over` the hold spelling uses, one word family decided
+once at the textual round), or the completion machinery infers it
+when every consumer of the walk closes the same cut, shown faint
+like any completion. This is the same implicit-vs-explicit
+instance the straddle account already filed for hold's read-range
+crossing (`delay-ontology-design.md`, "Where this leaves the open
+fork") — one decision, now with two clients; the rule of meaning
+is the anchor's presence either way. One diagram-level note for
+the pair's open "shape" bullet: under this rule the write half
+completes the register (it holds the step), while final readouts
+are reads that name their anchor — the bare binder on the write
+statement stays as sugar for the unanchored one.
+
+### What this leaves
+
+Adoption (the iteration-state round's conversation); the
+spelling, jointly with `hold ... over` (textual round); the
+explicit-vs-inferred anchor bit (completion round, with hold's);
+the product corner — over a grid, "a prefix of the update order"
+needs the linearization round's orientation before it means
+anything, so anchor-over-a-product rides that residue
+(`product-linearization-design.md`). If adopted:
+`iteration-with-state-design.md`'s "final on self-driven streams"
+bullet closes, and `first-class-ports-design.md`'s Delay-row note
+gains the anchored reading.

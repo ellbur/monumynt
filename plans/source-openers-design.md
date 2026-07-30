@@ -219,7 +219,10 @@ the residue `first-class-ports-design.md` already records. With
 end-when in the room the readout anchors to the shortened extent;
 the fine print (which extent, when subject-flow and shortened-flow
 consumers coexist) is end-when's open question, inherited not
-re-opened.
+re-opened — and now worked there (`end-when-design.md`, "The
+register final-readout anchor": the anchor rule, a candidate,
+not adopted), under which this paragraph's first sentence
+re-reads as a mis-anchored read rather than a missing value.
 
 ## Is bare repetition a new flow kind?
 

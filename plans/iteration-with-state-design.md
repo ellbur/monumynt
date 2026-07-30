@@ -1385,7 +1385,12 @@ and `final`) and nothing else.
   source never finishes, so its `final` is never available.
   Demand-time error, type-level impossibility, or a thunk that never
   returns — belongs to the iteration-state round's self-driven-stream
-  story.
+  story. A candidate rule now exists that dissolves this into
+  mis-anchoring rather than a hazard: `final` as a read at a drawn
+  anchor flow's completion (`end-when-design.md`, "The register
+  final-readout anchor" — worked, not adopted); under it the program
+  that stops via end-when anchors its final at the shortened flow
+  and has an ordinary value.
 - **Which flow the read half's `flow` names.** The schema above
   commits to a `flow: FlowSource` field and the examples bind it to
   the uncollect's flow — but *which* flow a Delay is over, when more
