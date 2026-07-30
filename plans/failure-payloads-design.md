@@ -13,8 +13,8 @@ minting sites, union by propagation, discharge exhaustiveness as
 alt matching, re-tagging drawn only where meaning changes, and
 the `Cancelled` / subset-merge / divide-link riders as cashed).
 None of it is implemented. The open questions below remain open
-where marked — tag identity across reuse boundaries is the one
-owing a worked round. Its scope is the two
+where marked — tag identity across reuse boundaries now carries
+its worked round (the last section below), unadopted. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 "Failure as terminator payload"): **"do bodies raise?"** and
 **payload-type composition** — plus the payload questions other
@@ -877,7 +877,10 @@ as leanings.
    shared through a signature (the summary artifact is the natural
    place to state identity), but this needs a worked round with
    real composed programs, and it touches the catalog schema
-   (`types-design.md`, question 4).
+   (`types-design.md`, question 4). Now worked below ("Tag
+   identity across reuse boundaries" — the referent rule: a lane's
+   identity is a drawn identification, never a string, with three
+   homes for deliberate sharing; not adopted).
 
    **The site-as-label direction (noted 2026-07-23, deliberately
    unworked).** The adopting conversation added a reordering of
@@ -975,3 +978,218 @@ as leanings.
   checker-side inventory is a natural early citizen of workstream
   D once shape propagation exists — it is one more property, and
   its exhaustiveness check is the alt-matching check re-aimed.
+
+## Tag identity across reuse boundaries (open question 2, worked)
+
+Status: worked with leanings, **not adopted** — prepared for its
+design conversation. It takes the site-as-label direction recorded
+in open question 2 at its word, works the composed programs that
+question demanded, and lands its residue on the catalog schema
+where the question predicted it would (`types-design.md`,
+question 4).
+
+### The composed program that forces the question
+
+Two subprograms, authored independently, each behind a remembered
+cut (`function-boundary-design.md`): `fetchUser` looks up a user
+record, minting `NotFound` when the id is absent; `fetchOrder`
+looks up an order, also minting `NotFound`. A caller composes
+them — fetch the user, then the user's latest order. The caller's
+derived inventory: one `NotFound` lane, or two?
+
+If tags are global names, one lane — and the caller is broken two
+ways. It cannot route the failures apart: "user missing → offer
+signup; order missing → show an empty history" is unwritable
+without discharging, inspecting the payload for which callee it
+was, and re-failing — the payload doing the tag's job, a
+bottleneck in terminator clothes. And the union is an accident:
+the two authors never agreed that their `NotFound`s mean one
+thing; the sameness is a pun on a string, and the day either
+author renames for clarity (`UserNotFound`), the caller's program
+changes meaning silently. This is variable capture, in failure
+clothes.
+
+If tags are scoped, two lanes, and the program above reads right
+by default. That is the leaning the question recorded; what this
+round adds is the account of *why*, and of what deliberate
+sharing is.
+
+### A tag is an identification, and identifications have reach
+
+The site-as-label direction already reordered the layers: site
+identity is the primitive (every lane carries its site witness),
+and a tag is *a drawn act of identifying several sites as one
+meaning*. This round asks what that act's **reach** is. An
+identification is drawn by an author, in a drawing; it reaches
+exactly as far as the drawing does. Two diagrams' tags are two
+acts by two authors, and textual coincidence between their
+display names is not an act at all. So:
+
+> **The referent rule (candidate).** A lane's identity is a
+> referent — a drawn identification of minting sites — never a
+> string. Two sites mint one lane iff they reference one
+> identification. A tag's name is presentation; sameness of name
+> across independently-authored boundaries identifies nothing.
+
+Within one diagram this changes no behaviour: the adopted
+account's "same-tag sites union into one lane" re-reads as "sites
+referencing one identification union," which is what an author
+means by reusing a tag — one act, several sites. Across a reuse
+boundary, the composing caller sees each callee's lanes
+*qualified by the boundary they surface from* — fetchUser's
+`NotFound`, fetchOrder's `NotFound` — exactly the way it sees
+their ports: read off the cut, provenance-carried, not up for
+collision. The union rule, the witnesses, exhaustiveness, and the
+shape-agreement pressure all operate unchanged; only the notion
+of lane *sameness* gained a referent. (This is the codebase's own
+port convention one level up: strings below, identities above.)
+
+### When sameness is meant, it is drawn — in one of three homes
+
+**At the caller.** The caller identifies two surfaced lanes as
+one meaning ("both `NotFound`s are nothing-to-show"). Local, no
+coordination with the callees, and already provided for: the
+discharge-barrier direction's "handle this point and that point
+together is a partial collect over cells" is this identification,
+drawn at the handling site. The cheapest home, right for
+caller-private sameness.
+
+**In a shared referent both sides already reference — the
+facet.** The late-bound round says the facet supplies the
+grouping identity for op pairs; one step further, a facet's ops
+declare their failure lanes, and every provider bound to the
+facet mints *the facet's* lane, not its own. Two storage
+providers' `Timeout`s are one lane by construction, because the
+lane belongs to the facet both implement. This is what makes the
+policy layer writable at all: retry middleware must discharge
+`Timeout` across providers it has never seen, and the facet is
+the referent that gives that discharge a target. The test double
+inherits the same identity for free — the double's injected
+failure (`FailingAllocator` refusing after N exchanges) mints the
+facet's lane, so the test exercises the very discharge the
+production binding runs.
+
+**In the catalog.** The JS edge's declared throws are catalog-row
+lanes. Two blocks wrapping the same library — or two rows both
+converting a JS `TimeoutError` — mint one lane only if the schema
+has a place for a shared lane referent that rows reference rather
+than each minting a private one. This files a concrete content
+demand on the catalog schema (`types-design.md`, question 4), the
+second after the collect family's identity-witness rows: **rows
+carry lane references, not lane strings.**
+
+And the degenerate home nobody had to ask about: the language's
+own lanes — `Stopped`, `RanOut`, `Nil`, `Cancelled`, the super
+flow's one lane — are shared referents supplied by the constructs
+themselves, one per construct, everywhere. That is why it never
+occurred to anyone to wonder whether two end-whens' `Stopped`s
+are "the same tag": they reference one identification (the
+construct's), and where their payloads diverge the ordinary
+shape-agreement pressure applies, exactly as within a diagram.
+
+### Instances: the boundary quotient
+
+The direction's second caution: one site in a reused subdiagram
+is many instances, and site-addressed handling must say which are
+meant. The boundary round answers with machinery it already has —
+membership is derived per call, so a lane surfacing at a call's
+cut is that call's lane. A caller composing `fetchUser` twice
+(against two replicas, say) holds two per-call inventories, and
+its discharge of call A's `NotFound` says nothing about call B's.
+The quotient is the call, from the same derivation as everything
+else about the boundary. Sub-call granularity — this site only
+when reached along that deeper path — is expressible in principle
+(witnesses are paths), but no program has asked; not proposed.
+
+The link is the unbounded case: one site, one lane, an instance
+per level of recursion, unioned by the finite fixpoint. Per-depth
+routing does not exist and should not: depth is the measure
+discipline's business, and a program that means "first level's
+failures are different" says so with a drawn re-tag inside the
+level — discharge, transform, re-fail — a change of meaning drawn
+where meaning changes, per the adopted account.
+
+### The fragility asymmetry, restated honestly
+
+The direction's first caution was that site identity is
+edit-fragile where a tag is not. Under the referent rule the
+asymmetry narrows but does not vanish. Both a site and a tag are
+identities under the step-DAG's discipline
+(`editor-state-management-design.md`): renaming a display name
+touches nothing, and moving a node preserves it. What stays
+fragile is replacement: deleting a site and drawing a successor
+severs the site's identity — a new node — while a tag referenced
+by both old and new sites persists across the edit. **A tag is an
+identity that outlives any one site, because many sites hold it;
+a site is its own only referent.** That is the honest content of
+"tags earn their keep": a tag is the author's claim that a
+meaning is stable under edits to its minting sites — precisely
+the claim a reuse boundary's consumers need, and exactly what the
+signature's pinned set states. The leaning's two halves fuse:
+scoped by default (an identification reaches as far as its
+drawing), shared through signatures (the pinned set is where a
+boundary's lane referents join its published surface, checked
+both ways as adopted).
+
+### The textual seam
+
+The visual form points; text must spell. The referent rule makes
+the spelling problem ordinary rather than novel: text names lanes
+the way it names ports — a qualified form at the caller
+(`fetchUser.NotFound`, provisional) resolved against the boundary
+in scope, an unqualified tag resolving to the innermost drawing
+that identifies it — the same strings-below/identities-above
+resolution the textual surface already performs for ports and
+taps. Owed to the textual round with the rest of open question 5's
+family; nothing here decides syntax.
+
+### Dead ends
+
+1. **The global tag namespace.** You might wonder whether tags
+   should simply be one namespace, so `NotFound` is `NotFound`
+   everywhere and composition is frictionless. It turns out this
+   makes renames change composed programs' meaning silently, lets
+   unrelated authors capture each other's discharges, and forces
+   payload inspection wherever two captured lanes must be routed
+   apart. The field's shipped mirror is `errno`: every library's
+   `ENOENT` is one lane, and callers famously cannot tell whose it
+   was. Note the exception world is *not* the counterexample it
+   seems — `catch` clauses match on class identity (a referent,
+   scoped by its defining module), not on class *name*; even the
+   field's dynamic vocabulary quietly uses referents. (Settled
+   within this proposal — don't re-propose without new evidence.)
+
+2. **Structural payload-shape identity.** You might wonder whether
+   two lanes whose payload shapes match should be one lane —
+   identity by structure, no referent needed. It turns out this is
+   binding by structural match, the search the late-bound round
+   already rejected, transferred to the terminator channel: shapes
+   coincide by accident constantly (`{message: string}`), and a
+   coincidence is precisely not an identification. (Settled —
+   don't re-propose without new evidence.)
+
+3. **Mandatory re-tagging at every boundary.** You might wonder
+   whether each boundary crossing should force a drawn
+   translation, so lane identity is always diagram-local and the
+   question never arises. It turns out this is dead end 2's
+   conversion plumbing resurrected: qualification is derived and
+   free, boundary-crossing is not a change of meaning, and forcing
+   a re-fail per level is ceremony that corrodes exactly as
+   mandatory declarations did. Translation stays drawn where
+   meaning changes, and only there. (Settled — don't re-propose
+   without new evidence.)
+
+### What this leaves
+
+The adoption conversation; the facet-lane declaration's exact
+shape (rides facets' attachment representation,
+`facets-design-notes.md` open edge 3, jointly with the catalog
+schema demand above); the qualified spelling (textual round);
+and whether the discharge-barrier's pick-sites-from-the-view
+gesture and the tag act share one edit gesture (editing round).
+The instances answer above assumes the boundary round's per-call
+membership derivation and adds nothing to it; if the adoption
+conversation confirms the referent rule, the summary-artifact
+leaning in open question 2 is subsumed rather than contradicted —
+the pinned set was always the visible face of lane referents on a
+signature.

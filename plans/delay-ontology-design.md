@@ -975,6 +975,17 @@ side: whether the surface must *state* the read-range crossing
 an outer flow is the same implicit-vs-explicit question, now for
 observation rather than update.
 
+One more read has since joined the family this section opened:
+the **final readout** is the at-completion read of the same
+state — worked as end-when's open question 4
+(`end-when-design.md`, "The register final-readout anchor",
+candidate rule, not adopted). Its anchor rule leans on this
+section's division verbatim (update cadence fixed, reads
+consumer-chosen), extends the read range by cut-derived prefix
+flows for the completion case, and files its explicit-vs-inferred
+anchor question as a second client of the implicit-vs-explicit
+instance above — one decision, two clients.
+
 ## The product, re-read through update-cadence and read-range
 
 Status: worked; this section closes the pure-`final` residue. The

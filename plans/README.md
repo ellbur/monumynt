@@ -392,8 +392,10 @@ case/option are implemented; the rest are designed:
   the applicative sequence — and the commute-completion ruling), the
   edge stance with the background-super-flow amendment (undeclared
   throws quarantined in one runtime-owned collectable lane), and the
-  inventory account. Tag identity across reuse boundaries is the
-  residue owing a worked round.*
+  inventory account. Tag identity across reuse boundaries — the
+  residue — now carries a worked round of its own (the referent
+  rule: a lane's identity is a drawn identification of minting
+  sites, never a string; exploration, unadopted).*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*
