@@ -426,7 +426,11 @@ Question 4 gains its first concrete content demand from the collect
 family (`collect-family-design.md`): catalog rows are properties
 carrying value witnesses (the identity value itself), and the algebra
 facet is the authoring surface that mints rows for user operators,
-trusted like the JS edge. Prior art: Flix's restrictable variants are
+trusted like the JS edge. A second demand arrives from the
+tag-identity round (`failure-payloads-design.md`, "Tag identity
+across reuse boundaries", unadopted): rows carry lane *references*,
+not lane strings, so two catalog blocks converting the same
+underlying failure can mint one lane by shared referent. Prior art: Flix's restrictable variants are
 the strongest prior art for question 2 (recursive case-set properties
 trackable and paying for themselves; their own illegible-at-scale type
 algebra supports the drawable-witnesses stance over imported Boolean
@@ -955,13 +959,19 @@ catalog rows. Five dead ends recorded (ambient bodies-raise; nominal
 sets with coercion; mandatory declared sets; the dynamic catch-all as
 the model; cause-chain wrapping).
 
-Residue after adoption: tag identity across reuse boundaries (the
-one piece owing a worked round; touches the catalog schema,
-question 4 — now carrying the noted **site-as-label direction**:
-the minting site is itself a label, a failure facet could let
-discharges pick sites by location, and a tag becomes a drawn
-identification of sites, sharpening the scoped-by-default
-leaning); the **discharge-barrier direction** (noted same day,
+Residue after adoption: tag identity across reuse boundaries —
+now carrying its worked round (`failure-payloads-design.md`, "Tag
+identity across reuse boundaries", unadopted): the **referent
+rule** — a lane's identity is a drawn identification of minting
+sites, never a string — with sharing drawn in one of three homes
+(a caller-local identification, the facet's lane for providers
+and doubles, a catalog-level lane reference), the instance
+question answered by the boundary round's per-call quotient, and
+the fragility asymmetry restated (a tag outlives any one site;
+that is what signatures pin). It files the catalog-schema demand
+the question predicted (rows carry lane references, not strings —
+question 4) and leaves adoption, the facet-lane shape, and the
+qualified spelling open; the **discharge-barrier direction** (noted same day,
 details owed: fail as an uncollect of an error flow, the error
 wires as drawn arrows to failure points, term-then-split as the
 packed sibling, a barrier minting per-site cells plus a completed
