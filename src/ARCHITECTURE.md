@@ -49,6 +49,13 @@ author-written expected values, round-trips, witness demos, and
 programs that print and check but decline to compile (the poset-round
 gaps). Currently 344 checks.
 
+Standalone (not part of the pipeline):
+
+| module | status | what it is |
+|---|---|---|
+| `EditorPoc.res` | working | Proof of concept for `plans/editor-state-management-design.md` on a mini simply-typed lambda calculus (deliberately NOT the flow language; derived information = types + witnesses). One pure `transfer` function; `checkFresh` (plain recursion) is the oracle, `checkStored` is the same function behind a constructive-trace memo keyed (record pointer × env-slice-of-free-vars); path-copy edits keep ids; step-DAG history with evictable cached folds (`versionOf` refolds from the step); previews share the store; `typeAt` is the demand-driven cursor query. |
+| `EditorPocTest.res` | working | `npm run poc` — 49 checks: scenario tests with EXACT transfer-run-count assertions (worked keystroke, env-slice cutoff, undo/redo/branch-switch as hits, preview-then-commit at zero cost, store drop, refold) plus the doc's oracle protocol: seeded-random edit/undo/drop/evict sequences asserting incremental == from-scratch at every step. |
+
 ## The single engine
 
 Pass 4 is `Codegen.res`. An emitter that is not written yet raises
