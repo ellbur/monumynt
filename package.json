@@ -7,7 +7,8 @@
     "build": "rescript",
     "clean": "rescript clean",
     "dev": "rescript -w",
-    "start": "node lib/es6/src/Main.res.mjs"
+    "start": "node lib/es6/src/Main.res.mjs",
+    "poc": "node lib/es6/src/EditorPocTest.res.mjs"
   },
   "devDependencies": {
     "rescript": "^12.2.0"

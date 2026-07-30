@@ -4,12 +4,18 @@ Status: exploration — a worked proposal for how the interactive
 editor's state is represented and how derived computations (the
 checker's properties and witnesses, the suggester's eligibility, the
 completion lens, eventually codegen) are reused across edits. Nothing
-here is implemented. It is the state-architecture companion to
+here is implemented for the editor itself, but the design has a
+running proof of concept (below). It is the state-architecture companion to
 `program-editing-design.md` (which owns the cursor, the edit
 inventory, and the TUI) and builds directly on
 `transformation-levels-design.md` (the step-DAG) and
 `types-design.md` (the propagation this document decomposes). Read
 those first; this document re-derives none of them.
+
+A standalone proof of concept of this design now runs in the repo:
+`src/EditorPoc.res` / `src/EditorPocTest.res` (`npm run poc`) — see
+"Proof of concept" at the end of this document. Nothing is implemented
+for the flow language itself.
 
 The one-sentence design: **the basic implementation — the cursored
 program as one immutable value, everything recomputed from scratch —
@@ -753,3 +759,41 @@ first cache does:
    suggester's hypothetical checks through the store — the first
    rung whose adoption should be *demanded by* measurements from
    step 1, per the philosophy check.
+
+## Proof of concept (implemented)
+
+`src/EditorPoc.res` + `src/EditorPocTest.res` (`npm run poc`) are a
+working miniature of this design, deliberately **not** built on the
+flow language: the host is a simply typed lambda calculus (Int /
+Bool / functions, plus Add, If, Let), and the derived information is
+types plus type-error witnesses. Small enough that every mechanism
+above fits in two files; faithful enough that each mechanism is the
+doc's, not an analogue:
+
+| this document                          | in the PoC                                                    |
+|----------------------------------------|---------------------------------------------------------------|
+| the basic implementation is the semantics | `transfer` (one pure node-local typing function); `checkFresh` = plain recursion over it, the oracle |
+| the store as a cache of a pure function | `checkStored` = the *same* `transfer` wrapped in a memo; `dropStore` at any moment changes nothing but counts |
+| refs-by-record, ref = upstream cone    | terms embed child records; the memo's outer key is the record pointer (a `WeakMap`, so entries die with versions) |
+| keys cover everything read             | inner key = the env restricted to the record's free variables (`envSliceKey`); free vars are themselves a pointer-keyed query |
+| path copy, ids kept; the step is the diff | `replaceBuild` returns (new root, replacement record, touched ids) |
+| step-DAG, head-first, fold cached      | `historyNode = {step, parents, versionCache}`; caches evict, steps don't — `versionOf` refolds a dropped cache from the step's stored replacement record, reproducing ids and sharing exactly |
+| undo / branch switch = cache hits      | asserted: zero transfer runs after warming                    |
+| preview = a version never appended     | `previewEdit` / `commitPreview`; commit reuses the previewed version, so applying a previewed edit costs zero transfers |
+| cutoff surfaces                        | the env slice: replacing a Let's bound side with a same-typed value recomputes 2 records; with a differently-typed value, exactly 2 + the nodes that read the variable |
+| demand-driven locality                 | `typeAt` (the cursor query) computes the cursor's cone only    |
+| the obligation, tested                 | scripted scenarios with exact transfer-run counts, plus seeded-random edit/undo/drop/evict sequences asserting incremental == from-scratch at every step |
+
+What it deliberately does not model: the backward regime
+(`consumers`/`demands` — trees make consumers trivial), fixpoints
+(STLC has no cycles), the suggester's ranking, and content-hash keys
+(provenance keys only, as the doc leans). Those stay design-only
+until the real editor demands them.
+
+One reading from building it: the worked-keystroke accounting in
+this document held exactly — the scenario assertions are equalities
+on transfer-run counts, not bounds, and they passed as computed from
+the doc's own reasoning (path + fringe; slice-cutoff = readers of
+the binding). The env-slice key is the part that earned its
+keep — it is what makes "rebuilt binder, unchanged reads" a hit,
+the tree-shaped analogue of boundary projection.
