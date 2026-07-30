@@ -530,7 +530,16 @@ The language hasn't decided any of these yet.
    heuristic-ordered speculation is a member of the decision-driven
    family (`tough-use-cases-design.md`, item 4) or a separate rung;
    its round should treat drawn-order and comparator-order as one
-   family, as Raku's `||`/`|` pairing suggests.
+   family, as Raku's `||`/`|` pairing suggests. *The family's round
+   now exists and answers: not a member* (`chooser-family-design.md`,
+   exploration) — best-match (Raku's `|`) is this chapter's own
+   all-results rung followed by an ordinary judged reduce (argmax is
+   value vocabulary); computed-order trial over *homogeneous*
+   alternatives (same computation, different parameter) is sort +
+   walk + end-when-on-first-success, three existing pieces; and over
+   *heterogeneous* drawn alternatives a computed total order would
+   need k! dispatch to draw honestly, which is the tell that drawn
+   order is this construct's meaning, not a parameter of it.
 6. **Effect-bearing attempts.** Release-on-abandonment for a failed
    effectful contender waits on the Tier-1 IO/cancellation round;
    speculation commits only to needing no new ports (the discharge

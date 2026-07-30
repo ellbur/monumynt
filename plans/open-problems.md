@@ -313,8 +313,13 @@ the collect node read as backwards); the stream compile's
 sequencing constraint;
 the fixed-length-segment catalog question; the nested-segmentation
 boundary against grammar vocabulary; and the decision-driven merge
-(the family's two-flow member), which still has only its chooser
-sketch (`tough-use-cases-design.md` item 4).
+(the family's two-flow member) — now carrying a worked round of its
+own (`chooser-family-design.md`, exploration, unadopted): the walk
+over k cursors with per-step heads and a late-wired advance operand,
+the chooser dissolved into ordinary drawn vocabulary — which also
+answers this row's conjecture in the affirmative (interleaving is
+drawn, not decided; no N-head chooser anywhere, surface or
+lowering).
 
 Prior art has sharpened (not moved) the remaining list. Raku's grammar
 ladder gives four combinators over segments — repeat (owned by
@@ -383,10 +388,17 @@ correlation ID as hand-rolled provenance).
 
 Remaining: the served flow's two-ends core is now **adopted**
 (2026-07-23, riding the joint adoption — one construct's two
-ends); the rest of that round stays exploration; the chooser family (also owning
-merge fairness *and now cross-client arbitration* — a serving
-provider bound at two boundaries has no cross-client order, the
-served round's question 2); pacing's per-consumer/per-source bit
+ends); the rest of that round stays exploration; the chooser family — the
+area's last unworked core — now carries its round
+(`chooser-family-design.md`, exploration, unadopted): the
+decision-driven merge as a walk over k cursors (heads + a late-wired
+advance operand), the chooser dissolved into drawn vocabulary; the
+async merge is the walk with a race in the decision position (the
+catalog block stands), merge fairness is a register on the step flow
+(no knob — race's dead end extended), and cross-client arbitration
+(the served round's question 2) is the same merge drawn at a serving
+boundary or the edge's ambient arrival order, never a hidden
+provider property; pacing's per-consumer/per-source bit
 under multi-close (joint with end-when's coexistence question); and
 the served round's own residue (the serving blocks' catalog rows,
 cacheability's witness property, when-does-a-server-end — each filed
