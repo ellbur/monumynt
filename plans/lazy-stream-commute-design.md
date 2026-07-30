@@ -549,7 +549,16 @@ a variant or note a no-op.
   `product-flows-design.md`'s Cross supplies that rectangularity by
   construction, making transpose lawful over any crossed pair; the
   tabular container remains the case where rectangularity comes from
-  the data rather than from a Cross.
+  the data rather than from a Cross. *The from-the-data case is now
+  worked* (`product-flows-design.md`, "The Life residue, worked",
+  exploration): rectangularity-from-data is the aligned product's
+  co-extent, established the two ways co-extent always is — proved
+  by shared provenance through shape-preserving ops, or asserted at
+  the barrier with a failure witness — so the transpose's license
+  has three suppliers (constructed / proved / asserted). Widening
+  the implemented gate (`Context.throughCommutes`, constructed
+  products only) to admit the other two is that section's filed
+  edge, to be reconciled with this row when it lands.
 
 - **Failable streams** — not a commute variant at all, recorded here
   to mark the boundary. A stream whose terminator is `Nil | Fail(e)`

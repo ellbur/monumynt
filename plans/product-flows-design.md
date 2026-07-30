@@ -834,19 +834,17 @@ exercise's open note on whether iteration-by-index deserves better
 than `range(len(a))` plus two index applications (finding 10) — it
 does, and the better form is a zip lane, not a new construct.
 
-### Rank-2 and n-ary — the Life residue, filed forward
+### Rank-2 and n-ary — the Life residue
 
 Conway's Life needs Cross (enumerate the 3×3 neighborhood) and zip
 (overlay nine same-shape grids pointwise) at once, at rank 2 — the
-grids are 2D. The aligned product makes Life *drawable*; it stays
-clumsy until the n-ary/axis-handling questions land. But those are
-the same open questions the Cross side already carries: n-ary
-products are worked above; a zip over a 2D grid is a rank-2 aligned
-product (nine lanes of one grid-shaped walk) whose axis handling
-rides the products row's residue, not this section's. Filed forward,
-not worked here — the round establishes the construct and its
-co-extent story; rank-2 structure is the products row's standing
-debt. (Set aside for later, not rejected.)
+grids are 2D. The aligned product makes Life *drawable*; the round
+that established the construct filed the rank-2/axis-handling
+residue forward rather than working it. **It is now worked below**
+("The Life residue, worked") — the overlay turns out to be the
+*flow-arity* face of this same construct, landing on the transpose
+under a co-extent license, and the "axis handling" half of the
+filed question dissolves.
 
 ### Per-edge alignment (a second target, filed)
 
@@ -860,6 +858,163 @@ round rather than worked here — the aligned product's primary case is
 firing-aligned, and edge-alignment is one added lane offset, not a
 different construct. (Set aside for the register round, not
 rejected.)
+
+### The Life residue, worked: rank-2 alignment and the flow-arity zip
+
+The record's one localized representation struggle
+(`apl-family-comparison.md`, §9): Scholes's Life is a one-liner in
+APL — nine shifted copies of the board, summed pointwise, the rule
+pervasive arithmetic — and the filed verdict was "drawable only
+after the aligned product exists, and clumsy at rank 2." This
+section draws it end to end and extracts what the clumsiness
+actually was. Two of its three parts dissolve into machinery this
+chapter already has; the third is a catalog demand, filed where
+catalog demands go.
+
+The program, in provisional spelling throughout:
+
+```
+offs = [1, 0, -1]
+offs -> open list => dr, ~dr       -- bind once, walk twice:
+offs -> open list => dc, ~dc       --   two independent offset axes
+~dr, ~dc -> cross                  -- 9 offset firings; (0,0) included
+
+board, dr, dc -> rotate => shifted -- one whole shifted grid per firing
+
+shifted -> open list => srow, ~row -- the nesting: offsets > rows > cells
+srow    -> open list => s,    ~cell
+
+-- the overlay: transpose the offset axis innermost, two adjacent
+-- swaps (offsets ↔ rows, then offsets ↔ cells), each licensed by
+-- co-extent:   offsets > rows > cells  ~>  rows > cells > offsets
+s -~> collect by add => n          -- per position: nine values summed
+
+-- the rule, pointwise on the original board — a rank-2
+-- same-provenance zip of board's walk with the transposed walk:
+board -> open list => brow, ~brow
+brow  -> open list => b,    ~bcell
+n -> eq3 => born                   -- Scholes: sum counts self, so
+n -> eq4 => four                   --   next = (n=3) ∨ (b ∧ n=4)
+four, b -> and => survives
+born, survives -> or => next
+next   -~> collect => nextRow      -- close cells
+nextRow -~> collect => nextBoard   -- close rows
+```
+
+Cross for the offsets and a whole-value `rotate` per firing were
+always comfortable. The two moves that were not, and what each turns
+out to be:
+
+**The overlay is the aligned product at *flow arity* — and that is
+the transpose.** The zip drawn earlier in this chapter has *drawn*
+arity: k lanes, k wires into one barrier. Life's nine lanes are not
+drawn — they are the *firings of the offset flow*, and unrolling
+them into nine wires would trade the offsets' data-ness away.
+Aligning lanes that arrive as a flow means turning
+`offsets > positions` into `positions > offsets` — and that
+operation already has a name: the transposing commute. The commute
+taxonomy (`lazy-stream-commute-design.md`, the Transpose row) gates
+transpose on rectangularity and names two suppliers: a Cross, which
+supplies it *by construction*, and "the tabular container… where
+rectangularity comes from the data." This section fills in the
+second supplier: **rectangularity-from-data is exactly co-extent,
+and it is established the two ways co-extent always is** — proved
+by shared provenance (all nine grids derive from one `board`
+through shape-preserving `rotate`, so their walks are co-extent by
+construction) or asserted at the barrier with a failure witness
+(APL's conformance error, one check per swap, never per element).
+One license — extent invariance across the swapped axis — three
+suppliers: constructed (Cross), proved (provenance), asserted
+(precondition). The k-lane zip and the licensed transpose are one
+fact at two arities, the way the filter and the partial collect are
+one construct at two widths. At rank 2 the transpose is a chain of
+two adjacent swaps, which is nothing new either — the S₃
+adjacent-swap story from the n-ary section, with a license per swap
+instead of a blanket product. (One pleasant corollary of licensing
+per swapped axis: the board need not be rectangular. Nine
+*identically ragged* grids overlay lawfully — the swaps past
+`offsets` need invariance across offsets only — which the array
+family's rank-2 container cannot even represent.)
+
+**The transposed shared axes are position-only, and that is already
+zip's law.** After the transpose, whose row walk is the `~row`
+axis? All nine, identified — and the identified axis carries no
+element of its own, because the row *value* still depends on which
+grid, readable only with the offset level open. This is not a new
+wrinkle; it is the aligned product's law read at flow arity: *the
+aligned flow fires once per shared firing and carries no element —
+each lane's element rides that firing.* The shared axis is pure
+position — the same fact as the index lane ("indices as an aligned
+lane" above): position is the one thing co-extent walks genuinely
+share.
+
+**Zip has no axis handling.** The filed residue asked how a rank-2
+zip picks which axes align. Worked, the question dissolves:
+alignment is positional at *every* level, levels are paired in
+drawn nesting order, and the license composes levelwise (outer
+extents equal; per-position inner extents equal — one
+shared-provenance discharge covers all levels at once, which is
+what the final zip of `board`'s walk against the transposed walk
+uses). Pairing grid A's rows with grid B's *columns* is not a zip
+parameter — it is a drawn transpose upstream, then the ordinary
+levelwise zip. Axes are commute's business; alignment never
+permutes, so it never names axes. The n-ary half of the filed
+residue was already worked (flat axis sets, above); with the axis
+half dissolved, the Life filing is closed.
+
+What remains, honestly:
+
+- **The catalog demand — shape preservation as a property row.**
+  The shared-provenance discharge walks through `rotate`, a
+  whole-value App, and provenance through a value App is opaque:
+  the nine grids are nine different values, co-extent only because
+  rotation preserves shape. So the proved regime needs an
+  **extent/shape-preserving** catalog property (a row with a
+  witness, like the collect family's identity rows) for the ops the
+  walk crosses — permutations, `reverse`, `rotate`, per-element
+  maps. Without the row, the program still draws: the license falls
+  back to the asserted regime, which is precisely APL's runtime
+  conformance error. Files to the checking row's catalog-schema
+  question (`types-design.md`, question 4), its third client after
+  the identity rows and the lane references.
+- **The gate-widening edge.** The transposing commute is gated to
+  constructed products today (`Context.throughCommutes` and the
+  taxonomy's Cross case); admitting the proved and asserted
+  suppliers widens that gate and should be reconciled with the
+  commute taxonomy's rows and, eventually, Check's join-adjacency
+  carve-out. Design-side this section is that reconciliation's
+  input; nothing here touches code.
+- **The stencil alternative.** Life can also be drawn without nine
+  whole-grid rotations — read the neighborhood by index within one
+  walk — and that is the window/stencil family's territory
+  (`variable-rate-consumption-design.md`'s fixed-length-segment
+  question, APL's 2D-window filing), not this chapter's. The
+  Scholes construction was chosen *because* it is the no-indexing
+  form.
+
+Now, you might wonder whether the language should have a **rank-2
+zip node** — an aligned product parameterized by which axes align,
+so Life's overlay is one barrier instead of a transpose chain plus
+levelwise alignment. It turns out the parameter would duplicate
+drawn vocabulary as annotation: alignment is positional at every
+level (there is nothing to parameterize once the nesting order is
+drawn), and any non-default axis pairing is a commute upstream —
+so the parameterized node would carry, as configuration, exactly
+the information the drawing already states, the two-sources-of-
+truth shape the record refuses everywhere. (This is a recorded
+dead end — please don't re-propose it without new evidence.)
+
+You might also wonder whether grids deserve their own **rank-2 flow
+kind** — a "grid flow" whose firings are cells with row/column
+structure, so Life never stacks two opens. It turns out rank is
+nesting depth, already owned: the two-level walk, the transpose
+chain, and the levelwise zip each reuse machinery every other
+program shares, while a grid kind would re-own iteration, product,
+commute, and alignment as kind content — the "one construct
+re-deriving the vocabulary" shape the custom-flows round warns
+against. The array family's evidence cuts the same way: APL's rank
+is uniform nesting plus laws, not a second iteration concept.
+(Recorded dead end.)
 
 ### Against the philosophy
 
@@ -1343,9 +1498,13 @@ along with what remains.
    exact form of the co-extent assertion at the property/precondition
    boundary (`types-design.md`); the table's textual and at-rest
    spelling (the textual-form row); rank-2 zip's axis handling, the
-   Life exhibit (this row's n-ary/axis residue, not the zip
-   section's); and per-edge alignment's home (the
-   iteration-state/register round).
+   Life exhibit — **now worked** ("The Life residue, worked": the
+   overlay is the flow-arity zip, i.e. the transpose under a
+   co-extent license; the axis-handling question dissolves —
+   alignment is positional at every level, axes are commute's
+   business; residue = the shape-preservation catalog row and the
+   transpose gate-widening edge, each filed); and per-edge
+   alignment's home (the iteration-state/register round).
 10. **Whether an *ambiguous cross* is owed its own combinator — the
     order-incompatible-combine ambiguity, which keeps moving rather
     than vanishing.** There is a lineage worth naming. **Incorporate**

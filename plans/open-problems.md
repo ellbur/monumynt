@@ -442,7 +442,13 @@ trusted like the JS edge. A second demand arrives from the
 tag-identity round (`failure-payloads-design.md`, "Tag identity
 across reuse boundaries", unadopted): rows carry lane *references*,
 not lane strings, so two catalog blocks converting the same
-underlying failure can mint one lane by shared referent. Prior art: Flix's restrictable variants are
+underlying failure can mint one lane by shared referent. A third
+arrives from the Life round (`product-flows-design.md`, "The Life
+residue, worked"): an **extent/shape-preservation** property row
+with a witness, so zip's shared-provenance discharge can walk
+through whole-value ops like `rotate` (without the row, the license
+falls back to the asserted-precondition regime — the program still
+draws). Prior art: Flix's restrictable variants are
 the strongest prior art for question 2 (recursive case-set properties
 trackable and paying for themselves; their own illegible-at-scale type
 algebra supports the drawable-witnesses stance over imported Boolean
@@ -662,11 +668,16 @@ columns = k value wires, n rows = n firings, alignment retained from
 common provenance; the row owns tabular data as a domain, not just
 lockstep pairing as an operation. Residue filed to owners: the co-extent
 assertion's exact property/precondition form; the table's at-rest and
-textual spelling; **rank-2 zip's axis handling — Conway's Life needs
-Cross to enumerate the neighborhood and zip to overlay it at rank 2, the
-record's one localized representation struggle**, riding this row's
-n-ary/axis debt; and per-edge alignment (`reduce2`'s length-(n−1) second
-input) to the register round. The unexamined interactions above — join
+textual spelling; **rank-2 zip's axis handling — the Conway's Life
+struggle — now worked** (`product-flows-design.md`, "The Life residue,
+worked", exploration: the overlay is the flow-arity zip, i.e. the
+transposing commute under a co-extent license — constructed / proved /
+asserted as the license's three suppliers — and the axis-handling
+question dissolves, alignment being positional at every level; what
+remains is the shape-preservation catalog row, filed to the checking
+row's question 4, and the transpose gate-widening edge, filed to the
+commute taxonomy); and per-edge alignment (`reduce2`'s length-(n−1)
+second input) to the register round. The unexamined interactions above — join
 on a product, registers over products, the provenance product segment
 (questions 4, 5, 8) — plus tidyr's observed-product vs full-product
 distinction (`nesting()` inside `expand`), remain the row's open core;
