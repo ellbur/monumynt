@@ -17,7 +17,10 @@ node's orientation, and the whole genuine cost is one new demand (the
 conversation, the collect-vs-ancestor fork closes outright — the
 answer is the Open list's "a specified third flow," made concrete.
 Adoption is owed jointly with the Delay-ontology row's conversation,
-not here.
+not here. The frequency check this round owed before that
+conversation is now **run** (`real-loop-survey.md`, survey 4 — see
+the Open list's first entry for what it found); the evidence is in,
+the decision still isn't.
 
 Before reading this, you will want: the register pair
 (`iteration-with-state-design.md`), the Delay-ontology chapter — in
@@ -504,13 +507,32 @@ rejection.
   re-orientation as a workflow). Even then the pressure lands on
   authoring ergonomics (a gesture that mints the second register and
   commute) rather than on consumer-supplied semantics.
-- **The frequency check, owed before the demand's cost is weighed.**
-  How often do real programs put a non-commutative scan or a spanning
-  effect over a genuine grid (independent axes, neither enclosing)?
-  The shape is invisible to the loop surveys by construction (a grid
-  is two loops); a targeted sample (numerics, image kernels,
-  report-writers under nested iteration) per the standing method
-  would say whether the pinning demand bites weekly or yearly.
+- ~~**The frequency check, owed before the demand's cost is
+  weighed.**~~ **Run** (`real-loop-survey.md`, survey 4: thirty
+  nested-loop sites from numerics / image / report-writer corpora,
+  seeded and unfiltered). What it found, held apart from the
+  decision: product-shaped chains are 9 of 30 nested sites in those
+  domains; the demand would fire on 4 of 30 (3 excluding a flagged
+  demo draw) — weekly, not yearly; **in every firing draw the
+  orientation was already authored in the source** (loop nesting
+  matched to an output grammar, `sorted()` upstream, the in-place
+  sweep's subscripts), so against that sample the demand charges
+  nothing imperative programs don't already pay — with the stated
+  bias that imperative syntax cannot draw an unpinned product, so
+  authoredness there is partly the medium (the co-occurrence rate is
+  the medium-independent number). The commutative discharge has
+  field instances (2 of the 6 spanning consumers — survey finding
+  4.3, including the knife-edge case where one operator swap,
+  `+=` vs over-paint, is the whole difference); three of the four
+  firing draws are spanning *text emission*, so the demand's
+  everyday client is the report-writer (the effects face), with the
+  numeric non-commutative sweep the rare-but-sharpest member —
+  fibered, one axis observed, its order-sensitivity invisible in the
+  source (finding 4.4: the legibility case). The
+  exploratory-reorientation workflow the adoption bullet above fears
+  produced zero sightings, though the medium could not have shown it.
+  The adoption conversation now has its evidence; it decides, this
+  survey does not.
 - **The completion form.** Loud-faint versus error when an inserted
   orientation reaches an observing consumer — completion's row owns
   the choice (`time-travel-programs-design.md`, its

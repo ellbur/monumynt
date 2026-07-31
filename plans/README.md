@@ -120,7 +120,9 @@ they change how everything else is read.
   the orientation Cross already stores, read as ordinary nesting; the
   one cost is an orientation-pinning demand (authored where observed,
   discharged by commutativity). If adopted, the collect-vs-ancestor
-  fork closes. *Exploration.*
+  fork closes. The frequency check it owed is run
+  (`real-loop-survey.md`, survey 4) — evidence in, conversation not
+  yet held. *Exploration.*
 
 ## Representation and checking
 
@@ -463,12 +465,16 @@ programs, and randomly sampled ordinary ones.
   real-system programs pushed against the constructs until they break;
   the ranked inventory of candidate blocks that fell out.
 - [`real-loop-survey.md`](real-loop-survey.md) — the sampling record:
-  three seeded-random draws of real loops, classified against the
-  inventory. Findings that reweighted the agenda: uncollect/collect is
+  four seeded-random draws of real code (loops twice, concurrency
+  sites, nested-loop sites), classified against the inventory.
+  Findings that reweighted the agenda: uncollect/collect is
   the center; early termination is the biggest everyday gap; the
   running-sum scan is rare in infrastructure but dominant in numerics;
   first-of coordination (race/timeout/cancel) outweighs all-of nine to
-  one. Read the tallies with the 80/20 counterweight (frequency ranks
+  one; order-observing consumers over genuine grids run ~10–13% of
+  nested-loop sites, their orientation always already authored (the
+  product-linearization round's owed check). Read the tallies with
+  the 80/20 counterweight (frequency ranks
   what must be *effortless*; the rare painful case is a *breadth*
   obligation, never a reason to deprioritise).
 - [`translation-exercise.md`](translation-exercise.md) — thirteen sampled
