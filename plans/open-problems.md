@@ -310,10 +310,19 @@ continuation) is the root concept; split-when is not a separate
 primitive but the *iterated cut*, expected to live as a
 derived/catalog construct over the root; and the
 boundary-destination setting is three-valued at the root, on the
-node, end-when's binary bit its projection. Remaining: the cut
-round itself (how iteration is drawn without handing users raw
-corecursion; the continuation on RanOut; payload availability from
-the continuation side — the doc's question 10); the running view
+node, end-when's binary bit its projection. The cut round itself is
+now **worked** (`variable-rate-consumption-design.md`, Part III,
+exploration, unadopted): the cut is a two-flow-output node whose
+payload rides the prefix's terminator (not a port); the
+continuation on RanOut is an empty flow; a continuation-only
+consumer reaches the payload by discharging the prefix it was
+already forcing (the terminator-only discharge's second client);
+the one-node split-when is total by construction while its
+unrolling is a spine-shaped divide-flow link kept as a derived
+view (with the spent-consultation clause reconciling the two under
+starts-next — the round's one new finding); and the finite phase
+chain claims Raku's *sequence* combinator. Remaining: that round's
+adoption conversation; the running view
 (reviewed 2026-07-23 and deliberately left tentative — the
 semantics stand, but the drawing is the open problem: a port on
 the collect node read as backwards); the stream compile's
@@ -883,11 +892,15 @@ its own anonymous construct — recursion never routes through a
 named function — with `level of` still the link's spelling and
 page-local *level labels* for mutual recursion; if adopted, the
 anchor question reduces to the labels' spelling in the textual
-catch-up); mutual recursion (stateable over reference cycles since
-that round, but the joint measure's fine print — which edges must
-advance, composition when cycles share edges — is still unworked;
-where Zig's
-inference warning bites hardest); the measure catalog's schema (joint
+catch-up); mutual recursion — the joint measure's fine print now
+**worked** (`divide-flow-design.md`, "Mutual recursion: the joint
+measure, worked", unadopted): the check's unit is the link graph's
+strongly connected group, one measure per group (the mixed-species
+counterexample is the reason), cycles owe the decrease rather than
+edges (decidable as neutral-subgraph acyclicity), the all-neutral
+cycle is the witness — indirect left recursion, the field's own
+cross-rule check — and Zig's inference warning relocates to the
+k-edge witness format (question 5's diagnostics); the measure catalog's schema (joint
 with the checking row's question 4); whole-tree linearization (rides
 the delay-ontology/product residue); and the **zipper seam** — now
 **decided** (2026-07-23, `trees-and-recursion.md`, on amended

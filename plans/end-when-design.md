@@ -709,7 +709,9 @@ Three notes from that conversation are part of the record:
   round's open edges (how iteration is drawn without raw
   corecursion; the continuation on RanOut; payload availability
   from the continuation side) are filed in
-  `variable-rate-consumption-design.md`, open question 10.
+  `variable-rate-consumption-design.md`, open question 10 — and
+  that round is now worked (that doc's Part III, exploration,
+  unadopted).
 
 ## Open questions
 

@@ -16,7 +16,16 @@ precedent). Everything this chapter works — the law of segments,
 the destination setting, the boundary-reads-own-state analysis,
 the evidence — carries over to the iterated form unchanged; read
 "split-when the node" below as "the iterated cut." The cut
-round's own open edges are filed as open question 10. The running
+round's own open edges are filed as open question 10 — **and that
+round is now worked** (Part III below, exploration, not adopted):
+the cut's port shape (two flow outputs, the payload a terminator
+not a port), the continuation on RanOut (an empty flow), payload
+availability from the continuation side (the prefix's discharged
+terminator, an exterior-value admission), the iterated form's
+standing (the node total by construction, its unrolling a
+spine-shaped link and a derived view only), the finite phase
+chain (claiming Raku's *sequence*), and the spent-consultation
+clause. The running
 view (Part II) remains exploration: the same conversation reviewed
 it and deliberately left it tentative — the semantics (the
 definition, the strict prefix) were not doubted, but how to draw
@@ -928,23 +937,380 @@ The language hasn't decided any of the following yet:
    decision adds a member: the root's name ("when" is the
    conversation's working word) — decided with the family.
 10. **The cut round's open edges** (filed at the cut decision,
-    2026-07-23; the round that works the root construct owes
-    these):
+    2026-07-23). *Now worked below* ("The cut round", Part III) —
+    all three edges carry worked answers, none adopted:
     - **How iteration is drawn.** All-segments = tapping the
       continuation repeatedly — a corecursive unrolling, and the
-      record declines to hand users raw corecursion. The expected
-      shape is split-when as a derived/catalog construct over the
-      cut ("the iterated cut"), keeping nesting out of the
-      everyday path; the derived form's exact standing (catalog
-      block vs level-1 recognition vs both) is the round's
-      structural question.
-    - **The continuation on RanOut.** If the boundary never fires,
-      is the continuation an empty flow or a nonexistent one
-      (option-kind)? Likely it rides the same Stopped/RanOut
-      discharge; needs stating.
-    - **Payload availability from the continuation side.**
-      Skip-while taps only the continuation and never collects the
-      prefix, so where its payload is readable needs its own
-      account (likely the prefix-rule admission covers it —
-      continuation firings are subject firings — but it must be
-      checked against the flow-borne rule).
+      record declines to hand users raw corecursion. Worked: the
+      one-node form is total by construction; the unrolling is a
+      spine-shaped link (a derived view, never a surface); the
+      "catalog block vs level-1 recognition vs both" question
+      resolves as both-with-distinct-jobs.
+    - **The continuation on RanOut.** Worked: an empty flow, never
+      an option-kind one; "did a cut happen" lives on the prefix's
+      terminator alone.
+    - **Payload availability from the continuation side.** Worked:
+      the payload's one home is the prefix's terminator; a
+      continuation-only consumer discharges the prefix it was
+      already forcing; the flow-borne check passes as an ordinary
+      exterior-value admission.
+
+---
+
+# Part III: the cut round (open question 10, worked)
+
+Status: worked, **not adopted** — the round the cut decision
+(2026-07-23) filed here: the root construct's own account, prepared
+for a design conversation. It consumes end-when's adopted law and
+its stacking section's restriction rule (`end-when-design.md`), the
+divide flow's adopted measure discipline
+(`divide-flow-design.md`), the owned-order criterion
+(`delay-ontology-design.md`), and the barrier-value-crossing
+adoptions; it decides nothing. Everything in Parts I and II stands
+unchanged — this part is about the root the decision named, not a
+revision of the segments story.
+
+## The construct, precisely
+
+**The cut is a binary flow operation with asymmetric operands
+(subject, boundary) and two flow outputs (prefix, continuation).**
+The operand discipline is end-when's verbatim: the boundary fires
+in the subject's own context, at most once per subject firing —
+option-kind relative to the subject.
+
+Everything the node means is one law:
+
+> **The law of the cut.** The prefix fires with each firing of the
+> subject, in step with it, up to the first subject firing at
+> which the boundary fires; there it terminates, and its
+> terminator's payload is the boundary's value. The continuation
+> fires with each subject firing after the cut, in step with the
+> subject, and ends the way the subject ends, terminator passed
+> through. The boundary firing's own element goes to the end of
+> the prefix, to the head of the continuation, or to neither, per
+> the node's three-valued destination setting. If the boundary
+> never fires, the prefix is the whole subject (terminator passed
+> through) and the continuation is empty, carrying the subject's
+> terminator.
+
+The decision's triple — (prefix, payload, continuation) — is the
+cut's *information content*, not its port inventory. **The payload
+is not a port.** It rides the prefix's terminator, discharged at a
+whole-flow collect exactly as end-when adopted; the cut is a flow
+operation with flow outputs only, per the crossing round's adopted
+stance (a value wire is neither upstream nor downstream of a flow
+operation — `barrier-value-crossing-design.md`). A payload value
+port on the node would give the same value two homes and would be
+a pass-through value port on a barrier, both of which that round
+rejects. (Recorded dead end 2, below.)
+
+The projections, restated on the port inventory:
+
+- **End-when is the cut with the continuation unconsumed.**
+  Nothing about the adopted drawing changes; the everyday author
+  still conceives the prefix alone.
+- **Skip-while is the cut with the prefix uncollected** — but not
+  unwalked; see the payload section below.
+- **Span/break tap both ports of one cut.** The classical tuple
+  form is the packed costume; here the two flows emerge as
+  themselves, no product bottleneck.
+
+## The continuation on RanOut
+
+If the boundary never fires, the continuation is **an empty flow,
+not a nonexistent one**. Three reasons, one home:
+
+- The field's evidence is uniform: every dropWhile-family
+  operation returns the empty collection, not an absence — the
+  downstream consumer's shape must not change with the data.
+- "Did a cut happen" already has a home: the prefix's discharged
+  terminator (`Stopped(v)` vs the subject's own ending). Making
+  the continuation's *existence* carry the same bit would state
+  one fact in two places.
+- In the iterated form the final segment must be the same species
+  as every other segment (the law of segments already says so:
+  "the final segment ends the way the subject ends"). An
+  option-kind continuation would make the last level of the
+  unrolling a different construct than the rest.
+
+A failable subject passes its terminator to *both* outputs: if the
+subject fails before any boundary firing, the prefix ends
+`Fail(e)` and the empty continuation carries `Fail(e)` too. That
+is not duplication of meaning — it is the multi-close model doing
+what it always does (several independent consumers of one walk
+each discharge the terminator they reach), and a consumer that
+handles the failure on one side and ignores the other is drawing
+exactly that choice.
+
+Now, you might wonder why the continuation isn't option-kind —
+present only when the cut happened, so that a consumer "knows"
+structurally. It turns out this packs a sum around a flow for no
+client (no sampled skip-while wants a missing-vs-empty
+distinction), moves the Stopped/RanOut bit out of its terminator
+home into a second structural home, and breaks the iterated form's
+uniformity as above. (Recorded dead end 1 — please don't
+re-propose it without new evidence.)
+
+## Payload availability from the continuation side
+
+Skip-while taps only the continuation. Where is the boundary's
+payload readable? Start from an operational fact the drawing
+should honour rather than hide: **you cannot demand the
+continuation without walking the prefix.** The continuation's
+first firing is defined by where the boundary first fired, so
+demand for it forces every prior subject firing and every boundary
+consultation. A continuation-only program has the prefix walk in
+its cone whether it draws a collect there or not.
+
+So the account needs no new machinery: the payload's one home is
+the prefix's terminator, and a continuation-side consumer reaches
+it by **collecting the prefix and using only the discharged
+terminator** — the folded prefix simply unused, exactly as the
+first-match example already leaves `prefix` unused when only the
+hit matters (`end-when-design.md`). The light spelling for this —
+a terminator-only discharge, no fold binder — is already on the
+textual round's owed list (`open-problems.md`, Tier 4, "the
+discharge readout's binder convention and terminator-only form");
+this round adds its second client.
+
+The check the question asked for: the discharged terminator is a
+value settled at most once per walk, in the walk's **exterior**
+context (the prefix's completion is an event of the exterior, not
+of any firing). Combining it with continuation-borne values is
+therefore the ordinary ancestor-into-descendant admission — the
+same prefix-rule shape as reading any exterior value inside a
+loop — and the flow-borne rule is satisfied without a new
+admission. What would *not* pass is the converse (reading a
+per-firing prefix value from the continuation's context), and that
+is the ordinary sibling clash, correctly witnessed.
+
+One coincidence worth naming so it doesn't get promoted into
+mechanism: under the starts-next destination the payload *is* the
+continuation's head element — the same firing, reachable as
+per-firing data. That is a fact about one destination setting, not
+a second route: the terminator stays the canonical home because it
+is destination-independent, and "the head element, read specially"
+would be a magic position, which the inside-out principle forbids.
+
+## How iteration is drawn: the iterated cut
+
+The decision expected split-when to "live as a derived/catalog
+construct over the cut," and filed the structural question: catalog
+block, level-1 recognition, or both? Work it from both ends.
+
+**The chain cannot be drawn.** All-segments = cut, tap the
+continuation, cut again — one cut node per segment, and the
+segment count is data. No finite drawing exists, so the chain is
+not an authorable surface, and it is not a catalog block's
+expansion either: a catalog block lowers to a *drawing*, and there
+is no drawing here to lower to. This is the raw corecursion the
+record declines to hand users, now with the reason stated
+structurally rather than as taste.
+
+**The one-node form is total by construction.** Split-when as
+Part I states it consults the boundary once per subject firing and
+places at most one cut per consultation — a single pass. A finite
+subject therefore yields finitely many segments with no measure
+owed, no productivity question, no rung of any ladder. That is the
+decisive argument for the node being the everyday surface: the
+chain form owes a termination story; the node form cannot even
+express the question.
+
+**The unrolling is a spine-shaped link.** The derived view the
+decision asked for exists, and it is not new vocabulary: one level
+is one cut plus that segment's consumers, and the tail is the same
+level again with the subject rebound to the continuation — which
+is precisely the divide flow's **link** (`divide-flow-design.md`),
+applied to a tree that happens to be a spine (every instance has
+at most one child). Split-when's derived expansion is a linked
+cut. Two checks other rounds wrote are cashed immediately:
+
+- **The segment flow's order is owned.** Each instance is its
+  parent's continuation, so the outer flow of segments carries a
+  total order *stated by the link edges* — owned in the
+  owned-order criterion's sense (`delay-ontology-design.md`), not
+  merely present at run time. Registers on the outer segment flow
+  are therefore legal, which the wrap loop's truncation (a count
+  register feeding end-when on the outer flow) already assumed
+  without saying why.
+- **The link's measure is discharged by construction.** Each level
+  spends at least one boundary consultation (next paragraph), so
+  the sub-problem is always at a strictly advanced consultation
+  position — the progress species, held structurally. This is why
+  the node is total while a hand-drawn linked cut merely *can*
+  be.
+
+**The consultation is spent at the cut.** One clause the unrolling
+forces into the open, and the round's one genuinely new finding.
+The subtle destination is starts-next: the boundary firing's
+element heads the continuation, but its *consultation* is spent —
+the continuation's boundary is the restriction to firings strictly
+after the cut. Without this clause the unrolled form diverges
+where the node does not: a boundary firing at a segment's head
+would cut again at the same position, minting empty segments
+forever. With it, the unrolling and the node agree everywhere,
+including the leading-empty-segment case (boundary at the
+subject's first firing: one empty segment, then the walk proceeds
+from the next consultation). The field's APIs embody the same
+clause without stating it: chunk_while consults *adjacent pairs*,
+so a chunk's first element never boundaries by itself, and
+textwrap's overlong chunk still lands on a line — "every line
+takes at least one chunk" — rather than looping. The restriction
+rule end-when's stacking section stated (a flow option-kind
+relative to F is an admissible boundary for any subject whose
+firings are a subset of F's, consulted only at subject firings) is
+exactly the lemma the restricted boundary needs — that rule's
+second client, strengthening its case for a home in the provenance
+inventory.
+
+**So: both, with distinct jobs.** The structural question's
+answer. Split-when is a first-class construct whose definition is
+the law of segments — not sugar, because the totality above is a
+property of the node form that no finite expansion carries. The
+spine-shaped linked cut is its **derived view** in the
+transformation-levels sense: read-only, materialised never,
+consulted when someone asks "what is this doing per segment." And
+the **level-1 recognition** connects a *hand-drawn* linked cut to
+the node exactly when the chain is uniform — the same boundary
+wiring re-instantiated per level, one destination setting
+throughout — with the node as the canonical form. A non-uniform
+chain is not recognised into anything, because it is a different
+program; that is the next section.
+
+## Phased consumption: the finite chain
+
+Between one cut and the iterated cut sits a form the record had
+named but never owned: **a finite chain of cuts through
+continuations.** Cut the header off the stream, then cut the body
+by a different rule; parse the preamble, then the payload. Raku's
+grammar ladder called it *sequence* — "phased consumption,
+unowned" (`raku-grammars-comparison.md`) — and this round claims
+it: k phases are k−1 drawn cuts, each phase's boundary its own
+drawn condition, either on the subject's per-firing data (admitted
+on the later phases by the restriction rule) or on phase-local
+state (a register on that phase's continuation). Finite, drawn, no
+corecursion, no measure owed — the phase count is on the page. The
+tokenizer's per-declaration interior (name, whitespace run,
+definition run — Part I's worked program) re-reads as a three-phase
+chain, which is the more honest drawing than a second uniform
+split-when, because the phases differ in kind.
+
+Two boundaries of the form, so it isn't over-claimed:
+
+- **Phases decided by trial are not phases.** The Raku round's
+  fork stands: a boundary decidable per-firing is segmentation
+  vocabulary; a boundary negotiated by attempting a parse and
+  failing belongs to speculation (`speculation-design.md`). The
+  chain composes *with* speculation (a contender may contain a
+  chain) but does not absorb it.
+- **A cyclic phase structure is the divide flow, and the measure
+  is genuinely owed.** "Loop until this, then loop until that,
+  repeat" closes the chain into a drawn cycle — a link on the last
+  continuation, back to the first phase's subject position. That
+  is ordinary linked recursion, and the author owes its measure
+  like any link's. The natural witness is the consultation
+  position (the progress species), and the violation shape is the
+  left-recursion sibling: **a phase that can spend no consultation
+  — an empty prefix under starts-next — hands its own position to
+  itself.** The one-node split-when is immune (its consultations
+  are spent by construction); only a hand-linked cycle can express
+  the violation, and the divide flow's existing diagnostic (name
+  the link edge with no consumption on its wire path) already
+  names it.
+
+## State across the cut
+
+A small result that falls out of the port shape, recorded because
+it answers a question the framing example raised. Framing's parser
+state must *survive* a cut (the header knowledge carries into the
+body); the wrap loop's line state must *reset* at one (each line
+starts empty). Neither needs a mode: run-on state is a register on
+the **subject**, whose reads at continuation firings are ordinary
+subject-firing reads (continuation firings are subject firings);
+per-segment state is a register on the segment's **inner flow**,
+reinitialised by nesting as Part I already establishes. The two
+drawings say the two meanings — which flow the register binds *is*
+the reset policy, one more instance of "the nesting is the reset"
+rather than a carry-over bit on the node.
+
+## Against the principles
+
+- **Example first.** The cut is met as end-when (one projection,
+  one concrete walk) before the root is ever named; the
+  continuation is an addition to a drawing that already works.
+- **Inside-out.** Both outputs are flows on wires; the payload is
+  a discharged value; no interior scope, no magic head element
+  (the coincidence under starts-next is named and declined).
+- **Foundations before features.** The law of the cut is
+  end-when's law plus one output; the new content of this round is
+  one clause (the spent consultation) and three answers assembled
+  from adopted machinery. Four dead ends died on paper.
+- **No bottlenecks.** Prefix and continuation emerge as two flows,
+  never a packed pair; span/break's tuple is named as the costume.
+- **Abstraction is the source of truth.** The spine-shaped
+  unrolling is a derived view; the authored program keeps the
+  node. The corecursion lives below the surface, readable on
+  request — the merge/interrupt precedent the decision cited, now
+  with the mechanism identified (the link).
+- **Building blocks must build.** End-when → *+ tap the
+  continuation* (skip-while; the node was already a cut) → *+ a
+  second cut on the continuation* (phased consumption) → *+ close
+  the chain with a link* (grammar-shaped iteration, measure owed)
+  — and, on the other branch, → *split-when* (the uniform iterated
+  form as one node). No rung rewrites the previous drawing.
+
+## Dead ends
+
+Recorded in place, each with the reason it should not be
+re-proposed.
+
+1. **The continuation as option-kind** (present only on Stopped).
+   Rejected above: no client wants missing-vs-empty, the
+   Stopped/RanOut bit already lives on the prefix's terminator,
+   and the iterated form's last level would change species.
+2. **The payload as a value port on the cut node.** Rejected
+   above: a flow operation carries no value ports
+   (`barrier-value-crossing-design.md`, adopted), and the
+   terminator home is end-when's adopted machinery — a port would
+   be a second home for one value.
+3. **The corecursive chain as the surface.** The decision's own
+   posture, now with the structural reason: the chain has no
+   finite drawing and owes a measure; the node is total by
+   construction. The chain survives as the derived view only.
+4. **Separate prefix and continuation node species** — a
+   standalone "rest-when" beside end-when, each consuming
+   (subject, boundary). Rejected: two nodes would draw two cuts
+   that coincide only by the accident of identical wiring, where
+   the record's sharing discipline demands the shared thing be
+   drawn once (sharing is opt-in via binding, never via textual
+   coincidence); one node with two flow outputs makes the
+   coincidence structural.
+5. **A per-segment re-arming mode** (a bit for whether the
+   boundary "re-arms" after each cut). Dissolves: re-arming is the
+   spent-consultation clause, which is uniform — the boundary is
+   consulted once per subject firing, full stop. There is nothing
+   to configure.
+
+## What this changes, and what it leaves
+
+If a design conversation adopts this round's answers: question
+10's three edges close; Raku's *sequence* combinator gains an
+owner (the finite chain), completing that ladder's four rows
+(repeat = split-when, sequence = chained cuts, recurse = the
+divide flow, alternate still unexamined); the restriction rule
+gains its second client and should move into the provenance
+inventory; the owned-order criterion's check on the segment flow
+is cashed (registers on the outer flow are grounded, not assumed);
+and the spent-consultation clause should be folded into the law of
+segments' consultation sentence, where it has been implicit.
+
+Left open, with owners: adoption itself; the continuation port's
+spelling and the terminator-only discharge's binder form (the
+textual round, jointly with the destination word-triple); the
+drawing of a two-output cut node (layout, out of scope here);
+whether `alternate` (typed segments) is a destination of this
+family or its own construct (unexamined, filed with question 3's
+grammar boundary); and the anchor rule's continuation corner —
+trivial as far as this round can see (the continuation completes
+exactly when the subject does, so it adds no new anchor moment),
+noted so the anchor round confirms rather than inherits it.
