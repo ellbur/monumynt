@@ -249,10 +249,16 @@ depth, discharged by commutativity); "one register read in two
 orders" becomes unrepresentable, which the round argues is the
 truth (two scans are two computations sharing one context-free
 base). If its conversation adopts it, the collect-vs-ancestor fork
-closes outright. It owes a frequency check (non-commutative scans
-and spanning effects over genuine grids — invisible to loop
-sampling by construction) before the demand's ergonomic cost is
-weighed. The
+closes outright. The frequency check it owed is **run**
+(`real-loop-survey.md`, survey 4 — thirty nested-loop sites in the
+domains that stress the residue): the demand would fire on ~10–13%
+of such sites; its everyday client is the spanning ordered emission
+(the report-writer), the numeric non-commutative sweep the
+rare-but-sharpest member; in every firing draw the orientation was
+already authored in the source, and the commutative discharge has
+field instances — so the demand's ergonomic cost, against that
+sample, is writing down what those programs already wrote down. The
+adoption conversation now has its evidence. The
 per-kind "next iteration" question — formerly the row's most
 concrete owed work, with several rounds writing checks on it — is
 now **adopted** (2026-07-23 — `delay-ontology-design.md`, "Per-kind
@@ -271,7 +277,8 @@ becomes one check with a clock parameter; `hold` is identified
 as the register whose step ignores `prev` — all three pieces
 (criterion, order-demand check, `hold`) adopted; the
 linearization residue and the value-in-context model explicitly
-excluded from the adoption, each still owing its evidence.
+excluded from the adoption — the former's evidence now delivered
+(survey 4), the latter's everyday-`prev` check still owed.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
@@ -803,6 +810,13 @@ keyed-min-collect + back-edge, its algebraic footing in
 `collect-family-design.md`); the whole-set register (`f⍣≡`) is the
 degenerate scalar-fixpoint neighbour, kept distinct because it carries
 no members (no semi-naive, no provenance). Four dead ends recorded.
+The shape's first random-draw sightings have since landed
+(`real-loop-survey.md`, survey 4, finding 4.6): two hand-rolled
+costumes in thirty nested-loop sites — a worklist-with-seen-set
+module walk and resolve-until-no-progress passes — both in
+general-purpose library code, at a sampling unit where worklists can
+appear; "absent from all random surveys" should no longer be cited
+bare, though the owed domain sample below stands.
 
 Remaining: the adoption conversation; **termination is not structural**
 (Datalog's finiteness/bounded-height condition — the dedup-collect
@@ -1173,11 +1187,14 @@ the scores above rather than carrying its own. The named next rounds
   either census (0.03 combinators per loop). Larger n where a
   proportion becomes load-bearing still owed.
 - **The saturation frequency question.** Closure-shaped computation was
-  absent from all three random surveys; a domain sample (package/build/
+  absent from the first three random surveys; survey 4 has since
+  produced its first two random-draw sightings (hand-rolled worklist
+  and fixpoint-passes costumes, at the nested-site unit), so the shape
+  is no longer zero-sighted — but a domain sample (package/build/
   import tooling, program-analysis code, graph features inside
-  applications) would measure how often the shape occurs and in what
-  costume (hand-rolled worklists, embedded query engines, union-find),
-  informing the saturation row's W. The same sample can carry the
+  applications) is still owed to measure how often the shape occurs
+  and in what costume (hand-rolled worklists, embedded query engines,
+  union-find), informing the saturation row's W. The same sample can carry the
   functions row's condition (does real application code swap
   providers?) and the recursion row's frequency question (how often
   divide-shaped recursion occurs, and in what costume — hand-rolled

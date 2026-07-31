@@ -417,7 +417,15 @@ flows — Cross's stored operands plus authored commutes — which
 converts the grid case into the nested case this section already
 calls fine; an unpinned orientation under a spanning handle fails an
 orientation-pinning demand with the handle as witness, and the
-never-drawn commute stays never-drawn.)
+never-drawn commute stays never-drawn. The field check that round
+owed is since run — `real-loop-survey.md`, survey 4 — and its
+finding 4.5 lands on this section's side of the residue: among
+order-observing consumers over genuine grids, the spanning ordered
+emission is the dominant species, three of four draws — generated
+source over one product, grid markup over another, a diagnostic
+stream over a third — with the numeric non-commutative scan the
+rare member. The residue's everyday client is this section's
+handle.)
 
 ## What this no longer feeds the open question of what a Delay *is*
 

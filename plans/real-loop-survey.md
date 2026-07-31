@@ -5,7 +5,7 @@ seeded random samples of real code against the language's designed and
 candidate constructs, and reports what the frequencies say. It decides
 nothing.
 
-The doc holds three surveys:
+The doc holds four surveys, plus two whole-corpus censuses:
 
 - **Survey 1** — thirty loops from infrastructure corpora (Python and
   Ruby standard libraries, npm's JavaScript).
@@ -24,6 +24,18 @@ The doc holds three surveys:
   nine-to-one over the all-of join, and every hand-rolled race
   reconstructs "who won" from side flags rather than receiving it
   structurally.
+- **Survey 4: grids under order** — thirty nested-loop *sites* from
+  six corpora in the domains the product-linearization residue names
+  (numerics, image processing, report writing), running the frequency
+  check that round owed. Its headline: product-shaped chains are 30%
+  of nested sites; order-observing consumers over them are 10–13%,
+  and in every such draw the orientation was already authored in the
+  source — the orientation-pinning demand, against this sample,
+  charges nothing imperative programs don't already pay.
+- The two **combinator censuses** (infrastructure and domain corpora)
+  count rather than sample: every loop and combinator, one number per
+  corpus, quantifying the loop/combinator split the surveys' exclusion
+  rule rested on.
 
 **How to read the tallies.** Frequency is not importance. This is the
 80/20 counterweight, stated in full under "Reading the frequencies"
@@ -2782,3 +2794,579 @@ Not changed: as with the infrastructure census, this counts occurrences
 and does not classify which statement loops carry state; the
 iteration-state candidates, the running-view-of-a-collect gap, and the
 end-when demand are argued from the loop surveys, and stand.
+
+---
+
+# Survey 4: grids under order — nested-loop sites
+
+This survey answers a question a design round explicitly owed. The
+product-linearization round (`product-linearization-design.md`)
+proposes that the register-over-a-product residue dissolves into one
+new demand — the *orientation-pinning* demand: on any path from a
+Cross to an order-observing consumer, the orientation must be
+authored. Its open list names the evidence gap:
+
+> How often do real programs put a non-commutative scan or a spanning
+> effect over a genuine grid (independent axes, neither enclosing)?
+> The shape is invisible to the loop surveys by construction (a grid
+> is two loops); a targeted sample (numerics, image kernels,
+> report-writers under nested iteration) per the standing method
+> would say whether the pinning demand bites weekly or yearly.
+
+So this survey samples a different unit again: the **nested-loop
+site** — the place where a grid, if the program has one, must appear.
+Like survey 3 it is targeted: the corpora are chosen from the domains
+the residue names, so its proportions say "when nested iteration
+occurs in the domains that should stress the residue, what shape is
+it," not "how common is nested iteration in all code."
+
+## Protocol (survey 4)
+
+Corpora fetched from PyPI onto the survey machine (`pip install
+--no-deps`), spanning the three named domains — numerics, image
+processing, report/document writing:
+
+| Corpus | Project | Domain | .py files |
+|---|---|---|---|
+| mpmath | mpmath 1.4.1 | arbitrary-precision numerics | 55 |
+| sympy | sympy 1.14.0 | symbolic mathematics | 824 |
+| numpy | numpy 2.4.6 | array numerics (Python layer) | 228 |
+| skimage | scikit-image 0.26.0 | image processing (Python layer) | 187 |
+| openpyxl | openpyxl 3.1.5 | spreadsheet reading/writing | 190 |
+| reportlab | reportlab 5.0.0 | PDF/report generation | 155 |
+
+(mpmath recurs from survey 2 deliberately: it is the loop-densest
+numerics corpus the record has; a different sampling unit draws
+different sites.)
+
+**The unit.** A *nested-loop site* is an `ast.For` / `ast.While` /
+`ast.AsyncFor` node whose body contains at least one further loop
+node, where containment does not cross a function, class, or lambda
+boundary (a loop inside a nested `def` belongs to that `def`'s own
+site, not to the enclosing loop). Comprehensions are not loops
+(survey 2's parser-level amendment, kept). What is *read and
+classified* is the maximal loop chain around the drawn site, with its
+surrounding function — the site locates a chain; the chain is the
+thing with a shape.
+
+**Selection.** Seed `20260731` retagged per corpus
+(`random.Random(f"20260731:{name}")`); shuffle the corpus's sorted
+`.py` file list; walk it in shuffled order; in each file containing
+at least one site, pick **one site uniformly at random** among the
+file's sites; five per corpus, thirty total. Excluded paths as in
+survey 2: `*test*`, `__pycache__`, `/docs/`, `/examples/`.
+
+**Classification.** Two questions per chain, fixed before reading:
+
+1. **Axis relationship.** Is some adjacent pair in the chain
+   *product-shaped* — the inner loop's extent independent of the
+   outer loop's element, so the pair is what a Cross would draw — or
+   is every pair *dependent nesting* (the inner iterates over
+   something derived from the outer's element), or is the outer axis
+   not a data axis at all (*passes*: retries, convergence sweeps,
+   staged re-expansion, worklists)? Note the imperative form always
+   *draws* one order — the syntax cannot state a symmetric product —
+   so "product-shaped" is a fact about extents, and the nesting order
+   is then exactly a drawn orientation.
+2. **Order observation.** Does any state or sink survive across
+   firings of the outer loop while being updated under the inner —
+   a *spanning* consumer? If so, is its update commutative (order
+   unobservable in the result) or does it observe the linearization
+   (text/output emission, in-place reads of earlier updates, cursor
+   packing)? Per-fiber accumulators (reset per outer firing) and
+   collects that ride a single axis's own order are *not* spanning —
+   nesting owns those orders already.
+
+## The sample (survey 4)
+
+Grouped by axis relationship; within groups, corpus order. One draw
+(reportlab 4) is demo-runner code shipped inside the package;
+don't-filter means it stays, flagged in place.
+
+### Class A — product-shaped chains (9 of 30)
+
+Some adjacent pair has independent extents: the pair a Cross would
+draw. Subgrouped by what consumes across it.
+
+#### A1 — no spanning consumer (3)
+
+**sympy 1** — `sympy/matrices/subspaces.py:69` (`_nullspace`)
+
+    for free_var in free_vars:
+        vec = [M.zero]*M.cols; vec[free_var] = M.one
+        for piv_row, piv_col in enumerate(pivots):
+            vec[piv_col] -= reduced[piv_row, free_var]
+        basis.append(vec)
+
+Free variables × pivots — both fixed lists, independent extents. But
+the accumulator is per-fiber (a fresh `vec` per free variable), and
+`basis` rides the outer axis's own order. Nothing observes the joint
+order. In the record's vocabulary: a product whose consumers are a
+per-fiber keyed collect and an outer-axis collect — no pinning
+demanded beyond what nesting owns.
+
+**numpy 3** — `numpy/_core/_type_aliases.py:106`
+
+    for type_info in typeinfo.values():
+        for type_group, abstract_type in [("int", ma.signedinteger),
+                ("uint", ...), ..., ("others", ma.generic)]:
+            if issubclass(concrete_type, abstract_type):
+                sctypes[type_group].add(concrete_type); break
+
+Concrete types × a fixed literal group list. The inner is a
+first-match walk — ordered *alternation* (the catch-all
+`ma.generic` deliberately last), i.e. an ordered case chain per
+outer point, its order drawn as the list literal. The outer collect
+is a set add — commutative. The inner axis's order is meaning, but
+it is per-point dispatch order, not grid linearization.
+
+**openpyxl 4** — `openpyxl/worksheet/worksheet.py:765` (`delete_cols`)
+
+    for col in remainder:
+        for row in range(min_row, max_row):
+            if (row, col) in self._cells:
+                del self._cells[row, col]
+
+Columns × rows — the spreadsheet's own grid, walked as a genuine
+product. The per-point effect (delete a keyed cell) commutes across
+points; no consumer observes the order. The everyday grid program the
+pinning demand must not tax — and it demands nothing here.
+
+#### A2 — spanning consumer, commutative: the escape hatch, used (2)
+
+**mpmath 3** — `mpmath/ctx_iv.py:526` (`hypsum`)
+
+    s = t = ctx.one; k = 0
+    while 1:
+        for i in num: t *= (coeffs[i]+k)
+        for i in den: t /= (coeffs[i]+k)
+        k += 1; t /= k; t *= z; s += t
+        if t == 0: return s
+        if k > maxterms: raise ctx.NoConvergence
+
+Series terms (unbounded, end-when) × parameter index (fixed extents —
+product-shaped). The ratio `t` is a register spanning both axes,
+updated per (term, parameter) firing; `s` accumulates per term. Every
+update is multiplication/division into one accumulator — commutative
+in meaning (with the usual rounding caveat of any float
+re-association), so the order is not observed in the result. The
+demand-discharged-by-commutativity case, in the field.
+
+**skimage 5** — `skimage/feature/_hog.py:282` (HOG visualization)
+
+    for r in range(n_cells_row):
+        for c in range(n_cells_col):
+            for o, dr, dc in zip(orientations_arr, dr_arr, dc_arr):
+                rr, cc = draw.line(...)
+                hog_image[rr, cc] += orientation_histogram[r, c, o]
+
+A rank-3 genuine product (rows × cols × orientation bins, all
+independent). The consumer spans the whole cube — an image canvas
+updated at every point, with overlapping lines — and is saved
+entirely by `+=`: additive compositing commutes, so no order is
+observable. Had this been over-painting (`=`, alpha blend), the full
+S₃ linearization would have been semantics. The knife-edge between A2
+and A3 is the operator's algebra — exactly the catalog-row
+commutativity flag doing the discharging.
+
+#### A3 — spanning order-observing consumer: the residue's shape (4)
+
+**mpmath 5** — `mpmath/calculus/polynomials.py:209` (`polyroots`,
+Durand–Kerner)
+
+    for i in range(deg):
+        p = roots[i]; x = f(p)
+        for j in range(deg):
+            if i != j:
+                x /= (p - roots[j])
+        roots[i] = p - x; err[i] = abs(x)
+
+Root index × root index (independent extents, diagonal filtered —
+"rectangular, just smaller"). The inner fold is per-fiber and
+commutative (divisions into one accumulator). But `roots[i] = p - x`
+updates **in place**, so later fibers read a mix of old and new
+values: the sweep is order-sensitive along the outer axis
+(Gauss–Seidel where a fresh array would be Jacobi — different
+iterates, different convergence). A register on the outer axis whose
+step consumes a per-fiber fold — the *fibered* shape, observing one
+axis's order, not the joint permutation. The order-sensitivity is
+carried by an array subscript and visible nowhere in the source; a
+drawn register stepping a pinned axis would surface it. The one
+numeric non-commutative draw, and the graded demand ("pin only the
+observed depth") matches its shape exactly.
+
+**sympy 2** — `sympy/core/facts.py:496` (`_full_implications_lines`;
+the drawn site is the `value` loop — the chain read runs from the
+enclosing `fact` loop one line up)
+
+    for fact in sorted(self.defined_facts):
+        for value in (True, False):
+            yield f'    # Implications of {fact} = {value}:'
+            ...
+            for implied in sorted(implications):
+                yield f'        {implied!r},'
+
+Facts × {True, False} — a genuine product (both extents fixed) with a
+dependent third level (the implications of the pair). The consumer is
+the yielded line stream: **generated Python source**, concatenated
+across the whole walk — a spanning handle observing the full
+lexicographic order. And the orientation is authored three times
+over: `sorted()` on the fact axis, the literal pair on the value
+axis, fact-major by nesting. Transposing would group the output by
+value instead of by fact — a different file. Order is meaning; the
+author stated it.
+
+**sympy 5** — `sympy/categories/diagram_drawing.py:2358`
+(`_build_xypic_string`)
+
+    for i in range(grid.height):
+        for j in range(grid.width):
+            obj = grid[i, j]
+            if obj: result += latex(obj) + " " ...
+            if j < grid.width - 1: result += "& "
+        if i < grid.height - 1: result += "\\\\"
+        result += "\n"
+
+The textbook exhibit. Height × width — a genuine grid — and the
+consumer is string concatenation spanning it: an Xy-pic picture,
+where row-major order with `&` between columns and `\\` between rows
+*is the output format*. The orientation is not a traversal
+convenience; it is the semantics of the result, stated by the loop
+nesting because the target grammar demands exactly that
+linearization. Also note the boundary special-casing (last column,
+last row) — segment-boundary vocabulary riding the same walk.
+
+**reportlab 4** — `reportlab/graphics/samples/runall.py:24` *(flag:
+demo-runner code shipped in the package)*
+
+    allfiles.sort()
+    for fn in allfiles:
+        c = getclass(f)
+        if c != None:
+            print(c.__name__)
+            for fmt in formats:
+                if fmt: c().save(formats=[fmt], ...)
+
+Chart modules × output formats — independent extents. The per-point
+effect (write one file per (chart, format)) is independent — the
+per-firing-minted handle, demanding no order. What spans is the
+diagnostic stdout stream (`print` per chart, failure messages), whose
+grouping rides the drawn chart-major orientation, plus `sort()`
+authored on the file axis. The effects round's fork read off a real
+program: independent effects per point, one ordered diagnostic
+handle spanning, orientation stated upstream (arrange-then-walk).
+
+### Class B — dependent nesting (15 of 30)
+
+The inner loop iterates over something derived from the outer's
+element: drawn nesting, whose orders the record already owns. Listed
+with their one-line shapes; the recurring spanning consumer here is
+the ordered output stream, whose order nesting supplies.
+
+**mpmath 4** — `mpmath/calculus/differentiation.py:448`
+(`diffs_exp`): generator `while 1` over derivative order `i` (a
+self-driven counted source), inner sum over `dpoly(i)`'s terms
+(extent depends on `i`) — per-firing commutative reduce, yielded as a
+stream.
+
+**sympy 3** — `sympy/vector/basisdependent.py:193`
+(`BasisDependentAdd.__new__`): args × each arg's components — keyed
+commutative merge (`components[x] = get(x,0) + …`) — the keyed
+collect by `+`, order-free.
+
+**numpy 1** — `numpy/ma/extras.py:343` (`flatten_inplace`): cursor
+`k` over a list being spliced in place; inner `while` re-expands at
+the cursor until flat. Data-dependent expansion at a cursor —
+tree-flatten with the structure mutated under the walk; order
+preserved by construction.
+
+**numpy 2** — `numpy/f2py/crackfortran.py:2656` (`analyzevars`):
+attributes × parsed components of each attribute. Keyed ordered
+appends with first-appearance dedup; notably `attr.reverse()` *before*
+the fold — the order of an order-sensitive fold stated upstream, an
+arrange-then-fold in the wild.
+
+**numpy 4** — `numpy/distutils/conv_template.py:230`
+(`parse_string`): template segments × per-segment repeat
+environments, with recursion into nested loop bodies — the divide
+flow in template costume. The spanning consumer is generated C
+source (ordered concatenation); its order is the input document's,
+owned by the nesting and the recursion structure.
+
+**skimage 1** — `skimage/feature/haar.py:326`
+(`draw_haar_like_feature`): features × each feature's rectangles.
+In-place alpha blend onto an image — a spanning *non-commutative*
+compositing effect — but over a dependent nesting, so firing order
+is owned by the drawn lists. (The outer list may be a random
+subsample upstream; the blend order is then as arbitrary as the
+sample — an order stated, if not deeply meant.)
+
+**skimage 3** — `skimage/feature/sift.py:479`
+(`_compute_orientation`): octaves × keypoints-in-octave (dependent
+mask). Per-keypoint histogram work is *vectorized* — the genuine
+pixel grids live inside `np.gradient` / fancy indexing, invisible to
+loop-level sampling. Ordered appends ride the nesting.
+
+**skimage 4** — `skimage/restoration/inpaint.py:115`
+(`_inpaint_biharmonic`): boundary points × each point's
+neighborhood. Two flat output cursors (`idx_known`, `idx_unknown`)
+span the nesting, packing sparse-matrix triplets in walk order — the
+running-count coordinate (`const i = c++`) hand-rolled; order owned
+by the nesting.
+
+**openpyxl 1** — `openpyxl/chart/plotarea.py:142` (`from_tree`):
+charts × each chart's axis ids — per-point keyed dispatch
+(`x_axis`/`y_axis`/`z_axis` by tagname); no spanning consumer.
+
+**openpyxl 2** — `openpyxl/worksheet/_reader.py:415`
+(`bind_hyperlinks`): a rectangular cell range walked as rows × cells
+— grid-shaped *data*, but it arrives pre-nested (`ws[ref]` hands you
+rows of cells): the at-rest table supplies its own nesting. Per-point
+independent writes (`cell.hyperlink = copy(link)`).
+
+**openpyxl 3** — `openpyxl/workbook/_writer.py:95` (`write_names`):
+sheets × each sheet's defined names. Element mutation
+(`localSheetId = idx`) plus a spanning ordered collect
+(`defined_names.extend`) whose order rides the nesting.
+
+**openpyxl 5** — `openpyxl/workbook/workbook.py:431`
+(`_duplicate_name`): sheets × each sheet's tables — existence search
+with early exit. The exit is an optimisation, not order-observation:
+"is there any match" is confluent. (Contrast first-*which*-match,
+which would observe order.)
+
+**reportlab 1** — `reportlab/graphics/barcode/common.py:381`
+(`decompose`): digit pairs × pattern positions. The inner is an
+aligned zip — `b[i] + s[i]`, two same-extent lanes paired by
+position (co-extent by construction: both patterns per digit have
+equal length). Spanning ordered string collect; a barcode *is* its
+sequence — order owned by nesting.
+
+**reportlab 3** — `reportlab/platypus/flowables.py:2306`
+(`_flowablesIter`): list items × each item's flowables, flattened
+into an ordered yield stream with first/last special-casing per
+segment (`i==0`, `i==n` carry `spaceBefore`/`spaceAfter`) — boundary
+vocabulary on a dependent nesting.
+
+**reportlab 5** — `reportlab/graphics/svgpath.py:276` (`SvgPath`):
+SVG path ops walked in sequence with a case split per op and a
+cluster of registers (current point, subpath start, last op, pending
+control point); inner loops over each op's coordinate payload. The
+protocol/state-machine scan — order absolutely owned by the input
+sequence.
+
+### Class C — passes, retries, worklists (6 of 30)
+
+The outer axis is not a data axis: attempts, stages, or a growing
+frontier.
+
+**mpmath 1** — `mpmath/functions/bessel.py:953` (Bessel zeros):
+`while 1` doubling `n` until the asymptotic estimate isolates the
+root; on success an inner pass fills an interval cache (keyed
+writes) and returns. Retry-with-escalation; the register on the
+attempt axis is the doubling `n`.
+
+**mpmath 2** — `mpmath/ctx_mp.py:704` (`_hypsum`): `while 1`
+doubling `extraprec` until the summation is accurate; the inner walk
+is a for-all check over magnitude entries (confluent). The numerics
+costume of the retry composite: escalate a resource, re-run a
+sub-computation, end-when accurate.
+
+**sympy 4** — `sympy/polys/polyroots.py:1010` (`_try_decompose`):
+per decomposition factor, rebuild the roots list from the previous
+stage's roots × per-root heuristics. A register holding a
+*collection*, re-opened per stage — staged expansion, bounded by the
+factor list.
+
+**numpy 5** — `numpy/_core/einsumfunc.py:182` (`_optimal_path`): per
+iteration, expand every candidate path by every pair contraction,
+then replace the candidate set. The same staged-expansion register;
+termination by stage count or emptiness; final `min` by cost
+(commutative up to tie order).
+
+**skimage 2** — `skimage/_vendored/numpy_lookfor.py:83` (vendored
+from numpy): worklist over a module graph — `stack.pop(0)`,
+`seen[id]` dedup, discovered children pushed. Hand-rolled
+saturation: frontier, dedup collect, closure. First random-draw
+sighting of the shape.
+
+**reportlab 2** — `reportlab/lib/colors.py:1000` (`setColors`):
+passes over a dict of pending color definitions, resolving what can
+be resolved, until a pass makes no progress — a fixpoint under a
+"stopped growing" (here: stopped shrinking) test. The second
+saturation costume in one draw, confluent by construction.
+
+## Tally (survey 4)
+
+| Class | n | of 30 |
+|---|---|---|
+| A — product-shaped chain | 9 | 30% |
+| — A1: no spanning consumer | 3 | 10% |
+| — A2: spanning but commutative | 2 | 7% |
+| — A3: spanning order-observing | 4 | 13% |
+| B — dependent nesting | 15 | 50% |
+| C — passes / retries / worklists | 6 | 20% |
+
+Within A3: three of four are text/output emission (generated source,
+Xy-pic markup, diagnostic stream); one is a numeric in-place sweep.
+Excluding the flagged demo draw, A3 is 3 of 30 (10%).
+
+## Findings (survey 4)
+
+**4.1 — The genuine grid is a standing shape, not a corner: 9 of 30
+nested-loop chains are product-shaped.** In the domains the residue
+names, roughly one nested-loop site in three has independent extents
+— the precondition for a Cross, and so for the pinning question, at
+all. The residue gates a weekly shape, not a yearly one.
+
+**4.2 — Order observation over a product ran 4 of 9 — and every
+observed orientation was authored.** The four A3 draws state their
+order: loop nesting chosen to match an output grammar (sympy 5),
+`sorted()` upstream on the observed axis (sympy 2, reportlab 4), the
+in-place sweep's axis fixed by the subscript structure (mpmath 5).
+No draw leaves an observed order to fall where it may — with the
+important caveat that imperative syntax *cannot*: a nested loop
+always states a linearization. Read precisely, the finding is: **in
+every field program where the pinning demand would fire, the
+information it demands is already present in the source** — the
+demand's cost, against this sample, is zero beyond what the
+imperative form already pays. What loop corpora cannot witness is an
+author *wanting* consumer-supplied order over a shared register
+(nested loops cannot express that either); the one mainstream form
+that can — SQL's window functions — makes `ORDER BY` mandatory per
+order-observing aggregate, which is the demand as shipped syntax
+(`product-linearization-design.md`, prior art).
+
+**4.3 — The commutative escape hatch is real field behavior: 2 of
+the 6 spanning consumers are commutative accumulations** (`+=` onto
+an image canvas; multiply/divide into a series accumulator). These
+are exactly the programs the demand discharges via the catalog row's
+commutativity flag — they draw no orientation and pay nothing. The
+beginner-bar claim ("`sum` over a table stays one gesture") has its
+field instances. The skimage draw also shows how thin the edge is:
+additive compositing commutes, over-painting does not — one operator
+swap moves a program from A2 to A3, which is an argument for the
+discharge living on the *operator's* catalog row rather than on the
+construct.
+
+**4.4 — The numeric non-commutative case exists and is the
+legibility case.** One draw (Durand–Kerner) carries an
+order-sensitive sweep whose sensitivity is invisible: `roots[j]`
+reads a mix of already-updated and not-yet-updated values, and
+nothing in the source marks the Jacobi/Gauss–Seidel distinction —
+field-known to change convergence behavior. It is also *fibered*
+(register on one axis, commutative fold per fiber), matching the
+graded demand — pin the observed axis, leave the rest free — rather
+than a full-permutation pin. Support for the round's claim that the
+demand surfaces information programs are incomplete without, and for
+grading it to observed depth.
+
+**4.5 — The dominant order-observer over grids is the spanning text
+stream, not the numeric scan.** Three of four A3 draws concatenate
+output across the walk (two report/code writers, one diagnostic
+stream); class B adds five more ordered-emission chains over
+nestings (barcode, template expansion, code lines, sparse-triplet
+packing, flowable stream). The linearization residue in the field is
+mostly the *effects* face the effects round filed
+(`effects-design.md`, the spanning handle), and only secondarily the
+Delay's. Weight for the joint adoption conversation: the pinning
+demand's everyday client is the report-writer.
+
+**4.6 — Side sightings, filed to their rows.** Sampled at a new
+unit, several other rows got their first or sharpest random-draw
+contact: **saturation** — two hand-rolled costumes (worklist with
+seen-set over a module graph; resolve-until-no-progress passes over
+a dict), the shape's first appearances in any random draw, at a unit
+where worklists can appear (`saturation-design.md`'s frequency
+question: no longer zero-sighted, with the unit-change caveat);
+**staged expansion** — two draws re-opening a register-held
+collection per stage (polynomial decomposition; einsum path search),
+the register-of-a-collection shape without dedup, bounded by stages;
+**retry-with-escalation** — two numerics draws (double the
+precision / the estimate index until accurate), the pacing/retry
+composite's costume (`source-openers-design.md`); **the aligned
+zip** — positional pairing of same-extent pattern lanes
+(`product-flows-design.md`'s zip, co-extent by construction); **the
+running-count cursor** — sparse-triplet packing via `idx += 1`, the
+chain-axis coordinate the poset round mints as `const i = c++`;
+**first/last boundary special-casing** on a flattened stream
+(segment-boundary vocabulary, `variable-rate-consumption-design.md`);
+and **ordered alternation with catch-all-last** (numpy's type
+dispatch), the ordered case chain.
+
+## Biases (survey 4), with direction
+
+- **The medium forces statedness.** Imperative nesting cannot draw
+  an unpinned product, so finding 4.2's "every orientation was
+  authored" is partly the syntax speaking. Direction: the
+  *co-occurrence* rate (how often order-observation sits over
+  independent axes — 4 of 30 sites) is medium-independent and is the
+  number the demand's bite-frequency question wanted; the
+  *authoredness* claim cannot be falsified from loop corpora and
+  leans on SQL as the one expressive-enough prior art.
+- **Vectorization hides grids.** In numpy-style code the real pixel
+  and matrix grids live inside array operations (the sift draw shows
+  it directly), so product-shaped sites are undercounted overall —
+  and *selectively*: per-point and commutative grid work vectorizes
+  away first, while order-observing consumers (text emission,
+  in-place sweeps) resist vectorization and remain as loops.
+  Direction: A3's share *among loop-visible products* likely
+  overstates A3's share among all grid computations.
+- **Targeted corpora.** The domains were chosen because the residue
+  names them; proportions must not be read as population-general.
+  One project per domain confounds project style with domain, as in
+  survey 2.
+- **Python only.** No JS corpus this round; the report-writer domain
+  is represented by library code (openpyxl, reportlab) rather than
+  application report scripts, which likely *understates* the
+  spanning-text-over-grid rate (applications write reports; libraries
+  mostly provide the machinery).
+- **n = 30**, same coarseness as every survey here; and one draw is
+  flagged demo code (A3 counted both with and without it).
+- **Judgment calls at the chain level.** Extent-independence is read
+  syntactically where possible (`range` over fixed bounds, fixed
+  literal lists) and judged from context otherwise; the
+  per-fiber-vs-spanning distinction requires reading which
+  accumulators reset per outer firing. Both rules were fixed before
+  classification.
+
+## What this changes (survey 4)
+
+For **the product-linearization round** — the owed check is run, and
+decides nothing, but reweights as follows. The demand's precondition
+(a genuine product) is common (30% of nested sites in these
+domains); the demand would actually fire on 10–13% of sites (A3);
+where it fired, the demanded information was already in the source
+every time; and the commutative discharge covers a real, adjacent
+population (A2). Against this sample the demand's ergonomic cost is
+the cost of writing down what these programs already wrote down —
+the round's "information the program is incomplete without" reading
+survives contact. The exploratory-reorientation workflow its
+adoption bullet feared (one register deliberately re-read per
+orientation) produced zero sightings, though the medium could not
+have shown it (bias 1).
+
+For **the Delay-ontology residue** — the linearization's everyday
+field client is the spanning ordered emission, with the numeric
+in-place sweep as the rare-but-sharpest member (fibered, one axis
+observed). The value-in-context model's everyday-`prev` check is
+untouched (different unit); this survey neither advances nor blocks
+it.
+
+For **the effects round** — the spanning handle over a genuine grid
+has field instances (generated source over fact × value; markup over
+height × width), and the independent fork appears beside it in the
+same draw (one file per (chart, format), plus one spanning
+diagnostic stream) — the fork's both halves in one program.
+
+For **the saturation row** — the frequency question moves off zero:
+two costumes in thirty draws at the nested-site unit, both in
+general-purpose library code rather than the domain-concentrated
+clients the row predicted. The row's owed domain sample stands (this
+was not it), but "absent from all random surveys" should no longer
+be cited bare.
+
+Not changed: everything the loop surveys established at their unit —
+the stateless majority, the scan's domain concentration, early
+termination's dominance — is untouched; this survey sampled where
+grids live, and its proportions answer only the grid questions.

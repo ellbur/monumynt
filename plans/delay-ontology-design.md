@@ -129,7 +129,13 @@ itself has since been worked in its own round
 (`product-linearization-design.md`, exploration, unadopted): the
 axis is the *drawn orientation* of the flow the register rides —
 neither candidate — and the trade reduces to an orientation-pinning
-demand; see the Open list's endnotes.
+demand; see the Open list's endnotes. The frequency check that round
+owed is since **run** (`real-loop-survey.md`, survey 4): the demand
+would fire on ~10–13% of nested-loop sites in the domains that
+stress it, its everyday client is the spanning ordered emission (the
+report-writer) rather than the numeric scan, and in every firing
+draw the orientation was already authored in the source — evidence
+for the residue's conversation, which remains unheld.
 
 ## Firm ground: a Delay is a feature of the flow
 
@@ -1074,7 +1080,9 @@ register whose step ignores `prev`); with them the kinds table's
 cashings stand as settled answers. Explicitly *not* part of this
 adoption: the product-linearization residue and the
 value-in-context model, each of which owes its own evidence before
-its conversation. One cashing carries a filed re-read: "the IO
+its conversation (the linearization residue's is since delivered —
+`real-loop-survey.md`, survey 4; the value-in-context model's
+everyday-`prev` check is still owed). One cashing carries a filed re-read: "the IO
 handle is a wire, not a flow" is put in question by the same
 conversation's later IO-as-flow direction (`effects-design.md`,
 "The IO-as-flow direction") — if the handle wire is the IO flow
