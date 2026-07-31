@@ -581,7 +581,15 @@ The language hasn't decided any of these yet.
    the demand frontier, and race indeed needed no new ports.
 5. **The chooser family's round.** The decision-driven merge now
    also owns merge's fairness variants; its round should treat the
-   async merge as a member, not a special case.
+   async merge as a member, not a special case. *The round now
+   exists* (`chooser-family-design.md`, exploration): the async
+   merge is a member as asked — the walk with a race of the heads
+   in the decision position, head-persistence being this chapter's
+   carried loser cell stated at the walk level — and the fairness
+   variants are drawn decisions reading a register on the step
+   flow, extending this chapter's fairness-knob dead end (a mode
+   would annotate what a drawing already states). The catalog-block
+   status of merge and interrupt is unchanged.
 6. **Spec and text.** Spec entries for the race barrier (and
    merge/interrupt as catalog blocks), plus textual spellings
    (`textual-representation-design.md`), are owed on adoption.

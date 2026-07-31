@@ -792,8 +792,11 @@ too (`variable-rate-consumption-design.md`), reframing "advance how far"
 as boundary placement: split-when, a segmenting (subject, boundary) flow
 operation yielding a nested flow, with the count entering as data (a
 register the boundary reads) rather than as a verdict. The family's
-remaining unworked member is the two-flow decision-driven merge. Nothing
-adopted.
+remaining unworked member — the two-flow decision-driven merge — now
+has its round too (`chooser-family-design.md`): the walk over k
+cursors, per-step heads, a late-wired advance operand, the chooser
+dissolved into ordinary drawn wiring; this use case's mergesort merge
+is its opening example. Nothing adopted.
 
 ### 5. The divide flow
 
@@ -906,8 +909,13 @@ where this document's motivating programs actually had their bugs.
    placement (`variable-rate-consumption-design.md` — split-when owns the
    single-input case, and the leaning is no N-head chooser at the surface:
    the chooser is the family's shared lowering shape, the members share
-   verdict/operand vocabulary). The two-flow merge keeps its chooser
-   sketch pending its own round. Nothing adopted.
+   verdict/operand vocabulary). *The two-flow merge's round now exists*
+   (`chooser-family-design.md`, exploration): one primitive after all,
+   but not a chooser — a walk minting per-step heads over k ≥ 2
+   cursors, with the decision as ordinary drawn vocabulary and the
+   sketch's configuration-scope instinct kept (wired, never passed);
+   end-when confirmed separate (the k = 1 shapes stay with end-when,
+   split-when, and the cut). Nothing adopted.
 6. **Keyed-lane key semantics.** Equality of keys (structural? user
    equivalence, like cutoff?); unbounded key spaces (a lane per key ever
    seen is a leak — lanes must be collectable when idle, which is a

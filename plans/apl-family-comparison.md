@@ -430,7 +430,15 @@ verdict: drawable only after the aligned product exists, and clumsy at
 rank 2 until the products row's open questions (n-ary, axis handling) are
 worked. This is the round's sharpest "struggles to represent naturally"
 exhibit, and it localizes the struggle precisely: not iteration, not
-grouping, not state — *alignment and rank-2 structure*.
+grouping, not state — *alignment and rank-2 structure*. *The residue is
+now worked* (`product-flows-design.md`, "The Life residue, worked",
+exploration): the overlay is the aligned product at flow arity — the
+transposing commute under a co-extent license (proved by shared
+provenance through shape-preserving ops, or asserted at the barrier —
+this family's conformance error, placed exactly where APL places it) —
+and the axis-handling question dissolves (alignment is positional
+levelwise; axes are commute's business). What Life still demands is the
+shape-preservation catalog row, filed to the checking round.
 
 **Quoted-text extraction.** `≠\T∊'()'` — parity scan turning delimiter
 positions into in/out regions, then compress. Drawn: a register toggling

@@ -526,9 +526,10 @@ this round leaves:
   (`end-when-design.md`).
 - **advance how far** — dissolved. Not a chooser verdict and not a
   count: boundary placement, owned by split-when.
-- **which of two advances** — the decision-driven merge, still owed
-  its round. It is genuinely not a segmentation (two subjects, one
-  interleaving), and this round leaves it the chooser sketch it has.
+- **which of two advances** — the decision-driven merge. It is
+  genuinely not a segmentation (two subjects, one interleaving), and
+  this round left it the chooser sketch it had. *Its round now
+  exists* (`chooser-family-design.md`, exploration).
 
 The leaning on the question itself: **no N-head chooser primitive at
 the surface.** Each family member keeps meeting its own everyday
@@ -542,7 +543,13 @@ boundary/stop operands obey the same option-kind discipline,
 destination bits share one enumeration. If the merge's round finds
 its chooser wanting the same dissolution — interleaving as something
 drawn rather than decided — the family gets simpler still; that is
-that round's question.
+that round's question. *That round now exists and answers yes*
+(`chooser-family-design.md`, exploration): the interleaving is
+drawn — the merge exposes per-step heads and takes a late-wired
+advance operand, the decision between them being an ordinary case
+split, race, or register read — and this passage's leaning sharpens
+to *no N-head chooser anywhere, surface or lowering* (the lowering's
+chooser was the corecursive costume of a case split).
 
 ## By kind, and the compile
 

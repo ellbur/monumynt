@@ -224,6 +224,17 @@ consumes, and whether it needs an input list at all:
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
   unowned item in the surveys. *Exploration.*
+- [`chooser-family-design.md`](chooser-family-design.md) — the round the
+  record kept citing as "the chooser family's": the decision-driven
+  merge (mergesort's merge, the last unworked member of the
+  decision-driven family), merge fairness, and cross-client
+  arbitration, worked as one construct. The result: the chooser is not
+  a construct — one node (a walk over k cursors) exposes per-step heads
+  and takes a late-wired advance operand, and every "chooser" is
+  ordinary drawn vocabulary (a case split, a race, a register read)
+  wired between those ports; stop is end-when itself on the step flow,
+  and heuristic-order speculation dissolves into existing vocabulary.
+  *Exploration.*
 
 ### Recursive structures, search, and update
 

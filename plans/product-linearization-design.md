@@ -519,8 +519,9 @@ rejection.
 - **The n-ary carrier.** For rank > 2 the stored orientation of a
   Cross chain and the graded demand ("pin only observed depth") need
   the n-ary representation worked — rides the products row's
-  n-ary/axis debt (which also carries rank-2 zip's Life struggle,
-  untouched here).
+  n-ary/axis debt (rank-2 zip's Life struggle, which used to ride
+  there too, is since worked — `product-flows-design.md`, "The Life
+  residue, worked"; untouched here either way).
 - **Spellings.** Cross's textual spelling was already owed; the
   authored-commute spelling and how pinnedness renders (the
   authored/faint distinction is load-bearing here) join it, Tier 4.

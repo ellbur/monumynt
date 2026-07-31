@@ -715,6 +715,15 @@ The language hasn't decided any of these yet.
    undefined, and "who is answered first when two ask at once" is
    arbitration — the chooser family's territory (merge fairness),
    confirming that family as the concurrency row's remaining core.
+   *The round now exists* (`chooser-family-design.md`,
+   exploration): a program that wants to own cross-client order
+   draws the decision-driven merge over the client exchange flows
+   upstream of the provider — decision by arrival (a race of
+   heads) as the neutral form, priority as a decision reading the
+   request payloads, fair-share as a register on the step flow —
+   and an undrawn arbitration is the serving block's ambient
+   arrival order, kind content on its catalog row. Arbitration is
+   drawn or ambient, never a hidden provider property.
 3. **Spellings.** `serve`, the lane projections (`~N.peek`),
    `listen … with …`, `interpose … on …` — owed to the textual
    catch-up jointly with `op` and the level boundary (one decision,

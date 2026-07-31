@@ -313,8 +313,13 @@ the collect node read as backwards); the stream compile's
 sequencing constraint;
 the fixed-length-segment catalog question; the nested-segmentation
 boundary against grammar vocabulary; and the decision-driven merge
-(the family's two-flow member), which still has only its chooser
-sketch (`tough-use-cases-design.md` item 4).
+(the family's two-flow member) — now carrying a worked round of its
+own (`chooser-family-design.md`, exploration, unadopted): the walk
+over k cursors with per-step heads and a late-wired advance operand,
+the chooser dissolved into ordinary drawn vocabulary — which also
+answers this row's conjecture in the affirmative (interleaving is
+drawn, not decided; no N-head chooser anywhere, surface or
+lowering).
 
 Prior art has sharpened (not moved) the remaining list. Raku's grammar
 ladder gives four combinators over segments — repeat (owned by
@@ -383,10 +388,17 @@ correlation ID as hand-rolled provenance).
 
 Remaining: the served flow's two-ends core is now **adopted**
 (2026-07-23, riding the joint adoption — one construct's two
-ends); the rest of that round stays exploration; the chooser family (also owning
-merge fairness *and now cross-client arbitration* — a serving
-provider bound at two boundaries has no cross-client order, the
-served round's question 2); pacing's per-consumer/per-source bit
+ends); the rest of that round stays exploration; the chooser family — the
+area's last unworked core — now carries its round
+(`chooser-family-design.md`, exploration, unadopted): the
+decision-driven merge as a walk over k cursors (heads + a late-wired
+advance operand), the chooser dissolved into drawn vocabulary; the
+async merge is the walk with a race in the decision position (the
+catalog block stands), merge fairness is a register on the step flow
+(no knob — race's dead end extended), and cross-client arbitration
+(the served round's question 2) is the same merge drawn at a serving
+boundary or the edge's ambient arrival order, never a hidden
+provider property; pacing's per-consumer/per-source bit
 under multi-close (joint with end-when's coexistence question); and
 the served round's own residue (the serving blocks' catalog rows,
 cacheability's witness property, when-does-a-server-end — each filed
@@ -430,7 +442,13 @@ trusted like the JS edge. A second demand arrives from the
 tag-identity round (`failure-payloads-design.md`, "Tag identity
 across reuse boundaries", unadopted): rows carry lane *references*,
 not lane strings, so two catalog blocks converting the same
-underlying failure can mint one lane by shared referent. Prior art: Flix's restrictable variants are
+underlying failure can mint one lane by shared referent. A third
+arrives from the Life round (`product-flows-design.md`, "The Life
+residue, worked"): an **extent/shape-preservation** property row
+with a witness, so zip's shared-provenance discharge can walk
+through whole-value ops like `rotate` (without the row, the license
+falls back to the asserted-precondition regime — the program still
+draws). Prior art: Flix's restrictable variants are
 the strongest prior art for question 2 (recursive case-set properties
 trackable and paying for themselves; their own illegible-at-scale type
 algebra supports the drawable-witnesses stance over imported Boolean
@@ -650,11 +668,16 @@ columns = k value wires, n rows = n firings, alignment retained from
 common provenance; the row owns tabular data as a domain, not just
 lockstep pairing as an operation. Residue filed to owners: the co-extent
 assertion's exact property/precondition form; the table's at-rest and
-textual spelling; **rank-2 zip's axis handling — Conway's Life needs
-Cross to enumerate the neighborhood and zip to overlay it at rank 2, the
-record's one localized representation struggle**, riding this row's
-n-ary/axis debt; and per-edge alignment (`reduce2`'s length-(n−1) second
-input) to the register round. The unexamined interactions above — join
+textual spelling; **rank-2 zip's axis handling — the Conway's Life
+struggle — now worked** (`product-flows-design.md`, "The Life residue,
+worked", exploration: the overlay is the flow-arity zip, i.e. the
+transposing commute under a co-extent license — constructed / proved /
+asserted as the license's three suppliers — and the axis-handling
+question dissolves, alignment being positional at every level; what
+remains is the shape-preservation catalog row, filed to the checking
+row's question 4, and the transpose gate-widening edge, filed to the
+commute taxonomy); and per-edge alignment (`reduce2`'s length-(n−1)
+second input) to the register round. The unexamined interactions above — join
 on a product, registers over products, the provenance product segment
 (questions 4, 5, 8) — plus tidyr's observed-product vs full-product
 distinction (`nesting()` inside `expand`), remain the row's open core;

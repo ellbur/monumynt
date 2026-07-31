@@ -732,7 +732,16 @@ is stated; nothing here is settled.
 3. **Verdict vocabulary with the decision-driven merge.** When the
    merge is designed, its chooser's stop verdict should write the
    same terminator; check then whether anything more than
-   vocabulary is shared.
+   vocabulary is shared. *The merge's round now exists and answers
+   more strongly than the question hoped*
+   (`chooser-family-design.md`, exploration): the merge has no stop
+   verdict and no verdict vocabulary at all — stopping a merge
+   **is** this chapter's node, drawn on the merge's step flow, with
+   the walk-untouched laziness argument applying verbatim. A stop
+   lane on the merge node itself is that round's recorded dead end
+   4. Nothing is left to align; what the family shares is
+   structural (one option-kind operand discipline, one terminator —
+   this one).
 4. **The register final-readout anchor.** When a shortened flow
    sits between a register's flow and its consumers, which extent
    does the write half's `final` read — and what does it mean if
