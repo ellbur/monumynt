@@ -219,9 +219,14 @@ consumes, and whether it needs an input list at all:
   (split-when), plus the running view of a collect. *Mixed: the cut
   root decided (2026-07-23 — end-when and split-when branch off one
   root, the cut; split-when is the iterated cut, not a separate
-  primitive; see the status header); the running view reviewed and
-  deliberately left tentative — the drawing, not the semantics, is
-  the open problem.*
+  primitive; see the status header); the cut round itself now
+  worked (Part III, exploration, unadopted): the two-flow-output
+  port shape, the empty continuation on RanOut, payload from the
+  continuation side, the node's totality-by-construction with the
+  spine-shaped link as its derived view, and the finite phase
+  chain claiming Raku's* sequence *combinator; the running view
+  reviewed and deliberately left tentative — the drawing, not the
+  semantics, is the open problem.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
@@ -255,8 +260,11 @@ consumes, and whether it needs an input list at all:
   discipline (structural shrink, cursor progress, drawn fuel); the
   left-recursion parser bug falls out as the progress measure's
   violation. *Adopted (2026-07-23, in the joint adoption, under the
-  anchor-is-identity constraint); the link's spelling and mutual
-  recursion's fine print remain open.*
+  anchor-is-identity constraint); the link's spelling remains open;
+  mutual recursion's fine print now worked (unadopted): the joint
+  measure's unit is the link graph's strongly connected group —
+  one measure per group, cycles owe the decrease, the all-neutral
+  cycle the witness (indirect left recursion generalized).*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between

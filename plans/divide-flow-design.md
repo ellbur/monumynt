@@ -682,7 +682,13 @@ The language hasn't decided any of these.
    link naming a sibling level's boundary; the measure must then be
    joint across the group (one measure decreasing around every
    cycle of links), and Zig's inference warning bites hardest here.
-   Unworked; wants a worked two-grammar example.
+   *Now worked below* ("Mutual recursion: the joint measure,
+   worked") — the two-grammar example, the joint measure rule
+   (the check's unit is the link graph's strongly connected group;
+   cycles owe the decrease, not edges), the
+   witnesses-don't-mix-species counterexample, and the violation
+   witness as the k-edge generalization of left recursion. Not
+   adopted.
 3. **The measure catalog's exact form.** Shrink and progress as
    catalog-row properties carrying witnesses — whose schema is
    `types-design.md` question 4's; the fuel check's precise
@@ -730,3 +736,204 @@ The language hasn't decided any of these.
   as calls, laziness giving demanded-lane-only evaluation; stack
   depth vs CPS for deep trees is decide-in-code
   (`compile-strategy-design.md`).
+
+## Mutual recursion: the joint measure, worked (open question 2)
+
+Status: worked, **not adopted** — the two-grammar example the
+question asked for, and the joint measure rule it predicted,
+prepared for a design conversation. It consumes the boundary
+round's level labels (`function-boundary-design.md` — page-local
+identities, the loop-label precedent) and the adopted measure
+discipline above; it decides nothing.
+
+### The example: a value grammar and an object grammar, linked
+### into each other
+
+The everyday mutual pair is JSON-shaped: a *value* is a primitive
+or an object; an *object* is `{` key `:` value … `}`. Two levels,
+each linking the other. With page-local level labels (spelling
+provisional, per open question 1):
+
+```
+-- spelling provisional; level labels per function-boundary-design.md
+diagram parseValue                        -- level label V
+  in p
+  p -> peek -> split kind of Prim, Open => s
+  ~s.Prim: p -> consumePrim => primAst, pPrim
+  ~s.Open: p -> level O of (p) => objAst, pObj   -- link to O: SAME position
+  ~s.Prim: primAst   ~s.Open: objAst
+  -~> collect => ast
+  ~s.Prim: pPrim     ~s.Open: pObj
+  -~> collect => pAfter
+  out ast, pAfter
+end
+
+diagram parseObject                       -- level label O
+  in p
+  p -> consumeOpenBrace => p0             -- past '{'
+  open self => ~R
+  ~R ~> delay init p0 => cur              -- member-walk position register
+  cur -> peek -> split close? of Close, More => e
+  ~e.Close: -~> end-when
+  cur -> consumeKeyColon => pk            -- past key and ':'
+  pk -> level V of (p) => memberAst, pMember   -- link to V: ADVANCED position
+  pMember -> step of cur => pEnd
+  memberAst -~> collect => members
+  pEnd -> consumeClose => pObj
+  members -> objNode => objAst
+  out objAst, pObj
+end
+```
+
+Nothing above the line about self-recursion had to change: a link
+may name a sibling level's label instead of its own, and
+instancing, membership, and answer ports read identically. What
+changes is where termination lives. Look at the two link edges the
+way the progress measure looks at one:
+
+- **V → O is neutral.** `parseValue` dispatches on a peek and
+  hands `parseObject` the *same* position — no token consumed on
+  the wire path. Taken alone, at a sibling level, that is legal;
+  plenty of sound links pass a component untouched.
+- **O → V is advancing.** The position handed to `parseValue`
+  descends from `consumeOpenBrace` and `consumeKeyColon` — tokens
+  consumed, strictly advanced.
+
+The one cycle, V → O → V, carries one advancing edge, so the walk
+around it consumes at least one token per lap: sound. And here is
+the point the example was ordered to make: **no per-level
+inspection can see this.** V's neutral link is individually
+unobjectionable; O's advancing link is individually
+unobjectionable; soundness and its violation are properties of the
+*cycle*. The violation twin is one edit away — a grammar where the
+object level can reach a value without consuming (say a sugar rule
+`object := value` admitted before the brace check): now V → O → V
+is all-neutral, and the program re-derives the same position
+forever. The field knows this shape by name — **indirect left
+recursion** — and knows it is a cross-rule property: PEG tooling
+detects it by analyzing the grammar's rule graph, and ANTLR's
+celebrated left-recursion rewrite handles only the *immediate*
+(one-rule) case, erroring on the indirect one. The check being
+joint is not an invention of this record; the field already
+performs it jointly, and already fails when it doesn't.
+
+### The rule: cycles owe the decrease; the unit is the group
+
+The question's phrase — "one measure decreasing around every cycle
+of links" — was already the right shape. What the worked example
+adds is the check's unit, its decidable form, and which edges owe
+nothing:
+
+> **The joint measure rule (candidate).** The unit of the
+> termination check is the **strongly connected group** of the
+> link graph — level labels as nodes, links as edges — not the
+> individual level. Within a group there is **one measure**: one
+> species, one measured quantity. Every edge of the group must be
+> non-increasing in it, each carrying its witness (a catalog row
+> or the drawn decrement, exactly the ladder above); and every
+> cycle must be strictly decreasing. An edge that lies on no cycle
+> — a link out of the group, or between groups — owes nothing
+> beyond what its target group owes itself. Self-recursion is the
+> one-level group, where this rule reads verbatim as the adopted
+> discipline.
+
+"Which edges must advance": none in particular. Cycles must —
+equivalently, every cycle contains at least one strictly
+decreasing edge and no edge that increases. The decidable form
+follows from that phrasing: mark each edge strict / neutral /
+unwitnessed; the group check is that **the neutral-edge subgraph
+within the group is acyclic**. Any all-neutral cycle is the
+violation, and the witness is that cycle *as its edge list* — the
+left-recursion witness generalized from the self-loop the parsing
+section named (one wire with no consumption) to a k-edge tour
+through k labeled levels. An unwitnessed edge (no row, no drawn
+decrement — or a retreat, which is the same thing: no witness
+exists) drops every cycle through it to rung 3, warned trust,
+exactly the ladder's floor.
+
+Cycles sharing edges — the question's other half — is answered by
+the quantifier, not by bookkeeping. The rule is "every cycle,"
+decided by the acyclicity check; no edge is allocated to a cycle,
+so two cycles discharged by one shared advancing edge are both
+discharged, and two cycles sharing only neutral edges each need
+their own strict edge, which the check demands of each
+automatically. There is no double-counting question because
+nothing is counted.
+
+### Why one quantity per group: the mixed-species counterexample
+
+Now, you might wonder why the group must name *one* measured
+quantity — why each edge couldn't just carry a valid witness of
+its own species, cursor progress here, structural shrink there,
+and the cycle be sound because every edge is individually
+justified. It turns out per-edge witnesses of different species do
+not compose, and the counterexample is small. Let levels A and B
+each carry a list and a position, `(xs, i)`:
+
+- **A → B shrinks:** the sub-problem's list is `tail(xs)` — a
+  strict component, an impeccable shrink witness. The position
+  passes through.
+- **B → A advances:** the sub-problem's position is `i + 1` past a
+  consumed element — locally an impeccable progress witness. But
+  the list handed back is *rebuilt* (say, a recovered or
+  re-wrapped `xs`), restoring what the other edge shrank.
+
+Around the cycle, the list is restored and the position grows
+without bound against data that never gets smaller — divergence,
+with every edge witnessed. The diagnosis: a progress witness is a
+statement about position *within a fixed input*, and the shrink
+edge swapped the input out from under it; a shrink witness is a
+statement about one value's descent, and the rebuilding edge broke
+it while the progress species looked away. Each species' witness
+is only meaningful while the *other* edges preserve its frame —
+which is exactly what "one quantity, every edge non-increasing in
+it" demands and mixed species cannot supply.
+
+Two consequences, stated as fine print rather than left implicit:
+
+- **A progress group's input must be group-invariant.** The
+  position is measured against something, and that something must
+  not cross any link in the group. The honest form — which the
+  worked programs already have — is the input never crossing a
+  link at all: the token list is prefix-shared context in both
+  parsers above, and only positions cross. Group-invariance is
+  then free by construction, and a grammar that hands a *modified*
+  token list down a link has left the progress species and must
+  find its measure elsewhere.
+- **The lexicographic composite is deferred, not rejected.** A
+  mixed group *can* be sound under a composite measure (the pair,
+  ordered), but a composite is itself one quantity with its own
+  witness obligations on every edge, and no worked program yet
+  demands the row. Until one does, a mixed group falls to rung 3
+  — warned trust — rather than the rule growing a lexicographic
+  clause on spec. (Leaning, recorded so the simple rule isn't
+  read as an oversight.)
+
+### Zig's warning, relocated
+
+The question flagged that Zig's inference warning "bites hardest
+here." Worked through, it lands somewhere more specific than
+feared. Payload-set inference across a mutual group is fine — the
+failability round already relocated that worry (the inventory
+fixpoint is monotone on a finite domain of drawn minting sites,
+and a mutual cycle changes nothing about that). And the measure
+has no inference to break: species and quantity are named things
+with witnesses, per edge, and the group only changes the *unit* at
+which they are checked. What the mutual case genuinely inflames is
+**diagnostics**: a violation witness now spans pages — a cycle
+through k labeled levels, no one of which is wrong — so the
+witness must present the whole edge list with each edge's
+neutrality visible, not point at one wire. That is a demand on
+open question 5's undesigned witness format, filed there; the
+self-loop case's "name the offending wire" was the k = 1
+degenerate of it.
+
+### What this leaves
+
+Adoption (with the round's other unadopted pieces); the level
+labels' spelling (the textual catch-up, jointly with open question
+1's boundary substrate); the lexicographic row, deferred until a
+program demands it; the witness format's k-edge presentation
+(question 5); and the group-invariance statement's exact home —
+it reads like a catalog-row precondition on the progress species,
+which puts it in question 3's measure-catalog schema.
