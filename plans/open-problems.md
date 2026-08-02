@@ -677,9 +677,23 @@ question 4. The round's real lesson was about **Delay**, not the product:
 *which flow* fixes the register's axis is an open ontological question, and
 the product carries its sharpest evidence (the shared-grid implementation
 breaks under a consumer-dependent axis) — feeding the loop-carried-state
-row's new Delay-ontology open problem. Unexamined: join on a product (operand-walk rules, question 4); the
+row's new Delay-ontology open problem. **Join on a product is now
+worked too** (question 4 — `product-flows-design.md`, "Join on a
+product", exploration): the operand-walk rules extend over the
+context poset with no new witness species — a join chain consumes a
+product segment axis-by-axis, each consumption a drawn orientation
+commitment graded to the depth the chain reaches (`join(E, axis)`
+lawful as drawn, the surviving axes staying a product with their
+original exterior), making the join chain the third
+orientation-authoring surface beside the collect chain and the
+drawn commute — consistent with the linearization round's pinning
+demand without depending on it; the n-ary flatten node, the
+orientation-free flatten, and the pair-as-one-flow operand recorded
+as dead ends. Unexamined: the
 provenance product segment against the walk-and-classify algorithm
-(question 8). Spec entry and textual spelling are owed bookkeeping.
+(question 8 — which now has the join round's product-segment
+transition rules as input). Spec entry and textual spelling are
+owed bookkeeping.
 
 The **aligned product (zip)** is now worked (`product-flows-design.md`,
 "The aligned product (zip)"): Cross's positional sibling — same extent
@@ -715,11 +729,14 @@ question dissolves, alignment being positional at every level; what
 remains is the shape-preservation catalog row, filed to the checking
 row's question 4, and the transpose gate-widening edge, filed to the
 commute taxonomy); and per-edge alignment (`reduce2`'s length-(n−1)
-second input) to the register round. The unexamined interactions above — join
-on a product, registers over products, the provenance product segment
-(questions 4, 5, 8) — plus tidyr's observed-product vs full-product
-distinction (`nesting()` inside `expand`), remain the row's open core;
-I stays 3. Honesty: a curated corpus; the owed field sample (real
+second input) to the register round. Of the row's formerly unexamined
+interactions (questions 4, 5, 8), the first two are now worked — join
+on a product and registers over products, both exploration — leaving
+the provenance product segment against walk-and-classify (question 8)
+plus tidyr's observed-product vs full-product
+distinction (`nesting()` inside `expand`) as the row's open core;
+I stays 3 (the worked rounds are unadopted and question 8 is
+representational groundwork the checks need). Honesty: a curated corpus; the owed field sample (real
 analysis scripts) should still confirm the scope move. See
 `apl-family-comparison.md`, `zig-comparison.md`,
 `tidyverse-comparison.md`, `product-flows-design.md`.

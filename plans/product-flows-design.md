@@ -635,8 +635,9 @@ here:
   folds *along a named axis*, and a full cube reduction is the S₃
   axis-permutation this section identified, wearing its register hat
   — the order chosen at the consumer, as with two axes. The join half
-  (question 4, operand-walk over the cube) is unchanged and stays
-  that round's.
+  is now worked too ("Join on a product", question 4): the cube's
+  linearization is a chain of joins whose operand sequence is the
+  permutation, drawn as data on the page.
 
 ## The aligned product (zip): Cross's positional sibling
 
@@ -1337,7 +1338,8 @@ and 4: the register over a product folds *along an axis* and needs no
 linearization; the register over a *joined* product folds a linear
 walk and gets its order from the Join. Question 5 never has to
 re-derive linearization, and question 4's operand-walk rules are
-where the row/column-major choice is spelled.
+where the row/column-major choice is spelled (now worked — "Join on
+a product": the choice is the chain's operand sequence).
 
 ### The state thread over a product (the drawing)
 
@@ -1410,6 +1412,229 @@ style once first-class ports and Cross land.
    differ for a non-commutative operator and agree for a commutative
    one.
 
+## Join on a product (open question 4, worked)
+
+Status of this section: exploration (worked 2026-08-02), not
+adopted. Question 4 asked for one thing — the operand-walk rules
+extended to join chains that span a product's axes and an enclosing
+flow — and this section works them. The finding, in one line: **a
+join chain over a product is an orientation-authoring surface — the
+walk consumes the product segment axis-by-axis, each consumption a
+drawn commitment of that axis to the current depth — and the
+extension adds no new witness species.** Where this section touches
+`product-linearization-design.md` (exploration, unadopted) the
+relationship is consistency, not dependency; the alignment is
+called out where it occurs.
+
+### The program that demands it
+
+The report-writer — survey 4's everyday client for spanning ordered
+emission (`real-loop-survey.md`, finding 4.2) — over a per-company
+table:
+
+```
+companies -> open list => co, ~co
+co.depts    -> open list => d, ~d      -- two axes, opened per company
+co.quarters -> open list => q, ~q
+~d, ~q -> cross                        -- the per-company table
+d, q -> cell => r                      -- one revenue cell per (dept, quarter)
+```
+
+The report wants one flat flow of lines, company > dept > quarter:
+
+```
+~d, ~q  -> join => ~dq                 -- commits dept-major
+~co, ~dq -> join => ~line              -- absorbs the pair into the company walk
+r -> format => txt
+txt -~> collect => report              -- flat, in the committed order
+```
+
+Two joins, a chain spanning the product's axes *and* the enclosing
+flow. Every rule this section states is readable off this program.
+
+### The linear walk rule, stated once
+
+The existing rule is implicit in the join round's adjacency demand
+and explicit only in code (`unwrapJoinedRef`/`walkOpenerChain` —
+the functions `first-class-ports-design.md` says "become the
+operand walk"). Stated once, so the extension has something to
+extend: **a join chain denotes a contiguous segment of the nesting
+chain, and adjacency between operands is checked between
+constituents** — the outer operand's *innermost* constituent must
+be the immediate parent of the inner operand's *outermost*
+constituent. (`join(E, join(A, B))` checks E against A;
+`join(join(E, A), B)` checks A against B.) The combined flow is
+identified with the outer operand — absorption — so a chain's
+output context is its outermost constituent's, extended by
+everything absorbed. Two immediate consequences the record already
+uses: chains compose associatively (any bracketing that consumes
+the same levels in the same order is one combined flow — same
+firing set, same order), and a chain is exactly the shape the
+filtered axis already is (`join(list, case-alt)` — an axis may *be*
+a chain, and the compile walks it).
+
+### Over a product: three moves
+
+**Full flatten — `join(A, B)` over the crossed pair.** Under the
+chapter's represent-A lean the stored Cross output is ordinary
+nesting, so the flatten is the linear rule verbatim: `join(A, B)`
+walks the stored orientation; `join(B, A)` reads through the faint
+transpose (theorem 2 makes it lawful; the TODO above already says
+the commute is never authored — the operand order *is* the read
+orientation, and the editor supplies the transpose). The combined
+flow's firing set is the product's points; its **order** is
+lexicographic in the operand order — row-major or column-major,
+spelled exactly where the registers section promised question 4
+would spell it ("Boundary with question 4"). This is where the
+alignment with `product-linearization-design.md` shows: the joined
+flow is a single flow, so any downstream order-observer (an
+ordered collect, a register on the combined flow, a spanning
+handle) observes the full permutation — and the operand order is
+precisely the authored orientation that round's pinning demand
+asks for. A join chain is thus the third orientation-authoring
+surface, beside the nested collect chain and the drawn commute —
+and for order-*oblivious* consumers (the commutative-monoid
+reduce-close), the two flattens are confluent by the catalog row's
+commutativity flag, so an author who doesn't care pays nothing:
+under-committed operand order is completable with a canonical
+orientation shown faint, harmless by confluence, exactly as an
+under-determined cross is completed. Where a consumer *does*
+observe order, completion must not pick — the orientation is
+meaning, and the remedy is authoring the operand order. (Same
+shape as completion refusing to manufacture a join on an undrawn
+filtered axis: inserted operators must be value-level identities,
+and a meaning-bearing order is not one.)
+
+**Partial flatten across the boundary — `join(E, A)`.** The
+genuinely new move: the outer operand is the enclosing flow, the
+inner operand *one axis* of a product opened inside it. Adjacency
+holds without consulting any orientation — the context model
+already places each axis's context immediately below the enclosing
+context (axes are siblings under E; the product context sits below
+them) — so the join is well-formed as drawn. What it does:
+
+- The combined flow `~EA` fires once per (e, a) — E absorbs the
+  axis, ordinary absorption.
+- The surviving axes remain a product **with their extent fact
+  intact**: B's chain is still per-company, invariant of `a`. This
+  is the "a product carries its own exterior" machinery the
+  per-group cartesian product already built — the sub-product's
+  exterior stays E, its shared table built once per e and re-read
+  per a; a consumer that opens `~q` under a `~EA` firing walks the
+  shared per-company chain, and the user's computation still runs
+  once per point.
+- The orientation content is **graded**: `join(E, A)` pins A
+  outermost *among the axes* and says nothing about the order of
+  the survivors — the "orientation is minimal" finding, preserved.
+  Over a cube, `join(E, A)` leaves {B, C} an unoriented
+  sub-product; a full linearization of a cube is a chain of three
+  joins whose operand sequence is the S₃ permutation, drawn as
+  data on the page rather than carried as configuration.
+
+The everyday client is real: keep the report's quarters as columns
+— `join(~co, ~d)` mints the row flow, and per row a nested
+`~q`-collect yields the cells list. One join fewer, one nesting
+kept, and the drawing says which.
+
+**Flatten within an axis.** Already owned: an axis may itself be a
+join chain (the filtered axis), and the operand walk recurses —
+adjacency against a chain operand uses its outermost/innermost
+constituents, as in the linear rule. Nothing product-specific.
+
+### The extended rule, in one statement
+
+> **The operand walk over the poset.** A join chain consumes
+> context-poset material downward from its outermost constituent:
+> serial levels one at a time (the linear rule), and a product
+> segment axis-by-axis, each axis consumption removing that axis
+> from the segment's set and committing it to the current depth of
+> the walk. Adjacency for `join(X, Y)`: the context of Y's
+> outermost constituent is covered, in the poset, by the context of
+> X's innermost constituent — where a product segment's axes are
+> each covered by the segment's exterior. A chain's committed axis
+> sequence is drawn orientation, graded to the depth the chain
+> reaches; the surviving axis set stays a product over the combined
+> flow with its original exterior.
+
+Provenance bookkeeping falls out (and is filed to question 8's
+reconciliation as input): under a join, the product segment in the
+combined flow's context path shrinks by the absorbed axis; at
+singleton the segment degenerates to ordinary nesting; fully
+consumed, it vanishes. The transition rules are exactly what the
+walk-and-classify algorithm needs at a product segment.
+
+### Witness-neutral
+
+The extension adds no new ill-formed shape and no new witness
+species, which is worth stating because it was not obvious in
+advance:
+
+- `join(A, E)` — inner not below outer — fails the existing
+  adjacency demand, unchanged.
+- A join skipping a serial level fails adjacency, unchanged.
+- A join over a *dependent* nesting in the reversed order (the
+  third filtering regime) fails the invariance demand with the
+  dependence-introducing node as witness, unchanged — no product
+  exists to orient.
+- Contradictory commitments within one chain are unconstructable
+  (each flow has one termination per consumer path), and *sibling*
+  chains committing different orientations are the two-readings
+  case the chapter already blesses — two legitimate traversals of
+  one shared table, no duplication of structure or work.
+
+### Compile prediction
+
+Nothing new to emit. A collect over a fully joined product is the
+point-indexed table walked in the committed lexicographic order —
+another permutation indexing the one shared table, exactly as the
+transposing commute compiles; a partially joined product is the
+per-group machinery with the combined flow as exterior. The
+prediction, in the stream round's style: the emitters that exist
+cover this when the poset round's worklist item lands; design-side
+there is nothing product-specific left in join.
+
+### Dead ends
+
+1. **The n-ary flatten node.** You might wonder whether a cube
+   should flatten in one k-ary join that names its full
+   permutation. It turns out the parameter duplicates drawn
+   vocabulary as annotation — the binary chain already states the
+   permutation as operand order on the page, one commitment per
+   node — the same two-sources-of-truth shape the rank-2
+   parameterized zip died of. (Settled within this proposal —
+   don't re-propose without new evidence.)
+
+2. **The orientation-free flatten.** You might wonder whether join
+   over a product could emit a genuinely unordered flow, deferring
+   order forever. It turns out a flow's firings are ordered
+   wherever order is observed, so the unordered output is either
+   unobserved (then the canonical faint completion is already
+   harmless — no new species needed) or observed (then the order
+   is meaning and *must* be authored — the pinning demand). An
+   unordered-flow kind would re-own at the flow level what the
+   product context already states at the context level. (Settled —
+   don't re-propose without new evidence.)
+
+3. **Joining the pair as one flow.** You might wonder whether
+   `join(E, pair)` should exist — the product's points as a single
+   inner operand, one join instead of a chain. It turns out there
+   is no pair flow: Cross outputs the two flows nested, and a
+   points-flow operand would be the packed tuple crossing a
+   barrier — the product bottleneck in flow clothes. The chain
+   *is* the construct. (Settled — don't re-propose without new
+   evidence.)
+
+### What this leaves
+
+The adoption conversation (jointly with this chapter's other
+unadopted sections); the canonical orientation completion picks
+for the order-oblivious case (the n-ary face of question 1,
+unchanged); the interaction with mixed-kind axes (question 6 —
+a joined stream axis inherits the stream round's sequencing
+constraint); and question 8's walk-and-classify reconciliation,
+which now has this section's product-segment transition rules as
+input.
+
 ## Open questions
 
 The language hasn't decided these yet. Where a question is marked
@@ -1435,10 +1660,20 @@ along with what remains.
    orientation of a flat n-ary cross (the n-ary face of question 1
    and the textual Cross-spelling), and fold/join order over the cube
    (questions 5 and 4).
-4. **Join on a product.** Flattening commits an orientation via
-   Join's operand order — fine — but the interaction with multi-level
-   joins (a join *chain* over a product's axes plus an enclosing
-   flow) needs the operand-walk rules extended.
+4. **Join on a product — worked** ("Join on a product"). The
+   operand-walk rules extended over the poset: a join chain
+   consumes a product segment axis-by-axis, each consumption a
+   drawn orientation commitment graded to the depth the chain
+   reaches; `join(E, axis)` is lawful without consulting
+   orientation (axes hang immediately below the enclosing context)
+   and leaves the surviving axes a product with their original
+   exterior; the extension is witness-neutral, and the join chain
+   is the third orientation-authoring surface beside the collect
+   chain and the drawn commute. Residue: the canonical orientation
+   for the order-oblivious completion (question 1's n-ary face),
+   mixed-kind joined axes (question 6), and question 8's
+   reconciliation, which gains the product-segment transition
+   rules as input.
 5. **Registers over products — worked, and it reopened a Delay
    question** ("Registers over products"). A register folds *along
    one axis*, fibered over the rest (the APL reduce-along-an-axis

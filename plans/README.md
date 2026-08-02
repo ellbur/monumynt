@@ -215,7 +215,10 @@ they change how everything else is read.
   for combining two independent (sibling) flows without nesting one in
   the other; commute-as-transpose over products. Also its positional
   sibling, the aligned product (zip) — same-extent pairing by position —
-  and the multi-wire collect (the table) as zip's value form.
+  and the multi-wire collect (the table) as zip's value form. Join on
+  a product is now worked in place (question 4): the operand-walk
+  rules over the poset, the join chain as an orientation-authoring
+  surface, witness-neutral. *Exploration.*
 
 ### More flexible iteration
 
