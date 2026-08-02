@@ -111,7 +111,9 @@ they change how everything else is read.
   order-demand check and the `hold` identification, cashing the
   register checks the incremental, concurrent-collect, async, and
   served rounds had written. *The rest exploration — the linearization
-  residue and value-in-context model still owe their evidence.*
+  residue's evidence is delivered (survey 4) and the value-in-context
+  model's everyday-`prev` check too (survey 5); both conversations
+  remain unheld.*
 - [`product-linearization-design.md`](product-linearization-design.md)
   — the doc above's one hard residue, worked: which order an
   order-sensitive register (or a spanning effect) walks a multi-axis
@@ -473,15 +475,20 @@ programs, and randomly sampled ordinary ones.
   real-system programs pushed against the constructs until they break;
   the ranked inventory of candidate blocks that fell out.
 - [`real-loop-survey.md`](real-loop-survey.md) — the sampling record:
-  four seeded-random draws of real code (loops twice, concurrency
-  sites, nested-loop sites), classified against the inventory.
+  five seeded-random draws of real code (loops twice, concurrency
+  sites, nested-loop sites, previous-value sites), classified against
+  the inventory.
   Findings that reweighted the agenda: uncollect/collect is
   the center; early termination is the biggest everyday gap; the
   running-sum scan is rare in infrastructure but dominant in numerics;
   first-of coordination (race/timeout/cancel) outweighs all-of nine to
   one; order-observing consumers over genuine grids run ~10–13% of
   nested-loop sites, their orientation always already authored (the
-  product-linearization round's owed check). Read the tallies with
+  product-linearization round's owed check); among carried-state
+  loops the seeded feedback register dominates, raw previous-value
+  reads are mostly companions of a register, and the position-0
+  boundary is always discharged rather than tested (the
+  value-in-context model's owed check). Read the tallies with
   the 80/20 counterweight (frequency ranks
   what must be *effortless*; the rare painful case is a *breadth*
   obligation, never a reason to deprioritise).

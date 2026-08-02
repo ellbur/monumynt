@@ -5,7 +5,7 @@ seeded random samples of real code against the language's designed and
 candidate constructs, and reports what the frequencies say. It decides
 nothing.
 
-The doc holds four surveys, plus two whole-corpus censuses:
+The doc holds five surveys, plus two whole-corpus censuses:
 
 - **Survey 1** — thirty loops from infrastructure corpora (Python and
   Ruby standard libraries, npm's JavaScript).
@@ -32,6 +32,18 @@ The doc holds four surveys, plus two whole-corpus censuses:
   and in every such draw the orientation was already authored in the
   source — the orientation-pinning demand, against this sample,
   charges nothing imperative programs don't already pay.
+- **Survey 5: previous-value sites** — thirty carried-state loops
+  from six corpora (infrastructure, numerics, lexing, graphs, and
+  two array-library Python layers), running the everyday-`prev`
+  frequency check the value-in-context model owes
+  (`delay-ontology-design.md`). Its headline: the seeded feedback
+  register dominates carried state (17 of 30 primary); raw
+  previous-value reads occur at 8 of 30 sites but are *companions
+  of a register* at six of them (convergence tests, neighbour
+  walks, offset bookkeeping), primary at only two; and the
+  position-0 boundary is discharged by seeding or by construction
+  in every sighting — no site tests "is there a previous" per
+  firing.
 - The two **combinator censuses** (infrastructure and domain corpora)
   count rather than sample: every loop and combinator, one number per
   corpus, quantifying the loop/combinator split the surveys' exclusion
@@ -3351,7 +3363,7 @@ field client is the spanning ordered emission, with the numeric
 in-place sweep as the rare-but-sharpest member (fibered, one axis
 observed). The value-in-context model's everyday-`prev` check is
 untouched (different unit); this survey neither advances nor blocks
-it.
+it. *(Since run — survey 5 below is that check.)*
 
 For **the effects round** — the spanning handle over a genuine grid
 has field instances (generated source over fact × value; markup over
@@ -3370,3 +3382,746 @@ Not changed: everything the loop surveys established at their unit —
 the stateless majority, the scan's domain concentration, early
 termination's dominance — is untouched; this survey sampled where
 grids live, and its proportions answer only the grid questions.
+
+---
+
+# Survey 5: previous-value sites — the everyday-`prev` check
+
+This survey answers a question a design round explicitly owed. The
+value-in-context model (`delay-ontology-design.md`, "A worked
+candidate: the value-in-context model") would make `prev` a readout
+available on every uncollected wire — option-typed at position 0,
+with the register refactored as `raw-prev + seed + feedback`. Its
+leaning section names the evidence gap:
+
+> the everyday-`prev` surface needs the frequency check before a
+> second previous-value door is blessed … how often is the wanted
+> previous the *raw* element vs a *seeded* accumulator?
+
+So this survey samples the population that question is about: loops
+that read a value produced by an earlier iteration — **previous-value
+sites** — and classifies *what kind of previous* each one wants, and
+*how the position-0 boundary is handled* in the field. Like surveys 3
+and 4 it is targeted at a unit, not at all code: the pass-over tally
+records how many drawn loops carried nothing, but the proportions
+below say "when a loop carries previous-iteration data, what shape is
+it," not "how common is carried state."
+
+## Protocol (survey 5)
+
+Corpora: the installed Python 3.11 standard library plus five
+projects fetched from PyPI (`pip install --no-deps`), chosen to span
+infrastructure, numerics, text/lexing (raw-prev's presumptive home
+turf: run boundaries, continuation lines), graph algorithms, and two
+array-library Python layers:
+
+| Corpus | Project | Domain | .py files |
+|---|---|---|---|
+| stdlib | Python 3.11 standard library | infrastructure | ~550 |
+| mpmath | mpmath 1.4.1 | arbitrary-precision numerics | 93 |
+| pygments | pygments 2.20.0 | lexing / text processing | 339 |
+| networkx | networkx 3.6.1 | graph algorithms | 580 |
+| scipy | scipy 1.17.1 (Python layer) | scientific computing | 973 |
+| pandas | pandas 3.0.5 (Python layer) | data frames / time series | 1421 |
+
+(mpmath and networkx recur from earlier surveys deliberately — same
+projects, different unit and seed draw different sites.)
+
+**The unit.** A loop (`ast.For` / `ast.While` / `ast.AsyncFor` —
+survey 2's parser-level rule), drawn one per file. A drawn loop
+**enters the sample** iff, during iteration *n*, its body (read with
+its enclosing function and callees where the loop's meaning depends
+on them, and as the maximal loop chain around the drawn node, per
+survey 4) reads data produced by an earlier iteration of the same
+loop: a carried variable, an accumulated collection *that is also
+read in the loop*, an index-offset read of the iterated or produced
+data, or a read of its own prior output. Loops that carry nothing
+are tallied as pass-overs with a one-line shape note and skipped.
+
+One inclusion line was sharpened during classification (before the
+tally; the two affected earlier draws were re-read under it):
+**insertion-only accumulation does not qualify** — `out.append(x)`,
+`seen.add(x)`, `s.update(t)`, `s |= t` with no other in-loop read of
+the accumulated value is the plain collect (survey 1 counts these
+stateless; the collect construct serves them with no previous-value
+access), whereas **scalar rebinding folds qualify** — `total += x`,
+`best = min(best, e)`, `full = concat(full, e)` genuinely read their
+own previous value as the step's operand, which is exactly the
+reduce-close the register serves. A collection accumulator qualifies
+when the loop *reads* it (a membership test, `len`, a subscript) —
+the dedup guard, not the bare build.
+
+**Selection.** Seed `20260802` retagged per corpus
+(`random.Random(f"20260802:{name}")`); shuffle the corpus's sorted
+`.py` file list (excluding `*test*`, `__pycache__`, `/docs/`,
+`/examples/`; for stdlib also `idlelib`, `lib2to3`, `site-packages`,
+`turtledemo`, `encodings`); walk it in shuffled order; in each file
+containing at least one loop, pick one uniformly at random; stop at
+**five qualifying sites per corpus**, thirty total. 74 loops were
+drawn and read to reach thirty sites.
+
+**Classification.** Classes fixed before reading. Each site gets a
+primary class (the carried read that shapes the loop) and its
+secondary carried reads noted:
+
+- **P-A — raw previous (shift):** the wanted value is iteration
+  *n−1*'s element, or a per-element derived value, re-bound with no
+  feedback (`prev = cur`); includes index-offset neighbour reads on
+  the iterated data.
+- **P-B — seeded feedback accumulator (the register):** the carried
+  value is computed from its own previous, `acc = f(acc, …)`.
+  `P-B(coll)` marks the collection case — an accumulated container
+  read in-loop (dedup guards, keyed in-place updates).
+- **P-C — conditional carry (`hold`):** reassigned only under a
+  condition, the previous surviving otherwise.
+- **P-D — driver state:** the carried value drives the iteration
+  itself — cursors, countdowns, read-until pumps, convergence
+  retries, self-driven generation. (Every driver is feedback-shaped;
+  the class records that there is no independent data flow it rides.)
+- **P-E — history:** reads two or more positions back, or the
+  materialized prefix (recurrences of order ≥ 2, DP fills).
+
+And one sub-question per raw-previous read and per seed: **how is
+position 0 handled** — a seed value, index-from-1 / a `[1:]` slice,
+a pairing idiom, a sentinel with a post-loop check, or a per-firing
+"is there a previous" test.
+
+## The sample (survey 5)
+
+Grouped by primary class; within groups, corpus order.
+
+### P-A — raw previous as the site's shape (2 of 30)
+
+**mpmath 3** — `mpmath/visualization.py:142` (`phase_color_function`)
+
+    for i in range(1, len(blue_orange_colors)):
+        if blue_orange_colors[i][0] > w:
+            a, (ra, ga, ba) = blue_orange_colors[i-1]
+            b, (rb, gb, bb) = blue_orange_colors[i]
+            return interpolate(...)
+
+Neighbour bracketing on a stored table: find the first entry above
+`w` and interpolate between it and its predecessor. The previous is
+the *raw element* — no accumulator anywhere; the loop is a search
+whose payload is the adjacent pair. Boundary: the walk starts at
+index 1, so "no predecessor" is unrepresentable by construction.
+This is `prev` on a materialized flow (where `next` would be equally
+legal — the delay-ontology round's stored-list case).
+
+**pygments 11** — `pygments/lexers/make.py:53`
+(`get_tokens_unprocessed`)
+
+    backslashflag = False
+    for line in lines:
+        if self.r_special.match(line) or backslashflag:
+            ins.append((len(done), ...))
+            backslashflag = line.strip().endswith('\\')
+        elif self.r_comment.match(line): ...
+        else: done += line
+
+The line-continuation flag: a per-element derived value (did the
+previous line end with a backslash) carried exactly one step to
+decide the current line's treatment. The reachable states make the
+carry effectively an unconditional re-bind along the alive path.
+Boundary: seeded `False` — a neutral value meaning "no previous
+line continues." Secondary: `done += line` is a feedback
+concatenation *read in-loop* (`len(done)` positions the
+insertions), so the site carries a register beside the raw-prev
+flag. The everyday text-processing raw-prev, sighted where
+predicted.
+
+### P-B — the seeded feedback accumulator (17 of 30)
+
+**mpmath 1** — `mpmath/libmp/libintmath.py:41` (`giant_steps`)
+
+    L = [target]
+    while L[-1] > start*n:
+        L = L + [L[-1]//n + 2]
+
+Generation by feedback: each new element is a function of the last
+(`L[-1]`), with the whole history retained — a register's running
+view, materialized, with end-when on the current value. Seeded
+`[target]`.
+
+**mpmath 5** — `mpmath/libmp/libmpc.py:342` (`mpc_nthroot_fixed`)
+
+    prevp = start
+    for p in giant_steps(start, prec+extra):
+        ... uses re, im, prevp ...
+        re = (reb + (n-1)*lshift(re, p-prevp))//n
+        im = ...
+        prevp = p
+
+Newton refinement: `re`/`im` are feedback iterates (seeded from a
+float approximation). Secondary: `prevp = p` is a **raw previous of
+the iterated element** — plain re-bind, seeded with `start` — used
+to compute the precision step. A register and a raw-prev read
+riding one loop.
+
+**pygments 13** — `pygments/lexers/esoteric.py:59` (`analyse_text`)
+
+    for c in text[:range_to_check]:
+        if c == '+' or c == '-': plus_minus_count += 1
+        if c == '<' or c == '>': greater_less_count += 1
+
+Counter folds, seeded 0, read after the loop: the reduce-close in
+its plainest costume.
+
+**pygments 14** — `pygments/lexers/_scilab_builtins.py:3077`
+(builtin-list regeneration)
+
+    seen = set()
+    for t in ('functions', 'commands', 'macros', 'variables'):
+        new_data[t] = duplicates_removed(extract_completion(t), seen)
+        seen.update(set(new_data[t]))
+
+A seen-set read in-loop (passed into the filter) and grown per
+iteration: cross-category dedup — the collection register
+(`P-B(coll)`), seeded empty.
+
+**pygments 16** — `pygments/formatters/groff.py:151`
+(`format_unencoded`, with `_wrap_line`)
+
+    for line in value.splitlines(True):
+        if self.wrap > 0: line = self._wrap_line(line)   # reads/updates self._linelen
+        ...
+        if line.endswith('\n'): ... self._linelen = 0
+
+A running line length carried through `self`, read by the wrap test
+(`self._linelen + length > self.wrap`), accumulated per chunk, and
+reset at line boundaries: the accumulator-with-conditional-reset
+(survey 1's class 8), i.e. a register over a segmented flow. Seeded
+0.
+
+**networkx 2** — `networkx/algorithms/connectivity/cuts.py:579`
+(`minimum_edge_cut`)
+
+    min_cut = set(G.edges(node))
+    for i in range(n):
+        try:
+            this_cut = minimum_st_edge_cut(H, nodes[i], nodes[i + 1], **kwargs)
+            if len(this_cut) <= len(min_cut): min_cut = this_cut
+        except IndexError:
+            this_cut = minimum_st_edge_cut(H, nodes[i], nodes[0], **kwargs)
+            ...
+
+A running min (seeded with an initial cutset — a domain seed, not an
+identity). Secondary: `nodes[i]`/`nodes[i+1]` walks **adjacent
+pairs** of a stored list — a raw *next* on materialized data — with
+the boundary handled by catching `IndexError` and wrapping to
+`nodes[0]`: a cyclic successor, hand-rolled in an exception handler.
+
+**networkx 6** — `networkx/algorithms/link_analysis/hits_alg.py:113`
+(`_hits_python`)
+
+    for _ in range(max_iter):
+        hlast = h
+        h = ... computed from hlast ...
+        err = sum(abs(h[n] - hlast[n]) for n in h)
+        if err < tol: break
+
+Power iteration: the iterate `h` is a feedback register (seeded with
+the start vector). Secondary: `hlast` is the **raw previous of the
+iterate sequence**, kept solely to compare consecutive iterates —
+the successive-difference read, in the field, as a convergence test;
+with end-when on the derived `err`.
+
+**networkx 9** — `networkx/algorithms/flow/dinitz_alg.py:212`
+(`depth_first_search` in Dinitz)
+
+    flow = INF
+    for u, v in pairwise(path):
+        flow = min(flow, R_pred[u][v]["capacity"] - R_pred[u][v]["flow"])
+
+Bottleneck capacity: a running min (seeded ∞ — for capacities a
+genuine identity, not a fake one) over **`pairwise(path)`** — the
+explicit adjacent-pair idiom, whose boundary is handled by the idiom
+itself (a one-element path yields no pairs).
+
+**networkx 11** — `networkx/generators/mycielski.py:59` (`mycielskian`)
+
+    for i in range(iterations):
+        n = M.number_of_nodes()
+        ... M.add_edges_from(... M.edges() ...) ...
+
+An iterated transformation: `M = f(M)` a counted number of times —
+the register over a counted source, its state a whole graph mutated
+in place, seeded with the input graph.
+
+**networkx 12** — `networkx/algorithms/flow/capacityscaling.py:309`
+(Δ-saturation sweep)
+
+    for u in R:
+        p_u = R_nodes[u]["potential"]
+        for v, es in R_succ[u].items():
+            for k, e in es.items():
+                if ...: e["flow"] += flow; R_succ[v][u][...]["flow"] -= flow
+                        R_nodes[u]["excess"] -= flow; ...
+
+In-place keyed accumulation over a graph: later iterations read
+earlier iterations' writes (the reverse-edge update is visible when
+the walk reaches `v`). `P-B(coll)` — the keyed register, and an
+*order-observing* in-place sweep of the Gauss–Seidel species
+survey 4's A3 class described.
+
+**scipy 4** — `scipy/_lib/doccer.py:254` (`indentcount_lines`)
+
+    indentno = sys.maxsize
+    for line in lines:
+        stripped = line.lstrip()
+        if stripped: indentno = min(indentno, len(line) - len(stripped))
+    if indentno == sys.maxsize: return 0
+
+A running min seeded with **`sys.maxsize` — the fake-∞ pole in the
+field**, with the post-loop sentinel test hand-rolling the
+empty-collect option (`collect-family-design.md`'s availability
+ladder: min is semigroup-only, and this is what programs do about
+it).
+
+**scipy 7** — `scipy/_lib/pyprima/common/_linear_constraints.py:9`
+
+    full_A = constraints[0].A
+    for constraint in constraints[1:]:
+        full_A = np.concatenate((full_A, constraint.A), axis=0)
+
+A concatenation fold **seeded with the first element**, iterating
+the rest via `[1:]` — reduce-without-initial, the boundary
+discharged by the slice.
+
+**scipy 8** — `scipy/optimize/_remove_redundancy.py:186`
+(`_remove_redundancy_pivot_dense`)
+
+    for i in v:
+        e[i] = 1
+        if i > 0: e[i-1] = 0
+        try:
+            j = b[i-1]
+            lu = bg_update_dense(lu, perm_r, A[:, j], i-1)
+        except Exception:
+            lu = scipy.linalg.lu_factor(A[:, b])
+        ...
+        b[i] = j   # (on the pivot branch)
+
+An incrementally updated LU factorization — `lu = update(lu, …)`,
+the feedback register, with a full refactor as the exception
+fallback. Secondaries: `b[i-1]` reads the *previous iteration's
+write* by index offset, and `e[i-1] = 0` un-does the previous
+iteration's mark — raw-prev bookkeeping riding a register loop,
+boundary guarded by `if i > 0` and the `try`.
+
+**pandas 1** — `pandas/core/arrays/arrow/accessors.py:437`
+(`get_name`)
+
+    while level_name_or_index:
+        name_or_index = level_name_or_index.pop()
+        name = get_name(name_or_index, selected)
+        selected = selected.type.field(...)
+
+A descent fold: `selected` walks down a nested struct, each step a
+function of the previous (`selected = f(selected, component)`),
+driven by consuming the path list.
+
+**pandas 15** — `pandas/core/util/hashing.py:73`
+(`combine_hash_arrays`)
+
+    try: first = next(arrays)
+    except StopIteration: return np.array([], dtype=np.uint64)
+    arrays = itertools.chain([first], arrays)
+    mult = np.uint64(1000003)
+    out = np.zeros_like(first) + np.uint64(0x345678)
+    for i, a in enumerate(arrays):
+        out ^= a; out *= mult
+        mult += np.uint64(82520 + 2*(num_items - i))
+
+CPython's tuple hash as an array fold: two coupled feedback
+registers (`out`, `mult`), constant-seeded — and **genuinely
+non-commutative and order-sensitive**, an everyday member for the
+product-linearization residue's order-observing class that is
+neither text emission nor numerics. The empty input is handled by
+*peeking* (`next` + re-chain) — the empty-collect option discharged
+before the loop.
+
+**pandas 16** — `pandas/io/xml.py:349` (`_iterparse_nodes`)
+
+    for event, elem in iterparse(...):
+        ...
+        for col, nm in zip(self.iterparse[row_node], self.names, strict=True):
+            if curr_elem == col:
+                if elem_val not in row.values() and nm not in row:
+                    row[nm] = elem_val
+
+A keyed build guarded by membership reads of its own accumulated
+state (`not in row.values()`, `nm not in row`) — the dedup-guarded
+collection register (`P-B(coll)`), carried across the parse-event
+flow and reset per row node.
+
+**pandas 18** — `pandas/plotting/_matplotlib/misc.py:404`
+(`parallel_coordinates`)
+
+    used_legends: set[str] = set()
+    for i in range(n):
+        ...
+        if label not in used_legends:
+            used_legends.add(label); ax.plot(..., label=label, ...)
+        else: ax.plot(...)
+
+The seen-set with an in-loop membership read: emit each legend label
+once — `unique_everseen` in plotting costume (`P-B(coll)`), seeded
+empty.
+
+*(Tally note: four of the sixteen P-B entries are `P-B(coll)` —
+pygments 14, networkx 12, pandas 16, pandas 18.)*
+
+### P-C — conditional carry / `hold` (0 of 30)
+
+Zero primary sightings. (Survey 1 drew one conditional carry in
+thirty; here none survived to a sample slot — stdlib draw 4
+contained a textbook last-seen carry in the *adjacent, undrawn* loop,
+and a `hold`-shaped LU-invalidation cache appeared in a scipy draw
+beyond that corpus's stop rule. Both stay out; the zero is the
+protocol's number, the near-misses are this note.)
+
+### P-D — driver state: cursors, pumps, self-driven generation (8 of 30)
+
+**mpmath 2** — `mpmath/libmp/libmpf.py:171` (`_normalize`)
+
+    while not man & 255:
+        man >>= 8; exp += 8; bc -= 8
+
+Condition-driven shift-off: the carried triple is both payload and
+termination condition — no data flow but the state itself.
+
+**stdlib 1** — `_compression.py:152` (`seek`)
+
+    while offset > 0:
+        data = self.read(min(io.DEFAULT_BUFFER_SIZE, offset))
+        if not data: break
+        offset -= len(data)
+
+A countdown pump: remaining-bytes state drives the loop and shrinks
+by what the external read returned.
+
+**stdlib 7** — `telnetlib.py:368` (`read_very_eager`)
+
+    while not self.eof and self.sock_avail():
+        self.fill_rawq(); self.process_rawq()
+
+The read-until pump, its carried state (buffer, eof flag) living in
+`self` and written by callees.
+
+**stdlib 10** — `email/_parseaddr.py:260` (`getaddrlist`)
+
+    while self.pos < len(self.field):
+        ad = self.getaddress()
+        ...
+
+A cursor advanced by the callee, read by the condition: survey 1's
+class 6, at the new unit.
+
+**stdlib 11** — `xml/sax/xmlreader.py:124` (`parse`)
+
+    buffer = file.read(self._bufsize)
+    while buffer:
+        self.feed(buffer)
+        buffer = file.read(self._bufsize)
+
+Read-until-sentinel: the carried value is re-bound from an external
+source each iteration and tested at the top — a pump whose "previous"
+is only ever read as "was there anything."
+
+**pygments 9** — `pygments/lexers/scripting.py:1442`
+(`EasytrieveLexer.analyse_text`)
+
+    while lines and (isEmptyLine(lines[0]) or isCommentLine(lines[0])):
+        if not isEmptyLine(lines[0]): hasHeaderComment = True
+        del lines[0]
+
+Prefix consumption (skip header comments): the input list itself is
+the cursor, consumed from the front — take-while as a destructive
+pump.
+
+**scipy 1** — `scipy/io/_mmio.py:680` (`_parse_body`)
+
+    while line:
+        line = stream.readline()
+        ...
+        a[i, j] = aij
+        if i < rows-1: i = i + 1
+        else: j = j + 1; i = 0 if not has_symmetry else j
+
+A read pump carrying a **two-dimensional cursor pair** `(i, j)` with
+column-major advance-and-reset logic — a hand-rolled grid walk over
+a streamed source, filling a matrix.
+
+**pandas 22** — `pandas/core/arrays/datetimes.py:3023`
+(`_generate_range`)
+
+    cur = start
+    while cur <= end:
+        yield cur
+        if cur == end: break
+        next_date = offset._apply(cur)
+        if next_date <= cur:
+            raise ValueError(f"Offset {offset} did not increment date")
+        cur = next_date
+
+Self-driven generation: `cur = f(cur)`, yielded each step — the
+source opener (`source-openers-design.md`'s self-driven opener) with
+end-when on the current value, **and a progress check comparing
+consecutive elements** (`next_date <= cur` raises) — a
+measure-discipline witness (`divide-flow-design.md`'s cursor-progress
+species) hand-rolled as a runtime assertion.
+
+### P-E — history: order ≥ 2 recurrences and DP fills (3 of 30)
+
+**mpmath 4** — `mpmath/calculus/inverselaplace.py:505` (Padé
+recurrence)
+
+    A[0] = 0; A[1] = d[0]; B[0:2] = 1
+    for i in range(1, 2*M):
+        A[i+1] = A[i] + d[i]*A[i-1]*z
+        B[i+1] = B[i] + d[i]*B[i-1]*z
+
+A three-term recurrence materialized in arrays: each new value reads
+its own output one and two positions back, seeded with two initial
+terms — the history-indexed fill (survey 2's finding 2.5), depth 2.
+
+**stdlib 8** — `fractions.py:241` (`limit_denominator`)
+
+    p0, q0, p1, q1 = 0, 1, 1, 0
+    while True:
+        a = n//d
+        q2 = q0+a*q1
+        if q2 > max_denominator: break
+        p0, q0, p1, q1 = p1, q1, p0+a*p1, q2
+        n, d = d, n-a*d
+
+Continued-fraction convergents: the same order-2 recurrence in the
+*other* costume — no array, a **shifted variable pair** rotated by
+parallel assignment (plus the Euclid pair `n, d`). The shift-register
+chain, hand-rolled; seeded with the standard initial convergents.
+
+**scipy 5** — `scipy/linalg/_matfuncs_sqrtm.py:86` (`_sqrtm_triu`)
+
+    for j in range(nblocks):
+        for i in range(j-1, -1, -1):
+            S = T[...] - R[...].dot(R[...])   # reads earlier R blocks
+            ... dtrsyl(...) ...               # fills R[i-block, j-block]
+
+Blocked Schur square root: fills `R` block by block, each block read
+from arbitrary earlier blocks of its own output — the DP fill at
+matrix-block granularity (random access over the materialized
+prefix).
+
+## Pass-over tally (survey 5)
+
+74 loops drawn to reach 30 sites — 44 pass-overs, all recorded, by
+shape: stateless per-element work or write-only builds 36 (of which
+write-only container builds 12, including two keyed group-by builds
+and three set builds — the insertion-only rule's population);
+stateless search/first-match 4; independent-slot buffer reuse 2;
+per-element validation 2. Per corpus (sites/draws): mpmath 5/5,
+scipy 5/8, networkx 5/12, stdlib 5/11, pygments 5/16, pandas 5/22.
+The carried-state density gradient repeats surveys 1–2 (numerics
+dense, infrastructure middling) and adds a new pole: the pandas
+Python layer is the sparsest corpus yet sampled (23%) — array
+libraries push iteration state into vectorized kernels, leaving
+Python-level loops as plumbing.
+
+## Tally (survey 5)
+
+Primary classes, n = 30:
+
+| Primary | Count | |
+|---|---|---|
+| P-B seeded feedback register | 17 | 13 scalar/value + 4 collection |
+| P-D driver state | 8 | pumps/countdowns 6, cursors 1, self-driven generation 1 |
+| P-E history (depth ≥ 2) | 3 | 2 recurrences, 1 DP fill |
+| P-A raw previous | 2 | neighbour bracketing; continuation flag |
+| P-C conditional carry (`hold`) | 0 | |
+
+**Raw-previous reads wherever they occur** (primary or secondary):
+8 of 30 sites — the 2 primaries, plus mpmath 5 (`prevp`),
+networkx 2 (`nodes[i+1]`, a stored-list *next* with cyclic
+wraparound), networkx 6 (`hlast`, successive-iterate difference),
+networkx 9 (`pairwise(path)`), scipy 8 (`b[i-1]`/`e[i-1]`), and
+pandas 22 (`next_date <= cur`, the progress check). At **six of
+those eight** the raw-prev read rides a loop whose primary carried
+value is a feedback register or driver.
+
+**Boundary handling, all raw-prev reads and seeds** (the
+sub-question): seed with a neutral or identity value 7 (`False`, 0,
+∞-as-identity, hash constants); seed with a domain initial value 8
+(first convergents, start vector, initial cutset, `prevp = start`,
+the input graph, the initial LU);
+index-from-1 or `[1:]` slice 2 (the latter's seed being the first
+element); a pairing idiom 1 (`pairwise`);
+sentinel + post-loop test 1 (`sys.maxsize`); peek-first 1
+(`next` + re-chain); exception + wraparound 1 (`IndexError` →
+`nodes[0]`); guard `if i > 0` 1. **Per-firing "is there a previous"
+tests: 0 of 30.**
+
+## Findings (survey 5)
+
+### 5.1 The seeded feedback register is the dominant carried shape — everywhere
+
+17 of 30 primaries, in every corpus, across every costume: scalar
+folds, iterated transformations, incremental factorizations, descent
+walks, dedup guards, keyed in-place sweeps. The surface decision's
+construct (`iteration-with-state-design.md`: the register pair, the
+visible state thread) is aimed at the population's center. Nothing
+in this sample suggests a different center.
+
+### 5.2 Raw-prev is real, minority, and above all a *companion*
+
+The check the value-in-context model owed, answered at this unit:
+the wanted previous is the raw element at 2 of 30 sites as the
+loop's shape, and raw-prev reads appear at 8 of 30 in any role —
+but at six of the eight they ride a loop that *already carries a
+register*. The field's raw-prev is mostly a second read on an
+already-stateful loop: the convergence test comparing consecutive
+iterates, the `pairwise` walk feeding a fold, the off-by-one
+bookkeeping beside an incremental update, the progress check on a
+self-driven generator. Two readings, stated as evidence and not
+decision: (a) *for* the model — prev-and-register coexisting on one
+flow is the common case, which "prev is a readout available on any
+wire" serves with one mechanism where the current design needs a
+register wired per read; (b) *against urgency* — the standalone
+raw-prev loop is rare (2/30), so a second previous-value door buys
+little everyday reach on its own, and the door's real clients are
+the companion reads.
+
+### 5.3 The boundary is always discharged, never tested
+
+Zero of thirty sites ask "is there a previous value" during
+iteration. Every raw-prev read and every seed discharges position 0
+*before* or *by construction*: a seed value (13), starting the walk
+at index 1 or slicing `[1:]` (2), an idiom that mints no boundary
+pair (1), a sentinel checked after the loop (1), a peek before the
+loop (1), an exception handler (1), a guard (1). The
+value-in-context model's option-typed raw `prev` is therefore not
+how field code *wants* to meet the boundary — it wants the option
+already discharged, which is precisely the model's own seed
+factorization (`Delay = raw-prev + seed + feedback`: the seed
+"extends the sequence one position to the left"). If the model is
+ever adopted, this finding says its surface should lead with
+discharge-by-construction (seeds, from-1 walks, pairing) and keep
+the per-firing option as the fallback costume, not the primary one.
+
+### 5.4 Driver state is the second family, and it belongs to other rows
+
+8 of 30 primaries carry the thing that *drives* iteration — pumps,
+cursors, countdowns, one self-driven generator. These are the
+source-opener and end-when rows' population (survey 1's classes 4–6
+re-confirmed at the new unit), not the register row's: their
+"previous" is never wanted as a value beside the flow, it *is* the
+flow. The cleanest sighting: pandas's `_generate_range`, a
+self-driven opener with end-when on the current element and a
+hand-rolled cursor-progress assertion — a random-draw witness for
+the divide-flow round's progress-measure species, in date
+arithmetic rather than parsing.
+
+### 5.5 History depth ≥ 2 comes in two costumes of one shape
+
+Three sightings, two costumes: the materialized fill (arrays indexed
+`[i-1]`, `[i-2]`; block-DP) and the **shifted variable pair** rotated
+by parallel assignment (`p0, q0, p1, q1 = p1, q1, …`). The second
+costume is the first's history compressed to a window — the same
+shift-register chain the delay-ontology factorization predicts
+(`prev` of `prev`, each with a seed). A design that serves depth-1
+`prev` and the register should check its "+1 step" reaches these:
+order-k recurrence = k seeds + k-deep shift, in either costume.
+
+### 5.6 `hold` drew zero
+
+No conditional carry survived to a sample slot in thirty sites
+(near-misses noted in place). Together with survey 1's single
+sighting, the last-seen/`hold` shape sits in the breadth tier:
+worth its adopted identification (the register whose step ignores
+`prev`), not worth effortless-tier surface investment yet.
+
+### 5.7 Bonus sightings for other rows
+
+Recorded because the draws contained them, each a field witness an
+open row can cite: **the fake-∞ pole** (`sys.maxsize` seed +
+post-loop sentinel test — the cost of having no option-shaped empty
+collect, `collect-family-design.md`); **a non-commutative
+order-sensitive register** outside text emission and numerics (the
+tuple-hash fold — `product-linearization-design.md`'s
+order-observing class gains an everyday member); **an in-place
+keyed Gauss–Seidel sweep** (networkx 12 — survey 4's A3 species at
+the flat-loop unit); and **vectorized raw-prev in a pass-over**
+(`np.diff(self.indptr).min()` inside a scipy validation draw — the
+array costume absorbing the shift shape, see bias 2).
+
+## Biases (survey 5), with direction
+
+- **The domain choice gave raw-prev its best shot.** pygments was
+  picked *because* continuation lines and run boundaries live there;
+  mpmath because successive differences and recurrences live there.
+  Raw-prev still came out minority. Direction: the corpus choice
+  *overstates* raw-prev's population share if anything; the 2/30
+  primary figure is a ceiling-flavored read, not a floor.
+- **Vectorization absorbs the shift shape.** scipy and pandas
+  express neighbour arithmetic as `np.diff` / shifted slices — one
+  such appeared *inside a pass-over draw*. Loop sampling cannot see
+  these. Direction: *undercounts* raw-prev demand in array-flavored
+  numerics; the APL-family evidence (shift operators as everyday
+  vocabulary, `apl-family-comparison.md`) covers the same gap from
+  the curated side.
+- **The insertion-only exclusion.** Fixed during classification
+  (before the tally), it moves pure container builds out of the
+  sample. Direction: removes collect-shaped sites that want *no*
+  previous value, so it inflates no class; but the line itself (a
+  set build "is" a collect, a sum "is" a register) mirrors the
+  language's own construct boundary and should be re-examined if
+  that boundary ever moves.
+- **Carried state through `self` and callees** requires reading
+  beyond the loop; two sites (pygments 16, stdlib 7) qualified only
+  via callee bodies. Direction: shallow reading would *undercount*
+  carried state in OO code; the protocol's read-the-callees rule
+  was applied, but is judgment.
+- **One project per domain, n = 30, five per corpus** — the usual
+  coarseness; per-corpus proportions are directional only.
+
+## What this changes (survey 5)
+
+For **the value-in-context model** (`delay-ontology-design.md`) —
+the owed everyday-`prev` check is run, and decides nothing, but the
+model's conversation now has its numbers: the raw-prev surface it
+would open is a minority-but-real population (2/30 primary, 8/30 in
+any role) whose members overwhelmingly *coexist with a register on
+the same flow* — the configuration the model handles with one
+mechanism and the current design handles with a register per read —
+and whose boundary is *always* discharged by seed or construction,
+never tested per firing, which is the model's own seed factorization
+read back from the field. The reservation the leaning stated ("a
+second door the beginner must be steered through") is sharpened, not
+resolved: the door's everyday clients are companion reads on
+already-stateful loops, so the steering question is "when does a
+read use the register's thread vs the wire's own predecessor," and
+it arises in practice exactly where both exist at once.
+
+For **the loop-carried-state row** (`open-problems.md`) — the
+register's dominance is re-confirmed at the unit closest to its
+construct (17/30), the `hold` identification stays breadth-tier
+(zero draws), and the order-k recurrence's two costumes give the
+ergonomics round a concrete "+1 steps" check to run against the
+stored form.
+
+For **the product-linearization residue** — one more everyday
+order-observing register (the tuple-hash fold), from a domain the
+round's survey did not cover.
+
+For **the source-openers and end-when rows** — the self-driven
+opener with progress check (pandas 22) is the shape's cleanest
+random-draw sighting yet, and carries a cursor-progress measure
+witness for the divide-flow round in passing.
+
+For **the collect family** — the fake-∞ pole and the peek-first
+empty-input discharge are two more field costs of the missing
+option-shaped empty collect, from draws nobody chose.
+
+Not changed: everything the earlier surveys established at their
+units. This survey sampled only carried-state loops; its proportions
+answer only the previous-value questions.

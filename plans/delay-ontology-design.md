@@ -795,7 +795,21 @@ frequency check before a second previous-value door is blessed, and
 language, not this construct, so it should be adopted (if at all)
 at the core-model level with the kinds table and the
 barrier-crossing availability rule in the room, not from inside the
-iteration-state round. What this examination settles is narrower
+iteration-state round. The frequency check is since **run**
+(`real-loop-survey.md`, survey 5 — thirty carried-state loops,
+previous-value sites as the unit): the raw-prev surface is real but
+minority (2/30 as a site's primary shape, 8/30 in any role), and at
+six of the eight sightings the raw-prev read *rides a loop that
+already carries a register* (convergence tests on consecutive
+iterates, `pairwise` walks feeding folds, off-by-one bookkeeping) —
+the coexistence configuration this model serves with one mechanism;
+and the position-0 boundary was discharged by seed or by
+construction at every sighting, never tested per firing — the
+model's own seed factorization read back from the field, arguing
+that any adopted surface should lead with discharge-by-construction
+and keep the per-firing option as the fallback costume. Evidence
+for the conversation, which remains unheld; the second reservation
+(core-model-level adoption) stands untouched. What this examination settles is narrower
 and firmer: **the collect-vs-ancestor fork is not the real axis** —
 it is empty on sequences and silent on grids — and the live residue
 is the product's linearization trade, alone.
@@ -1082,7 +1096,8 @@ adoption: the product-linearization residue and the
 value-in-context model, each of which owes its own evidence before
 its conversation (the linearization residue's is since delivered —
 `real-loop-survey.md`, survey 4; the value-in-context model's
-everyday-`prev` check is still owed). One cashing carries a filed re-read: "the IO
+everyday-`prev` check is since delivered too — survey 5, same doc;
+both conversations remain unheld). One cashing carries a filed re-read: "the IO
 handle is a wire, not a flow" is put in question by the same
 conversation's later IO-as-flow direction (`effects-design.md`,
 "The IO-as-flow direction") — if the handle wire is the IO flow
@@ -1565,9 +1580,13 @@ current state of every strand:
   product's axis gap (a product cursor is a grid-point with no
   unique predecessor) and the transpose cost (context-reads, not
   just registers, are non-transpose-invariant). Not adopted: the
-  everyday-`prev` surface owes a frequency check, and "an
-  uncollected value is a cursor" is a whole-language claim to be
-  weighed at the core-model level, not from inside this round.
+  everyday-`prev` surface owed a frequency check — since **run**
+  (`real-loop-survey.md`, survey 5: raw-prev is minority and
+  mostly a companion read on register-carrying loops; the boundary
+  is always discharged, never tested — see the leaning section's
+  note) — and "an uncollected value is a cursor" is a
+  whole-language claim to be weighed at the core-model level, not
+  from inside this round; the conversation is not yet held.
 - **Is Delay the right abstraction at all?** Argument 3, held open.
 - **Per-kind "next iteration."** Now **worked with leanings**
   (§"Per-kind \"next iteration\": the owned-order criterion"): a

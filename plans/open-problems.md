@@ -228,8 +228,9 @@ of the iteration-state doc). Where it stands: firm that a Delay is a
 feature of the flow and does not thread the flow wire; the
 collect-vs-ancestor fork dissolves on sequences and is silent on
 grids (the value-in-context model, worked with leanings, unadopted —
-it reshapes uncollect language-wide and owes an everyday-`prev`
-frequency check); the two candidates answer the register's two halves
+it reshapes uncollect language-wide; its owed everyday-`prev`
+frequency check is since run, `real-loop-survey.md` survey 5); the
+two candidates answer the register's two halves
 (update cadence, provenance-fixed, vs read range, consumer-chosen —
 this is `hold`); the pure-`final` corner is closed; and the sole hard
 residue is a product's **linearization** — several running-view
@@ -278,7 +279,14 @@ as the register whose step ignores `prev` — all three pieces
 (criterion, order-demand check, `hold`) adopted; the
 linearization residue and the value-in-context model explicitly
 excluded from the adoption — the former's evidence now delivered
-(survey 4), the latter's everyday-`prev` check still owed.
+(survey 4), and the latter's everyday-`prev` check now delivered
+too (`real-loop-survey.md`, survey 5, previous-value sites as the
+unit: the register dominates carried state 17/30; raw-prev is
+minority and mostly a companion read on register-carrying loops
+— 2/30 primary, 8/30 in any role; the position-0 boundary is
+always discharged by seed or construction, never tested per
+firing; `hold` drew zero). Both model conversations now have
+their evidence; neither is held.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
 substrate proposal in `implementation-strategy.md` is de-risked but
