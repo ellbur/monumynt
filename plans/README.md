@@ -153,6 +153,18 @@ they change how everything else is read.
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
+- [`catalog-schema-design.md`](catalog-schema-design.md) — the doc
+  above's question 4, worked: the catalog (the registry every round
+  kept filing rows into) as **one registry of referent-identified
+  entries** — entry/block/row as three grains of one thing — with
+  facts in open-ended families (ports, laws, lanes, translations,
+  measures, expansions), each family earned by a filed client;
+  trust graded per fact (definitional vs asserted, every asserted
+  fact carrying a stated direction of doubt); an admission rule
+  (use-independent facts only — per-use truth is drawn, never
+  registered); the lawful empty entry for unregistered JS; and the
+  trust manifest — what *this program* trusts — as a derived view.
+  *Exploration.*
 - [`bundle-provenance-design.md`](bundle-provenance-design.md) — the
   check that stops a program from combining values that can never
   coexist — a value from the Just branch of a case split with a value
@@ -203,7 +215,10 @@ they change how everything else is read.
   for combining two independent (sibling) flows without nesting one in
   the other; commute-as-transpose over products. Also its positional
   sibling, the aligned product (zip) — same-extent pairing by position —
-  and the multi-wire collect (the table) as zip's value form.
+  and the multi-wire collect (the table) as zip's value form. Join on
+  a product is now worked in place (question 4): the operand-walk
+  rules over the poset, the join chain as an orientation-authoring
+  surface, witness-neutral. *Exploration.*
 
 ### More flexible iteration
 

@@ -694,7 +694,13 @@ The language hasn't decided any of these.
    `types-design.md` question 4's; the fuel check's precise
    structural statement (drawn decrement + covered zero); what the
    rung-3 warning says and where it surfaces. Decide jointly with
-   the checking row.
+   the checking row. (The schema round has since been worked —
+   `catalog-schema-design.md`, exploration: measures are a fact
+   family of their own — species, decrease claim, precondition,
+   with the precondition discharged by the drawing — and the drawn
+   fuel measure is confirmed on the drawn side of that round's
+   admission rule, never registered. The species' contents and the
+   rung-3 wording stay owned here.)
 4. **Whole-tree collects and linearization.** The commutative case
    is free (the product-round law); whether the non-commutative
    case gets an explicit linearization vocabulary or stays

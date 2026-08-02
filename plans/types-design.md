@@ -684,7 +684,17 @@ The language hasn't decided any of the following yet.
 4. **The catalog schema.** How primitives, operators (with their
    monoid facts), and discriminators declare demands/offers — and
    whether discriminator registrations can be made honest (e.g.
-   generated together with the JS they describe).
+   generated together with the JS they describe). Now carrying a
+   worked round of its own (`catalog-schema-design.md`,
+   exploration, unadopted): one registry of referent-identified
+   entries; facts in open-ended families (ports, laws, lanes,
+   translations, measures, expansions), each earned by a filed
+   client; trust graded per fact (definitional vs asserted, with
+   stated directions of doubt); rows demanded by the same
+   propagation as properties (no second checker); and the **trust
+   manifest** — the asserted facts a program's validity rests on —
+   as a derived view, making "soundness relative to the catalog"
+   legible per program.
 5. **Bundle provenance.** Worked out in
    `bundle-provenance-design.md`. Both hunches held: it uses the
    same propagation skeleton (the relational "same bundle" relation

@@ -66,6 +66,14 @@ type portFact = {port: string, facts: array<property>}
 //     where present, segment-boundary placement is pure efficiency; where
 //     absent — chunked encoding, datagrams — the boundary is observable
 //     meaning).
+//
+// The schema round now exists (plans/catalog-schema-design.md, exploration):
+// this flat, string-keyed record is the strings-below strawman it names —
+// the worked shape is referent-identified ENTRIES carrying facts in
+// families (ports, laws, lanes, translations, measures, expansions), trust
+// graded per fact, lane fields holding lane REFERENTS, plus the trust
+// manifest as a derived view. Evolving this record is that round's
+// decide-in-code question 4.
 type catalogRow = {
   rowName: string,
   rowDemands: array<portFact>,

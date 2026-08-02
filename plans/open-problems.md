@@ -454,31 +454,45 @@ The stance is settled (demands/offers, no search, drawable witnesses —
 `types-design.md`; paths and clash flavors —
 `bundle-provenance-design.md`); implementation is workstream D. The
 design-side gaps: recursive shapes (question 2, waiting on the tree
-constructs), slots/higher-order signatures (question 3), the catalog
-schema and its trusted JS edge (question 4), equality's fine print
-(question 8).
-
-Question 4 gains its first concrete content demand from the collect
-family (`collect-family-design.md`): catalog rows are properties
-carrying value witnesses (the identity value itself), and the algebra
-facet is the authoring surface that mints rows for user operators,
-trusted like the JS edge. A second demand arrives from the
-tag-identity round (`failure-payloads-design.md`, "Tag identity
-across reuse boundaries", unadopted): rows carry lane *references*,
-not lane strings, so two catalog blocks converting the same
-underlying failure can mint one lane by shared referent. A third
-arrives from the Life round (`product-flows-design.md`, "The Life
-residue, worked"): an **extent/shape-preservation** property row
-with a witness, so zip's shared-provenance discharge can walk
-through whole-value ops like `rotate` (without the row, the license
-falls back to the asserted-precondition regime — the program still
-draws). Prior art: Flix's restrictable variants are
+constructs — now unblocked, the divide flow and the zipper seam being
+decided), slots/higher-order signatures (question 3), and equality's
+fine print (question 8). The catalog schema and its trusted JS edge
+(question 4) now carries a worked round of its own
+(`catalog-schema-design.md`, exploration, unadopted): **the catalog
+is one registry of referent-identified entries, not several
+tables** — entry/block/row are three grains of one thing; facts sit
+in open-ended families (ports, laws, lanes, translations, measures,
+expansions), each family earned by a construct that filed it; trust
+is graded per fact (definitional vs asserted, every asserted fact
+carrying a stated direction of doubt and a displayable witness);
+rows are demanded by the same propagation as wire properties (an
+operator position is a meta-level port — no second checker); an
+admission rule keeps the catalog use-independent (per-use truth is
+drawn at the use, never registered — survey 4.3's operator-swap
+finding is the field evidence); unregistered JS is the lawful
+**empty entry** (silently unchecked, kept safe by the background
+super flow, refined monotonically by opt-in registration); and the
+**trust manifest** — the asserted facts a given output's validity
+rests on — is a derived view, sharpening "soundness relative to the
+catalog" from a global caveat into a per-program question. Six dead
+ends recorded (name-keyed catalog; per-family separate catalogs;
+mandatory registration; facts on instances; the proving checker;
+the silently imported interface). The round consumed the filed
+demands: the collect family's identity rows with value witnesses
+(adopted content, given its schema), the tag-identity round's
+lane-references-not-strings (unadopted — the dependency is stated),
+the Life round's extent/shape-preservation row, the divide flow's
+measure catalog, the cancellation and served rounds' edge
+translations (slots supplied; fine print stays with its owners),
+and the within-firing round's coalescing law. I stays 3: questions
+2 and 3 remain undesigned and question 4's round is unadopted.
+Prior art: Flix's restrictable variants are
 the strongest prior art for question 2 (recursive case-set properties
 trackable and paying for themselves; their own illegible-at-scale type
 algebra supports the drawable-witnesses stance over imported Boolean
 indices); "this hole demands a pure filler" is added as demands/offers
 vocabulary; `@Terminates` is prior art for declared, checked
-termination. See `flix-comparison.md`.
+termination. See `flix-comparison.md`, `catalog-schema-design.md`.
 
 **Functions, reuse, and facets — I 3, W 4.**
 The row's center — the demand the record could previously not answer
@@ -663,9 +677,23 @@ question 4. The round's real lesson was about **Delay**, not the product:
 *which flow* fixes the register's axis is an open ontological question, and
 the product carries its sharpest evidence (the shared-grid implementation
 breaks under a consumer-dependent axis) — feeding the loop-carried-state
-row's new Delay-ontology open problem. Unexamined: join on a product (operand-walk rules, question 4); the
+row's new Delay-ontology open problem. **Join on a product is now
+worked too** (question 4 — `product-flows-design.md`, "Join on a
+product", exploration): the operand-walk rules extend over the
+context poset with no new witness species — a join chain consumes a
+product segment axis-by-axis, each consumption a drawn orientation
+commitment graded to the depth the chain reaches (`join(E, axis)`
+lawful as drawn, the surviving axes staying a product with their
+original exterior), making the join chain the third
+orientation-authoring surface beside the collect chain and the
+drawn commute — consistent with the linearization round's pinning
+demand without depending on it; the n-ary flatten node, the
+orientation-free flatten, and the pair-as-one-flow operand recorded
+as dead ends. Unexamined: the
 provenance product segment against the walk-and-classify algorithm
-(question 8). Spec entry and textual spelling are owed bookkeeping.
+(question 8 — which now has the join round's product-segment
+transition rules as input). Spec entry and textual spelling are
+owed bookkeeping.
 
 The **aligned product (zip)** is now worked (`product-flows-design.md`,
 "The aligned product (zip)"): Cross's positional sibling — same extent
@@ -701,11 +729,14 @@ question dissolves, alignment being positional at every level; what
 remains is the shape-preservation catalog row, filed to the checking
 row's question 4, and the transpose gate-widening edge, filed to the
 commute taxonomy); and per-edge alignment (`reduce2`'s length-(n−1)
-second input) to the register round. The unexamined interactions above — join
-on a product, registers over products, the provenance product segment
-(questions 4, 5, 8) — plus tidyr's observed-product vs full-product
-distinction (`nesting()` inside `expand`), remain the row's open core;
-I stays 3. Honesty: a curated corpus; the owed field sample (real
+second input) to the register round. Of the row's formerly unexamined
+interactions (questions 4, 5, 8), the first two are now worked — join
+on a product and registers over products, both exploration — leaving
+the provenance product segment against walk-and-classify (question 8)
+plus tidyr's observed-product vs full-product
+distinction (`nesting()` inside `expand`) as the row's open core;
+I stays 3 (the worked rounds are unadopted and question 8 is
+representational groundwork the checks need). Honesty: a curated corpus; the owed field sample (real
 analysis scripts) should still confirm the scope move. See
 `apl-family-comparison.md`, `zig-comparison.md`,
 `tidyverse-comparison.md`, `product-flows-design.md`.

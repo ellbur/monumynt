@@ -491,3 +491,10 @@ The language hasn't settled these yet:
   Zip, interleave, and round-robin are all reasonable candidates.
   Flatten was picked because it mirrors the list case; the others
   would be new operations with their own names.
+- **Join over a crossed pair.** Owned by the product round and now
+  worked there (`product-flows-design.md`, "Join on a product",
+  exploration): the adjacency/operand-walk rules extend over the
+  context poset — a chain consumes a product segment axis-by-axis,
+  each consumption a drawn orientation commitment — with no new
+  witness species; this chapter's binary law and absorption rule
+  carry over unchanged.

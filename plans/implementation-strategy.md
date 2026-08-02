@@ -146,7 +146,11 @@ The check *logic* is worked out; what's missing is representational:
 the catalog schema — the concrete record by which a node kind declares
 demands and offers (and by which the handful of App functions used in
 tests register theirs) — and the error surface: how a witness is
-returned (a result variant, per the runner's needs) and printed. That
+returned (a result variant, per the runner's needs) and printed. The
+schema now has its design round (`catalog-schema-design.md`,
+exploration: referent-identified entries, per-family facts, graded
+trust); the ReScript shape of an entry is deliberately left as that
+round's decide-in-code question, constrained but not dictated. That
 error surface is the first place error *content* matters in the repo
 and sets the pattern for everything after; it is worth a deliberate
 half-day, not an afterthought. Naming questions ("type," "merge") can
