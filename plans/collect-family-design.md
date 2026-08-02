@@ -767,6 +767,9 @@ None of these is decided; each states its lean where one exists.
   ∅; semigroup operators total per-lane).
 - **Checking row**: the catalog question gains its first concrete
   content demand — rows are properties-with-witnesses; the algebra
-  facet mints them.
+  facet mints them. (The schema round has since been worked:
+  `catalog-schema-design.md`, exploration — the identity row is its
+  laws family's first member, with the witness discipline
+  generalised from it.)
 - **Facets row**: the algebra facet gains its first in-record client
   with a stated joint constraint (value witnesses).

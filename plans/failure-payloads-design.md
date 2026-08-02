@@ -1076,7 +1076,11 @@ has a place for a shared lane referent that rows reference rather
 than each minting a private one. This files a concrete content
 demand on the catalog schema (`types-design.md`, question 4), the
 second after the collect family's identity-witness rows: **rows
-carry lane references, not lane strings.**
+carry lane references, not lane strings.** (The schema round has
+since been worked — `catalog-schema-design.md`, exploration: lane
+fields hold lane referents, and the entry itself is a referent
+under the same rule; its dependency on this round's referent rule
+is stated there, with the degradation path if the rule falls.)
 
 And the degenerate home nobody had to ask about: the language's
 own lanes — `Stopped`, `RanOut`, `Nil`, `Cancelled`, the super

@@ -281,7 +281,10 @@ the same seam as cancellation's "silence exists only at the edges":
   discharge, visible, upstream of the edge.
 
 So the serving block's catalog row carries **three edge
-translations**, consolidated here for the catalog schema round:
+translations**, consolidated here for the catalog schema round
+(since worked — `catalog-schema-design.md`, exploration: the
+translations family, one entry per block, slots supplied there
+with the fine print staying here and with its owners):
 *failure-out* (what a failed exchange becomes on the wire),
 *cancel-in* (what transport close becomes — `Cancelled`, per the
 cancellation round), and *admission* (what happens to arrivals the

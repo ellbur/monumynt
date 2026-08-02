@@ -976,7 +976,12 @@ What remains, honestly:
   back to the asserted regime, which is precisely APL's runtime
   conformance error. Files to the checking row's catalog-schema
   question (`types-design.md`, question 4), its third client after
-  the identity rows and the lane references.
+  the identity rows and the lane references. (That round has since
+  been worked — `catalog-schema-design.md`, exploration: shape
+  preservation is a laws-family row whose witness is the extent
+  equation displayed across the op, and the fall-back-to-asserted
+  behaviour above is its severity grading: a missing row is not
+  even a warning.)
 - **The gate-widening edge.** The transposing commute is gated to
   constructed products today (`Context.throughCommutes` and the
   taxonomy's Cross case); admitting the proved and asserted

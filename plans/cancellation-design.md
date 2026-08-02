@@ -660,7 +660,11 @@ stated as a leaning, not a decision.
    declares about its foreign cancellation (idempotence, promptness,
    whether the foreign op reports post-cancel state) — the checking
    round's trusted-JS-edge schema (question 4) gains a second concrete
-   content demand beside the identity witnesses.
+   content demand beside the identity witnesses. (The schema round has
+   since been worked — `catalog-schema-design.md`, exploration: the
+   cancel translation sits in its translations family, graded
+   irreducibly asserted, with a missing translation flagged at the
+   advisory tier; the fine print above stays owned here.)
 5. **The permit pool block.** Bracket plus delivery cover the waiters;
    the block itself (permits as permanent tokens, queue fairness,
    failable acquire, `bounded` width × permits —

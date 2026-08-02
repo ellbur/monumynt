@@ -400,7 +400,8 @@ So the property "this handle's `write` coalesces" is a catalog row —
 a declared law on the op, trusted like the JS edge, exactly the shape
 the collect family already demands of the catalog (a property
 carrying a witness; `collect-family-design.md`, feeding checking's
-question 4). Where the row is present, the segmentation is a free
+question 4 — since worked, `catalog-schema-design.md`: a laws-family
+row whose witness is the two-sided coalescing equation itself). Where the row is present, the segmentation is a free
 choice and could in principle be left *uncommitted* — a boundary the
 author never places, completed by published rules the way
 under-committed order already is (`time-travel-programs-design.md`).
