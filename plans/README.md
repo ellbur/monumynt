@@ -245,7 +245,12 @@ consumes, and whether it needs an input list at all:
   spine-shaped link as its derived view, and the finite phase
   chain claiming Raku's* sequence *combinator; the running view
   reviewed and deliberately left tentative — the drawing, not the
-  semantics, is the open problem.*
+  semantics, is the open problem. Revised (2026-08-04): the boundary
+  payload re-homed from the segment terminator to a value output on
+  the outer flow; the fused-collect rejection re-grounded — the
+  iterated cut mints the outer flow, the home of once-per-segment
+  values, which is why it stays a flow operation while end-when
+  fused into collect-until.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed

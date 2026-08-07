@@ -33,6 +33,18 @@ the read understandably is unresolved, and a port on the collect
 node read as a little backwards (see the note under the
 definition). A worked candidate, not adopted.
 
+Revised (design conversation, 2026-08-04, following end-when's
+collect-until revision): terminators carry only the *reason* a
+flow ends, never data, so the boundary payload is re-homed from
+the segment terminator to a **value output on the outer flow** —
+once per segment, its natural context. The law of segments and the
+fused-collect rejection are amended in place below (the rejection
+re-grounded: the iterated cut mints the outer flow, the home of
+once-per-segment values, which is why it stays a flow operation
+while the single cut fused into collect-until). Part III's
+payload-as-terminator account is superseded on that point — see
+its status note.
+
 Two everyday shapes of loop have, so far, no owning construct
 anywhere in this design record. The first is the loop that consumes
 its input *at a variable rate* — "consume while it fits," "read
@@ -216,8 +228,14 @@ Its whole meaning is one law:
 > boundary is consulted; where it fires, a cut is placed. The
 > boundary firing's own element goes to the end of the current
 > segment, to the start of the next, or to neither, per the node's
-> boundary-destination setting. Each segment's inner flow ends with
-> a terminator carrying that boundary firing's value; the final
+> boundary-destination setting. The boundary firing's value is
+> emitted as a value output on the outer flow — once per segment,
+> its natural context; option-kind relative to the outer flow,
+> since the final segment has no boundary firing. (Revised
+> 2026-08-04: it formerly rode the segment terminator; terminators
+> now carry only the reason a flow ends, never data —
+> `end-when-design.md`, revision notes.) Each segment's inner flow
+> ends with a terminator saying it ended at a cut; the final
 > segment ends the way the subject ends, terminator passed through.
 > Every subject firing lands in exactly one segment (or is dropped
 > as a delimiter), and order is preserved throughout.
@@ -258,14 +276,26 @@ out of the one statement above:
 Now, you might wonder why split-when is a separate operation at all
 — why the language doesn't just give collect a mode: "collect until
 full," "collect n," a collect-variant that fuses the boundary
-decision into the collect node itself. It turns out this fails for
-end-when's reason exactly: the readout composition needs the cut
-*upstream* of an ordinary collect, so that a segment can be
-collected, effect-walked, or multi-closed by independent consumers —
-and a fused node would re-decide the boundary per consumer under
-multi-close. The cut is a flow operation; collects stay collects.
-(This is a settled rejection — please don't re-propose it without
-new evidence.)
+decision into the collect node itself. With end-when's fusion into
+collect-until (2026-08-04, `end-when-design.md`, revision notes)
+the question sharpened — the single cut *did* fuse, so why not the
+iterated one? — and the same conversation re-grounded the answer:
+**the iterated cut mints a new flow and the single cut does not.**
+The outer flow — one firing per segment — is structure that exists
+in no prior flow, and it is the home of every once-per-segment
+value: the boundary payload, per-segment collect outputs. A fused
+node cannot supply that home; fusing away the outer flow would
+leave those values with no flow to live in. (The earlier grounding
+— independent consumers of one segment would each re-decide the
+boundary under multi-close — survives as a supporting cost; it is
+the same repeat-the-wires cost collect-until accepts as tidiness
+at the prefix, where no new flow is at stake.) A flow output
+exists where there is a need: split-when produces its nested flow
+because once-per-segment values need it; an unfused collect-until
+could produce a truncated flow the same way (emitting the terminal
+immediately as a constant wire), but doesn't, because no need has
+been sighted. The rejection of the fused segment-collect stands —
+please don't re-propose it without new evidence.
 
 ## The same wiring pattern, a third time
 
@@ -310,8 +340,8 @@ sighted in the wild:
   Take-until-inclusive, per segment.
 - **Dropped** (the delimiter reading). Splitting on separators:
   str.split, CSV fields, blank-line paragraph splitting. The
-  boundary element is neither segment's; its value still rides the
-  segment terminator, so "which delimiter was it" is not lost. (Our
+  boundary element is neither segment's; its value is still emitted
+  on the outer flow, so "which delimiter was it" is not lost. (Our
   opening words-from-characters example uses this reading — the
   space belongs to no word.)
 
@@ -969,6 +999,23 @@ divide flow's adopted measure discipline
 adoptions; it decides nothing. Everything in Parts I and II stands
 unchanged — this part is about the root the decision named, not a
 revision of the segments story.
+
+*Revision note (2026-08-04): the payload-carriage account below is
+superseded on one point by end-when's collect-until revision
+(`end-when-design.md`, revision notes): terminators carry only the
+reason a flow ends, never data. In the iterated form the boundary
+payload is a value output on the outer flow (Part I's amended
+law); the everyday single-cut owner is the fused collect-until,
+whose terminal output is an ordinary value output on the node. For
+a single unfused cut, the admissible form is the node emitting the
+payload immediately as a constant value wire (the register
+final-readout precedent — a value anchored to a completed extent),
+a construction currently without a sighted need; it sits in
+tension with the crossing-round stance cited under "the payload is
+not a port" and with dead end 2, a tension to argue only if the
+construction is ever needed. "Payload availability from the
+continuation side" re-poses as reading that constant; its
+exterior-context admission argument carries over unchanged.*
 
 ## The construct, precisely
 

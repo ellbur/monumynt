@@ -817,6 +817,19 @@ stop-alt flow is explicitly consumed by the node.
   the register write half's final readout, a value anchored to a
   completed extent. Noted concern: constants draw left of flows,
   but the terminal comes after the prefix in iteration order.
+  A follow-up conversation (same day) confirmed the full shape: an
+  unfused end-when producing a truncated flow is admissible
+  provided the terminal value is emitted immediately as that
+  constant wire and the downstream collect takes only the prefix's
+  value wire — nothing smuggled. No need for the construction is
+  currently seen. This also locates the **fusion line** for the
+  cut family: a cut projection fuses into its collect exactly when
+  it mints no new flow. The iterated cut (split-when) mints the
+  outer segment flow — the home of once-per-segment values,
+  boundary payload included — so it stays a flow operation; the
+  single cut mints nothing, so it fuses. A flow output exists
+  where there is a need (`variable-rate-consumption-design.md`,
+  the re-grounded fused-collect rejection).
 
 **Textual direction (into open question 6).** Two candidate
 spellings, both avoiding pairing-by-counting (`collect of a,
