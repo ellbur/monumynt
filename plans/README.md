@@ -383,7 +383,13 @@ consumes, and whether it needs an input list at all:
   wires; the prefix rule derives the validity region; linear values
   force port-ification); the spec's slot dissolves into the op pair;
   function, level, provider, and the top-level program share one
-  substrate under four bindings. *Adopted (2026-07-23, the joint
+  substrate under four bindings. Extended (2026-08-04): the cut
+  re-founded as a node set with per-wire cut-or-environment
+  decisions (the closed curve was topologically incoherent);
+  copy-paste instance semantics, no context memory; flow ports as
+  the drawn call-by-name (flow-level case selection filed as owed);
+  containment derivable; per-instance checking, isolation checking
+  sound but partial. *Adopted (2026-07-23, the joint
   adoption with the divide flow and late-bound operations), under
   the anchor-is-identity constraint and with a
   provisional-confidence marker on the slot-dissolution piece; edit

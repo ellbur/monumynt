@@ -21,7 +21,15 @@ referenced by identity — a label or the boundary object — never by
 a value wire** (the "innumerable 0s" argument: a value can't name a
 cut point), and the link's correspondences are thread-species
 identity assertions; anchoring-by-wire survives only as an editing
-gesture that resolves to a boundary identity at creation. The
+gesture that resolves to a boundary identity at creation.
+**Extended (design conversation, 2026-08-04):** the cut re-founded
+as a **node set with per-wire cut-or-environment decisions** (the
+closed-curve description was topologically incoherent);
+**copy-paste instance semantics** with no context memory; **flow
+ports** and the drawn call-by-value/call-by-name duality;
+containment derivable, never expressed; per-instance checking with
+sound-but-partial isolation checking. See "Revision notes
+(2026-08-04)" below, which governs where the body differs. The
 open questions below keep their own status; nothing is
 implemented. This is the round three worked
 rounds jointly demanded ("one decision, three clients"): the divide
@@ -788,6 +796,87 @@ re-proposed.
    data; the bottleneck is packing *merely to cross the cut*.
    (Settled by principle 5; stated here because calls are where
    every conventional language does it.)
+
+## Revision notes (2026-08-04): node sets, copy-paste, and flow ports
+
+A design conversation re-examined the boundary and settled six
+things. The cut ontology survives; its geometry does not.
+
+**The cut is a node set, not a closed curve.** A closed curve
+cannot distinguish "crosses and becomes a port" from "used inside
+but not a port" — every wire used from outside crosses. The honest
+formalization: a sub-diagram is a **set of nodes**, and each wire
+with one endpoint inside and one outside is either **cut**
+(severed — a port) or **left intact** (environment). An
+environment wire stays a literal wire to the one shared
+definition, fanning out to every instance — the closure
+environment with no capture machinery, as before. The curve
+survives as an editor gesture only: cut wires get a port mark
+where they meet it, environment wires pass through unmarked.
+Partial cuts' "uncut wires are free wires" stated this fact
+locally; it is now the general form. One consequence: the
+freeze-vs-redo choice on each boundary wire (caller supplies per
+call vs all calls share the one value) is a stated per-wire
+decision, not something read off curve placement.
+
+**Copy-paste semantics.** Using a sub-diagram has exactly the
+behavior of pasting its node set. No interface memory: a severed
+wire's flow context is *not* remembered as part of the diagram;
+each instance re-derives contexts and kinds from what its caller
+wires; Complete completes per instance (a Cross inserted at one
+call site and not another is what hand-pasting would produce);
+witnesses anchor at the instance they arise in. This is the
+use-case account cashing out: sub-diagrams exist for reuse, not
+flow control, so their semantics is substitution.
+
+**Flow ports, and the drawn call-by-name.** A flow wire is
+typically not incident to an extracted interior (per-firing-ness
+rides in on severed value wires' contexts) — but incidence is
+editable: insert a no-op identity on the flow wire, include it,
+and the flow wire can be severed into a flow in-port and flow
+out-port. A pure pass-through is useless; flow ports earn their
+place when the diagram **operates on control flow**: e.g., take in
+two IO operations as flow wires (the effects round's IO-as-flow),
+case-split on data, and emit the chosen operation's flow. Values
+are pure — call-by-value; wanting the diagram to manage whether
+and when something runs is drawn — a flow port, call-by-name. The
+language never chooses a default between them; the distinction is
+wiring. Two notes filed from the example: the **flow-level case
+selection** it assumes (choose a flow by a data condition, as race
+chooses by time — the partial collect's selection lifted to flow
+level) is an owed construct, not designed here; and flow in-ports
+sit close to the late-bound op pair — plausibly two views of one
+substrate, which the slot/op-pair provisional marker's "later
+look" should take up.
+
+**Containment is derivable, never expressed.** There is no
+vocabulary for "this value port is contained in that flow port,"
+deliberately: in any use, containment is derived from the pasted
+interior by ordinary context derivation — the wiring either
+requires it or it doesn't. The interface-as-poset (ports plus
+containment order) exists only as a derived view.
+
+**Generic flow ports are free under copy-paste.** A port the
+interior doesn't constrain is generic by absence — template-style
+monomorphic instantiation per use, no quantification vocabulary.
+(The Koka-row analogy lands on context *segments* — paths in the
+poset — if a declared form is ever needed; nothing is declared
+now.)
+
+**Checking posture: per-instance, with sound-but-partial isolation
+checking.** The passes are pure functions over node sets, and a
+sub-diagram is a node set: run Check on the interior with
+environment wires resolved and ports treated as unconstrained
+unknowns. Every witness found under those assumptions is
+*universal* — it appears in every instance — so reporting it at
+the diagram is always honest; instance-dependent clashes surface
+at instances, the late-witness cost copy-paste accepts. The
+further step — rendering the **contract** a diagram's wiring
+imposes on its users (project the propagation to the ports:
+per-port demands and offers, plus the derived containment order;
+genericity as absence of demands) — is types-as-summaries
+territory: a derived, never-authored view, deferred to its own
+round.
 
 ## Open questions
 
