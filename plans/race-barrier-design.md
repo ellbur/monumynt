@@ -15,7 +15,11 @@ partial collect's async sibling. That reshapes this chapter's
 unary-race leaning: under pairs, **await = open async** (the
 opener), and the N=1 race is the degenerate transport rather than
 the await — read the unary-race section with that amendment in
-mind.
+mind, and read the chapter's examples, which wire bare contenders,
+as the aggregate spelling of the pairs (consistency pass
+2026-08-04: the pairs are the construct; the bare form is the
+completed-open shorthand, recoverable by provenance in text and by
+editing steps in the visual editor).
 
 You will often want to start several things at once and act on
 whichever finishes first: a network fetch or a timer, a handshake or
