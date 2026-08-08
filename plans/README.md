@@ -149,7 +149,12 @@ they change how everything else is read.
   siblings, with a naming constraint — not a "collect"); the
   discharge corner resolved by the one-closer principle — the
   discharging collect mints outcome cells directly, no packed
-  terminator value. All corners decided.*
+  terminator value. All corners decided. Extended (2026-08-04): the
+  minted-selection extraction named the scoop, generalized to the
+  short-circuit commute; inferred scoops (routing, never selection)
+  upgrade the flow-borne witness to a three-way classification; the
+  tunnel (stow/unstow) as the sanctioned packed transport,
+  exploration.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
@@ -437,10 +442,15 @@ case/option are implemented; the rest are designed:
   the applicative sequence — and the commute-completion ruling), the
   edge stance with the background-super-flow amendment (undeclared
   throws quarantined in one runtime-owned collectable lane), and the
-  inventory account. Tag identity across reuse boundaries — the
-  residue — now carries a worked round of its own (the referent
-  rule: a lane's identity is a drawn identification of minting
-  sites, never a string; exploration, unadopted).*
+  inventory account. Revised (2026-08-04): the fail node is
+  dissolved — its programs draw as split + inferred short-circuit
+  commute + collect (short-circuit vs accumulate carried by where
+  the alt's collect sits); automatically failable values rejected —
+  failure travels a drawn flow wire; the super flow survives; the
+  error arm's prefix question pinned. Tag identity across reuse
+  boundaries — the residue — carries a worked round of its own (the
+  referent rule: a lane's identity is a drawn identification of
+  minting sites, never a string; exploration, unadopted).*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

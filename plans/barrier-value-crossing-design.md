@@ -26,6 +26,15 @@ chapters each
 stopped at this question and pointed at the others; this is the
 one place it is worked through.
 
+Extended (design conversation, 2026-08-04): the minted-selection
+extraction is named — the **scoop** — and its pattern generalized
+to the short-circuit commute; **inferred scoops** upgrade the
+flow-borne witness to a three-way classification; the packed
+transport form gets a sanctioned home as the **tunnel**
+(**stow**/**unstow**). See "Revision notes (2026-08-04)" below.
+Nothing earlier in the doc is reversed — the availability law and
+the pass-through ban stand, sharpened.
+
 ## Your first crossing
 
 You will often have a value on one side of a place where flows meet,
@@ -697,6 +706,73 @@ can find them:
 5. **The absorb collect** — in "The discharging collect." An
    error-swallowing primitive; the total prefix lives only at a
    discharge, beside the terminator.
+
+## Revision notes (2026-08-04): scoops, inferred scoops, and the stow
+
+A design conversation (the one that dissolved the fail node —
+`failure-payloads-design.md`, revision notes) worked the question
+"how does a value inside a flow get out *without* being hidden in
+the flow?", and the answer turned out to be this chapter's two
+mechanisms, named and sharpened.
+
+**The scoop.** The minted-selection extraction now has a name: a
+**scoop** is the operation by which a selecting node takes a
+(flow, value) input pair and mints the selected value at its
+output context. The pattern has three instances, one wiring shape:
+race's per-contender pairs with the winner's payload minted out
+(corner 2, as adopted); collect-until's stop pair with the
+terminal minted out (`end-when-design.md`, revision notes); and
+the short-circuit commute's pair with the first-firing payload
+minted out (the new instance — the commute *is* a selection, so it
+licenses mints exactly as settlement does). This sharpens the
+pass-through ban rather than bending it: banned is a port the
+node's law ignores (in and out unchanged — a second spelling of
+what the context order states); lawful is a pair the law **acts
+on** (it decides *which* firing's value you receive). Values never
+cross a flow on their own — the availability law stands — they are
+handed through the one node whose law says which firing survives:
+visible wire in, selection, visible wire out.
+
+**Inferred scoops.** A scoop can be inferred, under one boundary:
+**inference may route, never select.** The ontology first, because
+the textual surface obscures it: using a value *is* drawing the
+wire — a name is a label for the wire's two endpoints, nothing
+more — so the wire is always the author's own solid act. What is
+inferred, and drawn faint per the commute-completion discipline,
+is the **crossing mechanism**: which selection carries the wire
+across each flow boundary it visibly crosses, and the ports on
+that node it threads through. The completion routes a drawn wire;
+it never adds one. With that, the flow-borne witness upgrades to a
+three-way classification, parallel to alignment's
+completable-gap-vs-bundle-mixing split:
+
+1. *Completable* — the wire's crossing is spanned by a unique
+   drawn (or lawfully inferable) selection: thread it through,
+   faint. First-match gets lighter: use the match payload at top
+   level and the pair on the collect-until completes itself.
+2. *Ambiguous* — two selections could carry it (multi-close put
+   two cuts with different extents on one walk, both reaching the
+   use context): witness, and ask for explicit threading.
+3. *Ill-formed* — the wire crosses a boundary no selection spans
+   (a per-element value used outside an uncut walk): witness.
+   Inferring here would mean *inventing* the selection — "first
+   element" has no claim the way first-B does — and selection is
+   the semantic act; provenance may find routes, never meanings.
+
+**The stow (tunnel), exploration.** The packed transport form gets
+its sanctioned home. To **stow** is to pack a (case flow, value)
+pair into one wire — the compound pairing made barrier-portable —
+so the stowed flow commutes through any number of nesting levels
+with nothing re-stated; **unstow** (or a collect) recovers the
+value at the far end. Same information as per-crossing scoops,
+pairing done early; the trade is per-crossing visibility against
+one opaque wire. It is for payloads the author deliberately does
+not want to look at (the don't-care error tunneled to a distant
+handler), never the default the language teaches — for a
+single-level escape the scoop is one wire and strictly more
+legible. Naming settled against collisions: "bundle" is taken (the
+alt-family of a sum node), "pack/packed" is the record's name for
+the mistake this construct commits on purpose.
 
 ## Open questions
 

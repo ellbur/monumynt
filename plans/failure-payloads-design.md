@@ -1,6 +1,14 @@
 # Failure payloads: lightweight failure and the terminator inventory
 
-Status: **adopted** (design conversation, 2026-07-23, in three
+Status: **adopted** (design conversation, 2026-07-23), **revised
+(design conversation, 2026-08-04): the fail node is dissolved** —
+its programs remain drawable out of existing vocabulary (split,
+join, the inferred short-circuit commute, collect), and
+propagate-by-default failable values are **rejected**: failure
+travels a drawn flow wire. The background super flow survives
+unchanged. See "Revision notes (2026-08-04)" below, which governs
+where the body differs; the body predates it. From the 2026-07-23
+adoption (in three
 steps of one rolling conversation): the **fail node** (see "What
 fail is — the ontology note" for the adoption's stated basis and
 the commute-completion ruling that came with it), the **edge
@@ -28,7 +36,9 @@ as "here is a candidate and the case for it." The failable flow kind itself is
 settled design this chapter builds on, not reopens: a flow kind's
 termination event can carry a payload; consumers propagate it by
 default and discharge it at a whole-flow collect, where it becomes
-ordinary data.
+ordinary data. *(This last sentence is exactly what the 2026-08-04
+revision reverses: terminators carry only the reason a flow ended,
+and nothing propagates by default — see the revision notes.)*
 
 ## A walk that must abort
 
@@ -855,6 +865,82 @@ Recorded here with the reasons they should not be re-proposed.
    file") is ordinary payload at a drawn re-fail. Split the two
    halves; keep only the second. (Settled — don't re-propose
    without new evidence.)
+
+## Revision notes (2026-08-04): the fail node dissolved
+
+A design conversation revisited fail in the light of that week's
+decisions (`end-when-design.md`, revision notes: collect-until;
+terminators carry only the *reason* a flow ended, never data;
+provenance is not semantic). The outcome: **fail is dissolved, not
+rejected** — every program it owned remains drawable, out of
+vocabulary that already exists. The author noted the earlier
+approval plainly: the adoption rested on a misunderstanding, and
+the adoption note had itself recorded the honest seam ("beyond
+this clarity the construct's difference from an uncollected error
+flow remained partly intuitive"). This round answers the question
+that note left open: there is no difference, beyond a conversion
+into terminator-carried data that is no longer lawful.
+
+**The dissolution argument.** The Bad alt already *is* the failure
+dimension — the split minted it. Collecting that alt *with* its
+walk nesting intact is the accumulate program (all errors, beside
+the walk — ordinary multi-close, always free). Collecting it
+*alone, outside the walk* forces the case dimension to commute out
+first — and a bare commute must **select**, because producing one
+B from many without a drawn combining operation is selection, and
+the only selections available are positional. First-B is the
+published inference default (the only lazy selection — the one
+that lets the walk actually stop); anything else is the author
+replacing the faint completed commute with a drawn one, exactly as
+the commute-completion ruling licenses. So the option commute's
+already-recorded runtime move ("abandon the rest at the first
+None") *is* the short-circuit, and the adoption's stated basis —
+the drawn distinction between short-circuit and accumulate — is
+carried by **where the alt's collect sits**, not by node flavor.
+Two wirings, not two flavors; the applicative world's invisible
+instance choice does not become visible here, it dissolves. Fail's
+only remaining job was converting a case alt into a terminator so
+the payload could ride it; with terminators reason-only, that job
+description is empty.
+
+**Rejected: automatically failable values.** Propagate-by-default
+— every consumer silently lifted over the failure, discharge at a
+distant barrier — is rejected. A consumer's behavior must be what
+its drawn form says; a payload must travel a **drawn flow wire**
+to wherever it is handled. The routing cost this re-imposes is
+smaller here than in the languages that made exceptions necessary:
+the error wire is point-to-point (not threaded through
+intermediate computation), and function boundaries read their
+ports off crossing wires, so a wire to a distant handler mints its
+intermediate ports itself.
+
+**What survives.**
+- *The background super flow*, unchanged — genuinely ambient
+  runtime failure, quarantined outside every drawn inventory,
+  collectable at a drawn boundary. Its case never had a wire to
+  show.
+- *A drawn global error flow* — errors the author really doesn't
+  care about, joined into one flow and handled (or ignored) in one
+  place — is fine and is ordinary vocabulary, not a construct.
+- *The ontology note's decomposition* ("the close is the commute;
+  fail is only the minting site") — it is most of the dissolution
+  argument; the split turns out to be minting site enough.
+- *The commute-completion ruling*, with a role change: the faint
+  completed commute is now the at-a-glance abort marker that the
+  drawn `fail` word used to be.
+- *Directions, unadopted:* the edge catalog rows would declare
+  case bundles rather than terminator lanes (a throwable JS call
+  as a node whose output is an Ok/Err split); the terminator
+  inventory re-founds as ordinary alt-reach property propagation
+  (`types-design.md`). Details owed when those rounds reopen.
+
+**Pinned, deliberately.** What the commuted error arm contains —
+payload alone (classical sequence discards the prefix) versus
+prefix reachable too (collect-until parity) — is *not* decided:
+it is not obvious where the prefix goes in the drawing, and the
+question waits rather than being answered confidently. Payload
+transport across the commute is the scoop
+(`barrier-value-crossing-design.md`, revision notes).
 
 ## Open questions
 
