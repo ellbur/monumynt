@@ -91,8 +91,13 @@ they change how everything else is read.
   same results, and *the surface decision is made* (2026-07-23): the
   visible state thread is the primary framing — the register pair
   stored, the Delay point and the augmented flow its projections. The
-  ergonomics round (making the thread friendly on the page) is
-  deliberately deferred; the generic-iteration picture constraint and
+  ergonomics round is now opened (2026-08-04), first pieces settled:
+  the thread as a third connector species (`@`, provisional), no flow
+  operand on the register — the frame *derived* from the anchors'
+  contexts with an `in ~flow` annotation for the residue (nesting,
+  self-driven loops), anchors as ports (read port: write-at-n−1 else
+  init), and the exit as a scoop of the read port at whichever closer
+  the author wires. The generic-iteration picture constraint and
   the constant-space caution are recorded in the doc's adoption note.
   Start with the reader's guide at the top. Companion:
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
