@@ -98,6 +98,18 @@ link mints an **instance** — a fresh copy of the level's computation
 data never contained. That is what "recursion over virtual structure"
 means: the tree exists as instances of the drawing, not as a value.
 
+*(A consistency pointer, added 2026-08-04: read the `level of xs`
+spelling above with open question 1's diagnosis in hand — it uses a
+value wire by identity, the `prev` disease, and the recorded
+refinement is that **the link is the thread, tree-shaped**, its
+correspondences thread-species identifications across realms. The
+thread ergonomics round has since made the same correction for the
+linear case — `step of` replaced by `@` thread ink,
+`iteration-with-state-design.md`, "The ergonomics round, opened
+(2026-08-04)" — so the cross-frame role here belongs to thread ink
+too; the example's spelling predates that and stands as
+provisional.)*
+
 Two precedents anchor the representation and the vocabulary:
 
 - **Representation.** The link is a cycle in the wiring, and the
@@ -677,6 +689,29 @@ The language hasn't decided any of these.
    interactive **editing gesture** for creating a level — but it
    is a gesture that resolves to a boundary identity at creation;
    the stored program never anchors on the wire.
+
+   **Refinement (design conversation, 2026-08-04): no boundary at
+   all.** The earlier lean ("the divide flow is the first construct
+   that needs the level boundary") is overridden: isolating a node
+   set as *the recursive function* is unnecessary complexity
+   imported from code reuse. Threads identifying points as the same
+   across frames, plus a **source of frames**, is enough to make
+   code recursive — the recursive "function" is whatever is
+   downstream of the link, derived, exactly as the loop body is
+   whatever is downstream of the uncollect. What `level of` got
+   *right* was needing no drawn boundary; what it got wrong was
+   only the wire-misuse (one wire standing for its value in this
+   frame and another frame at once — the thread's role). What the
+   link irreducibly remains is the **frame source**: its firings
+   mint child realms on demand (the tree-shaped sibling of
+   uncollect's data-driven frames and `open self`'s self-driven
+   ones), and the node is what individuates children — the
+   problem-thread and answer-thread that mean the *same* child are
+   grouped by anchoring at the same link, which no set of separate
+   threads could state alone. The tricky remaining part, named
+   honestly: specifying where the frames come from — the frame
+   source's form is the open edge, jointly with the thread
+   ergonomics round.
 2. **Mutual recursion.** Expression/statement grammars link *two*
    levels each into the other. Structurally nothing above forbids a
    link naming a sibling level's boundary; the measure must then be

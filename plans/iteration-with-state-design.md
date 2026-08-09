@@ -1957,7 +1957,12 @@ rule (the open point above), the effect-ordering caveat on the
 one-writeback rule, the `@` spelling and the anchors' textual
 fine print (owed to the textual round), and the stored form's fine
 print (the pair remains the stored quotient, its flow reference
-now derived-or-annotated rather than wired).
+now derived-or-annotated rather than wired). The divide flow's
+link follows the same correction one dimension up (its
+correspondences are already recorded as thread-species —
+`divide-flow-design.md`, open question 1, refined 2026-08-04: no
+boundary, the link as frame source, the frame source's form the
+open edge).
 
 ## What is still unresolved
 
