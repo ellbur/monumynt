@@ -709,6 +709,54 @@ extend the same way, each row binding its crossing by label. Noted,
 not committed — this is deferred on the representation question, not
 rejected.
 
+### Candidate: the inline barrier spelling (2026-08-04, needs work)
+
+Status: **a possible candidate**, recorded from a design
+conversation; not adopted, and possibly needing more work.
+
+The lane form above severs, in text, exactly the thread the
+bundle exists to preserve: the contender sits in an input lane,
+its continuation in an output lane, and the reader links them by
+channel name. (The input lanes also read right to left —
+`fetch: fetchD` puts the sink before the source — an inconsistency
+noted in the same conversation.) The candidate keeps each
+contender and its continuation on one line by spelling the barrier
+*inside* the chain:
+
+```
+fetchD -~[race=>|]> process -> some
+timeout -~[|]> none
+-~> collect => out
+```
+
+The bracket is the barrier crossed mid-chain; `|` inside it joins
+by adjacency — the junction-tap convention ("connect to the
+adjacent `|` without a name") extended from wire identity to node
+identity, in kind rather than in meaning. A named form
+(`-~[race => r1]>` … `-~[r1]>`) serves when adjacency degrades
+(interleaved races), exactly as named values serve beside taps.
+
+You always track a name along *some* axis; the candidate only
+transposes which one. The principle the conversation drew from
+that: **fuse the axis that carries the correspondence the
+construct exists to protect.** Race's protected correspondence is
+contender→continuation (the no-bottlenecks argument names it), so
+race fuses the contender's line; a case split's protected
+correspondence is the case *set* (coverage, one partition), so
+splits keep lanes. Different constructs fusing different axes is
+each construct showing its load-bearing correspondence, not
+inconsistency.
+
+Known costs, unresolved: `-~[…]>` is a new syntax species (a node
+spelled inside an arrow) and if taken should be taken once, as the
+general mid-chain barrier spelling (join, collect-until pairs
+could harmonize) per the one-spelling-family rule; the covering
+collect's scope becomes derived from bracket identity rather than
+a named bundle; and cells referenced elsewhere (multi-close, a
+partial collect on one cell) still need the named-projection form
+— the candidate is an *addition* for linear stories, not a
+replacement.
+
 ## Flow shorthand: `~` and `~^`
 
 For statements that are not in a chain and take a flow operand with

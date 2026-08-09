@@ -91,8 +91,13 @@ they change how everything else is read.
   same results, and *the surface decision is made* (2026-07-23): the
   visible state thread is the primary framing — the register pair
   stored, the Delay point and the augmented flow its projections. The
-  ergonomics round (making the thread friendly on the page) is
-  deliberately deferred; the generic-iteration picture constraint and
+  ergonomics round is now opened (2026-08-04), first pieces settled:
+  the thread as a third connector species (`@`, provisional), no flow
+  operand on the register — the frame *derived* from the anchors'
+  contexts with an `in ~flow` annotation for the residue (nesting,
+  self-driven loops), anchors as ports (read port: write-at-n−1 else
+  init), and the exit as a scoop of the read port at whichever closer
+  the author wires. The generic-iteration picture constraint and
   the constant-space caution are recorded in the doc's adoption note.
   Start with the reader's guide at the top. Companion:
   [`iteration-rails-design-notes.md`](iteration-rails-design-notes.md)
@@ -149,7 +154,12 @@ they change how everything else is read.
   siblings, with a naming constraint — not a "collect"); the
   discharge corner resolved by the one-closer principle — the
   discharging collect mints outcome cells directly, no packed
-  terminator value. All corners decided.*
+  terminator value. All corners decided. Extended (2026-08-04): the
+  minted-selection extraction named the scoop, generalized to the
+  short-circuit commute; inferred scoops (routing, never selection)
+  upgrade the flow-borne witness to a three-way classification; the
+  tunnel (stow/unstow) as the sanctioned packed transport,
+  exploration.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
@@ -228,9 +238,11 @@ consumes, and whether it needs an input list at all:
 - [`end-when-design.md`](end-when-design.md) — data-driven termination
   (stop the loop when the data says so): the surveys' biggest unserved
   everyday demand, worked as a binary flow operation. *Adopted
-  (2026-07-23): the construct and the node-bit with exclusive default;
-  spellings, the final-readout anchor, and the drawing still open —
-  see the doc's adoption notes.*
+  (2026-07-23): the construct and the node-bit with exclusive default.
+  Revised (2026-08-04): fused with its collect into collect-until —
+  no first-class shortened-flow wire; payloads travel value wires;
+  terminators carry only the reason a flow ended. Spellings and the
+  drawing still open — see the doc's adoption and revision notes.*
 - [`variable-rate-consumption-design.md`](variable-rate-consumption-design.md)
   — "advance how far?" reframed as placing segment boundaries
   (split-when), plus the running view of a collect. *Mixed: the cut
@@ -243,7 +255,12 @@ consumes, and whether it needs an input list at all:
   spine-shaped link as its derived view, and the finite phase
   chain claiming Raku's* sequence *combinator; the running view
   reviewed and deliberately left tentative — the drawing, not the
-  semantics, is the open problem.*
+  semantics, is the open problem. Revised (2026-08-04): the boundary
+  payload re-homed from the segment terminator to a value output on
+  the outer flow; the fused-collect rejection re-grounded — the
+  iterated cut mints the outer flow, the home of once-per-segment
+  values, which is why it stays a flow operation while end-when
+  fused into collect-until.*
 - [`source-openers-design.md`](source-openers-design.md) — flows with no
   input list (`repeat`, self-driven loops, external pull sources), plus
   pacing (gate the next firing on an async value). The most-witnessed
@@ -371,7 +388,13 @@ consumes, and whether it needs an input list at all:
   wires; the prefix rule derives the validity region; linear values
   force port-ification); the spec's slot dissolves into the op pair;
   function, level, provider, and the top-level program share one
-  substrate under four bindings. *Adopted (2026-07-23, the joint
+  substrate under four bindings. Extended (2026-08-04): the cut
+  re-founded as a node set with per-wire cut-or-environment
+  decisions (the closed curve was topologically incoherent);
+  copy-paste instance semantics, no context memory; flow ports as
+  the drawn call-by-name (flow-level case selection filed as owed);
+  containment derivable; per-instance checking, isolation checking
+  sound but partial. *Adopted (2026-07-23, the joint
   adoption with the divide flow and late-bound operations), under
   the anchor-is-identity constraint and with a
   provisional-confidence marker on the slot-dissolution piece; edit
@@ -390,8 +413,12 @@ consumes, and whether it needs an input list at all:
   served flow; binding is wiring a provider on; unmet demands travel
   outward like the placeholder story's residue; the facet supplies
   the grouping identity. *Adopted (2026-07-23, in the joint
-  adoption; the op-pair/slot identification carries the boundary
-  round's provisional-confidence marker); spellings still owed.*
+  adoption). Revised (2026-08-04): the op construct dissolves into
+  an ordinary out-port/in-port pair — `with`-binding rejected,
+  exchange pairing derived under copy-paste, the flow-use marking
+  the one stated exception (resolving the slot marker); the
+  abstract-wire annotation and the C-shape land, and a custom flow
+  is a C-shaped sub-diagram used flow-wise. Spellings still owed.*
 - [`facets-design-notes.md`](facets-design-notes.md) — early, deliberately
   undeveloped intuitions about *facets*: authorable, attachable
   abstractions (interfaces, algebras, state machines) you hang on code.
@@ -430,10 +457,15 @@ case/option are implemented; the rest are designed:
   the applicative sequence — and the commute-completion ruling), the
   edge stance with the background-super-flow amendment (undeclared
   throws quarantined in one runtime-owned collectable lane), and the
-  inventory account. Tag identity across reuse boundaries — the
-  residue — now carries a worked round of its own (the referent
-  rule: a lane's identity is a drawn identification of minting
-  sites, never a string; exploration, unadopted).*
+  inventory account. Revised (2026-08-04): the fail node is
+  dissolved — its programs draw as split + inferred short-circuit
+  commute + collect (short-circuit vs accumulate carried by where
+  the alt's collect sits); automatically failable values rejected —
+  failure travels a drawn flow wire; the super flow survives; the
+  error arm's prefix question pinned. Tag identity across reuse
+  boundaries — the residue — carries a worked round of its own (the
+  referent rule: a lane's identity is a drawn identification of
+  minting sites, never a string; exploration, unadopted).*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

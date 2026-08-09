@@ -1,7 +1,16 @@
 # End-when: data-driven termination
 
-Status: **adopted** (design conversation, 2026-07-23) — the
-construct is settled design; none of it is implemented. Adopted:
+Status: **adopted** (design conversation, 2026-07-23), **revised**
+(design conversation, 2026-08-04) — settled design; none of it is
+implemented. The revision fuses the node with its downstream
+collect into **collect-until** (working name) and demotes the
+shortened flow from first-class wire: payloads travel value wires,
+and the terminator carries only the *reason* a flow ended, never
+data. The body below predates the revision and describes the
+standalone form; "Revision notes (2026-08-04)" below governs where
+they differ — the law of the shortened flow (which firings
+survive, the bit, the walk untouched) is unchanged. From the
+2026-07-23 adoption:
 the core construct (the law of the shortened flow, the flow-typed
 (subject, stop) operand pair) as a standalone everyday node — the
 relationships to the decision-driven merge and interrupt stay
@@ -713,6 +722,140 @@ Three notes from that conversation are part of the record:
   that round is now worked (that doc's Part III, exploration,
   unadopted).
 
+## Revision notes (2026-08-04): the fusion into collect-until
+
+A design conversation revisited the adopted shape from the arity
+end: a whole-flow collect silently grows a second output when
+something upstream can end the flow early, so a collect's shape
+depends on flow properties it doesn't display. Chasing that pulled
+three commitments loose. The construct is now **collect-until**
+(working name) — the cut and its collect fused into one node — and
+the shortened flow is no longer a first-class wire. The law of the
+shortened flow is untouched; what moved is the boundary between
+flow wiring and value wiring.
+
+**The fused node.** Collect-until consumes flow-and-value input
+pairs, the way a case-split collect consumes multiple alt flows
+with corresponding value wires: the subject flow paired with a
+per-firing value yields the folded `prefix`; the stop-alt flow
+paired with a payload value yields the stop arm of `term`. Outputs
+correspond to input pairs — arity is read off the node's own
+wiring, never off upstream flow properties (the observation that
+opened the round). Either pair may be omitted, flow input, value
+input, and value output together: stop pair alone is first-match /
+any; prefix pair alone is the ordinary collect, which is the +1
+story — early termination is the ordinary collect plus one pair.
+`term` stays tagged: the stop arm's payload arrives on its wire;
+the RanOut arm arises from exhaustion and is wire-less by nature.
+
+```
+-- spelling provisional (open question 6)
+xs -> open list => a, ~L
+a -> split find => s                    -- alts Match, Other
+~L, ~s.Match ~> collect-until of (a => prefix), (s.Match => term)
+term -> split ended of Stopped, RanOut
+```
+
+**Reason 1 — no smuggling: terminators carry reason, not data.**
+In the adopted form the match payload rode the shortened flow's
+terminator and materialised at discharge. Rejected: that is a value
+passing through a construct without a shown wire — too magic, the
+forbidden-bottleneck shape. Every payload arrives on a value wire;
+the terminator says only *why* the flow ended. (Standing tension
+filed for a later round: `failure-payloads-design.md` has failure
+data riding terminators — either failure follows the same
+discipline, with a wire from the fail node, or the exemption gets
+argued.)
+
+**Reason 2 — provenance is not semantic.** An interim proposal
+kept end-when standalone and let a collect over the shortened flow
+read the stopper alt's payload *because* its provenance was the
+stopper (boundary access by provenance). Rejected on principle:
+uncollect is the fiction `Monad m => m a -> a` — a value wire must
+behave as an ordinary value you can do ordinary value things with,
+and flow control must be controlled by the wiring of flow wires
+alone. (That fiction is also what makes readings like
+collecting-out-of-order-gives-a-commute work.) Provenance may gate
+validity (Check) and drive authoring-time derivation into explicit
+wiring (Complete's Cross — the record stays explicit), but it is
+not part of what the user means, and not something the user should
+be looking at to read a program. A stronger formulation ("equal
+value, different provenance must never change what a valid program
+computes") was considered and rejected as overreaching; the
+principle is the reading rule above, not a substitution theorem.
+
+**Reason 3 — the first-class shortened wire is redundant where it
+is not homeless.** With `~S` a wire, a payload-reading collect
+must name the stopper twice — `~S` already carries the information
+that `~M` cut it — or smuggle; and the match value has no flow in
+which it is valid on the `~S` side (its wire would end absorbed
+into end-when). Fused, each flow is named exactly once and the
+stop-alt flow is explicitly consumed by the node.
+
+**What survives without the wire.**
+
+- *The bit.* Inclusive/exclusive is now purely an extent setting
+  on the node, fully untangled from payload carriage: whether the
+  prefix includes the cut element and whether you receive the
+  payload are independent choices (extent bit vs wiring).
+- *Multiple collects on one condition.* Repeat the flow wires with
+  different value wires — the same move as any multiple collect,
+  now two flows to repeat instead of one. Accepted as a tidiness
+  concern, set aside.
+- *The continuation seam (regex / inhomogeneous iteration).* The
+  expectation is that continuation binds directly to the
+  collect-until node — with no flow wire needed to bind to — shape
+  deliberately unspecified. The direction: split-when's segments as
+  re-nestings of one subject flow, which would make value wires
+  valid across segments (the partially-homogeneous iteration that
+  imperative code fakes with a one-loop state machine or by
+  redefining variables across two loops). Refiled into the cut
+  round (`variable-rate-consumption-design.md`).
+- *Escape hatch, unadopted.* If a use ever truly needs the
+  terminal value independent of a collect, the acceptable form is
+  the node emitting it as a constant outside the flow — precedent:
+  the register write half's final readout, a value anchored to a
+  completed extent. Noted concern: constants draw left of flows,
+  but the terminal comes after the prefix in iteration order.
+  A follow-up conversation (same day) confirmed the full shape: an
+  unfused end-when producing a truncated flow is admissible
+  provided the terminal value is emitted immediately as that
+  constant wire and the downstream collect takes only the prefix's
+  value wire — nothing smuggled. No need for the construction is
+  currently seen. This also locates the **fusion line** for the
+  cut family: a cut projection fuses into its collect exactly when
+  it mints no new flow. The iterated cut (split-when) mints the
+  outer segment flow — the home of once-per-segment values,
+  boundary payload included — so it stays a flow operation; the
+  single cut mints nothing, so it fuses. A flow output exists
+  where there is a need (`variable-rate-consumption-design.md`,
+  the re-grounded fused-collect rejection).
+
+**Textual direction (into open question 6).** Two candidate
+spellings, both avoiding pairing-by-counting (`collect of a,
+s.Match => prefix, term` makes the reader count positions): inline
+pairs, `collect-until of (a => prefix), (s.Match => term)`, and
+labeled lanes, one pair per line. A lane form must keep
+left-to-right order — input left, output right.
+
+**What this touches.**
+
+- The "clitic" reading from mid-conversation (fused presentation
+  over separable structure) is superseded: the fusion is
+  structural.
+- Open question 4's premise — a shortened flow *wire* sitting
+  between a register and its consumers — dissolves; anchoring
+  questions re-pose per consuming collect-until.
+- Open question 7's constraint inverts: the rationale ("the
+  readout is downstream of the cut") is gone with the fusion, so
+  the name should now read as a collect variant; collect-until is
+  the working name.
+- `source-openers-design.md`'s explicit-binary spelling and its
+  separate `discharge` op (open question 6's divergences) re-pose
+  against the fused node.
+- `core-model.md`'s end-when line alongside join is updated in
+  place.
+
 ## Open questions
 
 The language hasn't decided these yet. Where a leaning exists it
@@ -754,7 +897,9 @@ is stated; nothing here is settled.
    its extent is a prefix of the register's update order — with
    the write half's bare binder as the unanchored default. Not
    adopted; the spelling and the inference question ride the
-   `hold` decisions in `delay-ontology-design.md`.
+   `hold` decisions in `delay-ontology-design.md`. *Premise revised
+   2026-08-04 (see Revision notes): with no shortened-flow wire,
+   the question re-poses per consuming collect-until.*
 5. **Stacked end-whens.** `end-when(end-when(F, a), b)` versus one
    end-when over the partial-collect merge of a and b. Worked
    below.
@@ -773,11 +918,16 @@ is stated; nothing here is settled.
    inclusive/exclusive bit must not spell as a flag — prefer a
    word pair (`to` vs `until`, the range precedent), decided
    jointly with split-when's three-valued destination setting.
+   *Re-posed against the fused node (2026-08-04) — the Revision
+   notes carry the two candidate spellings.*
 7. **Naming.** "End-when" vs take-while/until — parked in the
    tough doc's question 8. One constraint from this round: the
    name should read as a *flow operation* (like join), not as a
    collect variant, since the readout composition depends on
    understanding that the collect is downstream of the cut.
+   *Inverted by the 2026-08-04 fusion: the collect is no longer
+   downstream, so the name should read as a collect variant —
+   collect-until is the working name.*
 
 ## Stacking two end-whens and the merged stop (open question 5, worked)
 

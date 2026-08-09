@@ -1,6 +1,14 @@
 # Late-bound operations: one program, many meanings
 
-Status: **adopted** (design conversation, 2026-07-23 — the joint
+Status: **adopted** (design conversation, 2026-07-23), **revised
+(design conversation, 2026-08-04): the op construct is dissolved
+into an ordinary port pair** — a caller-supplied operation is an
+out port and an in port on the sub-diagram, `with`-binding is
+rejected, and the exchange correspondence is derived under
+copy-paste rather than stated; the one place pairness is stated is
+the flow-use marking. See "Revision notes (2026-08-04)" below,
+which governs where the body differs. From the 2026-07-23
+adoption (the joint
 adoption with the function-boundary round): the op pair as the
 client end of a served flow, binding as wiring a provider on at a
 boundary, orderedness-equals-provider-state, the test double as an
@@ -540,6 +548,106 @@ Recorded so they are not re-proposed:
    failure (whose terminator). The pair-carrying-exchanges form is
    not a generalization of the value hole; it is the honest form of
    which the value hole was the once-fired special case.
+
+## Revision notes (2026-08-04): ops dissolve into port pairs; the C-shape
+
+A design conversation following the boundary round's node-set and
+copy-paste revision (`function-boundary-design.md`, revision notes
+2026-08-04) re-examined the op pair and dissolved it.
+
+**Ops are not a species.** `op` is not visual; in ports and out
+ports are. A caller-supplied operation is **an out port and an in
+port** on the sub-diagram, nothing more. The `with read = readFile`
+binding spelling is **rejected**: it corresponds to no obvious
+visual representation, and it is a higher-order form — passing an
+operation as if it were a value — which the language avoids as
+confusing (the configuration-scopes rejection reasserted, not
+weakened). Binding is the caller wiring code between the two
+ports. This also resolves the boundary round's
+provisional-confidence marker on the slot/op-pair identification:
+the anticipated later look has happened, and the chain ends at
+bare ports — slots → op pairs → port pairs.
+
+**The exchange correspondence is derived, not stated.** Under
+copy-paste semantics the caller's code is literally pasted between
+the request port and the response port; the answer corresponds to
+the question because the caller's wires connect them, inside
+whatever frame the ports sit in — per firing when the hole sits in
+a walk. Nothing declares the pairing; the wiring is the pairing.
+**One exception — the only place pairness is a stated thing: using
+a sub-diagram flow-wise requires recognizing the port pair as
+special.** The flow-use marking says "these two ports form an
+openable hole," distinguishing them from arbitrary ports; without
+it there is nothing to open.
+
+**Constraints on use are derivable; the abstract wire states the
+expectation.** The example that shows a black box imposing real
+constraints, not just documentation:
+
+```
+diagram readAll
+  in paths -> list uncollect => path
+  out path ... in content        -- the abstract wire; spelling provisional
+  content -~> list collect => contentList
+  out contentList
+end
+```
+
+`path` lives in an internal flow the caller never receives, so the
+caller can only route `path` (through any nodes) into `content`,
+or feed `content` a constant (the prefix rule admits it) — and
+nothing else; anything context-incompatible is witnessed. That
+hard constraint is **derivable** by the boundary round's contract
+projection (the internal collect's demand lands on the `content`
+port). The authored `...` states the *expectation* — content
+derives from path — strictly stronger than the constraint,
+checkable against the derivation, and it earns its ink twice over:
+layout (the hole's ports ordered vertically) and the `-~>`
+shorthand across the hole (the flow context is known). This is the
+first concrete instance of types-as-summaries: statable, verified,
+never load-bearing for meaning. (Ports-as-documentation — what a
+port *means*, labels vs shapes — is deliberately pinned as a
+separate, unexplored question.)
+
+**The C-shape.** A sub-diagram's black box need not be a box: an
+out port upstream of an in port draws as a **cutout** — the
+interior-out port above, the interior-in port below, the caller's
+code wired into the hole. And a flow is a long, thin C: the code
+between an uncollect and its collect is the code in a cutout, the
+back of the C the flow wire. Run the identification forward and
+**a custom flow is a C-shaped sub-diagram used flow-wise** —
+`custom-flows.md` gains its missing definition form;
+configuration scopes and cancellation's bracket are C-shapes
+(open the operand, wire the computation, close); retry with an
+internal attempt register is a nontrivial instance whose hole runs
+per attempt. The call-site spelling problem the `with` rejection
+created dissolves with it: *using* a C-diagram is consuming a
+flow — open, wire the hole, close — vocabulary that already
+exists. The back-of-C wire is the **stow**
+(`barrier-value-crossing-design.md`, revision notes): the
+diagram's carried wires tunneled together — which is also what a
+commute or join of a custom flow would have to act on, well-defined
+exactly when the stow is.
+
+**Filed, not chased.** Shapes beyond the C: multiple cutouts, and
+nested cutouts (cutting back in and then out again) — the latter
+the shape of two-phase lifecycles, so
+`within-firing-effects-design.md` is where a forcing example
+should eventually come from. Pointing the same way from the other
+side: inhomogeneous iteration already recognizes flow shapes more
+complicated than one start-to-finish wire (segments, the
+continuation), so richer flow routing has precedent in the record
+rather than being exotic.
+
+**What survives unchanged:** the rejection of effect-handler
+position-resolution (meaning arrives by drawn connection, never by
+enclosing scope); the demand/offer ontology (an unbound operation
+is the placeholder story's residual demand, now carried by a bare
+port pair); middleware-as-splice (a splice is exactly an insertion
+into the hole); the facet as grouping identity. The served-flow
+identification re-reads with the pair dissolved: the client end is
+a port pair too — the two-ends core untouched, its client-end
+vocabulary simplified.
 
 ## Open questions
 

@@ -1,5 +1,19 @@
 # Source Openers: Repetition Without a Source, and the External Pull
 
+Update (2026-08-04): the register spellings below predate the
+thread ergonomics round (`iteration-with-state-design.md`) —
+`~R ~> delay` is retired (no flow operand on the register), and
+the self-driven flow is exactly the case where the thread's
+`in ~flow` frame annotation is mandatory (nothing per-firing to
+derive from). Under that revision `open self` stands as a pure
+**frame identity** — no value ports, no operand; it exists to be
+pointed at, by thread annotations and by consumers. A connection
+filed without design work: uncollect, `open self`, and the divide
+link now read as a frame-source family (data-driven,
+linear demand-minted, tree demand-minted) whose termination
+obligations evolved separately; whether one account should cover
+the family is noted, not worked.
+
 Status: exploration — this chapter teaches leanings, not an adopted
 design; read every construct here as "a candidate and the case for
 it." Nothing is implemented; the stream and async runtimes this

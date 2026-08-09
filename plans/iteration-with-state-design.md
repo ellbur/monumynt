@@ -10,6 +10,14 @@ adoption's scope, its recorded constraint (the generic-iteration
 picture) and caution (constant space may not be enough), and what
 is deliberately deferred — the ergonomics round that makes the
 thread friendly to the programmer is *not yet worked*, on purpose.
+**The ergonomics round is now opened** (design conversation,
+2026-08-04) and its first pieces settled — the working approach,
+"for now": the thread as a third connector species (`@` sigil,
+provisional), **no flow operand on the register** (the frame is
+*derived* from the thread's anchors' contexts, with an `in ~flow`
+annotation for the residue), anchors as ports, and the exit as a
+scoop of the read port at a closer. See "The ergonomics round,
+opened (2026-08-04)" below.
 Nothing is implemented. The chapter below is kept as the record of
 how the decision was reached; read pre-decision passages ("the
 language has not yet chosen") in that light.
@@ -1865,6 +1873,100 @@ ways, none resting on a proven two-way equivalence:
   register picture both surfaces exist to dress. (The fourth option is
   this model with a visible surface on top — the register dressed in
   geometry as a followable history.)
+
+## The ergonomics round, opened (2026-08-04)
+
+The deferred ergonomics round was opened by a design conversation
+working the running sum's drawing, and its first pieces are
+settled as the working approach — "for now," revisable as the
+round continues. The trigger was an honest reading problem:
+`step of sum` puts a wire in a context that changes its meaning,
+which has no visual rendering; and `~L ~> delay` has the register
+consume a flow wire it does not operate on.
+
+**The thread is a third connector species.** Written with the `@`
+sigil (provisional): neither a value wire nor a flow wire, a
+thread says *this point corresponds to that point across a frame
+change* — here, one iteration to the next. The running sum:
+
+```
+xs -> open list => a, ~L
+0 @s, a -> add => nextSum @s
+nextSum -~> collect last => total    -- exit; see the scoop note below
+```
+
+**No flow operand on the register.** `~L ~> delay` was the record's
+only value-level construct consuming a flow wire without operating
+on it — an anomaly against the derived-context principle stated
+three times over (P3; the divide flow's per-instance rule; the
+boundary round's per-call rule). Dropped. Taking a flow as input
+signifies operating on the flow (taking over control flow); the
+register does the opposite — the flow is in control and the
+register computes in the environment it provides.
+
+**The frame is derived.** The thread's frame family is the derived
+context of its anchors — in the sample, `~L` via `a`, read off the
+wiring exactly the way `add`'s per-element-ness is. Check picks up
+two obligations: the thread's two anchors must derive the *same*
+context (else witness), and the init must be exterior to it (the
+ordinary prefix rule — which was the only real work the old flow
+operand did).
+
+**Anchors are ports.** The read anchor is an input port receiving
+two inks: the solid init wire and the dotted correspondence. Its
+law: *the port's value at frame n is the write anchor's value at
+frame n−1, or the init when no prior frame exists.* The write
+anchor is the source port of the written value. First-class ports
+make both addressable; the only new ink is the dotted line. The
+rail (`iteration-rails-design-notes.md`) survives untouched as the
+layout rendering — the dotted correspondence stretched across the
+generic-iteration column; on the wiring side there is no column.
+
+**Explicit frames for the residue — flow as context, drawn.** Two
+cases where derivation is silent or ambiguous: nesting (anchors in
+`[~L, ~M]` default to the innermost frame; carry-across-the-outer
+is said with the record's existing `in` clause — `@s in ~L`), and
+pure state loops on self-driven flows (no per-firing operand
+anywhere, nothing to derive — the annotation is mandatory).
+Visually the explicit case uses **annotation ink**: a dotted touch
+from the thread to the flow wire, never a solid wire into a port.
+The general vocabulary this settles: *solid-into-port means "I
+operate on this flow"; dotted-touch means "I live in this flow's
+frames."* Context-membership was never geometric — it is derived,
+and the annotation exists only for the residue. One localization
+gained: the delay-ontology binding problem (which flow, under a
+commute or a product) becomes a question about what the `in`
+annotation means there — an annotation question, no longer a
+structural-input question.
+
+**The exit is a scoop of the read port.** `collect last` over the
+written value loses the empty walk (zero firings, no last, the
+init stranded). The settled form: a closer scoops the thread's
+*read port*, and the same write-at-n−1-else-init law that governs
+frame 0 gives the final value — init included, for the empty walk,
+for free. This also decouples the final from any one closer: the
+write half no longer doubles as the register's collect; the final
+is a scoop at *whichever* closer the author wires (a program cut
+by a collect-until scoops state-at-the-cut there; a full-extent
+final is a scoop at a full-extent closer — resolving what remained
+of the final-readout anchor question in the scoop vocabulary of
+`barrier-value-crossing-design.md`).
+
+What this leaves for the round's continuation: the thread crossing
+rule (the open point above), the effect-ordering caveat on the
+one-writeback rule, the `@` spelling and the anchors' textual
+fine print (owed to the textual round), and the stored form's fine
+print (the pair remains the stored quotient, its flow reference
+now derived-or-annotated rather than wired). The divide flow's
+link follows the same correction one dimension up (its
+correspondences are already recorded as thread-species —
+`divide-flow-design.md`, open question 1, refined 2026-08-04: no
+boundary, the link as frame source, `level of` retired, the frame
+source's form the open edge). The principle, stated once: **the
+thread is the mechanism for everything that needs to show
+correspondence across frames** — which does not put threads in all
+iteration; list flows support many kinds of iteration with no
+thread anywhere.
 
 ## What is still unresolved
 
