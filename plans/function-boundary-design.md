@@ -878,6 +878,19 @@ genericity as absence of demands) — is types-as-summaries
 territory: a derived, never-authored view, deferred to its own
 round.
 
+**Addendum (2026-08-04, later in the same conversation series):**
+the "later look" the slot/op-pair provisional marker anticipated
+has happened — ops dissolve into ordinary port pairs
+(`late-bound-operations-design.md`, revision notes 2026-08-04:
+`with`-binding rejected; the exchange correspondence derived under
+copy-paste; the flow-use marking the one stated exception). The
+same round added the **abstract wire** annotation (`out p ... in
+q`, provisional — an authored expectation over a derivable
+constraint, earning layout and the `-~>` shorthand) and the
+**C-shape** rendering: an out port upstream of an in port draws as
+a cutout, and a custom flow is a C-shaped sub-diagram used
+flow-wise.
+
 ## Open questions
 
 The language hasn't decided any of these.

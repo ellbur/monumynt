@@ -9,7 +9,11 @@ servers specifically it is largely superseded by the served flow of
 samples use the textual syntax of
 `textual-representation-design.md`; spellings for recursive
 constructs that the language has not settled are marked *spelling
-provisional*.
+provisional*. Update (2026-08-04): the open/configure/close shape
+lands — a configuration scope is a C-shaped sub-diagram used
+flow-wise, and this chapter's anti-higher-order stance is
+reasserted there (`with`-binding rejected); see
+`late-bound-operations-design.md`, revision notes 2026-08-04.
 
 ## Sorting by a key
 

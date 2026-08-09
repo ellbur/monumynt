@@ -9,7 +9,12 @@ semantic families), `async-flow-design.md`, `effects-design.md` (the
 handle threaded across a loop), and `within-firing-effects-design.md`
 (ordering within one firing — the vertical-segment sentence below is
 that round's whole answer; its handle-as-ordering-commitment leaning
-touches this chapter's granularity guidance).
+touches this chapter's granularity guidance). Update (2026-08-04):
+the missing definition form arrived from the boundary side — a
+custom flow is a **C-shaped sub-diagram used flow-wise** (an
+interior out port and in port forming a hole the consumer wires;
+the flow wire is the diagram's carried wires stowed together); see
+`late-bound-operations-design.md`, revision notes 2026-08-04.
 
 ## A flow that isn't iteration
 
