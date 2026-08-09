@@ -9,7 +9,14 @@ plus the construct that most needs it, **bracket** — acquire, use,
 release, with the release guaranteed to run even when the work is
 abandoned partway. The effects half of that row is the sibling chapter
 (`effects-design.md`); this chapter assumes its thread and does not
-reopen it. Five neighbouring topics are deliberately *not* worked
+reopen it. Update (2026-08-04): terminators now carry only the
+reason a flow ended (`end-when-design.md`, revision notes) — the
+`Cancelled` terminator survives as a reason tag, but any payload it
+was to carry (open question 2) must arrive by value wire instead;
+and bracket now has a home shape — the C-shaped sub-diagram used
+flow-wise (`late-bound-operations-design.md`, revision notes
+2026-08-04), which this chapter's bracket sections should be
+re-read against. Five neighbouring topics are deliberately *not* worked
 here, each fenced in the closing section: within-firing effect
 ordering, the batched-effect construct, the permit-pool catalog block,
 true preemption, and the served flow's body-fails leg.

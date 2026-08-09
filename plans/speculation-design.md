@@ -7,6 +7,16 @@ construct presumes does not exist yet either
 (`async-flow-design.md`, "Failure as terminator payload"). Read it as
 "here is a candidate and the case for it."
 
+**Needs updating (2026-08-04).** The failability substrate this
+chapter presumes was re-founded: the fail node is dissolved
+(failure = a case alt commuted out, short-circuit by inference) and
+terminators carry reason only, payloads by value wire
+(`failure-payloads-design.md`, revision notes 2026-08-04).
+"Contenders are failable by construction," commit + fail, and the
+diagnosis payload all need re-founding on the drawn-error-flow
+account; the ordered-alternatives core (try in order, rollback,
+first success wins) is untouched.
+
 ## Trying things in order
 
 You will sometimes want a program to try several ways of getting a

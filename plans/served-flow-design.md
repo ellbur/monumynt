@@ -5,7 +5,12 @@ conversation, 2026-07-23, riding the function-boundary /
 late-bound joint adoption): one construct with two ends, the
 client end being late-bound operations' op pair, the server end a
 provider diagram, "which one is the server" a property of a
-binding. The rest of the chapter — the exchange law's fine print,
+binding. Update (2026-08-04): the op pair is dissolved into an
+ordinary out-port/in-port pair (`late-bound-operations-design.md`,
+revision notes) — the two-ends core stands with its client-end
+vocabulary simplified; read "op pair" below as "port pair," and
+any failable-per-exchange response lane against the failure
+revision (terminators carry reason only, payloads by wire). The rest of the chapter — the exchange law's fine print,
 the serving blocks' catalog rows, the k-operation provider, the
 recursive provider, the keyed cache, and this round's own open
 questions — remains exploration with stated leanings. None of it

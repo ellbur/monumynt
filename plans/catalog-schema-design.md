@@ -2,7 +2,14 @@
 
 Status: exploration (worked 2026-08-02) — this chapter is a worked
 proposal prepared for a design conversation; **nothing in it is
-adopted** and none of it is implemented. It is the round checking's
+adopted** and none of it is implemented. Update (2026-08-04): the
+failure revision (`failure-payloads-design.md`, revision notes)
+re-directs the throw rows — the recorded direction is declared
+throws as **case bundles** on the row's output rather than
+terminator lanes (terminators carry reason only); the super-flow
+attribution for undeclared throws survives unchanged. The lane /
+minting-site vocabulary below needs re-founding on alt-reach when
+this round runs. It is the round checking's
 question 4 (`types-design.md`, "The catalog schema") has owed since
 other rounds began filing schema demands on it: the collect family's
 identity rows (adopted content — `collect-family-design.md`), the

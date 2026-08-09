@@ -4,7 +4,11 @@ Status: evidence / stress-test. The candidate blocks proposed here are
 *candidates* — the consolidated inventory at the end ranks them by how
 many use cases demand each, and nothing in this document is decided or
 implemented. Its vocabulary is current with the binary-join, Cross, and
-completion designs.
+completion designs. Update (2026-08-04): read its uses of the fail
+node, terminator payloads, op pairs, and `level of` against the
+2026-08-04 revision notes in `failure-payloads-design.md`,
+`late-bound-operations-design.md`, and `divide-flow-design.md` —
+this document is evidence and is left unrewritten.
 
 Citations to `visual-flow-language.md` (the retired first-generation
 narrative) refer to the record preserved in git history; its live content

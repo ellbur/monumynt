@@ -8,7 +8,15 @@ for it." Its scope is the **within-firing effect ordering** axis that
 witness is the conditional-flush buffer — breadth item 5 of the
 survey record, the one breadth item whose owner was named jointly
 (registers + the effect story) and never tested jointly
-(`real-loop-survey.md`). This round works that axis. It deliberately
+(`real-loop-survey.md`). Update (2026-08-04): where this chapter rides data on terminators
+or leans on the fail node, the failure revision governs
+(terminators carry reason only; fail dissolved —
+`failure-payloads-design.md`, revision notes); and the handle /
+lifecycle-segment material gains a home shape in the C-shaped
+sub-diagram, whose nested-cutout form was explicitly filed as
+this round's to force with an example
+(`late-bound-operations-design.md`, revision notes 2026-08-04).
+This round works that axis. It deliberately
 does **not** work the batched-effect construct, bodies-raise, or
 cancellation — each stays fenced where its owning round left it.
 

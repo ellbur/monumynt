@@ -712,6 +712,19 @@ The language hasn't decided any of these.
    honestly: specifying where the frames come from — the frame
    source's form is the open edge, jointly with the thread
    ergonomics round.
+
+   **Closing the spelling (same conversation): `level of` is
+   retired.** The construct — general recursive feedback into a
+   program, the link — is alive; the spelling is gone. The thread
+   is the mechanism for everything that needs to show
+   correspondence across frames — registers across iterations, the
+   link across levels — with the note that this does not make
+   threads part of all iteration: list flows support many kinds of
+   iteration with no thread anywhere. A replacement spelling using
+   the thread vocabulary (`@`) is owed to the textual catch-up
+   round; the examples above stand as the record of the design,
+   their `level of` lines to be read as the retired provisional
+   form.
 2. **Mutual recursion.** Expression/statement grammars link *two*
    levels each into the other. Structurally nothing above forbids a
    link naming a sibling level's boundary; the measure must then be

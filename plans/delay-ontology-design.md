@@ -4,7 +4,14 @@ Status: mixed. The **per-kind half is adopted** (2026-07-23): the
 owned-order criterion, the order-demand check, and the `hold`
 identification — see §"Per-kind \"next iteration\"" for the
 adoption's scope. The rest is an open problem, genuinely
-unsettled. This chapter teaches a
+unsettled. Update (2026-08-04): the thread ergonomics round
+(`iteration-with-state-design.md`) removed the register's flow
+operand — frames are derived from the thread's anchors, with an
+`in ~flow` annotation for the residue — so this chapter's binding
+question is now *localized*: "which flow binds the Delay" becomes
+"what the `in` annotation means under a commute or a product," an
+annotation question rather than a structural-input one. The open
+problem itself is unchanged in substance. This chapter teaches a
 construct the design does have — the register, whose carrying half is
 called a Delay — and then a question about it the language has *not*
 answered: what a Delay actually is, and which flow supplies its "next

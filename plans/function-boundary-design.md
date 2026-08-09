@@ -650,10 +650,14 @@ of *reading* plus one lint.
 - Calls keep the existing chain-stage spelling
   (`5 -> double => ten`), flow ports keep the sigil, multi-port
   calls keep positional-or-named correspondence per the existing
-  FunctionCall shape. The link keeps `level of` (the divide
-  round's spelling); mutual recursion adds page-local level
+  FunctionCall shape. The link's `level of` spelling is retired
+  (2026-08-04, `divide-flow-design.md` open question 1 — the
+  replacement uses the thread vocabulary, owed to the textual
+  catch-up); mutual recursion adds page-local level
   labels, whose spelling is owed. `op`, `serve`, `with … = …` are
-  unchanged from the late-bound round. All spellings remain
+  likewise superseded by the 2026-08-04 revisions (ops dissolve
+  into port pairs; `with`-binding rejected —
+  `late-bound-operations-design.md`, revision notes). All spellings remain
   provisional and owed to the textual catch-up — but the *decision
   they were waiting on* (what they all reference: the boundary
   substrate, under two constructs) is this round's proposal, so

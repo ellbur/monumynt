@@ -1961,8 +1961,12 @@ now derived-or-annotated rather than wired). The divide flow's
 link follows the same correction one dimension up (its
 correspondences are already recorded as thread-species —
 `divide-flow-design.md`, open question 1, refined 2026-08-04: no
-boundary, the link as frame source, the frame source's form the
-open edge).
+boundary, the link as frame source, `level of` retired, the frame
+source's form the open edge). The principle, stated once: **the
+thread is the mechanism for everything that needs to show
+correspondence across frames** — which does not put threads in all
+iteration; list flows support many kinds of iteration with no
+thread anywhere.
 
 ## What is still unresolved
 

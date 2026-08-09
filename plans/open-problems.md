@@ -58,6 +58,33 @@ compile internals are `compile-strategy-design.md` ("decide in code"
 questions stay there); the graphical/layout side is out of scope in
 this repo entirely.
 
+**2026-08-04 revision sweep.** One design-conversation series
+revised several adopted areas at once; the affected rows below
+carry inline updates (end-when → collect-until; failability — fail
+dissolved, I raised; loop-carried state — ergonomics round opened;
+textual catch-up — new owed spellings). Deltas to rows not
+individually rewritten: *variable-rate/cut* — the boundary payload
+re-homed to the outer flow, the fused-collect rejection re-grounded
+on the mints-a-new-flow criterion, Part III's payload-as-terminator
+superseded; *functions/reuse/facets* — the cut re-founded as a node
+set with per-wire decisions, copy-paste instance semantics, flow
+ports as drawn call-by-name, ops dissolved into port pairs
+(`with`-binding rejected), the C-shape with custom flow = C-shaped
+sub-diagram used flow-wise, flow-level case selection filed as an
+owed construct, contract-as-derived-summary deferred to
+types-as-summaries; *barrier crossing* — extended with the scoop,
+inferred scoops (route, never select), and the stow/tunnel;
+*recursion* — `level of` retired, no level boundary (threads + a
+frame source; the frame source's form the open edge); *source
+openers* — `open self` as pure frame identity, the frame-source
+family connection filed. A cross-cutting principle recorded with
+them: provenance is never semantic (`end-when-design.md`, revision
+notes, reason 2). Docs carrying explicit "needs updating" notes
+from the sweep: `async-flow-design.md`, `speculation-design.md`,
+`cancellation-design.md`, `within-firing-effects-design.md`,
+`catalog-schema-design.md`, `served-flow-design.md`,
+`tough-use-cases-design.md`, `delay-ontology-design.md`.
+
 ---
 
 ## Tier 1 — the load-bearing gaps (I × W ≈ 20)
@@ -201,15 +228,20 @@ are is unknown). The two candidates remain proven result-level
 equivalent — one register-pair construct under two drawings; the
 productivity check holds by construction in the stored form.
 
-Remaining: the **ergonomics round**, deliberately deferred (making
-the thread friendly to the programmer — it owns the crossing rule,
-the one-writeback rule's effect-ordering caveat, and the
-result-level fine print, under the recorded
-generic-iteration-picture constraint); the register final-readout
-anchor (filed from end-when's round — now worked there as the
-anchor rule, a candidate for this row's conversation; it also
-dissolves the pair's `final`-on-self-driven-streams bullet if
-adopted); the self-driven source opener the port form must borrow —
+Remaining: the **ergonomics round** — now **opened, first pieces
+settled** (2026-08-04, `iteration-with-state-design.md`, "The
+ergonomics round, opened": the thread as a third connector species
+(`@`, provisional), no flow operand on the register — frames
+derived from the anchors' contexts, `in ~flow` annotation for the
+residue, anchors as ports, the exit a scoop of the read port at
+whichever closer the author wires; still owed: the crossing rule,
+the one-writeback rule's effect-ordering caveat, the `@` textual
+fine print, the stored form's fine print). The register
+final-readout anchor is **resolved in the scoop vocabulary** by the
+same round (the final is a scoop at the closer you wire — the
+worked anchor-rule candidate is superseded); the delay-ontology
+binding problem is localized to the annotation's meaning under
+commute/product. Also: the self-driven source opener the port form must borrow —
 now worked (`source-openers-design.md`: a bare flow-minting opener, no
 value ports, kind answered as the sourceless stream; the
 counted↔conditional seam it opens is filed back here as that round's
@@ -744,28 +776,26 @@ analysis scripts) should still confirm the scope move. See
 ## Tier 3 — worked areas with named residue (≈ 9–10)
 
 **End-when: residue after adoption — I 2, W 5.**
-**Adopted** (2026-07-23 — `end-when-design.md`, status header and
-adoption notes): the law of the shortened flow, the standalone-node
-posture (the sibling stance to interrupt stands unchanged; the
-split-when relationship was settled at the root in the same
-conversation — end-when is the cut's prefix projection, see the
-variable-rate row), and the
-inclusive/exclusive bit as one bit on the node, exclusive default.
-Remaining: the register final-readout anchor — now carrying a
-worked candidate rule (`end-when-design.md`, "The register
-final-readout anchor": `final` as a read at a drawn anchor flow's
-completion, admissible iff the anchor's extent is a prefix of the
-update order; not adopted — the spelling and the
-explicit-vs-inferred bit ride the `hold` decisions); the textual spelling (with a
-recorded direction — a word pair like `to`/`until`, never a flag,
-decided jointly with split-when's destination setting); the bit's
-drawing (layout-side, out of scope here); interrupt unification
-stays deliberately unforced; and the continuation seam is now
-cashed by the cut decision (the continuation is a port of the
-root construct; edges filed at the variable-rate row).
-I stays 2 (the anchor rule is worked but unadopted — semantic
-residue until its conversation); W = 5 stands, which is why the
-anchor and spellings are worth closing soon.
+**Adopted** (2026-07-23), **revised (2026-08-04 —
+`end-when-design.md`, revision notes): fused with its collect into
+collect-until.** No first-class shortened-flow wire; terminators
+carry only the *reason* a flow ended, never data; payloads travel
+value wires as (flow, value) pairs on the node; either pair
+omissible; the bit survives as a pure extent setting, untangled
+from payload carriage. The fusion line is recorded (a cut
+projection fuses exactly when it mints no new flow — split-when
+keeps its outer flow; see the variable-rate row). The register
+final-readout anchor question is **resolved in the scoop
+vocabulary** (the final is a scoop at the closer you wire; the
+worked anchor-rule candidate is superseded). Remaining: the textual
+spelling — now larger, owed jointly (collect-until's inline pairs
+vs labeled lanes, the word-pair bit spelling, the discharge
+readout); the bit's drawing (layout-side, out of scope);
+interrupt unification deliberately unforced; the continuation
+seam rides the cut round with the collect-until binding expected
+(`variable-rate-consumption-design.md`). I stays 2 (the fused
+construct is settled design, spellings and the continuation seam
+open); W = 5 stands.
 
 Evidence and prior art: the stop/discharge/split-on-tag composition
 survived contact with the textual form and reads well
@@ -999,7 +1029,26 @@ Remaining besides the corners: the spec-side reconciliation (its
 Join's value ports re-read as drawn availability) and the
 concurrent join × Cross unification question it strengthened.
 
-**Failability's residue — I 2, W 4.**
+**Failability's residue — I 3, W 4** (raised from I 2 by the
+2026-08-04 revision).
+**Revised (2026-08-04 — `failure-payloads-design.md`, revision
+notes): the fail node is dissolved** — failure is a case alt, the
+short-circuit is the inferred commute (first-B the published
+default), short-circuit vs accumulate is carried by where the
+alt's collect sits — **and propagate-by-default failable values
+are rejected**: terminators carry only the reason a flow ended;
+payloads travel drawn value wires (the scoop); the background
+super flow survives unchanged. New work this creates, which is why
+I rises: `async-flow-design.md`'s failability sections,
+`speculation-design.md`'s failable substrate,
+`cancellation-design.md`'s `Cancelled` payload, and
+`catalog-schema-design.md`'s throw rows (now directed at case
+bundles, not terminator lanes) all carry "needs updating" notes;
+the inventory account re-founds as alt-reach property propagation
+(direction, details owed); the error arm's prefix question is
+deliberately pinned. The paragraphs below predate the revision and
+stand as the record of the adopted-then-dissolved shape:
+
 The core is worked (terminator payloads, propagate-by-default,
 discharge at a whole-flow collect — `async-flow-design.md`), and the
 two flagged residues now carry a worked round of their own
@@ -1190,6 +1239,18 @@ spellings — now drafted (`collect-family-design.md`'s consolidated
 strawman table: named reduce-closes, `collect by <op>`, the keyed forms
 with `from` seeding and an explicit collision operator, a partition
 strawman); entry opens' two value ports; identity lanes.
+Added by the 2026-08-04 revisions: collect-until's spelling
+(inline pairs vs labeled lanes — lanes must stay left-to-right;
+`end-when-design.md`, revision notes); the thread's `@` spelling
+and its `in ~flow` annotation, replacing `step of`/`delay init`
+(`iteration-with-state-design.md`, ergonomics round); the divide
+link's respelling with thread vocabulary — `level of` is retired
+(`divide-flow-design.md`, open question 1); the race input lanes'
+right-to-left inconsistency, with the **inline barrier spelling**
+filed as a worked candidate (`textual-representation-design.md`,
+"Candidate: the inline barrier spelling"); and the abstract wire
+`out p ... in q` (`late-bound-operations-design.md`, revision
+notes).
 
 **Naming rounds — I 4, W 1.**
 Deferred everywhere by tradition, correctly: they gate user-facing text

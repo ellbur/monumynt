@@ -7,6 +7,19 @@ carry leanings (worked positions prepared for a design conversation,
 not decisions); the rest is recorded honestly as open questions. Read
 it as "here is how async would work, and the case for it."
 
+**Needs updating (2026-08-04).** Two revisions bear on this chapter
+and its failability sections have not been reworked to match:
+terminators now carry only the *reason* a flow ended, never data,
+and the fail node is dissolved with propagate-by-default failable
+values rejected (`end-when-design.md` and
+`failure-payloads-design.md`, revision notes 2026-08-04). "Failure
+as terminator payload" and every passage that rides a payload on a
+terminator or propagates failability silently must be re-founded on
+payloads-by-value-wire (the scoop —
+`barrier-value-crossing-design.md`, revision notes) and drawn error
+flows. The race material already carries its own pairs amendment;
+the cells/settlement model itself is untouched by the revisions.
+
 ## Your first async program
 
 So far every value in the language has been *there*: you wire it in,
