@@ -290,15 +290,21 @@ consumes, and whether it needs an input list at all:
   tree exists only as call structure (mergesort's splits, a parser's
   descent, a quadtree build): write one level concretely, then *link*
   the sub-problems back to the problem — the register's link
-  transformation, tree-shaped. Termination is a three-species measure
-  discipline (structural shrink, cursor progress, drawn fuel); the
-  left-recursion parser bug falls out as the progress measure's
-  violation. *Adopted (2026-07-23, in the joint adoption, under the
-  anchor-is-identity constraint); the link's spelling remains open;
-  mutual recursion's fine print now worked (unadopted): the joint
-  measure's unit is the link graph's strongly connected group —
-  one measure per group, cycles owe the decrease, the all-neutral
-  cycle the witness (indirect left recursion generalized).*
+  transformation, tree-shaped. *Adopted (2026-07-23, in the joint
+  adoption, under the anchor-is-identity constraint). Revised
+  (2026-08-11, the doc's revision notes): the link's spelling lands
+  as the **site** — an out-port/in-port pair joined by the abstract
+  wire, threads anchored at the page's own fed and read wires (feed
+  the child where you are fed, read it where you are read) — with
+  the **hypothetical** ("what would y be if x were v?") as the
+  primary ontology and a substitution law for nested frames; mutual
+  recursion re-founded by inlining (only a group's back edges are
+  sites; level labels dissolve; the reuse residue is two remembered
+  cuts over one node set); the termination/measure discipline
+  **retired** (no termination or soundness checking); the cyclic
+  back-edge surface worked and **rejected** (clockless latch,
+  crossing observability, branching collision). Still open: the
+  frame source's form; final spellings.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
@@ -380,15 +386,17 @@ consumes, and whether it needs an input list at all:
   rule, and reusability is a derived check with a drawable witness.
   Functions per se are about *reuse* (sameness across sites — the
   honest form exactly where a manufactured shared flow would be a
-  lie); the divide flow's link shares the cut's substrate while
-  staying its own anonymous construct (recursion never routes through
-  a named function — settled in the round's first design
-  conversation), with the measure guarding reference cycles of any
-  species. Partial cuts give local functions (uncut wires are free
-  wires; the prefix rule derives the validity region; linear values
-  force port-ification); the spec's slot dissolves into the op pair;
-  function, level, provider, and the top-level program share one
-  substrate under four bindings. Extended (2026-08-04): the cut
+  lie); the divide flow's link stays its own anonymous construct
+  (recursion never routes through a named function — settled in the
+  round's first design conversation). Partial cuts give local
+  functions (uncut wires are free wires; the prefix rule derives
+  the validity region; linear values force port-ification); the
+  spec's slot dissolves into the op pair; function, provider, and
+  the top-level program share one substrate under three bindings
+  (the level binding removed 2026-08-11 — recursion rides the
+  port-pair substrate, not the cut; level labels and the measure
+  references retired with it; see the divide flow's revision
+  notes). Extended (2026-08-04): the cut
   re-founded as a node set with per-wire cut-or-environment
   decisions (the closed curve was topologically incoherent);
   copy-paste instance semantics, no context memory; flow ports as

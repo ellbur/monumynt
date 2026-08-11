@@ -786,6 +786,20 @@ definition. The check rejects exactly the ill-formed programs:
 so wiring it from a per-iteration value is already ill-formed under
 the scoping rules (the "no time travel" family).
 
+**A clockless cyclic surface was explored and rejected
+(2026-08-11).** A raw back-edge notation — feed a value into an
+earlier wire with no register, the base case inferred as the
+non-cycling source — was worked for tail loops and for recursion,
+and rejected: the two-source merge is a latch with no clock (the
+register's driving flow is the clock that makes "write-at-n−1 else
+init" well-defined; the raw cycle has no flow), and with two
+carried values the simultaneity of the updates is unstated — the
+dynamic hazard, at the very first +1 step. Full record and the two
+other kill reasons: `divide-flow-design.md`, revision notes
+2026-08-11. A synchronizing flow-uncollect on the fed wire, which
+would give the cycle a lawful clock, is deferred there — not
+rejected.
+
 The check is a **quotient constraint** — a property of the assembled
 graph, not of any single link. It cannot be made by-construction
 without reintroducing the declare-upfront framing the link avoids
