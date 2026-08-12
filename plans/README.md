@@ -292,7 +292,7 @@ consumes, and whether it needs an input list at all:
   the sub-problems back to the problem — the register's link
   transformation, tree-shaped. *Adopted (2026-07-23, in the joint
   adoption, under the anchor-is-identity constraint). Revised
-  (2026-08-11, the doc's revision notes): the link's spelling lands
+  (2026-08-12, the doc's revision notes): the link's spelling lands
   as the **site** — an out-port/in-port pair joined by the abstract
   wire, threads anchored at the page's own fed and read wires (feed
   the child where you are fed, read it where you are read) — with
@@ -303,8 +303,14 @@ consumes, and whether it needs an input list at all:
   cuts over one node set); the termination/measure discipline
   **retired** (no termination or soundness checking); the cyclic
   back-edge surface worked and **rejected** (clockless latch,
-  crossing observability, branching collision). Still open: the
-  frame source's form; final spellings.*
+  crossing observability, branching collision). The frame-source
+  question is answered by dissolution (frames are hypothetical
+  assignments indexed by the tree of askings), and a follow-on
+  exploration rides in the doc: the **frame flow** — the call
+  tree as a tappable flow (thread-named, rooted at the current
+  frame, firings = askings, unowned order), making whole-tree
+  aggregation an ordinary collect; unadopted. Still open: final
+  spellings; the wound (tree-structured) form.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
@@ -393,7 +399,7 @@ consumes, and whether it needs an input list at all:
   the validity region; linear values force port-ification); the
   spec's slot dissolves into the op pair; function, provider, and
   the top-level program share one substrate under three bindings
-  (the level binding removed 2026-08-11 — recursion rides the
+  (the level binding removed 2026-08-12 — recursion rides the
   port-pair substrate, not the cut; level labels and the measure
   references retired with it; see the divide flow's revision
   notes). Extended (2026-08-04): the cut

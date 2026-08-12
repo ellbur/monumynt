@@ -30,7 +30,7 @@ ports** and the drawn call-by-value/call-by-name duality;
 containment derivable, never expressed; per-instance checking with
 sound-but-partial isolation checking. See "Revision notes
 (2026-08-04)" below, which governs where the body differs.
-**Amended (2026-08-11,** `divide-flow-design.md` **revision
+**Amended (2026-08-12,** `divide-flow-design.md` **revision
 notes):** the level binding is removed from the substrate — the
 divide flow's derived recursive "function" is not a binding of the
 cut, exactly as a loop body is not; level labels dissolve (a
@@ -417,7 +417,7 @@ round's own dead end 2 — no recursion by self-calling function
 *values* — is untouched on both sides: neither a link nor a call
 puts anything on a wire.
 
-**Guards on reference cycles (revised 2026-08-11).** A
+**Guards on reference cycles (revised 2026-08-12).** A
 non-recursive call needs no guard. The family statement survives
 in two parts of three: a cycle in value wiring crosses a register,
 and productivity is the guard (`iteration-with-state-design.md`);
@@ -425,10 +425,10 @@ a cycle in flow feedback crosses a dedup collect, and convergence
 is the guard (`saturation-design.md`). The third member — a
 measure guarding cycles of boundary references — is retired with
 the measure discipline (no termination checking;
-`divide-flow-design.md`, revision notes 2026-08-11). Link and call
+`divide-flow-design.md`, revision notes 2026-08-12). Link and call
 cycles are legal and unchecked.
 
-**Mutual recursion needs nothing at all (revised 2026-08-11).**
+**Mutual recursion needs nothing at all (revised 2026-08-12).**
 The passage that stood here proposed page-local level labels (the
 loop-label precedent) for links naming sibling levels, carrying a
 joint measure around the reference cycle. Both the labels and the
@@ -439,7 +439,7 @@ the reuse residue (both members named and reused from outside) is
 two remembered cuts over one node set (this doc's own "any number
 of remembered cuts"), and a site's threads anchor at drawn wires,
 so nothing needs a name that isn't a wire. See
-`divide-flow-design.md`, revision notes 2026-08-11.
+`divide-flow-design.md`, revision notes 2026-08-12.
 
 ## Partial cuts: the locality gradient
 
@@ -611,14 +611,14 @@ any number of remembered cuts over it, one of which the deployment
 distinguishes. "Top level" is a binding fact, not a structural one.
 
 (A fourth binding — **a level**, the divide flow's — stood in this
-list until 2026-08-11. It is removed: the divide round's "no
+list until 2026-08-12. It is removed: the divide round's "no
 boundary at all" refinement makes the recursive "function"
 *derived* — whatever is downstream of the link's fed anchors,
 exactly as a loop body is whatever is downstream of the uncollect
 — and a loop body is not a binding of the cut either. Recursion
 rides the port-pair substrate (the site), not the boundary
 substrate; see `divide-flow-design.md`, revision notes
-2026-08-11.)
+2026-08-12.)
 
 ## The textual form
 
@@ -644,7 +644,7 @@ of *reading* plus one lint.
   (2026-08-04, `divide-flow-design.md` open question 1 — the
   replacement uses the thread vocabulary, owed to the textual
   catch-up); mutual recursion needs no labels (dissolved
-  2026-08-11 — sites anchor at drawn wires). `op`, `serve`, `with … = …` are
+  2026-08-12 — sites anchor at drawn wires). `op`, `serve`, `with … = …` are
   likewise superseded by the 2026-08-04 revisions (ops dissolve
   into port pairs; `with`-binding rejected —
   `late-bound-operations-design.md`, revision notes). All spellings remain
@@ -693,7 +693,7 @@ of *reading* plus one lint.
   binding removed (an op pair opens; callers now bind or
   re-export) → published. Recursion: one level written concretely
   → the site drawn (a second back edge of the group for mutuality
-  — labels and measures both retired, 2026-08-11) — and the two
+  — labels and measures both retired, 2026-08-12) — and the two
   ladders compose without
   touching each other: a cut around a cone containing a link is a
   recursive reusable function, callers none the wiser. No rung
@@ -919,14 +919,14 @@ The language hasn't decided any of these.
    with the facet's one-handle ordering commitment is unworked and
    stays with that round.
 6. **The joint measure's fine print.** Retired with the measure
-   discipline (2026-08-11) — no termination checking
+   discipline (2026-08-12) — no termination checking
    (`divide-flow-design.md`, revision notes).
-7. **Level labels.** Dissolved (2026-08-11): mutual recursion
+7. **Level labels.** Dissolved (2026-08-12): mutual recursion
    reduces by inlining and sites anchor at drawn wires, so no
    label vocabulary exists (`divide-flow-design.md`, revision
    notes).
 8. **Termination on the interface.** Retired with the measure
-   discipline (2026-08-11): there is no termination checking, so
+   discipline (2026-08-12): there is no termination checking, so
    no "terminates" property to offer.
 9. **The uncut-read lint.** Whether uncut reads are simply allowed
    with the signature surfacing them (the leaning — more

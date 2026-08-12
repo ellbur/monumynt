@@ -7,8 +7,8 @@ leaves as linkless alts, and sibling-instances-have-no-time
 — under the recorded anchor constraint (open question 1: the
 anchor is an identity, never a value wire; the link's
 correspondences are thread-species identifications).
-**Revised (design conversation series, 2026-08-11)** — see
-"Revision notes (2026-08-11)" at the end of this doc, which
+**Revised (design conversation series, 2026-08-12)** — see
+"Revision notes (2026-08-12)" at the end of this doc, which
 govern where the body differs: the link's spelling lands as the
 **site** (an out-port/in-port pair joined by the abstract wire,
 bound by threads to the page's own fed and read wires), with the
@@ -158,7 +158,7 @@ demanded, so a Base instance never fires a link. The laziness the
 compile already lives by (`lazy-compile-design.md`) is the mechanism;
 there is no drawn guarantee that the chain of demanded links is
 finite — the measure discipline that once stood here is retired
-(Revision notes, 2026-08-11), and a program whose demanded chain
+(Revision notes, 2026-08-12), and a program whose demanded chain
 never bottoms out diverges, as it would in any host language.
 
 Provenance extends without new machinery: a link crossing appends a
@@ -190,7 +190,7 @@ sketch isn't re-proposed as syntax.)
 This chapter carried a three-species measure discipline
 (structural shrink / cursor progress / drawn fuel, with warned
 trust as the floor), adopted 2026-07-23. **Retired (design
-conversation, 2026-08-11): the language does no termination or
+conversation, 2026-08-12): the language does no termination or
 soundness-of-recursion checking.** The discipline was a
 distraction from the construct itself, and its floor was already
 warned trust — no program was ever blocked — so nothing semantic
@@ -198,7 +198,7 @@ is lost; a diverging recursion diverges, exactly as in the host
 language. (Recorded so the discipline isn't re-derived: its best
 exhibit was reading left recursion — immediate and indirect — as
 a progress-measure violation; that diagnostic goes with it. See
-Revision notes, 2026-08-11.)
+Revision notes, 2026-08-12.)
 
 ## Quadtree build: the non-list example
 
@@ -588,7 +588,7 @@ re-proposed.
    an admissible derived view; the divide flow is primitive the way
    list iteration is. (Settled: "no lowering" from
    `tough-use-cases-design.md`, sharpened to "no admissible
-   lowering." The 2026-08-11 cyclic exploration adds an independent
+   lowering." The 2026-08-12 cyclic exploration adds an independent
    confirmation from the representational side — see Revision
    notes, "The cyclic surface, worked and rejected.")
 4. **Traversal-order modes.** Pre/in/post-order as configuration on
@@ -688,15 +688,15 @@ The language hasn't decided any of these.
    their `level of` lines to be read as the retired provisional
    form.
 
-   **Closed (design conversation series, 2026-08-11): the
+   **Closed (design conversation series, 2026-08-12): the
    replacement spelling exists — the site.** See "Revision notes
-   (2026-08-11)" below: the link is drawn as an out-port/in-port
+   (2026-08-12)" below: the link is drawn as an out-port/in-port
    pair joined by the abstract wire, its threads anchored at the
    page's own fed and read wires. What remains owed is only the
    textual catch-up's final glyphs (provisional, as all spellings
    are).
 2. **Mutual recursion.** Expression/statement grammars link *two*
-   levels each into the other. **Re-founded (2026-08-11 — see
+   levels each into the other. **Re-founded (2026-08-12 — see
    Revision notes below): mutual recursion reduces by inlining.**
    In the no-boundary world a single-use "call" is just wiring, so
    within a strongly connected reference group only the back edges
@@ -706,7 +706,7 @@ The language hasn't decided any of these.
    joint-measure account that previously occupied this question's
    worked section is deleted with the measure discipline.
 3. **The measure catalog's exact form.** Retired with the measure
-   discipline (2026-08-11) — no termination checking, so no measure
+   discipline (2026-08-12) — no termination checking, so no measure
    catalog. (The catalog-schema round's general admission rule is
    unaffected; it simply has no measure family to admit.)
 4. **Whole-tree collects and linearization.** The commutative case
@@ -716,7 +716,7 @@ The language hasn't decided any of these.
    share (`delay-ontology-design.md`), and lands here whenever it
    lands there.
 5. **Diagnostics for measure violations.** Retired with the
-   measure discipline (2026-08-11).
+   measure discipline (2026-08-12).
 6. **The zipper seam.** Whether the trees row re-reads
    computed-value zipper accesses as divide-flow wiring and retires
    its verifier — that row's decision; this round's leaning is
@@ -749,7 +749,7 @@ The language hasn't decided any of these.
   depth vs CPS for deep trees is decide-in-code
   (`compile-strategy-design.md`).
 
-## Revision notes (2026-08-11): the site, the hypothetical, and the retirements
+## Revision notes (2026-08-12): the site, the hypothetical, and the retirements
 
 A design conversation series worked the link's surface to a
 landing. Where the body above differs, these notes govern.
@@ -889,7 +889,7 @@ history; nothing checks them now.
 
 ### Termination checking, retired
 
-Decision (2026-08-11): **the language does no termination or
+Decision (2026-08-12): **the language does no termination or
 soundness-of-recursion checking.** The three-species discipline,
 the measure catalog, the joint measure, and the violation
 diagnostics are deleted as a distraction; the discipline's floor
@@ -963,9 +963,204 @@ question here; a loop is drawn as a loop.
 
 ### Still open after this round
 
-The **frame source**: the site's firings mint child frames on
-demand — the form of "where frames come from" (its relation to
-`open self` and the uncollect's data-driven frames) remains the
-open edge, jointly with the thread ergonomics round. And the
-textual catch-up owes final glyphs for the site and its threads;
-every spelling in these notes is provisional.
+The **frame source**: answered by dissolution in a follow-on
+conversation — frames are hypothetical assignments indexed by the
+tree of askings, and the site is where indices extend; see "The
+frame flow" below, which records the answer and the construct
+proposal that fell out of it. The textual catch-up owes final
+glyphs for the site and its threads; every spelling in these
+notes is provisional.
+
+## The frame flow (exploration, 2026-08-12): collecting over the call tree
+
+Status: **exploration, unadopted** — a worked proposal from the
+same conversation series, judged worth pursuing as a language
+feature and needing its own development round. Nothing below is
+decided beyond the leanings marked.
+
+### Frames come from questions
+
+First, the frame-source ontology, settled by dissolution. "Where
+do frames come from" presupposes frames are *made* — copies
+minted, realms instantiated. The substitution law says otherwise:
+a child frame is the minting frame plus a substitution at the fed
+anchors, so nothing is ever copied. There is one node set, and a
+frame is a **hypothetical value-assignment over it, indexed by
+its path in the tree of askings**. The site does not manufacture
+a realm; it extends an index. Frames come from questions. (What
+remained of the "frame source" open edge is the tap below and its
+spelling — the minting machinery it seemed to owe does not
+exist.)
+
+### The baseline, in the site notation
+
+Mergesort in the thread/site spelling (the first full example in
+the record; all glyphs provisional):
+
+```
+in xs @xs                       -- @xs starts at the page's question wire
+xs -> split singleton? of Base, Divide => s
+s.Divide -> splitInHalf => subA, subB
+
+subA => qA @xs                  -- child A's question (the out-port)
+qA ... aA @sorted               -- child A's answer (the in-port)
+subB => qB @xs                  -- child B's question
+qB ... aB @sorted               -- child B's answer
+
+aA, aB -> mergeSorted => merged
+~s.Base:   s.Base
+~s.Divide: merged
+-~> collect => sorted @sorted   -- @sorted starts at the answer wire
+out sorted
+```
+
+### The motivating +1: whole-tree aggregation
+
+Suppose `mergeSorted` also reports `nCompares`, and the author
+wants the total across every frame of the sort. Today there is
+one spelling: thread the total through the answers — each frame
+returns its own count plus its children's:
+
+```
+subA => qA @xs
+qA ... aA @sorted
+qA ... tA @total                -- NEW: a second read of the same child
+subB => qB @xs
+qB ... aB @sorted
+qB ... tB @total                -- NEW
+
+aA, aB -> mergeSorted => merged, nCompares
+~s.Base:   0                    -- NEW: the second answer, per frame
+~s.Divide: nCompares, tA, tB -> sum3
+-~> collect => total @total     -- NEW: a third thread, anchored here
+out sorted, total
+```
+
+Legal, and needing nothing new — but the +1 cost is the tuple
+bottleneck's cousin: a new thread, a new dashed read per site
+(four on the quadtree), a new combining collect, a new output.
+The aggregate is entangled with the recursion's interface, and
+the k-th aggregate repeats all of it.
+
+The proposal: the frames of the recursion are already structure
+of the diagram, so give them a flow and let the ordinary collect
+reach them:
+
+```
+~s.Base: 0
+~s.Divide: nCompares
+-~> collect => contrib          -- per-frame contribution, ordinary case collect
+
+open frames along @xs => ~inst  -- PROVISIONAL: the frame-flow tap
+~inst: contrib -~> collect by + => total
+out sorted, total
+```
+
+Three added lines, no site touched — the multi-close courtesy (a
+loop's second output added beside the first, loop untouched)
+extended to recursion. The correctness anchor: the two spellings
+agree frame-by-frame — every frame's `total` in the tap form is
+its own subtree's total, which is exactly what the threaded form
+computes level by level.
+
+### What names a call tree: the thread family, rooted
+
+In a language with named functions, "the frames of f" borrows f's
+boundary. This language has no boundary to borrow — a diagram can
+recurse one part, several parts, overlapping parts in different
+ways — so the tap must say *which* call tree, and the identity
+available is the one already load-bearing: **the anchors**. A
+recursion is its thread family: mergesort's two sites are one
+recursion because both end `@xs`/`@sorted`; two recursions
+varying different anchors are two families, however entangled
+their cones. And the tap is **rooted at the current frame** — the
+subtree of askings from here down — so a one-off hypothetical
+asked elsewhere in the diagram is a different root and never
+contaminates the total.
+
+### The firings are askings, not frames
+
+Under the substitution law a frame assigns *every* wire, sharing
+unvaried values from its minting frame. A tap ranging over "all
+frames below" would therefore double-count: a frame minted by
+some unrelated asking (varying `z`, say) *contains* a `contrib`
+value — shared, unchanged, from its minting frame — and a collect
+over frames would count it again. The fix is to count at the
+minting: the flow's firings are **the askings of the named
+family** within the subtree, plus the current frame itself. Each
+`@xs`-asking mints exactly one new `contrib`; a z-asking mints
+none and contributes nothing; an `@xs`-asking made inside a
+z-frame is a genuine new asking and is counted. No double-count
+by construction — and the thread qualifier is thereby
+structurally necessary, not a convenience: without naming the
+family, "an asking" is not a defined event.
+
+### Order class, and two rules that stop being bespoke
+
+Sibling frames have no time (adopted above), so the frame flow's
+order is **unowned** under the owned-order criterion
+(`delay-ontology-design.md`). Two consequences arrive by existing
+rules rather than new clauses:
+
+- a register over the frame flow is witnessed by `order-demand` —
+  the body's bespoke statement ("a register over the divide
+  flow's instances is ill-formed") becomes a consequence of the
+  general rule;
+- a whole-tree collect is lawful exactly when its operator
+  commutes — the same rule that governs collects over products;
+  the non-commutative case lands in the linearization residue by
+  the general mechanism, not by a special clause.
+
+### Frames are case-like, and the meet law's third instance
+
+Two structural facts, not analogies:
+
+- **Conditional existence.** An asking rides a lane (mergesort's
+  sites fire only on the Divide alt), so a frame's existence is
+  case-borne exactly as an alt payload's is; a Base frame's
+  subtree is just itself, and the machinery that handles an
+  absent option handles an unasked child.
+- **The lawful wide meet.** "Sibling instances are incomparable —
+  their values can meet only through their answers at the shared
+  parent" (the provenance note above). The frame flow is the
+  lawful *wide* combination across a subtree, precisely as
+  collect is for a flow's firings and the partial collect is for
+  cells: the same law, third instance. The context-path **asking
+  segment** (the owed provenance bookkeeping) is what would let
+  Check enforce it with existing machinery.
+
+### The wind-up: one tree-walking vocabulary, two doors
+
+The flat grant — extent plus unowned order, collect only — is the
+lean for the first step. The **wound** form (firings carrying
+their tree positions) is exactly what `trees-and-recursion.md`
+builds for *data* trees: the zipper walk exposing each node with
+its context. Winding the call tree makes the *virtual* tree
+walkable the same way — per-level aggregation, path-dependent
+reads, structure-respecting folds — so the construct family is
+one tree-walking vocabulary with two doors in: a tree that exists
+as data (the trees row) and a tree that exists as askings (this
+tap). This reframes the zipper seam (open question 6) once more,
+and order-*observing* consumption of the wound tree lands in the
+linearization residue, where the record already keeps that
+question.
+
+### Why this is possible here at all
+
+In a language where recursion routes through function boundaries,
+the call tree is trapped inside the call abstraction — you cannot
+wire a collect to another function's frames without
+metaprogramming. Because recursion here is threads over one
+diagram, the call tree is just more structure of the diagram, and
+the ordinary vocabulary reaches it. The boundaryless choice is
+what made whole-tree aggregation a three-line addition.
+
+### Open
+
+The wound (tree-structured) form and its exact relation to the
+zipper walk; whether one tap can name several families at once,
+and what that would mean; whatever mixed-path fine print the
+asking-count does not fully dissolve; spellings throughout
+(`open frames along @xs` is provisional). Deliberately not
+granted: join, cross, or commute over the frame flow — each would
+need its own argument.

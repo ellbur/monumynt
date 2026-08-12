@@ -787,7 +787,7 @@ so wiring it from a per-iteration value is already ill-formed under
 the scoping rules (the "no time travel" family).
 
 **A clockless cyclic surface was explored and rejected
-(2026-08-11).** A raw back-edge notation — feed a value into an
+(2026-08-12).** A raw back-edge notation — feed a value into an
 earlier wire with no register, the base case inferred as the
 non-cycling source — was worked for tail loops and for recursion,
 and rejected: the two-source merge is a latch with no clock (the
@@ -796,7 +796,7 @@ init" well-defined; the raw cycle has no flow), and with two
 carried values the simultaneity of the updates is unstated — the
 dynamic hazard, at the very first +1 step. Full record and the two
 other kill reasons: `divide-flow-design.md`, revision notes
-2026-08-11. A synchronizing flow-uncollect on the fed wire, which
+2026-08-12. A synchronizing flow-uncollect on the fed wire, which
 would give the cycle a lawful clock, is deferred there — not
 rejected.
 
