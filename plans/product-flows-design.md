@@ -1147,6 +1147,20 @@ plain scan's `~L ~> delay` with no `~L` to infer — the `~?` the
 ontology round works from (`delay-ontology-design.md`, "The product
 sharpens both").
 
+*(Consistency pointer, added 2026-08-12: the `~x ~> delay` spelling
+above predates the thread ergonomics round
+(`iteration-with-state-design.md`, 2026-08-04) — the register has
+no flow operand; its frame is derived from the thread's anchors,
+with an annotation for the residue. The design question this
+section states — "saying which is the entire design question" — is
+unchanged and sharpened: the symmetric wiring is exactly the case
+where derivation is ambiguous, so the product is the flagship
+client of the **mandatory pin** — the thread names which axis's
+"next" it accesses (`delay-ontology-design.md`, "The frame menu";
+the product layer's fibering offer). Read `~x ~> delay init 0 =>
+run` as: a register whose thread is pinned to the X axis.
+Everything else in this section transfers verbatim.)*
+
 ### The finding: reduce along an axis, fibered over the rest
 
 The answer is the array family's, item for item

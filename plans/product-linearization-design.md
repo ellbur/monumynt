@@ -22,6 +22,19 @@ conversation is now **run** (`real-loop-survey.md`, survey 4 — see
 the Open list's first entry for what it found); the evidence is in,
 the decision still isn't.
 
+*(Spelling note, added 2026-08-12: this chapter's code samples use
+`~x ~> delay` and `step of`, both of which predate the thread
+ergonomics round (`iteration-with-state-design.md`, 2026-08-04 —
+no flow operand on the register, `step of` replaced by `@` thread
+ink). Read a delay's flow operand as the thread's **pin** — the
+per-register naming of its folded axis
+(`delay-ontology-design.md`, "The frame menu") — and note the
+distinction this chapter already draws survives the re-spelling
+exactly: the pin names one register's folded axis; the
+**orientation** an order-observing consumer walks the whole grid
+in stays on the Cross, once, for every observer. The examples
+stand as the record of the design in the retired spelling.)*
+
 Before reading this, you will want: the register pair
 (`iteration-with-state-design.md`), the Delay-ontology chapter — in
 particular the straddle split (update cadence vs read range), the
@@ -482,6 +495,14 @@ Recorded so they are not re-proposed:
    context-read under the cursor model. The orientation lives on the
    flow, once, for every observer; the delay's flow operand keeps
    only its existing job of naming a flow among the drawn nesting's.
+   *(Update 2026-08-12: the flow operand itself is gone — the
+   ergonomics round removed it — and its surviving "existing job"
+   is carried by the thread's pin (`delay-ontology-design.md`, "The
+   frame menu"). The rejection stands unchanged, and the pin does
+   not reopen it: the pin names the register's own folded axis,
+   per-register information by nature; it never carries the grid's
+   orientation, which is exactly what this dead end forbids putting
+   on the register.)*
 5. **Mandatory full linearization** (Join first, then an ordinary
    register, as the *only* form). Loses fibering — the everyday form
    of the construct in every shipped relative (SQL's `PARTITION BY`,
