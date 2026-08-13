@@ -41,8 +41,11 @@ a loser).
 Everything else hinges on these two:
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)** —
-  the seven principles every new construct is judged against, and the
-  standing method (sample real code) that keeps the design honest.
+  the seven principles every new construct is judged against, the
+  standing method (sample real code) that keeps the design honest,
+  the ontology lens, and the visual-leap constraint (thinking about
+  visual representations is in scope even though building them is
+  not).
 - **[`core-model.md`](core-model.md)** — the core in current vocabulary:
   value wires vs flow wires, uncollect/collect, (no) time travel
   (programs that leave ordering unstated are authorable, but are always

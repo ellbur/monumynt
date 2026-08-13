@@ -264,3 +264,26 @@ candidates are argued and rejected on ontological grounds (an uncollect's
 value wire "secretly carrying flow" — or perhaps honestly carrying context;
 a shared grid that a consumer-dependent meaning would break), never on a
 wrong output.
+
+## A standing constraint: the visual leap
+
+Recorded 2026-08-12. Implementing the visual editor is out of scope
+for this repository; *thinking about visual representations is not*.
+Every construct and every notation decision must be checked against
+the drawing it will someday be: a textual form that references a
+thing by name is, visually, a wire to that thing — and if that wire
+would be a lie (a flow wire drawn into a thread reads as the thread
+operating on the flow, which it does not), the textual form is wrong
+too, not merely unrenderable. The record must never design itself
+into a corner from which the leap to the visual representation
+cannot be made.
+
+The constraint was implicit in decisions already taken — the
+anchor-is-identity rule demanded identity-use be *visually
+distinct*; "a function waiting to be called has no honest visual
+form" rejected first-class function values; the abstract wire earned
+the C-shape rendering — which is evidence it was a working principle
+all along. What recording it changes: visual-representability
+objections are in-scope objections in any design conversation, and
+"how would this draw?" is a question every proposal owes an answer
+to, even in this repo.
