@@ -1626,3 +1626,82 @@ current state of every strand:
   the fairness of a merged flow's owned order stays the chooser
   family's; extending the order-demand check from Delays to raw
   context-reads rides the value-in-context model's adoption.
+
+## The frame menu (exploration, 2026-08-12): offers, not demands
+
+Status: **exploration, unadopted** — a working round on how a
+thread indicates *which frame it accesses*, opened by two
+concerns: reading the frame source off the thread's anchors alone
+is too subtle to be the reading experience, and one carrier can
+host several walks (a list iterated by 2s), so the anchors'
+carrier under-determines the frame. Recorded here because this is
+the chapter's own question — which flow supplies the next
+iteration when more than one is in reach — approached from the
+surface side.
+
+**A frame is never over a structure; it is over a drawn source
+object.** "Iterated by 2s" is not the list plus a stepping
+parameter on the thread — it is a *different walk*: a derived
+flow whose firings are the pairs (split-when / a pairs
+derivation, `variable-rate-consumption-design.md`). Stride-2
+frames (one register on the pair-walk) and a width-2 window on
+stride-1 frames (the plain walk, two registers in shift
+formation) are different programs, and both are explicit once a
+frame source must be a walk or a site family, never a bare
+carrier.
+
+**The menu is this chapter's adopted table, read in the other
+direction.** The owned-order criterion classifies each flow kind
+by whether its firings carry an owned total order; read as a
+demand it is the order-demand check, and read as an **offer** it
+is the menu of frame kinds an anchor's provenance provides — the
+flows in reach that own order are the ones offering "next"; a
+site offers the hypothetical frame (demands/offers being
+`types-design.md`'s existing vocabulary). The thread annotates
+the **kind** it accesses (e.g. `next`), never the provider:
+naming the provider is rejected on the visual-leap constraint
+(`language-design-philosophy.md`) — a textual reference to a flow
+is, visually, a wire to it, and a flow wire into a thread reads
+as the thread operating on the flow, which it does not (also:
+too many wires). Resolution is against the anchors' provenance —
+implicit where unique, a **mandatory pin** exactly where
+ambiguous (stacked flows, coexisting walks over one carrier),
+with the derived resolution always rendered: the completion
+posture, applied once more. This generalizes the ergonomics
+round's `in ~flow` residue annotation
+(`iteration-with-state-design.md`) from a corner case to the
+general mechanism, without reintroducing the flow operand (a
+reference with a check, not an operand with dataflow — the
+abstract wire's authored-over-derivable pattern).
+
+**Markers on the source, ink on the thread** (rendering leanings,
+recorded under the visual-leap constraint): the frame is
+announced where it is minted — a bracket at the uncollect
+labelling the walk's derived body region (a display-time collapse
+view, not a scope), the site's C-shape cutout already being the
+hypothetical's marker — and the thread's sub-species (structural
+vs hypothetical) carries distinct line styles. Redundant encoding
+— source marker, thread style, kind annotation, plus the editor
+enumerating the menu at any anchor (the suggestion surface,
+`program-editing-design.md`) — is the answer to the subtlety
+concern; no single clever rule is asked to carry the reading.
+
+**Offers compose along the provenance path** — the round's new
+and least-tested claim. A case layer *gates* ("next" refines to
+"next kept firing" — exactly the implemented register over a
+filtered driving flow, this chapter's route (b)); a product layer
+*fibers* ("next of the outer axis" from per-inner anchors is the
+implemented fibered register, lawful exactly under
+rectangularity); a jagged nesting *blocks* (no alignment —
+witnessed). The composition rule has been checked only against
+the kinds the compiler exercises; stream, async, incremental, and
+the frame flow itself (`divide-flow-design.md`) are unexamined
+against it.
+
+Open: the full menu per kind (is "next" the only structural frame
+kind? a stream's next is pull-shaped; does an async flow offer
+anything?); whether the kind-annotation and the drawn join-chain
+authoring are recorded as two paths to one reading; the
+mandatory-pin threshold (the leaning: pins stored only where
+resolution is ambiguous, the derived resolution always shown);
+spellings throughout.

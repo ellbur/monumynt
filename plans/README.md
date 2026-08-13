@@ -121,7 +121,10 @@ they change how everything else is read.
   served rounds had written. *The rest exploration — the linearization
   residue's evidence is delivered (survey 4) and the value-in-context
   model's everyday-`prev` check too (survey 5); both conversations
-  remain unheld.*
+  remain unheld. A 2026-08-12 working round rides in the doc ("The
+  frame menu"): the owned-order table read as offers — a thread
+  names a frame kind, resolved from its anchors' provenance, with
+  pins mandatory where ambiguous; exploration.*
 - [`product-linearization-design.md`](product-linearization-design.md)
   — the doc above's one hard residue, worked: which order an
   order-sensitive register (or a spanning effect) walks a multi-axis

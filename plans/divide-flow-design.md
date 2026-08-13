@@ -1163,4 +1163,7 @@ and what that would mean; whatever mixed-path fine print the
 asking-count does not fully dissolve; spellings throughout
 (`open frames along @xs` is provisional). Deliberately not
 granted: join, cross, or commute over the frame flow — each would
-need its own argument.
+need its own argument. The frame-provenance surface — how a
+thread indicates which frame it accesses, structural or
+hypothetical — is worked in `delay-ontology-design.md`, "The
+frame menu" (2026-08-12).

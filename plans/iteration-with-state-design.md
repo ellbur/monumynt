@@ -17,7 +17,11 @@ provisional), **no flow operand on the register** (the frame is
 *derived* from the thread's anchors' contexts, with an `in ~flow`
 annotation for the residue), anchors as ports, and the exit as a
 scoop of the read port at a closer. See "The ergonomics round,
-opened (2026-08-04)" below.
+opened (2026-08-04)" below. (A follow-on working round —
+`delay-ontology-design.md`, "The frame menu", 2026-08-12 —
+generalizes the residue annotation: the thread names a frame
+*kind* resolved against the anchors' provenance, with pins
+mandatory exactly where resolution is ambiguous; exploration.)
 Nothing is implemented. The chapter below is kept as the record of
 how the decision was reached; read pre-decision passages ("the
 language has not yet chosen") in that light.
