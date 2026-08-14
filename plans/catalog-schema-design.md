@@ -9,7 +9,11 @@ throws as **case bundles** on the row's output rather than
 terminator lanes (terminators carry reason only); the super-flow
 attribution for undeclared throws survives unchanged. The lane /
 minting-site vocabulary below needs re-founding on alt-reach when
-this round runs. It is the round checking's
+this round runs — the alt-reach account is now worked
+(`failure-payloads-design.md`, "The inventory re-founded as
+alt-reach", 2026-08-14, unadopted), supplying the form this
+round will consume: bundle rows carry alt referents, not
+strings. It is the round checking's
 question 4 (`types-design.md`, "The catalog schema") has owed since
 other rounds began filing schema demands on it: the collect family's
 identity rows (adopted content — `collect-family-design.md`), the

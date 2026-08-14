@@ -87,8 +87,11 @@ from the sweep: `async-flow-design.md`, `speculation-design.md`,
 `tough-use-cases-design.md`, `delay-ontology-design.md`. (Update
 2026-08-14: the two full re-founding banners are cleared —
 `async-flow-design.md` and `speculation-design.md` are rewritten
-onto the revised account, superseded shapes recorded in place; the
-other six carry lighter read-against inline notes, still standing
+onto the revised account, superseded shapes recorded in place —
+and the sweep's chief owed design piece, the inventory's
+re-founding as alt-reach, is now worked
+(`failure-payloads-design.md`, final section, unadopted); the
+other docs carry lighter read-against inline notes, still standing
 where their rounds haven't reopened.)
 
 **2026-08-12 revision sweep.** A second conversation series worked
@@ -1057,8 +1060,9 @@ Remaining besides the corners: the spec-side reconciliation (its
 Join's value ports re-read as drawn availability) and the
 concurrent join × Cross unification question it strengthened.
 
-**Failability's residue — I 3, W 4** (raised from I 2 by the
-2026-08-04 revision).
+**Failability's residue — I 2, W 4** (raised to 3 by the
+2026-08-04 revision; back to 2 with the alt-reach round worked,
+2026-08-14).
 **Revised (2026-08-04 — `failure-payloads-design.md`, revision
 notes): the fail node is dissolved** — failure is a case alt, the
 short-circuit is the inferred commute (first-B the published
@@ -1075,12 +1079,22 @@ bundles, not terminator lanes) all carry "needs updating" notes
 (update 2026-08-14: the first two are done — both docs re-founded
 on the revised account, with rejection re-located as an *arrival*
 carrying an Ok/Err case bundle and the speculation barrier's
-inputs as per-contender pairs; I stays 3 on the remaining items,
-chiefly the alt-reach re-founding of the inventory);
+inputs as per-contender pairs; the alt-reach re-founding is now
+worked too, next);
 the inventory account re-founds as alt-reach property propagation
-(direction, details owed); the error arm's prefix question is
-deliberately pinned. The paragraphs below predate the revision and
-stand as the record of the adopted-then-dissolved shape:
+— now worked (`failure-payloads-design.md`, "The inventory
+re-founded as alt-reach", 2026-08-14, unadopted: reasons and
+failure data split into two derived questions; the failure side
+is the existing case-alt property propagated by existing rules,
+read off the completed form; no failure-specific checker channel;
+the tag-identity referent rule transfers with lanes dissolving
+into alts; the catalog demand re-filed as bundle rows carrying
+alt referents); the error arm's prefix question is deliberately
+pinned. I drops back to 2: the revision's design debt is worked,
+with the round's adoption conversation and the catalog schema's
+own re-founding the named remainder. The paragraphs below predate
+the revision and stand as the record of the
+adopted-then-dissolved shape:
 
 The core is worked (terminator payloads, propagate-by-default,
 discharge at a whole-flow collect — `async-flow-design.md`), and the
