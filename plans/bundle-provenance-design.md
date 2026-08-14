@@ -1,9 +1,15 @@
 # Bundle Provenance — values that can never meet
 
-Status: exploration — companion to `types-design.md`, which deferred
-this as its open question 5; this chapter teaches a worked proposal
-that has not been adopted, and nothing here is implemented. The
-subject is the oldest open checking problem in the design record:
+Status: mixed — **2026-08-12 update**: the core mechanism is live.
+`Context.res` computes cell-set context paths and the containment
+theorem; `Check.res`'s alignment rule does exactly this chapter's "One
+check, two clash flavors" — the mixing-vs-time-travel classification —
+below (see `src/ARCHITECTURE.md`'s Context/Check rows). Companion to
+`types-design.md`, which deferred this as its open question 5; what
+remains a worked proposal rather than landed code is partial overlap
+(`{A,B}` vs `{B,C}` meeting at `{B}`) beyond the constructed meet —
+that is the poset round's. The subject is the oldest open checking
+problem in the design record:
 preventing invalid mixing of flows from one conditional bundle while
 allowing valid nesting of flows from different bundles. The code
 samples use the textual syntax of

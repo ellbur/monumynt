@@ -588,11 +588,11 @@ The language hasn't decided any of these yet.
    the winning cell's index, or (dirtier) the winning value is open,
    and should be decided jointly with the terminator
    payload-composition residue (`async-flow-design.md`). *The joint
-   round now exists* (`failure-payloads-design.md`, exploration): the
-   bare fact is confirmed by lane integrity — the winner's value
-   belongs to the winner's lane, and a consumer that wants to know
-   which contender won should consume the bundle's cells, not fish it
-   from a loser's terminator.
+   round now exists* (`failure-payloads-design.md`, adopted
+   2026-07-23, revised 2026-08-04): the bare fact is confirmed by
+   lane integrity — the winner's value belongs to the winner's lane,
+   and a consumer that wants to know which contender won should
+   consume the bundle's cells, not fish it from a loser's terminator.
 4. **Cancellation interplay proper.** The lost-cell trigger is the
    recorded hook; the actual capability, delivery, and bracket
    ordering wait on the Tier-1 IO round. Race commits only to

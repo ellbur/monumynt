@@ -778,8 +778,10 @@ the mistake this construct commits on purpose.
 
 The language hasn't decided these yet:
 
-1. **Adoption.** This round is prepared for the design conversation;
-   each home doc marks its corner as worked here, none as decided.
+1. **Adoption.** Done — all four corners adopted (2026-07-23),
+   extended (2026-08-04: the scoop, inferred scoops, the tunnel).
+   What remains is the spec-reconciliation bookkeeping, held at
+   item 2.
 2. **Spec reconciliation.** On adoption: revise the spec's Join
    signature (drop `values`, or mark the value rows as drawn
    availability), per its own status note; give the discharge pair

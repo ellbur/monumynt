@@ -2,10 +2,15 @@
 
 *Or: how to read and write programs as text.*
 
-Status: draft — this chapter teaches a proposed textual form for
-programs: something that can be parsed and generated, sitting beside
-the visual form. It is a worked proposal, not a settled feature.
-Nothing here changes the representation (`visual-language-spec.md`,
+Status: draft, core implemented — **2026-08-12 update**: the core
+fragment this chapter teaches is implemented and tested — `TextLex`,
+`TextParse`, `TextResolve`, and `TextPrint` are all working code, the
+printer is total, and round-trip tests (`expectRoundTrip` in
+`Main.res`) exercise this notation against `Program.res` directly (see
+`src/ARCHITECTURE.md`'s text-surface module table). Later sections and
+prettiness beyond the first pretty round remain draft — read those as
+a worked proposal, not a settled feature. Nothing here changes the
+representation (`visual-language-spec.md`,
 `core-model.md`): the text is a serialization of the
 same nodes, ports, and wires, not a new layer of meaning.
 

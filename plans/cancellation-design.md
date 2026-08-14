@@ -655,10 +655,10 @@ stated as a leaning, not a decision.
    (which consumer abandoned) — jointly with failability's
    payload-composition residue and the subset-merge payload question.
    *The joint round now exists* (`failure-payloads-design.md`,
-   exploration): the bare-fact lean is confirmed structurally — a
-   lane's payload is data its minting site had in hand, and strand
-   delivery's minting site has no input wire; the abandoning party
-   engaged nothing a value could arrive through.
+   adopted 2026-07-23, revised 2026-08-04): the bare-fact lean is
+   confirmed structurally — a lane's payload is data its minting site
+   had in hand, and strand delivery's minting site has no input wire;
+   the abandoning party engaged nothing a value could arrive through.
 3. **The release spelling.** `release of <handle>` as the late-wired
    form; whether per-lane release is one body with a split (as drawn
    above) or per-lane bodies; how the release-completion cell is

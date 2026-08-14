@@ -7,8 +7,9 @@ implemented. Its vocabulary is current with the binary-join, Cross, and
 completion designs. Update (2026-08-04): read its uses of the fail
 node, terminator payloads, op pairs, and `level of` against the
 2026-08-04 revision notes in `failure-payloads-design.md`,
-`late-bound-operations-design.md`, and `divide-flow-design.md` —
-this document is evidence and is left unrewritten.
+`late-bound-operations-design.md`, `divide-flow-design.md`, and
+`end-when-design.md` (end-when's fusion with its collect into
+collect-until) — this document is evidence and is left unrewritten.
 
 Citations to `visual-flow-language.md` (the retired first-generation
 narrative) refer to the record preserved in git history; its live content

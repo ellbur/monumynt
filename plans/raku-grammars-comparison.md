@@ -411,6 +411,9 @@ reporting belongs to the construct. Clash notes recorded: rollback
 semantics chosen by a distant declarator; a tie law whose inputs depend
 on where a spec stops being declarative.
 
+**Update (2026-08-12).** The round now exists (`speculation-design.md`,
+exploration), built partly on this finding's evidence.
+
 **Finding 4 — confirmation sweep for split-when.** The separator
 quantifiers `%` / `%%` are the delimiter reading and a fourth wild sighting
 of the boundary-destination enumeration; the tilde construct confirms the
@@ -456,7 +459,9 @@ its own inside-out form.
 - **Speculation row**: note (finding 3) — two-construct split,
   commitment-as-default supporting the threaded-values leaning, and error
   diagnosis added to the round's scope. Scores unchanged (I 4, W 3); this
-  is prior-art structure, not worked design.
+  is prior-art structure, not worked design. Now worked in
+  `speculation-design.md` (exploration); see open-problems.md for the
+  re-scored row.
 - **Recursion / divide flow row**: note (finding 1, §4) — parsing named as
   the everyday client of recursion-over-virtual-structure; nested-delimiter
   parsing as a candidate first program for the divide flow's round. Scores

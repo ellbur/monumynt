@@ -18,6 +18,14 @@ them is deliberate** — chosen to span the survey classes and the breadth
 set from trivial to hardest. No frequency claims are made here;
 frequency lives in the survey document.
 
+Update (2026-08-04): the end-when transcriptions below (B1, B2, C1, C2)
+and the provisional-spellings table's `~F, ~stop ~> end-when => ~W`
+entry predate end-when's fusion with its collect into collect-until (no
+first-class shortened-flow wire; terminators carry reason only, payloads
+travel value wires) — see `end-when-design.md`'s revision notes. They
+stand as evidence of shape, not current spelling, and are left
+unrewritten.
+
 ## Why transcription, not classification
 
 The surveys sampled sixty loops and thirty orchestration sites and

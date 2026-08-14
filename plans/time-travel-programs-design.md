@@ -3,9 +3,14 @@
 Or: programs that leave their loop order unsaid, and how the editor
 fills the gap in.
 
-Status: exploration — this chapter teaches a design worked out on
-paper; it has not been adopted and none of it is implemented. Read it
-as "here is a candidate and the case for it." It takes up the old
+Status: mixed — **2026-08-12 update**: the sibling-opens completion
+core (Worked Example 1 below — inserting a Cross for sibling list
+opens) is implemented, in `Complete.res`, and tested at any rank (Main
+tests 10/10c/10e–10h; see `src/ARCHITECTURE.md`'s Complete row). The
+rest of the chapter remains design-only: the canonical-commute table
+(Worked Example 2) and the heuristic ordering (Worked Example 3) are
+not implemented — read those sections as "here is a candidate and the
+case for it." It takes up the old
 `flow_language_design.md`'s Future Work #1 ("pull-based to explicit
 transformation") in current vocabulary; that doc is retired, its core
 now in `core-model.md`. Throughout, "uncollect" and "collect" name

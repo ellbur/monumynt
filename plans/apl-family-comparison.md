@@ -559,7 +559,10 @@ re-presentation and write back), the multi-locus conflict rule (Dyalog's
 "last-most is assigned"), and a primitive-count dissolution (BQN removing
 Expand in favor of Under). Impact stays where it was — nothing worked in
 our vocabulary — but the row's remaining list is now a worked-round agenda
-rather than a blank page.
+rather than a blank page. *Now worked* (`focused-update-design.md`,
+exploration), built partly on this finding's evidence: the structural
+condition, lens identification, and derived-view generalization named
+here all land in the shipped round.
 
 **Finding 8 — the identity question is the empty-collect question.** A
 shipped 23-operator identity catalog (Dyalog); BQN's three-way split —
@@ -610,7 +613,8 @@ compile passes, not the surface.
 - **Focused update row**: the structure note (finding 7) — law,
   structural-selection condition, derived-view generalization, conflict
   rule, the Expand dissolution. I 5 / W 3 held; the frequency sample still
-  decides W.
+  decides W. Now worked in `focused-update-design.md` (exploration); see
+  open-problems.md for the re-scored row (I 3).
 - **Variable-rate row**: window(k) design-space note (finding 4);
   gap-tolerant confirmation (finding 9d). Scores unchanged.
 - **Loop-carried state row**: the identity catalog and the empty-collect

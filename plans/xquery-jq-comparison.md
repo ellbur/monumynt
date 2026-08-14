@@ -458,6 +458,9 @@ costume in general code (the spread-pyramid / builder-copy idiom for
 updating nested immutable state) is common enough to deserve the frequency
 question. New open problem; the frequency sample owed.
 
+**Update (2026-08-12).** The round now exists (`focused-update-design.md`,
+exploration), built partly on this section's evidence.
+
 ### 8. The pending update list — effects as collected values, shipped
 
 **Their approach.** XQuery proper is pure. The Update Facility adds
@@ -704,7 +707,9 @@ avoid** — and both cost their languages real machinery to buy back.
 - **New Tier-2 row**: focused update — transform selected loci of a nested
   value, preserving the rest. I 5 (a name and a demand, nothing worked), W
   3 (two shipped relatives built major machinery; invisible to the loop
-  surveys by construction; the frequency sample decides any move).
+  surveys by construction; the frequency sample decides any move). Now
+  worked in `focused-update-design.md` (exploration); see
+  open-problems.md for the re-scored row.
 - **Variable-rate consumption row**: the window-clause sweep — the
   neighborhood-bindings input to question 1, the new
   unterminated-final-segment bit, gap-tolerant segmentation, window(k)

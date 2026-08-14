@@ -628,7 +628,9 @@ semantics determined by where a function object happens to be allocated.
 - **Focused update row**: the reactive costume (spread pyramid
   institutionalized; Immer patches as deltas-with-inverses; path setters)
   and the loci/keys coupling with the collections layer. Feeds the
-  frequency condition without discharging it. Scores unchanged.
+  frequency condition without discharging it. Scores unchanged. The row's
+  round now exists (`focused-update-design.md`, exploration), this doc
+  among its evidence.
 - **Concurrency row**: the flattening strategies as the collect-concurrency
   menu shipped; **exhaustMap** added to the species menu as
   drop-while-busy; pacing sighting six (concatMap's buffer warning); served

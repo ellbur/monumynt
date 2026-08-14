@@ -516,7 +516,8 @@ not rejected. The reasons matter, so here they are in full.
   failability, not decided here. This chapter assumes the effect
   operation succeeds, or that failure is handled by the existing
   terminator machinery. *The owning round now exists*
-  (`failure-payloads-design.md`, exploration): failure is drawn, and
+  (`failure-payloads-design.md`, adopted 2026-07-23, revised
+  2026-08-04): failure is drawn, and
   a failable effect operation is a failable catalog row — its lanes
   enter the inventory like any source's, nothing effect-specific.
 

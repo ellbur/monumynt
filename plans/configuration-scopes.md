@@ -102,9 +102,11 @@ The scope exposes each `req`; the wired `handle` is the request
 handler; the collect is what gets sent back.
 
 For servers specifically, this is not the current design — it has
-been carried much further, not rejected but superseded, by
-`tough-use-cases-design.md`: the **served flow** ("the collect is
-the response") plus concurrent collects with lifecycle outputs.
+been carried much further, not rejected but superseded. The
+**served flow** ("the collect is the response") plus concurrent
+collects with lifecycle outputs was first named in
+`tough-use-cases-design.md`; the current design lives in
+`served-flow-design.md` (the two-ends core adopted 2026-07-23).
 Read that doc as the current design for request/response. What
 survives here independently is the general point:
 open/configure/close is the language's alternative to higher-order

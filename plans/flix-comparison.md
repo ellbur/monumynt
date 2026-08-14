@@ -412,6 +412,8 @@ Indexed by topic, with importance/breadth scores for the target rows of
   "assembly language" diagnosis in another costume. Breadth obligation
   (absent from all three random surveys; clients domain-concentrated),
   with the frequency question left to a sample.
+  **Update (2026-08-12):** now worked in `saturation-design.md`
+  (exploration); open-problems.md carries the re-scored row (I 3).
 - **The provider ecosystem: test double is stdlib furniture; the policy
   layer is a new demand.** Third independent language centered on
   late-bound operations; the test double now witnessed as
@@ -494,7 +496,9 @@ fails, and each capability needs its own inside-out form.
   worklist/fixpoint). I 5 (a name and a demand, nothing worked), W 3
   (breadth obligation; absent from random samples, domain-concentrated
   clients). Carries the keyed-merge and provenance-explanation scope items
-  and the duality note with the served flow's recursive provider.
+  and the duality note with the served flow's recursive provider. Now
+  worked in `saturation-design.md` (exploration); open-problems.md
+  carries the re-scored row (I 3).
 - **Functions, reuse, and facets**: remaining list gains the **policy
   layer** (middleware as spliced sub-diagrams) and the **decorated tree**
   (facets' second witness); late-bound operations and the test double gain

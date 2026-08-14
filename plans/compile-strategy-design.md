@@ -1,10 +1,19 @@
 # Compile Strategy: The Functional Rebuild
 
-Status: planned — a strategy document. Nothing here is implemented. It
-lays out the compiler that will replace the current `src/Compile.res`,
-whose *semantics* it keeps but whose *architecture* it discards. The
-current implementation is described in `lazy-compile-design.md`; this
-document is the planned successor, contrasted with it throughout.
+Status: implemented — **2026-08-12 update**: the five-pass pipeline
+this document lays out (derive → complete → check → annotate →
+codegen) is the compiler that runs today, orchestrated by
+`Pipeline.res`. `src/Compile.res`, the mutating walk this document set
+out to replace, no longer exists — it was deleted in the 2026-07
+bridge retirement (`src/ARCHITECTURE.md`, "The single engine"). The
+prose below still narrates the rebuild as a plan being contrasted with
+`lazy-compile-design.md`'s "current implementation"; read that framing
+as historical scene-setting, not a live status. `lazy-compile-design.md`
+now documents the retired architecture, not the current one. What
+remains aspirational here is not the pipeline shape but pieces within
+it — full multi-level derive, the deferred placement/strictness
+passes, and the other gaps `src/ARCHITECTURE.md` tracks as a live
+worklist.
 
 The plan in one line: stop extending a single mutating depth-first walk,
 and rebuild the compiler as a **pipeline of pure passes** — a recursive,
@@ -13,8 +22,9 @@ dependencies.
 
 Companion documents:
 
-- `lazy-compile-design.md` — the current implementation's semantics, which
-  largely survive.
+- `lazy-compile-design.md` — the retired implementation's semantics
+  (historical as of the 2026-07 bridge retirement), which largely
+  survive in `Codegen.res`.
 - `placement-algorithm-notes.md` — the retired mutating placement pass,
   whose failure mode is this document's cautionary tale.
 - `time-travel-programs-design.md` — the completion pass this pipeline
