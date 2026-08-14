@@ -84,7 +84,12 @@ notes, reason 2). Docs carrying explicit "needs updating" notes
 from the sweep: `async-flow-design.md`, `speculation-design.md`,
 `cancellation-design.md`, `within-firing-effects-design.md`,
 `catalog-schema-design.md`, `served-flow-design.md`,
-`tough-use-cases-design.md`, `delay-ontology-design.md`.
+`tough-use-cases-design.md`, `delay-ontology-design.md`. (Update
+2026-08-14: the two full re-founding banners are cleared —
+`async-flow-design.md` and `speculation-design.md` are rewritten
+onto the revised account, superseded shapes recorded in place; the
+other six carry lighter read-against inline notes, still standing
+where their rounds haven't reopened.)
 
 **2026-08-12 revision sweep.** A second conversation series worked
 the recursion area to a landing and retired two standing pieces;
@@ -1066,7 +1071,12 @@ I rises: `async-flow-design.md`'s failability sections,
 `speculation-design.md`'s failable substrate,
 `cancellation-design.md`'s `Cancelled` payload, and
 `catalog-schema-design.md`'s throw rows (now directed at case
-bundles, not terminator lanes) all carry "needs updating" notes;
+bundles, not terminator lanes) all carry "needs updating" notes
+(update 2026-08-14: the first two are done — both docs re-founded
+on the revised account, with rejection re-located as an *arrival*
+carrying an Ok/Err case bundle and the speculation barrier's
+inputs as per-contender pairs; I stays 3 on the remaining items,
+chiefly the alt-reach re-founding of the inventory);
 the inventory account re-founds as alt-reach property propagation
 (direction, details owed); the error arm's prefix question is
 deliberately pinned. The paragraphs below predate the revision and

@@ -7,18 +7,18 @@ carry leanings (worked positions prepared for a design conversation,
 not decisions); the rest is recorded honestly as open questions. Read
 it as "here is how async would work, and the case for it."
 
-**Needs updating (2026-08-04).** Two revisions bear on this chapter
-and its failability sections have not been reworked to match:
-terminators now carry only the *reason* a flow ended, never data,
-and the fail node is dissolved with propagate-by-default failable
-values rejected (`end-when-design.md` and
-`failure-payloads-design.md`, revision notes 2026-08-04). "Failure
-as terminator payload" and every passage that rides a payload on a
-terminator or propagates failability silently must be re-founded on
-payloads-by-value-wire (the scoop —
-`barrier-value-crossing-design.md`, revision notes) and drawn error
-flows. The race material already carries its own pairs amendment;
-the cells/settlement model itself is untouched by the revisions.
+**Re-founded (2026-08-14).** The failability sections were
+rewritten onto the 2026-08-04 revisions (`end-when-design.md` and
+`failure-payloads-design.md`, revision notes): terminators carry
+only the *reason* a flow ended, payloads travel value wires and
+are scooped at selecting nodes (`barrier-value-crossing-design.md`,
+revision notes), and the fail node is dissolved — failure is a
+drawn case alt. The load-bearing relocation for this chapter:
+**rejection is an arrival, not an ending** — see "Failure:
+arrivals and endings", which also records the superseded
+terminator-payload account in place. The async cell, the
+settlement model, and the race material (with its pairs
+amendment) are untouched by the re-founding.
 
 ## Your first async program
 
@@ -59,8 +59,9 @@ the input. But the guards differ:
 - Option's discrimination is **data**, checked now: present or
   absent.
 - Async's discrimination is **time**: not yet, or arrived. There is
-  no absent case — an async value always eventually fires (or fails;
-  failure gets its own section, "Failure as terminator payload").
+  no absent case — an async value always eventually fires (or fails —
+  and a failure is itself an arrival; failure gets its own section,
+  "Failure: arrivals and endings").
 
 So the async open has no discriminator function and no
 zero-iterations case. It is a one-shot iteration displaced in time.
@@ -81,8 +82,9 @@ The "many, later" cell — a stream whose cells resolve asynchronously
 async cell (introduced below) substituted for the synchronous one,
 and it is what external event sources and long-running processes are.
 Most of this chapter's interesting content lives in that cell. The
-dash in the zero-or-one row is not an omission; it is explained and
-filled in "Failure as terminator payload."
+dash in the zero-or-one row is not an omission; it is explained —
+and deliberately left unfilled — in "Failure: arrivals and
+endings."
 
 ## What this chapter is about
 
@@ -418,18 +420,32 @@ fires. Mechanically this is race at every pull:
 Each pull of the derived stream races the inner stream's next cell
 against the interrupt. Inner wins → emit the cell, recurse (the
 interrupt cell is memoised and still in flight — the same race
-continues). Interrupt wins → the stream ends, carrying `e`.
+continues). Interrupt wins → the stream ends, with reason
+`Interrupted`; where `e` goes is the first point pinned down below.
 
 Two things worth pinning down:
 
-**The terminator wants a payload.** A stream ended by interruption is
-not the same as a stream that ran out, and downstream usually needs
-to know which happened and why. This is exactly the **failable
-stream** slot the commute taxonomy recorded — a terminator of `Nil |
-Interrupted(e)` is the "prefix-up-to-failure with partial results
-kept" shape, arrived at from the async side instead of the parsing
-side. Interruption may be the concrete use case failable streams were
-waiting for (taken up in "Failure as terminator payload").
+**The ending carries a reason; `e` travels a wire.** A stream ended
+by interruption is not the same as a stream that ran out, and
+downstream usually needs to know which happened — and, usually,
+what interrupted it. Those are two different pieces of cargo, and
+they travel differently. *Why the flow ended* is the terminator's
+whole content: reason `Interrupted` vs `RanOut`, never data
+(`end-when-design.md`, revision notes 2026-08-04). *What
+interrupted it* — `e` — is a payload, and a payload arrives on a
+drawn value wire: the interrupt's (flow, value) pair on the node
+that consumes the ending, the same stop-pair shape as
+collect-until's. Interrupt is end-when's asynchronous rhyming
+sibling (`end-when-design.md`), and the same fusion line applies —
+the single cut mints no new flow, so the interrupting stop fuses
+into the consuming collect: subject pair in, interrupt pair in,
+prefix and reason-tagged term out, `e` scooped from the interrupt
+pair exactly as race's per-contender pairs scoop a winner's
+payload (`barrier-value-crossing-design.md`, revision notes — the
+scoop). The race-at-every-pull account above survives as the
+lowering. (This paragraph originally rode `e` on the terminator —
+`Nil | Interrupted(e)`, the "failable stream" slot; superseded,
+see "Failure: arrivals and endings".)
 
 **Interruption is checked at pull boundaries.** The race happens per
 pull, so a step already in flight when the interrupt fires completes
@@ -441,179 +457,212 @@ effects question. The converse also holds: a consumer that stops
 pulling never observes the interrupt at all — laziness means the
 interrupt is only ever raced against demand that actually exists.
 
-## Failure as terminator payload
+## Failure: arrivals and endings
 
 What happens when a fetch *fails*? For a long time this was an open
 question, and you might wonder which of the two obvious answers the
 language picks: keep the async value infallible and put a
 `result<X, E>` inside it (`async<result<X, E>>`), or make the async
-flow itself failable as a special feature. It turns out the question
+flow itself failable as a special feature. This chapter's first
+answer was "neither, as posed" — a uniform failability dimension,
+the terminator carrying a payload. That answer was worked, adopted
+in descendant form, and then *reversed* in its core piece by the
+2026-08-04 revision: **terminators carry only the reason a flow
+ended, never data** (`end-when-design.md`, revision notes), and
+nothing is failable silently (`failure-payloads-design.md`,
+revision notes — the fail node dissolved, propagate-by-default
+rejected). This section is the account as it stands after that
+revision; the superseded account, and why it fell, is recorded at
+the end.
+
+One part of the old reasoning stands untouched: the question
 entangles three separately-deferred threads — JS promise rejection,
-interrupted streams, and parsing-style failable streams — and worked
-together, they are one concept, and it is not specific to async. The
-answer to the either/or is *neither, as posed*; the reasoning follows,
-and the verdict is stated at the end of this section.
+interrupted streams, and parsing-style failable streams — and they
+are one subject. What changed is the vocabulary that unifies them.
 
-**Every flow kind already has a termination event.** A stream ends
-(`Nil`); an option is absent; an async value delivers. What the three
-deferred threads each independently wanted is that event *carrying a
-payload*:
+### Rejection is an arrival, not an absence
 
-- A parsing stream ends with `Fail(e)` instead of `Nil` — tokens up
-  to the first bad one, plus what was bad about it.
-- An interrupted stream ends with `Interrupted(e)` — the steps that
-  ran, plus what interrupted them.
-- A failing async terminates by *not* delivering — rejection is the
-  exactly-one flow's second way to end, with the error as payload.
+Start where the earlier account started, because the observation
+survives and now carries more weight. In the *now* column of the
+flow-kind table, absence is observable by looking: the data is
+there or it is not. In the *later* column, bare absence is
+unobservable: an async that "just does not fire" is
+indistinguishable from one that has not fired *yet*, forever. So
+whatever failure is for an async value, it must be a **settlement**
+— an event that happens, not a nothing that persists.
 
-So this is one dimension, not three features: **a failable flow kind
-is a flow kind whose terminator carries a payload.** Which kinds it
-applies to falls out of the now/later table, and the table explains
-its own gap:
+The earlier account concluded: then failure is a second way for the
+flow to *end*, a terminator carrying the error. With data banned
+from terminators, pull the same thread again and it re-locates the
+design: a rejection is not the flow ending some second way — **it
+is the flow firing.** The fetch settled; something arrived; the
+thing that arrived is the failure. A rejectable operation enters
+the language as a node whose arrived value is a **case bundle** —
+an Ok alt and an Err alt, each with its per-alt value and flow
+ports, the ordinary case-split shape the language already
+implements. This is the JS-edge direction the failure round records
+(`failure-payloads-design.md`, revision notes: declared throws and
+rejections as case bundles on the catalog row): at the FFI
+boundary, a promise that rejects resolves its cell into the Err alt
+of the row's declared bundle; undeclared rejections land on the
+background super flow, unchanged.
 
-|                        | now             | later             |
-|------------------------|-----------------|-------------------|
-| exactly one            | (plain value)   | async flow        |
-| zero-or-one, bare end  | option flow     | *(unobservable)*  |
-| zero-or-one, end+e     | result-as-flow  | **failable async**|
-| many, bare end         | list flow       | async stream      |
-| many, end+e            | failable list   | **failable stream**|
+Note how this lands relative to the original either/or: nearer the
+first horn than the old account ever was — but *unpacked*. Not a
+`result` value the consumer must split (packing-to-pass, in
+miniature), but the split itself, arrived: per-alt flows and
+values, which is the failure round's option-as-flow direction
+(failable operations mint the unpacked reading by default; the
+packed value survives as data-on-purpose only).
 
-The dash in the earlier table — "zero-or-one, later" — was not an
-accident of omission. In the *now* column, absence is observable by
-looking: the data is there or it is not. In the *later* column, bare
-absence is unobservable: an async that "just does not fire" is
-indistinguishable from one that has not fired *yet*, forever. A
-later-flow's zero case is only meaningful if the termination is
-itself an event — which is to say, only in the failable row.
-Failability is not an add-on to the async flow; it is the only
-coherent way the async flow *has* a zero case.
+Two consequences, both simplifications:
 
-### Two consumption modes: propagate and discharge
+- **The async flow stays infallible.** Exactly one arrival, later —
+  that is the whole kind. Failure is a case dimension riding on
+  what arrives, not a property of the flow, so there is no
+  "failable async" kind and no second later-column kind to design.
+  The dash in this chapter's opening table stays a dash. (The
+  unobservability argument keeps its other client: a subset partial
+  collect over a race bundle is meaningful exactly because
+  settlement decides every cell at a knowable moment —
+  `race-barrier-design.md`.)
+- **No new discharge machinery.** "The sum exists as data" was the
+  earlier account's criterion for when `CaseSplit` is the right
+  tool; a rejection now *arrives* as that sum. The split is drawn
+  at the arrival, where the earlier account had a propagation
+  regime ending at a special discharge point.
 
-What does a consumer of a failable flow do about the terminator? Two
-modes, both already existing in spirit.
+### The error travels a drawn wire
 
-**Propagation is the default.** A close over the value flow that says
-nothing about the terminator passes it through: the output flow kind
-keeps the same terminator, payload intact. Mapping over a failable
-stream yields a failable stream that ends the same way the input did;
-a body hung off a failable async's value port yields a failable async
-that, if the input rejects, rejects with the same payload. This is
-`.then`-chaining behaviour derived from structure — the walk hits the
-terminator, has no instruction about it, and re-emits it. No new
-machinery, and failure stays invisible in diagrams that do not handle
-it, exactly like a promise chain.
+What does a program *do* with the Err alt? Whatever it draws — that
+is the revision's point. The payload is minted at the split (the
+minting site) and travels value wires from there:
 
-**Discharge is where failure becomes data.** At a whole-flow close,
-the terminator is *in hand*: the walk has finished, and
-`Nil`-vs-`Fail(e)` is now a settled, genuine tagged value. By the
-criterion the race section drew, this is precisely when `CaseSplit`
-is the right tool — the sum *exists as data* on the close's output
-side. No barrier is needed, and the bottleneck argument does not
-bite: unlike race's contenders, the success value and the failure
-payload have no independent upstream wires whose identity a packing
-would sever. They are born at the same settlement.
+- **Handled at the arrival**: the Err alt's continuation does
+  something with `e` — retry, substitute a default, log. Ordinary
+  case vocabulary; nothing about async changes it.
+- **Routed to a distant handler**: the Err alt joins a drawn error
+  flow — point-to-point, or the deliberate one-place-handles-all
+  global error flow (`failure-payloads-design.md`, revision notes).
+  The wire is visible the whole way; function boundaries it crosses
+  mint their ports off it. (For a payload deliberately *not* looked
+  at across many nesting levels, the stow is the sanctioned packed
+  transport — `barrier-value-crossing-design.md`, revision notes.)
+- **Short-circuiting a surrounding walk**: collecting the Ok side
+  alone outside the walk forces the case dimension to commute out
+  first — the **inferred short-circuit commute**, first-Err, drawn
+  faint (`failure-payloads-design.md`, revision notes). The faint
+  commute is the at-a-glance abort marker; the promise chain's
+  `.then`-skipping behaviour survives exactly *where the drawing
+  says it*, instead of everywhere by default.
 
-For streams, discharge is where the expressiveness gap closes. A
-whole-stream close over a failable stream has **two value outputs**:
-the folded prefix, and the terminator. The three readings the commute
-taxonomy catalogued map onto what you do with them:
+What no longer exists: silent propagation. A consumer that says
+nothing about failure does not pass it along invisibly — a
+consumer's behaviour is what its drawn form says, and a payload
+reaches its handler over wires you can point at.
 
-- *All-or-nothing*: discard the prefix when the terminator is `Fail`
-  — the same reading as the deferred result-commute (commute doc,
-  open question 2), reached from the terminator side. Not identical:
-  result-commute starts from errors *as element data* and would need
-  an error-joining step to land here; whether that step or a separate
-  primitive is nicer is that question's remaining content.
-- *Prefix-up-to-failure with partial results kept*: use both outputs
-  — the gap the taxonomy recorded, closed by making the terminator an
-  ordinary value you case-split.
-- *Skip-and-continue*: not this design at all — per-element
-  recoverable errors are **data** (a stream of results, handled by
-  filter closes). The boundary the commute doc drew stands: errors
-  that end the flow live in the terminator; errors you recover from
-  per element live in the elements.
+### Streams end for reasons
 
-### The three threads, unified
+For the many kinds, failure genuinely *is* an ending — a shortened
+extent — and that half of the old unification stands, with the
+cargo split the revision imposes: the terminator says *why* the
+flow ended; the diagnosis rides a value wire.
 
-- **Parsing streams**: the producer ends the stream with `Fail(e)`.
-  Source-side failability.
-- **Interruption**: the `interrupt` combinator writes
-  `Interrupted(e)` as the derived stream's terminator.
-  Combinator-side failability — same slot, different provenance.
-- **Async rejection**: terminator payload on the exactly-one flow. JS
-  rejection at the FFI boundary (where real JavaScript promises enter
-  the language) maps into it; a cell whose promise rejects is a flow
-  that terminated with payload.
-- **Async streams compose the two levels correctly for free**: a
-  stream cell that rejects is a stream whose termination arrived
-  early — the rejection *joins into the stream's terminator* (the
-  stream ends `Fail(e)`), which is the commute doc's "you would join
-  the error in, not commute it out" observation landing exactly where
-  it predicted.
+A parsing stream is this shape's stream instance (the shape itself
+is the one `failure-payloads-design.md` opens with — validate every
+entry, abort at the first bad one): each element splits Ok/Bad, and
+the consuming **collect-until** takes the subject pair (the token
+prefix) and the Bad alt as its stop pair. Out come the
+prefix, the reason-tagged `term` (`Stopped` vs `RanOut` — whether a
+failure-flavoured stop deserves its own reason tag is naming, open
+question 8), and the bad element's diagnosis on the stop pair's
+value wire, scooped by the node whose law selects it. Interruption
+is the same node with the stop pair wired from an interrupt lane
+(previous section). The three readings the commute taxonomy
+catalogued map on:
 
-Race also composes cleanly: racing failable contenders is JS-honest —
-first *settlement* wins, including a rejection. Contender `i`'s
-output flow fires iff `i` settled first; if it settled by failing,
-that lane's continuation is a failable flow whose terminator already
-fired, and propagation does the rest — the close's output async
-rejects with the winning contender's failure payload. No extra ports
-on the race barrier; the failure rides the terminator through it.
+- *All-or-nothing*: the commuted error arm — the classical
+  sequence, reached by collecting outside the walk. What that arm
+  contains (the payload alone, or the prefix reachable too) is a
+  deliberately pinned question, not decided
+  (`failure-payloads-design.md`, revision notes, "Pinned").
+- *Prefix-up-to-failure with partial results kept*: the
+  collect-until's own outputs — prefix, reason, and stop payload,
+  all in hand at one node. The expressiveness gap the taxonomy
+  recorded is closed by the fused node rather than by a terminator
+  you case-split.
+- *Skip-and-continue*: not an ending at all — the Bad alt handled
+  per element, walking on. The recover-vs-end boundary survives the
+  revision cleanly: errors you recover from are handled where they
+  fire; errors that end the flow end it — with the *reason* on the
+  ending and the payload on a wire in both cases.
 
-So, the verdict on the either/or you might have wondered about —
-"keep async infallible and layer `result` inside" versus "make the
-async flow failable" — is **neither, as posed.** Layering `result`
-inside treats a termination as data prematurely and does nothing for
-streams; making the async flow failable as a one-off re-derives the
-same design three times. Failability is a uniform dimension on flow
-kinds — terminator payloads — with `result`-as-data remaining correct
-for element-level errors on the other side of the recover-vs-end
-boundary. (Both one-sided forms are settled rejections *as posed*;
-what replaced them is the uniform dimension above.)
+And an async stream's two levels compose without machinery: a cell
+that rejects is an **arrival whose content is the Err alt** — a
+per-element case dimension. Whether that ends the walk is drawn:
+wire the Err alt as the consuming collect-until's stop pair
+(short-circuit — the earlier account's "the rejection joins into
+the stream's terminator" re-founded as this visible choice), or
+handle it per element and keep pulling. What the superseded account
+did automatically, the drawing now shows.
+
+### Race composes
+
+First *settlement* wins, including a rejection — a rejection is an
+arrival, and an arrival settles; the JS-honesty of the old account
+carries over unchanged. The winning lane's (flow, value) pair
+scoops the arrived value through the barrier; if that value is a
+case bundle, the lane's continuation splits it with ordinary
+vocabulary. Nothing rides through the barrier unseen — the pairs
+amendment already put every crossing value on a wire, and failure
+gets no exemption.
+
+### The superseded account, recorded
+
+Now, you might wonder why the terminator itself doesn't carry the
+payload — one uniform dimension, "a failable flow kind is a flow
+kind whose terminator carries a payload," with propagation by
+default and discharge to a data sum at a whole-flow close. That was
+this chapter's own worked answer, and for a while the record's: it
+unified the three threads, its propagate/discharge modes matched
+promise chains point for point, and its descendants (the fail node,
+the inventory account) were adopted 2026-07-23. It fell in the
+2026-08-04 revision, for two reasons that were already principles:
+a payload riding a terminator is a value passing through a
+construct without a shown wire — the forbidden-bottleneck shape,
+"no smuggling" (`end-when-design.md`, revision notes, reason 1) —
+and propagation-by-default makes a consumer's behaviour differ from
+what its drawn form says (`failure-payloads-design.md`, revision
+notes, "Rejected: automatically failable values"). What the account
+unified stays unified: parsing streams, interruption, and rejection
+are still one subject. The unifying vocabulary is now: **endings
+carry reasons; failure data is minted at drawn splits and travels
+value wires; selecting nodes scoop.** (Settled by the revision —
+don't re-propose terminator payloads without new evidence.)
 
 **What this does not settle:**
 
-- **Payload type composition.** Chaining closes over flows with
-  different payload types `E1`, `E2` needs either payload unification
-  at joins of failability or an error-mapping operation on the
-  terminator. Probably small; not worked out. *Now adopted*
-  (`failure-payloads-design.md`, 2026-07-23): neither, as posed —
-  the payload sets are derived, not artifacts; a terminator lane is a
-  set of drawn minting sites grouped by tag, the inventory at any
-  consumer computed by property propagation (union along stacks,
-  nesting, chained closes), with an error-mapping stage drawn only
-  where meaning changes (discharge, transform, re-fail).
-- **Do bodies raise?** A JS `async` function converts thrown
-  exceptions into rejections automatically. If compiled bodies
-  inherit that, *every* async close is failable whether declared or
-  not — JS-honest, but it erases the infallible/failable distinction
-  the table draws. The alternative — bodies are total, failure enters
-  only at declared sources — is cleaner and less honest. Genuinely
-  open. *Now adopted* (`failure-payloads-design.md`, 2026-07-23): the
-  cleaner side, with the honesty bill paid at the edge — failure is
-  drawn (`fail`, end-when's failure-tagged sibling), declared throws
-  enter by catalog row, and undeclared throws land on the
-  **background super flow** (a runtime-owned lane outside every
-  drawn inventory, collectable where wanted — see that doc's
-  adopted edge section), so the infallible/failable distinction
-  becomes derived and readable rather than declared.
-- **Port structure.** The discharging close's two value outputs
-  (prefix + terminator) is more port structure than current close
-  nodes carry — the same pressure as the race barrier. Worked with
-  the other barrier corners in `barrier-value-crossing-design.md`.
-  The lean there: on exactly-one kinds the discharge is one value
-  output (the settled sum, as this section argues); on many kinds it
-  is the (prefix, terminator) pair on one collect — two ports rather
-  than a packed pair (product bottleneck) or two sibling collects
-  (the standalone total fold would be an error-swallowing primitive).
-  Race's per-contender (value, flow) pairs are derived there from the
-  same criterion. Leanings prepared for the design conversation, not
-  adopted.
-- **Option convergence.** With failure in the flow, the failable
-  async and a "later result" are the same thing, and option is the
-  payload-less *now* row — a convergence sharpened but not decided
-  (see open questions).
+- **Payload composition.** Owned by the failure round: the
+  inventory of a flow's possible endings and lanes derives by
+  propagation, and its re-founding as ordinary alt-reach property
+  propagation is a recorded direction with details owed
+  (`failure-payloads-design.md`, revision notes).
+- **Do bodies raise?** Adopted (2026-07-23,
+  `failure-payloads-design.md`) and untouched by the revision:
+  bodies are total; declared throws enter by catalog row — now
+  directed at case bundles rather than terminator lanes; undeclared
+  throws land on the **background super flow** (a runtime-owned
+  lane outside every drawn inventory, collectable where wanted).
+- **Port structure.** Largely dissolved since the earlier form of
+  this section flagged it: the discharging close's port shape is
+  collect-until's own (flow-and-value pairs in; prefix and
+  reason-tagged term out — `end-when-design.md`, revision notes),
+  and race's per-contender (flow, value) pairs are the crossing
+  round's adopted corner (`barrier-value-crossing-design.md`).
+- **Option convergence.** Sharpened again by the re-founding: an
+  option is the flow whose ending inventory is exactly `{Nil}`,
+  and the rejectable arrival is an Ok/Err bundle on a now-or-later
+  value (see open question 6 — still not merged).
 
 ## External event sources
 
@@ -689,8 +738,13 @@ option-out-of-stream. The walk is the same shape as option commute's
 — consume the stream layer, produce one outer value — with two
 differences:
 
-- **No short-circuit.** Async does not fail (before failability
-  lands), so the walk is unconditional, like the marker case.
+- **No short-circuit from the async layer.** Settlement always
+  arrives — a rejectable element carries its Ok/Err bundle *in* the
+  arrival ("Failure: arrivals and endings"), a case dimension
+  separate from the async layer — so the async walk itself is
+  unconditional, like the marker case; any short-circuit on the
+  error dimension is that case layer's inferred commute, present
+  only where drawn.
 - **A genuinely new degree of freedom: start order.** Option commute
   had one possible walk. Here the walk could await each element's
   async before starting the next (sequential; wall time is the sum)
@@ -733,6 +787,12 @@ simple-lazy compile discipline:
 - `async<X>` at runtime is the `__asyncCell__` two-state cell;
   forcing returns a promise; the promise's own memo covers
   in-flight/resolved.
+- At the FFI boundary, a catalog row that declares rejection gives
+  the cell's promise a settled shape: resolution lands the Ok alt,
+  rejection the row's declared Err alt (a case bundle, not a
+  terminator — "Failure: arrivals and endings"); undeclared
+  rejections convert to the background super flow's runtime lane
+  (`failure-payloads-design.md`).
 - An async close compiles to one async cell whose thunk is an `async`
   arrow containing the body — awaits where async opens' value ports
   are read, plain bindings elsewhere. The emitted JS uses
@@ -758,16 +818,19 @@ simple-lazy compile discipline:
 The language hasn't decided everything in this chapter. Here is what
 remains genuinely open, and what has since been resolved:
 
-1. **Failure** — *resolved.* See "Failure as terminator payload": one
-   design covers async values, interrupted streams, and parsing-style
-   failable streams (failability = a payload on the flow kind's
-   termination event; propagate by default, discharge to a data sum
-   at a whole-flow close). Residual sub-questions — payload type
-   composition, whether bodies raise, the discharging close's port
-   structure — are recorded at the end of that section. The first two
-   now carry their own worked round (`failure-payloads-design.md`,
-   exploration); the port structure stays with
-   `barrier-value-crossing-design.md`.
+1. **Failure** — *resolved, twice.* See "Failure: arrivals and
+   endings": rejection is an arrival carrying an Ok/Err case
+   bundle; stream failure is an ending whose terminator carries the
+   reason, the diagnosis travelling the consuming node's stop pair;
+   nothing propagates silently. The section's first form
+   (failability = a payload on the flow kind's termination event,
+   propagate by default, discharge at a whole-flow close) was
+   worked here, adopted in descendant form, and reversed 2026-08-04
+   — the superseded account is recorded in place. Residual
+   sub-questions live with their owners: payload composition and
+   bodies-raise with `failure-payloads-design.md`, port structure
+   with `barrier-value-crossing-design.md` and the collect-until
+   fusion (`end-when-design.md`, revision notes).
 
 2. **Cancellation.** Deferred to the IO design, with the constraint
    recorded above: the async cell must be able to carry a
@@ -815,11 +878,14 @@ remains genuinely open, and what has since been resolved:
 6. **Is the async open its own kind, or is the option open a
    degenerate async?** They share the one-shot-body shape. Keeping
    them separate seems right (data-discrimination vs
-   time-displacement; option has a none case, async does not). With
-   failure now in the flow, the convergence sharpened as predicted —
-   option is the payload-less *now* row of the failability table,
-   failable async the payload-carrying *later* row. Still not merged:
-   the now/later distinction (a checkable discriminator vs an
+   time-displacement; option has a none case, async does not).
+   After the 2026-08-14 re-founding the convergence reads: an
+   option is the flow whose ending inventory is exactly `{Nil}`,
+   while the async flow's arrival is guaranteed and a rejectable
+   operation's Ok/Err bundle rides the arrived value — the
+   formulation `failure-payloads-design.md` (open question 6)
+   tracks, one step sharper. Still not merged: the now/later
+   distinction (a checkable discriminator vs an
    unobservable-until-event zero case) remains a real difference in
    meaning, not just a compile-target difference.
 

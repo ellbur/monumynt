@@ -2,24 +2,20 @@
 
 Status: exploration — this chapter teaches a worked proposal that has
 not been adopted yet; everything below is a leaning, not a decision.
-None of it is implemented, and the failable flow kind the whole
-construct presumes does not exist yet either
-(`async-flow-design.md`, "Failure as terminator payload"). Read it as
-"here is a candidate and the case for it."
+None of it is implemented. Read it as "here is a candidate and the
+case for it."
 
-**Needs updating (2026-08-04).** The failability substrate this
-chapter presumes was re-founded: the fail node is dissolved
-(failure = a case alt commuted out, short-circuit by inference) and
-terminators carry reason only, payloads by value wire
-(`failure-payloads-design.md`, revision notes 2026-08-04).
-"Contenders are failable by construction," commit + fail, and the
-diagnosis payload all need re-founding on the drawn-error-flow
-account; the ordered-alternatives core (try in order, rollback,
-first success wins) is untouched. The dissolution's own account is
-settled — the owed work is narrower than it reads: re-founding
-*this* chapter's failability sections on the drawn-error-flow
-account, not resolving the account itself. Open question 4
-(diagnosis payload) is already partially closed on that account.
+**Re-founded (2026-08-14).** The failability substrate was rewritten
+onto the 2026-08-04 revisions (`failure-payloads-design.md` and
+`end-when-design.md`, revision notes): a contender's success and
+decline are the two sides of a drawn case fork — (flow, value)
+pairs, not a payload-carrying terminator — the barrier consumes
+per-contender pairs (matching race's pairs amendment,
+`barrier-value-crossing-design.md`), endings carry reasons only,
+and every diagnosis travels a drawn value wire. The
+ordered-alternatives core (try in order, rollback by structure,
+first success wins) is untouched. Open question 4 (diagnosis
+payload) is mostly closed on that account.
 
 ## Trying things in order
 
@@ -53,11 +49,14 @@ is a `let` or an application — in Effekt you would write
 Each alternative is a computation over the input that can end in one
 of two ways. `parseLet` reads the current position, consumes some
 tokens, and either *succeeds* — producing an AST and an advanced
-position — or *fails*: it ends without producing a value at all. The
-signal that it ended that way is called its **terminator** firing,
-and a computation that can end either way is called **failable**.
-`parseLet` reads the first token; if it is not `let`, it fails
-cheaply, and `parseApp` is tried against the *same* position.
+position — or *fails*: it ends without producing a result. In the
+revised failure vocabulary (`failure-payloads-design.md`, revision
+notes 2026-08-04) that fork is a drawn case alt, not a special
+terminator: a contender presents a success side and a decline side,
+each an ordinary (flow, value) pair, and a computation with both
+sides is called **failable**. `parseLet` reads the first token; if
+it is not `let`, it fails cheaply — its decline side fires — and
+`parseApp` is tried against the *same* position.
 
 ```
 parseLet:  p -> ...          -- fails if the head token isn't `let`
@@ -136,9 +135,13 @@ across.
 
 **Form.** Speculation takes N contenders (N ≥ 1), each a **failable**
 computation. It is a sum-side multi-input uncollect — the same shape
-as a case split and the race barrier
-(`barrier-value-crossing-design.md`, values in, one minted row per
-cell). Out comes a **bundle of N cells**: cell *i* fires iff
+as a case split and the race barrier — and, like race after its
+pairs amendment, its inputs are per-contender **pairs**: contender
+*i*'s success side arrives as a (flow, value) pair, and its decline
+side as another (`barrier-value-crossing-design.md`, corner 2 and
+the revision notes' scoop — the barrier's law selects a contender,
+which is what licenses minting the selected pair's value at the
+output). Out comes a **bundle of N cells**: cell *i* fires iff
 contenders 1..*i*−1 all failed *and* contender *i* succeeded,
 carrying contender *i*'s success value as its minted per-cell
 output. Exactly one cell fires, or none (all failed).
@@ -150,17 +153,19 @@ temporal: order is not a tie-break (as it is in race), it is the
 whole selection rule. Later contenders are not merely
 lower-priority — they are not evaluated at all until earlier ones
 have failed, which laziness delivers for free (force contender *i*+1
-only when contender *i*'s terminator has fired;
+only when contender *i*'s decline side has fired;
 `lazy-compile-design.md`).
 
 **Selection is by success, not settlement.** A contender that
 *fails* is passed over. This is why contenders are failable by
-construction: "fail" is how a contender says "not me, try the next."
-A contender's failure terminator is **discharged** at the
-speculation barrier — absorbed there, turned into "advance to the
-next contender" — it does not propagate onward. Only when *every*
-contender has failed does speculation itself fail, propagating an
-aggregate terminator (see "What a failed parse says").
+construction: the decline side firing is how a contender says "not
+me, try the next." A contender's decline pair is consumed **at the
+speculation barrier** — wired in there, absorbed, turned into
+"advance to the next contender" — it goes nowhere else. Only when
+*every* contender has failed does speculation itself end without a
+winner; that ending's flow side carries the *reason* (all
+declined), and the diagnosis is ordinary data built from the
+decline pairs already in hand (see "What a failed parse says").
 
 **Failable by construction.** The contenders' failability is not
 optional decoration; it is the barrier's input contract, exactly as
@@ -182,7 +187,7 @@ axis: **what decides the winner.**
 | all run? | yes, concurrently, in drawn order | no — next only on prior failure |
 | winner is | first to **settle** (temporal) | first to **succeed** (ordered) |
 | drawn order | tie-break only | the primary selection |
-| a "loser" | abandoned in-flight, memoised | never run, or failed and discharged |
+| a "loser" | abandoned in-flight, memoised | never run, or failed and its decline consumed |
 | restoration | n/a (independent asyncs) | structural: the shared input wire |
 
 Raku ships both and keeps them distinct: `||` is the speculation
@@ -200,19 +205,22 @@ The barrier's meaning decomposes into pieces the record already
 owns. Ordered fallback of two contenders A, B over shared input `p`
 is:
 
-> run A(`p`); **discharge** its terminator — success ⇒ output;
-> soft-fail ⇒ run B(`p`), discharge *its* terminator — success ⇒
-> output; fail ⇒ propagate the aggregate.
+> run A(`p`) — success ⇒ output; declined ⇒ run B(`p`) — success ⇒
+> output; declined ⇒ the all-declined ending, its aggregate built
+> from the declines in hand.
 
-That is a case split on A's terminator (Success / SoftFail) whose
-SoftFail branch contains B, itself discharged — a **right-nested
-chain of discharges**, N contenders deep. It is expressible today
-from failability's propagate/discharge (`async-flow-design.md`) plus
-a case-split on the terminator; nobody should author it, exactly as
+That is A's success/decline fork — an ordinary case split — with B
+sitting in the declined alt's continuation, itself forked: a
+**right-nested chain of case handlings**, N contenders deep. It is
+expressible today from the revised failure vocabulary (one split
+per contender, each declined alt containing the next — the same
+family as the inferred short-circuit commute,
+`failure-payloads-design.md`, revision notes); nobody should author
+it, exactly as
 nobody authors the mutually-recursive merge/interrupt pair
 underneath race (`race-barrier-design.md`, "Merge, interrupt, and
 the timeout family"). The flat N-ary drawing is what you draw; the
-nested-discharge chain is its derived **lowering** — its translation
+nested-handling chain is its derived **lowering** — its translation
 to a more concrete form — inspectable on drop-down (principle 6:
 abstraction is the source of truth, and the concrete form is a
 read-only derived view). Whether the flat form is a fresh primitive
@@ -234,46 +242,52 @@ under the whole language.
 Within a contender, commitment distinguishes two kinds of failure.
 Once Raku's tilde `'(' ~ ')' <expr>` has matched the open delimiter,
 a missing close is not a non-match — it fires a user-definable
-`FAILGOAL` ("Cannot find ')' near position 4"). Mapped onto our two
-terminator lanes:
+`FAILGOAL` ("Cannot find ')' near position 4"). Mapped onto our
+vocabulary, a contender's non-success side has two alts:
 
-- **soft fail** — no match; the contender declined. Discharged by
-  the enclosing speculation ⇒ try the next contender.
+- **soft fail (declined)** — no match. Its pair is consumed by the
+  enclosing speculation ⇒ try the next contender.
 - **hard fail** — the contender committed past a point and then
-  could not continue. Propagates *past* the speculation barrier ⇒
-  the whole parse fails with a diagnosis; later contenders are
-  **not** tried.
+  could not continue. Its pair crosses on the barrier's own
+  hard-fail output, bypassing "try next" ⇒ the whole parse ends
+  with that diagnosis; later contenders are **not** tried. Nothing
+  propagates unseen: the diagnosis is a value on a drawn wire from
+  the contender's minting split, through the barrier's pair, to
+  wherever it is handled.
 
-The leaning: a **commit** marker on a contender's wire upgrades any
-subsequent `fail` from soft to hard — the drawn analogue of the
-tilde's commitment. `fail` is failability's lightweight terminator
-write; `commit` changes only how the enclosing speculation
-discharges what comes after it. Both stay drawn; neither is a value
-the code inspects. (Commit's exact form — a node, a wire property,
-per-contender vs a general failability marker shared with async —
-is open question 3.)
+The leaning: a **commit** marker on a contender's chain upgrades
+any subsequent fail from soft to hard — the drawn analogue of the
+tilde's commitment: it changes which alt the contender's later
+fails land on, and thereby which of the barrier's two consumptions
+receives them. Both stay drawn; neither is a value the code
+inspects. (Commit's exact form — a node, a wire property,
+per-contender vs a general marker shared with async — is open
+question 3.)
 
 ## What a failed parse says
 
 Error reporting is part of the construct's territory, not a layer on
-top (`raku-grammars-comparison.md`, finding 3). Two cases, both
-terminator payloads:
+top (`raku-grammars-comparison.md`, finding 3). Two cases; in both,
+the diagnosis is a value on a drawn wire, and the ending's flow
+side carries only the reason:
 
-- **All contenders soft-failed.** Speculation's own terminator
-  carries the aggregate — "none of {parseLet, parseApp, …} matched
-  at `p`" — built from each contender's declined-expectation. This
-  is the honest "no alternative matched," and it names the
-  alternatives because they are drawn cells.
-- **A contender hard-failed.** Its committed diagnosis propagates
-  directly, bypassing "try next" — the FAILGOAL "expected ')' near
-  position 4," which is more specific than the aggregate precisely
-  because the contender got far enough to know what it wanted.
+- **All contenders soft-failed.** The barrier's no-winner ending
+  fires (reason: all declined), and the aggregate — "none of
+  {parseLet, parseApp, …} matched at `p`" — is ordinary data
+  construction over the decline pairs' values, all in hand at the
+  barrier. It is the honest "no alternative matched," and it names
+  the alternatives because they are drawn cells.
+- **A contender hard-failed.** Its committed diagnosis crosses on
+  the barrier's hard-fail pair, bypassing "try next" — the FAILGOAL
+  "expected ')' near position 4," which is more specific than the
+  aggregate precisely because the contender got far enough to know
+  what it wanted.
 
-Payload composition (how the aggregate is built, whether it is a
-list of expectations or a merged set, how position is carried) folds
-into failability's terminator payload-composition residue
-(`async-flow-design.md`) and end-when's discharge readout
-(`end-when-design.md`) — decide jointly. Open question 4.
+Which aggregate to build (a list of expectations, a merged set,
+furthest-position) is a value-level catalog choice for the parsing
+domain — open question 4, the only part of the old
+payload-composition rider left after the failure round consumed the
+rest (`failure-payloads-design.md`).
 
 ## What speculation does *not* need
 
@@ -384,9 +398,9 @@ p -> | parseLet     -- the shared input, fanned to each contender
 -~> collect => expr
 ```
 
-A committed contender writes `commit` on its chain before the `fail`
-that should become hard. The advanced position rides out of the
-covering collect beside `expr` for the next stage to thread.
+A committed contender writes `commit` on its chain; fails after it
+land hard. The advanced position rides out of the covering collect
+beside `expr` for the next stage to thread.
 
 The `+all-results` rung is the same bundle with a different
 reconvergence — each firing lane joined into a list collect instead
@@ -506,8 +520,9 @@ re-proposed.
    alternative when the left yields "no value *or* a falsy value."
    It turns out this is rejected by the value/flow wire sort:
    flow-absence (a soft-fail) is not a value, and a contender that
-   produced `false` *succeeded*. Speculation dispatches on the
-   terminator (fail vs success), never on value falsiness. jq spends
+   produced `false` *succeeded*. Speculation dispatches on which
+   side of the contender's fork fired (declined vs succeeded) — a
+   flow fact — never on value falsiness. jq spends
    paragraphs disentangling the two; two wire sorts make the
    conflation unwritable (`xquery-jq-comparison.md`, §9). (This is a
    settled dead end — please don't re-propose it without new
@@ -521,7 +536,7 @@ The language hasn't decided any of these yet.
    marked decided.
 2. **Primitive barrier vs catalog block.** Whether the flat N-ary
    speculation is a primitive (race's sibling) or a catalog block
-   over the right-nested discharge chain. Same question race
+   over the right-nested handling chain. Same question race
    carries; decide together, since the answer likely wants to be
    uniform across the two sum-side barriers.
 3. **Commit's form.** Node vs wire property; per-contender vs a
@@ -529,17 +544,16 @@ The language hasn't decided any of these yet.
    composes with nested speculations (a commit inside contender *i*
    of an inner speculation — does it commit the inner, the outer, or
    both?).
-4. **Diagnosis payload.** The aggregate-of-alternatives on all-fail
-   and the pass-through of a committed diagnosis; decide jointly
-   with failability's payload composition and end-when's discharge
-   readout. *The failability side is now worked*
-   (`failure-payloads-design.md`, exploration): the barrier
-   discharges each contender's soft-fail to advance, so the aggregate
-   is ordinary data construction over payloads already in hand — no
-   new composition mode — and the hard-fail lanes pass through under
-   the ordinary union rule. What remains here is only *which*
-   aggregate (list, merged set, furthest-position), a value-level
-   catalog choice for the parsing domain.
+4. **Diagnosis payload.** Mostly closed by the failure round and
+   its 2026-08-04 revision (`failure-payloads-design.md`): the
+   decline pairs' values are in hand at the barrier, so the
+   aggregate is ordinary data construction — no new composition
+   mode — and a committed diagnosis crosses on the barrier's
+   hard-fail pair, a drawn wire, never a propagating terminator.
+   What remains is only *which* aggregate (list, merged set,
+   furthest-position), a value-level catalog choice for the parsing
+   domain (that doc's open question 3 names the same residue from
+   the other side).
 5. **The heuristic-order rung and the chooser family.** Whether
    heuristic-ordered speculation is a member of the decision-driven
    family (`tough-use-cases-design.md`, item 4) or a separate rung;
@@ -588,16 +602,16 @@ The language hasn't decided any of these yet.
 - **The chooser family's own round** — heuristic order touches it;
   the two-flow decision-driven merge and merge fairness stay with
   `tough-use-cases-design.md`, item 4.
-- **Failability's payload composition** — how terminator payloads
-  combine is `async-flow-design.md`'s residue; speculation adds the
-  aggregate-of-alternatives as a client, not a design. *The round now
-  exists* (`failure-payloads-design.md`, exploration) and consumes
-  the client: the aggregate is data construction over
-  already-discharged payloads, no new composition mode.
+- **Failability's own design** — the failure vocabulary (splits as
+  minting sites, endings reason-only, payloads by wire, the
+  inferred short-circuit commute) is `failure-payloads-design.md`'s;
+  speculation adds the aggregate-of-alternatives as a client, not a
+  design, and the round consumed it: the aggregate is data
+  construction over pairs in hand, no new composition mode.
 - **Visual depiction** — barrier lines, how a contender fan reads,
   and whether `commit` has a glyph are the layout side's, out of
   scope in this repo.
-- **Implementation.** The failable flow kind does not exist in the
+- **Implementation.** The failure vocabulary does not exist in the
   compiler; nothing here changes the recorded dependency order
   (streams, then async cells / failability, then race /
   speculation).

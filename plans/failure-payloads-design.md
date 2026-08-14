@@ -24,7 +24,8 @@ None of it is implemented. The open questions below remain open
 where marked — tag identity across reuse boundaries now carries
 its worked round (the last section below), unadopted. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
-"Failure as terminator payload"): **"do bodies raise?"** and
+its failability section — since re-founded 2026-08-14 as "Failure:
+arrivals and endings"): **"do bodies raise?"** and
 **payload-type composition** — plus the payload questions other
 rounds filed to be decided jointly with them: the `Cancelled` payload
 (`cancellation-design.md`, open question 2), the subset-merge payload

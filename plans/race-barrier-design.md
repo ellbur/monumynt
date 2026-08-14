@@ -227,11 +227,11 @@ that fires **zero or one times, later**. The async design has a
 warning about exactly that shape: its bare version is
 *unobservable* in the zero case — an async that never fires is
 indistinguishable, forever, from one that hasn't fired yet
-(`async-flow-design.md`, "Failure as terminator payload"). A
+(`async-flow-design.md`, "Failure: arrivals and endings"). A
 consumer awaiting a bare subset merge whose race settled elsewhere
 would hang for the life of the program — a designed footgun.
 
-But race is exactly the case where that table's escape clause
+But race is exactly the case where that argument's escape clause
 applies: a later-flow's zero case is meaningful when the termination
 is itself an event. Here it is — the race's settlement decides every
 cell at once, so "the winner is not in S" becomes true at a knowable
@@ -252,6 +252,18 @@ touched; the discipline is: engage the cell if you want its value.
 The alternative (the payload carries the winner's value too) is
 convenient and dirty; it is recorded here so the design conversation
 can weigh it.
+
+*(Update 2026-08-14: the sub-leaning predates the reason-only
+discipline — terminators carry only the reason a flow ended, never
+data (`end-when-design.md`, revision notes 2026-08-04). Under it
+the terminator can say only *that* the race settled elsewhere;
+"which cell won" is data, and data arrives on a value wire on the
+discharging consumer, not on the terminator. The sub-leaning's
+substance survives — deliver the fact, not the winning value — but
+its carrier re-poses as a drawn pair, and the "winner's value too"
+alternative is excluded by the discipline rather than merely
+disfavoured: delivering it would be exactly the engage-the-cell
+violation the paragraph above names.)*
 
 One contrast makes clear why this derivation is specific to async.
 The same subset merge over a case split *inside a list iteration* is
