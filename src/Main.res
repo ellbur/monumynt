@@ -5151,47 +5151,123 @@ out out
 }
 
 // ============================================================================
-// 16g. The named gaps. A stream layer stacked into an EAGER CHAIN — joined into
+// 16g. The named gap. A stream layer stacked into an EAGER CHAIN — joined into
 //      a flatten, or dispatched — is not an eager level wearing a different
 //      hat: an eager level is a `for-of` that runs the whole source, and
 //      running a stream's whole source is the one thing a stream exists not to
 //      do. So `spine` declines it rather than compiling a pull chain as a loop
 //      (the flatten is step 3's neighbour; the sequence commute that motivates
-//      the whole stream layer is step 3 itself). A register over a stream is
-//      the same story from the other side: its driving flow OWNS an order, so
-//      Check admits it — a stream's firings are the source's, in the source's
-//      order, and pull PACE is not order — and only the emitter is missing.
+//      the whole stream layer is step 3 itself).
 // ============================================================================
 
-header("stream: joined and register-driven stream chains decline cleanly")
+header("stream: a joined stream chain declines cleanly")
 {
-  let declines = (label: string, p: Program.program) => {
-    switch Pipeline.compile(p) {
-    | exception Codegen.Todo(_) => pass(label ++ " declines with a clean Todo")
-    | Ok(_) => fail(label ++ " unexpectedly compiled — its emitter is a named gap")
+  // The flatten: a stream opened per element of an outer stream, joined into it.
+  let b = Build.make()
+  let xss = Build.raw(b, "[[1, 2], [3]]")
+  let mul = Build.raw(b, "(a, b) => a * b")
+  let two = Build.lit(b, int_(2))
+  let outer = Build.uncollectStream(b, xss.value)
+  let inner = Build.uncollectStream(b, outer.element)
+  let j = Build.join(b, ~outer=outer.flow, ~inner=inner.flow)
+  let doubled = Build.app(b, mul.value, [inner.element, two.value])
+  let c = Build.collect(b, ~flow=j.flow, doubled.value)
+  let p = Build.finish(b, ~outputs=[("out", c.value)])
+  switch Pipeline.compile(p) {
+  | exception Codegen.Todo(_) => pass("join(stream, stream) — the flatten declines with a clean Todo")
+  | Ok(_) => fail("join(stream, stream) unexpectedly compiled — its emitter is a named gap")
+  | Error(ws) =>
+    fail("join(stream, stream) failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+  }
+  expectRoundTrip(p)
+}
+
+// ============================================================================
+// 16h. A REGISTER OVER A STREAM. The check half landed first — a stream's
+//      order is OWNED (its firings are the source's, in the source's order;
+//      pull PACE is not order), so Check's order-demand rule admits the
+//      register — and the emitter is the register's fold in the sequence
+//      commute's shape: `final` is ONE answer about the whole stream, so the
+//      fold never emits a cons. Each firing BECOMES THE REST, advancing the
+//      accumulator on the side, which is also what keeps the walk a redirect
+//      chain `__forceD__` follows iteratively rather than a per-element
+//      recursion. Forcing `final` walks the whole source — not laziness lost,
+//      but what a fold means.
+// ============================================================================
+
+header("stream: a register over a stream driving flow compiles")
+{
+  // The same wiring test 8a builds over a list, one word away (`uncollectStream`
+  // for `uncollectList`): a running sum, final = 0 + 1 + 2 + 3.
+  let b = Build.make()
+  let addF = Build.raw(b, "(a, b) => a + b")
+  let xs = Build.raw(b, "[1, 2, 3]")
+  let it = Build.uncollectStream(b, xs.value)
+  let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+  let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+  let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+  let p = Build.finish(b, ~outputs=[("total", w.final)])
+  switch Check.check(p) {
+  | [] => pass("a register over a stream passes check (a stream's order is owned)")
+  | ws =>
+    fail(
+      "a register over a stream witnessed:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+  expectOutput(p, "total", int_(6))
+  expectRoundTrip(p)
+}
+
+header("stream register: empty source yields init; the fold runs once per element")
+{
+  // Empty source: the fold's atNil fires immediately and final is init — the
+  // same sentence the eager register's empty list earns (test 8b).
+  {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let xs = Build.raw(b, "[]")
+    let it = Build.uncollectStream(b, xs.value)
+    let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(42)).value)
+    let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+    let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+    let p = Build.finish(b, ~outputs=[("total", w.final)])
+    expectOutput(p, "total", int_(42))
+  }
+
+  // Forcing `final` walks the whole source and the step runs once per firing —
+  // pinned by a counting step: [final, firings] = [6, 3].
+  {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => { globalThis.__st = (globalThis.__st || 0) + 1; return a + b }")
+    let xs = Build.raw(b, "[1, 2, 3]")
+    let it = Build.uncollectStream(b, xs.value)
+    let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+    let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+    let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+    let p = Build.finish(b, ~outputs=[("total", w.final)])
+    switch Pipeline.compileOne(p) {
+    | Ok(o) => {
+        let probe =
+          "(() => { globalThis.__st = 0; const v = " ++
+          o.js ++ "; return [v, globalThis.__st]; })()"
+        let actual = jsonStringify(evalExpression(probe))
+        let want = jsonStringify(evalExpression("[6, 3]"))
+        if actual === want {
+          pass("forcing final folds the whole source, one step per firing (" ++ actual ++ ")")
+        } else {
+          fail("stream register fold count: expected " ++ want ++ ", got " ++ actual)
+        }
+      }
     | Error(ws) =>
-      fail(label ++ " failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+      fail("stream register fold count failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
     }
   }
 
-  // The flatten: a stream opened per element of an outer stream, joined into it.
-  {
-    let b = Build.make()
-    let xss = Build.raw(b, "[[1, 2], [3]]")
-    let mul = Build.raw(b, "(a, b) => a * b")
-    let two = Build.lit(b, int_(2))
-    let outer = Build.uncollectStream(b, xss.value)
-    let inner = Build.uncollectStream(b, outer.element)
-    let j = Build.join(b, ~outer=outer.flow, ~inner=inner.flow)
-    let doubled = Build.app(b, mul.value, [inner.element, two.value])
-    let c = Build.collect(b, ~flow=j.flow, doubled.value)
-    let p = Build.finish(b, ~outputs=[("out", c.value)])
-    declines("join(stream, stream) — the flatten", p)
-    expectRoundTrip(p)
-  }
-
-  // A register folding a stream: an emitter gap, not a witness — Check's
-  // order-demand rule admits it, which is the half that is already done.
+  // The RUNNING VIEW over a stream — a sibling stream collect reading `prev` —
+  // is the next width and stays a clean Todo. It is not `final`: a scan CAN
+  // hand out cells as it goes, so its fold cons-es — a different assembled
+  // shape, the stream twin of emitRunningCollect.
   {
     let b = Build.make()
     let addF = Build.raw(b, "(a, b) => a + b")
@@ -5200,17 +5276,41 @@ header("stream: joined and register-driven stream chains decline cleanly")
     let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
     let stepped = Build.app(b, addF.value, [sum.prev, it.element])
     let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
-    let p = Build.finish(b, ~outputs=[("total", w.final)])
-    switch Check.check(p) {
-    | [] => pass("a register over a stream passes check (a stream's order is owned)")
-    | ws =>
-      fail(
-        "a register over a stream witnessed:\n  " ++
-        ws->Array.map(Check.witnessToString)->Array.join("\n  "),
-      )
+    let view = Build.collect(b, ~flow=it.flow, sum.prev)
+    let p = Build.finish(b, ~outputs=[("total", w.final), ("view", view.value)])
+    switch Pipeline.compile(p) {
+    | exception Codegen.Todo(_) =>
+      pass("the running view over a stream declines with a clean Todo")
+    | Ok(_) => fail("the stream running view unexpectedly compiled — it is a named gap")
+    | Error(ws) =>
+      fail("the stream running view failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
     }
-    declines("a register over a stream driving flow", p)
-    expectRoundTrip(p)
+  }
+
+  // 50k become-the-rest firings without overflowing — the accumulator-on-the-
+  // side fold is a redirect chain __forceD__'s while loop follows, the same
+  // property test 16f pins for the sequence commute. Sum 1..50000 = 1250025000.
+  {
+    let b = Build.make()
+    let addF = Build.raw(b, "(a, b) => a + b")
+    let xs = Build.raw(b, "Array.from({length: 50000}, (_, i) => i + 1)")
+    let it = Build.uncollectStream(b, xs.value)
+    let sum = Build.delay(b, ~flow=it.flow, ~init=Build.lit(b, int_(0)).value)
+    let stepped = Build.app(b, addF.value, [sum.prev, it.element])
+    let w = Build.writeBack(b, ~read=sum, ~step=stepped.value)
+    let p = Build.finish(b, ~outputs=[("total", w.final)])
+    switch Pipeline.compileOne(p) {
+    | Ok(o) => {
+        let actual = jsonStringify(evalExpression(o.js))
+        if actual === "1250025000" {
+          pass("50k consecutive fold firings resolve without overflowing")
+        } else {
+          fail("deep stream register: expected 1250025000, got " ++ actual)
+        }
+      }
+    | Error(ws) =>
+      fail("deep stream register failed check:\n  " ++ ws->Array.map(Check.witnessToString)->Array.join("\n  "))
+    }
   }
 }
 

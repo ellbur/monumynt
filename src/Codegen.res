@@ -2581,6 +2581,28 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   | _ =>
     failwith("Codegen.emitRegister: DelayWrite's read is not a DelayRead — Check should have witnessed this")
   }
+  // A register over a bare STREAM open compiles to a fold over the pull chain,
+  // not to a loop. The routing question is `streamOpenOf` — the same structural
+  // question Annotate answers to assign the stream species to a collect (a
+  // DelayWrite's species stays RegisterWrite; what is stream-shaped is its
+  // driving flow, which the write half names). A stream layer STACKED into an
+  // eager chain still falls through to `spine`, which declines it with the
+  // named gap.
+  switch streamOpenOf(flow) {
+  | Some(u) => emitStreamRegister(st, ctx, wn, read, ~streamOpen=u, ~init, ~step)
+  | None => emitEagerRegister(st, ctx, wn, read, ~flow, ~init, ~step)
+  }
+}
+
+and emitEagerRegister = (
+  st: state,
+  ctx: ctxPath,
+  wn: node,
+  read: node,
+  ~flow: flowRef,
+  ~init: valueRef,
+  ~step: valueRef,
+): compiled => {
   // Normally the driving flow's exterior. For a register folding along ONE axis
   // of a product, `Context.valueContext` reports the surviving (fibering) axis
   // instead, so the loop is emitted INSIDE the holding loop and runs once per
@@ -2646,6 +2668,140 @@ and emitRegister = (st: state, ctx: ctxPath, wn: node, read: node, step: valueRe
   {
     name,
     floated: Array.concat(escaped, [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}]),
+  }
+}
+
+// A register over a STREAM driving flow (ARCHITECTURE worklist item 10's "a
+// register over a stream"). The check half landed with `OrderDemand`: a
+// stream's order is OWNED — its firings are the source's, in the source's
+// order, and pull PACE is not order — so the Delay's demand for "one previous
+// firing" has an answer and Check admits the program. This is the emitter half.
+//
+// `final` is ONE answer about the whole stream, which is the sequence
+// commute's situation exactly ("commute is exactly the place where laziness
+// has to give"), so the fold has the same shape: it uses two of the runtime's
+// three moves and never emits a cons. Each firing BECOMES THE REST, advancing
+// the accumulator on the side, which is also what keeps the walk a redirect
+// chain `__forceD__` follows iteratively — a fold that inspected the tail's
+// result would cost a stack frame per element. Forcing `final` therefore walks
+// the whole source; that is not laziness lost but what a fold means (the same
+// sentence the empty eager loop earns: init when nothing fired).
+//
+//   const final = __lazy__(() => {
+//     let reg = __force__(init);
+//     __forceD__(__zipStream__(src, __ready__(undefined), (h, rest) => {
+//       const e = __lazyDone__(h);       // the stream element
+//       const prev = __lazyDone__(reg);  // the register's prev, this firing
+//       <per-firing work>
+//       reg = __force__(step);
+//       return __dflatMap__(rest, s => s);   // BECOME THE REST
+//     }));
+//     return reg;
+//   });
+//
+// Placement is `emitStreamCollect`'s three moves unchanged (exterior by the
+// final port's context report, element pre-memoised at the body context,
+// statements partitioned into the fold step vs floated out), so pull-invariant
+// hoisting holds here too. `prev` is declared ahead of the step's own bindings,
+// the one ordering fact the eager register's payload also encodes.
+and emitStreamRegister = (
+  st: state,
+  ctx: ctxPath,
+  wn: node,
+  read: node,
+  ~streamOpen: node,
+  ~init: valueRef,
+  ~step: valueRef,
+): compiled => {
+  let input = switch streamOpen.kind {
+  | Uncollect({input}) => input
+  | _ => failwith("Codegen.emitStreamRegister: the stream level is not an Uncollect")
+  }
+  let own = FlowPort(streamOpen, "flow")
+
+  // The driving flow's exterior — empty for a top-level stream, the enclosing
+  // chain for one opened inside a loop, by the same instantiation every
+  // register uses (a fibered stream register would report its fiber here).
+  let exterior = instantiate(
+    ~what="Stream register final, node " ++ Int.toString(wn.id),
+    Context.valueContext(ValuePort(wn, "final")),
+    ctx,
+  )
+  if !chainOpens(Context.flowContext(own), exterior) {
+    failwith(
+      "Codegen: stream register level " ++
+      Int.toString(streamOpen.id) ++
+      " is not nesting-adjacent to the chain — Check's join-adjacency rule should have witnessed this",
+    )
+  }
+
+  let feedC = compileValue(st, exterior, input)
+  let initC = compileValue(st, exterior, init)
+  let regName = st.fresh()
+  let bodyCtx = Array.concat(exterior, [{flow: own, thunkOf: wn.id, idxVar: None}])
+  let headVar = st.fresh() // the fold step's head parameter
+  let restVar = st.fresh() // the fold over the tail, one Delayed layer deep
+  let elemName = st.fresh()
+  recordMemo(st, streamOpen.id, "element", bodyCtx, elemName)
+  let prevName = st.fresh()
+  recordMemo(st, read.id, "prev", bodyCtx, prevName)
+  let stepC = compileValue(st, bodyCtx, step)
+
+  // Partition exactly as the stream collect does: per-firing work into the fold
+  // step, everything at the exterior or shallower floats onward.
+  let stepStmts: array<JsAst.stmt> = []
+  let escaped: array<placed> = []
+  Array.concat(feedC.floated, Array.concat(initC.floated, stepC.floated))->Array.forEach(pl =>
+    if ctxPathKey(pl.at) === ctxPathKey(bodyCtx) {
+      Array.push(stepStmts, pl.stmt)
+    } else if isCtxPrefix(pl.at, exterior) {
+      Array.push(escaped, pl)
+    } else {
+      failwith("Codegen: a statement floated to a context unrelated to the stream register being assembled — placement bug")
+    }
+  )
+
+  let atCons = JsBuild.arrow(
+    [JsBuild.p(headVar), JsBuild.p(restVar)],
+    Array.concat(
+      Array.concat(
+        [
+          JsBuild.const(elemName, Runtime.lazyDoneOf(JsBuild.id(headVar))),
+          JsBuild.const(prevName, Runtime.lazyDoneOf(JsBuild.id(regName))),
+        ],
+        stepStmts,
+      ),
+      [
+        JsBuild.exprStmt(
+          JsBuild.assign(JsBuild.id(regName), Runtime.forceOf(JsBuild.id(stepC.name))),
+        ),
+        JsBuild.ret(Runtime.restOf(JsBuild.id(restVar))),
+      ],
+    ),
+  )
+
+  // The source: a list-valued wire bridged by `__listToStream__`, exactly as the
+  // stream collect opens it. The fold's answer is the side accumulator, so the
+  // zip's own result is discarded — atNil carries nothing.
+  let source = Runtime.delayedOf(Runtime.listToStreamOf(Runtime.forceOf(JsBuild.id(feedC.name))))
+  let thunkBody = [
+    JsBuild.let_(regName, Runtime.forceOf(JsBuild.id(initC.name))),
+    JsBuild.exprStmt(
+      Runtime.forceDOf(
+        Runtime.zipStreamOf(source, Runtime.readyOf(JsBuild.undefined), atCons),
+      ),
+    ),
+    JsBuild.ret(JsBuild.id(regName)),
+  ]
+
+  let name = st.fresh()
+  recordMemo(st, wn.id, "final", exterior, name)
+  {
+    name,
+    floated: Array.concat(
+      escaped,
+      [{at: exterior, stmt: JsBuild.const(name, Runtime.lazyOf(thunkBody))}],
+    ),
   }
 }
 
