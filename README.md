@@ -80,7 +80,7 @@ handles (Build)  ────────┘        derive → complete → chec
   helpers for the eager fragment, plus the `Delayed`-cell stream
   runtime (iterative force with path compression, `zipStream`,
   `listToStream`) when a program uses a stream flow.
-- `src/Main.res` — the smoke suite (`npm start`): 344 checks that
+- `src/Main.res` — the smoke suite (`npm start`): 348 checks that
   build programs from text and handles, compile them, `eval` the
   output, and compare against author-written expected values, plus
   text round-trips. Coverage spans the value fragment, sharing and
@@ -232,9 +232,16 @@ and remain live.
   so each firing *becomes the rest* (accumulating on the side) and an
   absent option *abandons the rest* without ever forcing the tail. That
   is also what keeps the walk a redirect chain the iterative force loop
-  follows rather than a per-element recursion. Ahead: the stacked
-  commute stages, the stream flatten, a register over a stream (the
-  check already admits it — a stream's order is owned), and Shape C
+  follows rather than a per-element recursion. A **register over a
+  stream** compiles too — the check half was already done (a stream's
+  order is owned: the source's, delivered on demand), and the emitter
+  is the register's fold in the sequence commute's shape, the
+  accumulator advancing on the side while each firing becomes the rest,
+  so forcing `final` walks the whole source (what a fold means) without
+  costing a stack frame per element. Ahead: the stacked
+  commute stages, the stream flatten, the running view over a stream (a
+  scan can hand out cells as it goes, so its fold cons-es — a different
+  shape), and Shape C
   proper, one memoised cell per node, which is what buys back
   cross-consumer sharing.
 - **Async, incremental** — each a new species in `Annotate`

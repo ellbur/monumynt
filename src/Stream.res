@@ -53,7 +53,17 @@
 //
 // STEP 3 (the sequence commute — the motivating operation) has since LANDED as
 // `Codegen.emitSequenceCommute`; see "The sequence commute" below for its shape
-// and its scope. STILL STAGED: the STACKED stages (`Commuted(Joined)` /
+// and its scope. The REGISTER OVER A STREAM has landed too
+// (`Codegen.emitStreamRegister`, Main 16h): the check half was already done —
+// `OrderDemand` reads a stream's order as OWNED (the source's, delivered on
+// demand; pull pace is not order) — and the emitter is the register's fold in
+// the sequence commute's shape, `final` being likewise ONE answer about the
+// whole stream: never a cons, each firing becomes the rest with the
+// accumulator advancing on the side, so forcing `final` walks the whole
+// source as a redirect chain rather than a per-element recursion. Its
+// RUNNING VIEW (a sibling stream collect reading `prev`) stays a clean Todo —
+// a scan CAN hand out cells as it goes, so its fold cons-es, a different
+// assembled shape. STILL STAGED: the STACKED stages (`Commuted(Joined)` /
 // `Commuted(Commuted)`, the shape discipline below, with `checkStreamStack` the
 // rejection rule) and step 6's remainder (stream-in-stream nesting and the
 // flatten, `join(stream, stream)`, which `Codegen.spine` declines with a named
