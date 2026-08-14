@@ -458,8 +458,10 @@ case/option are implemented; the rest are designed:
   over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
   their shape discipline are what remain.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
-  values that arrive later, racing as a barrier, failure as a terminator
-  payload.
+  values that arrive later, racing as a barrier, failure as
+  terminators. *Exploration; the doc carries its own "needs
+  updating" banner (2026-08-04) — its failability sections predate
+  the reason-only-terminators revision.*
 - [`failure-payloads-design.md`](failure-payloads-design.md) — the
   failability dimension's two flagged residues, worked: lightweight
   failure (`fail`, the raise as a drawn node — bodies never throw; the
@@ -506,14 +508,22 @@ case/option are implemented; the rest are designed:
   rest exploration.*
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
-  values into a "necessity frontier."
+  values into a "necessity frontier." *Exploration.*
 
 ## Compile
 
 - [`lazy-compile-design.md`](lazy-compile-design.md) — the
-  **implemented** runtime-lazy strategy in `src/Compile.res`.
+  runtime-lazy strategy of the earlier compiler (`src/Compile.res`,
+  since deleted with the bridge migration); its semantics — runtime
+  laziness, per-node memoisation, self-contained collect thunks —
+  survive in `Codegen.res`. *Historical.*
 - [`compile-strategy-design.md`](compile-strategy-design.md) — the
-  planned rebuild: a pipeline of pure passes, same semantics.
+  compiler as a pipeline of pure passes. *Implemented in shape
+  (derive → complete → check → annotate → codegen, `Pipeline.res` —
+  the doc's "planned rebuild" happened); its remaining aspirational
+  pieces (full multi-level derive, the deferred
+  placement/strictness passes) are tracked in
+  `src/ARCHITECTURE.md`.*
 - [`lazy-stream-placement-design.md`](lazy-stream-placement-design.md) —
   how stream (pull-based, on-demand) flows compile. The committed
   baseline is per-node memoised streams, with the compiler deciding
