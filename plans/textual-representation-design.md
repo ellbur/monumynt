@@ -6,7 +6,7 @@ Status: draft — this chapter teaches a proposed textual form for
 programs: something that can be parsed and generated, sitting beside
 the visual form. It is a worked proposal, not a settled feature.
 Nothing here changes the representation (`visual-language-spec.md`,
-`first-class-ports-design.md`): the text is a serialization of the
+`core-model.md`): the text is a serialization of the
 same nodes, ports, and wires, not a new layer of meaning.
 
 The rest of the design record writes its examples in this notation,
@@ -245,7 +245,7 @@ Projection reaches named ports: `cs.Just` is the value port named
 the sigil states the sort of the reference; the checker verifies
 that the node's kind actually has that port. This is
 `ValuePort(node, name)` / `FlowPort(node, name)` from
-`first-class-ports-design.md`, spelled out. Notice there is no
+`src/Program.res` (`core-model.md`), spelled out. Notice there is no
 Branch construct anywhere in the text: a branch *is* a reference to
 one output port of the split, so projection replaces the satellite
 node.
@@ -1366,13 +1366,13 @@ direct:
 | `xs -> open list => a, ~L` | `Open({flow: ListIter, input})`; `a` = the node in value position, `~L` = `NodeFlow(node)` |
 | `m -> open option => v, ~O` | `Open({flow: OptionIter, input})` |
 | `-> split d of A, B => cs` | `Open({flow: CaseSplit({alts, discriminator}), input})` |
-| `cs.A` / `~cs.A` | `branch_(NodeFlow(cs), "A")` in value / flow position (until first-class ports, when both become port refs) |
+| `cs.A` / `~cs.A` | `branch_(NodeFlow(cs), "A")` in value / flow position (before the ports migration — both are now port refs, `src/Program.res`) |
 | `-~> join` (then `-~> collect`) | `close_(join_(NodeFlow(inner)), value)` — the chain determines the opener chain the compiler walks |
 | lane `Even: -~> join -~> collect` | `close_(filter_(NodeFlow(branch)), value)` |
 | lane group gathered by `-~> collect` | `caseClose([{altName, flow, value}, …])` |
 | tap `\|` / mark `^` / flow shorthand `~` | nothing — desugared to explicit wiring |
 
-Under the first-class-ports migration the right column simplifies
+Under the ports migration (landed) the right column simplifies
 (projections become `ValuePort`/`FlowPort` refs; Join becomes the
 binary node and the chain's adjacency bookkeeping moves to the
 checker), and the text does not change — the point of writing the

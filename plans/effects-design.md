@@ -173,12 +173,12 @@ the next handle. It is **linear**: it must be used exactly once, not
 copied. Read one file handle into ten firings and you have ten
 programs each believing it holds the file at its original position.
 The record already knows this shape as the register half's wire
-linearity — the thread port is consumed exactly once
-(`first-class-ports-design.md`). Duplicating a single-threaded
-resource into N firings is meaningless; linearity is exactly why the
-handle must be threaded through the firings — each firing holding
-its own stretch of the handle, following the last firing's — rather
-than read in (like a constant). (This is a settled rejection —
+linearity — the thread port is consumed exactly once. Duplicating a
+single-threaded resource into N firings is meaningless; linearity is
+exactly why the handle must be threaded through the firings — each
+firing holding its own stretch of the handle, following the last
+firing's — rather than read in (like a constant). (This is a settled
+rejection —
 please don't re-propose the prefix-read without new evidence.)
 
 ## The answer: commuting IO out of the loop sequences the operations
@@ -661,9 +661,9 @@ the proposal.
    question — is the faint completed form worth showing at all? —
    is answered (2026-07-23, the commute-completion ruling: showing
    it is required; see "You never draw the commute" above).
-   The spelling half remains, jointly owned with
-   `textual-representation-design.md` and
-   `first-class-ports-design.md`.
+   The spelling half remains, owned by
+   `textual-representation-design.md` (the first-class-ports round
+   that jointly owned it is retired, migration complete).
 
 2. **Stacking with other commutes.** When the effect ops sit under
    an option-in-list whose option layer also commutes out

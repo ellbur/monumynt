@@ -85,8 +85,7 @@ once, with where each one is designed:
 - An **uncollect** (spelled `open`) opens a value into a flow; a
   **collect** closes one.
 - A **register** carries loop state across firings, its **write
-  half** wired as a later statement
-  (`iteration-with-state-design.md`, `first-class-ports-design.md`).
+  half** wired as a later statement (`iteration-with-state-design.md`).
 - **Productivity** is the check that every cycle crosses a register.
 - **End-when** shortens a flow from the consumer side; **terminator
   discharge** reads its final value (`end-when-design.md`).
@@ -229,7 +228,8 @@ terminator writer reachable from this collect" should be a checkable
 property is filed to the checking work, not answered here.
 
 **`final`** on an unshortened self-driven flow is never available —
-the residue `first-class-ports-design.md` already records. With
+the residue the (retired) first-class-ports round already recorded
+(see `src/ARCHITECTURE.md`). With
 end-when in the room the readout anchors to the shortened extent;
 the fine print (which extent, when subject-flow and shortened-flow
 consumers coexist) is end-when's open question, inherited not

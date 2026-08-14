@@ -63,8 +63,8 @@ interface — `types-design.md`, read-out 3); interface summarization
 as display-time collapse (`types-design.md`, read-out 2); residual
 ordering constraints at the boundary
 (`time-travel-programs-design.md`, "Reuse"); the node-set consequence
-(`first-class-ports-design.md`; `visual-language-spec.md`,
-"Diagrams"); the exchange pair and binding
+(`core-model.md`; `src/ARCHITECTURE.md`, "Node set from day one";
+`visual-language-spec.md`, "Diagrams"); the exchange pair and binding
 (`late-bound-operations-design.md`); and the settled rejections of
 function values and function-bodied map/filter
 (`configuration-scopes.md`; `functions-design.md`).
@@ -600,7 +600,8 @@ kinds of program turn out to share the one substrate:
   and the function diagram were never different things.
 - **The program** — the top level itself — is a boundary too: the
   node set with distinguished outputs
-  (`first-class-ports-design.md`) is a cut whose out-ports are the
+  (`core-model.md`; `src/ARCHITECTURE.md`, "Node set from day one")
+  is a cut whose out-ports are the
   distinguished outputs and whose in-ports are whatever the
   deployment binds (nothing, for a batch computation; the world's
   client end, for a standing server — the served round's
@@ -938,9 +939,9 @@ The language hasn't decided any of these.
     in favour of op-pair ports, the call and the link as two
     references to one boundary substrate, membership's `nodes`
     field re-read as organizational (still needed for partial
-    programs and rendering). Owed to `visual-language-spec.md` and
-    `first-class-ports-design.md`'s migration plan when this round
-    is adopted.
+    programs and rendering). Owed to `visual-language-spec.md` when
+    this round is adopted (the first-class-ports round's migration
+    plan has since landed — see `src/ARCHITECTURE.md`).
 11. **Evidence.** The function-unit sample: draw real functions
     (the standing method names them sampleable) and classify —
     call-site counts (once vs many — the once-only share measures

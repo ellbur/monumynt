@@ -139,15 +139,11 @@ they change how everything else is read.
 
 ## Representation and checking
 
-- [`first-class-ports-design.md`](first-class-ports-design.md) — a
-  staged migration, first on the implementation path: every wire should
-  name a *port* of a node, not a whole node. Making ports first-class
-  dissolves the Branch node and the flowRef wrapper stack. Also: "the
-  program is a node set" (not a root expression). Ports are meant to
-  become a basic, assumed aspect of the language rather than a topic of
-  their own — as the other docs come to assume them, this doc's content
-  should be absorbed into theirs and the doc retired with the migration
-  it stages.
+- *(The first-class-ports doc was retired 2026-08-12, per its own
+  plan: the migration it staged is complete — ports and the node
+  set are basic, assumed aspects now — and its surviving content
+  lives in `core-model.md` ("Where to go next", ports entry) and
+  `src/ARCHITECTURE.md`'s decision record.)*
 - [`barrier-value-crossing-design.md`](barrier-value-crossing-design.md)
   — one place to answer how values cross barriers (joins, races, partial
   collects), a question several docs had deferred to each other. Two
@@ -600,11 +596,12 @@ what must **not** be imported and why:
 
 ## Sequencing
 
-- [`implementation-strategy.md`](implementation-strategy.md) — the map
-  from the whole design record to code — not just the compiler: five
-  workstreams (representation, compile pipeline, runtime, checking, text
-  surface), what blocks what, and a proposed sequencing. The
-  compiler-specific half of the map is `compile-strategy-design.md`.
+- [`implementation-strategy.md`](implementation-strategy.md) — the
+  original map from the design record to code. *Retired
+  (2026-08-12): most of its phases are implemented, and its role is
+  carried by `src/ARCHITECTURE.md` (the live record of how the code
+  is shaped and what remains); the compiler-specific half of the
+  map remains `compile-strategy-design.md`.*
 
 ## Layout (out of scope in this repo)
 

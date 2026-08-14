@@ -74,7 +74,7 @@ its flow*; you will meet it properly at Collect.)
 implemented layer (`src/Expr.res`) is a smaller fragment with its own
 representation debts; its migration to first-class ports — dissolving
 Branch and the `Joined`/`Filtered` wrappers into alt ports and binary
-Join nodes — is worked out in `first-class-ports-design.md`. An
+Join nodes — has landed (see `src/ARCHITECTURE.md`). An
 earlier IterationRail / TapIn / TapOut machinery for loop-carried
 state has been removed (schemas remain in git history); why it died
 is recorded under Delay, and the still-usable rail ideas are kept in
@@ -129,8 +129,8 @@ nodes, but the explicit set accommodates partially constructed
 diagrams during editing. And it is load-bearing for complete programs
 too: a Delay's write half (you will meet Delay below) can be
 root-unreachable, so **the program of record is a node set, not a
-root expression** (`first-class-ports-design.md`, "the program is a
-node set").
+root expression** (`core-model.md`; `src/ARCHITECTURE.md`, "Node set
+from day one").
 
 **Slots** let a diagram have "cut-outs" where caller-supplied
 sub-diagrams are inserted. This enables configuration scopes and
@@ -435,8 +435,9 @@ operation with asymmetric operands, an outer and an inner
 (`lazy-stream-join-design.md`, "Join is a binary flow operation").
 Multi-level joins are *chains* of binary joins, not one node carrying
 several `innerFlows`. Whether the node keeps value pass-through ports
-at all is `first-class-ports-design.md` open question 3 — the
-language hasn't decided this yet. The lean is **flow-only**, with
+at all is the retired first-class-ports round's open question 3, now
+owned in `barrier-value-crossing-design.md` — the language hasn't
+decided this yet. The lean is **flow-only**, with
 values meeting the join only at collects, and the concurrent join is
 the case that could justify keeping the ports. The crossing analysis
 (`barrier-value-crossing-design.md`) leans flow-only for the flatten
@@ -1206,7 +1207,7 @@ variable name stands for its binding — to break the cycle instead. It
 turns out that alternative died with the rail design (see the status
 note under Delay): resurrecting id-as-reference would make Delay the
 one place a reference is not a structural pointer
-(`first-class-ports-design.md`, "The three named escapes fail for
+(`iteration-with-state-design.md`, "The three named escapes fail for
 cause"). (This is a settled rejection — please don't re-propose it
 without new evidence.)
 

@@ -824,8 +824,8 @@ const __readVar__ = (d) => {
    `hold`/`changes` are kind-crossing operations (async↔incremental)
    with no current precedent — nearest neighbours are the commute
    node (crossing as a node with flow wires) and the race barrier.
-   The port round of `first-class-ports-design.md` (with
-   `hold`/`changes` in its pressure inventory) settles part of this:
+   The (retired) first-class-ports round (with
+   `hold`/`changes` in its pressure inventory) settled part of this:
    kind-crossing nodes are just nodes whose port inventories mix flow
    kinds, so the representation stops being the hard part and the
    semantics remain this chapter's. The old `Joined(flowRef)`

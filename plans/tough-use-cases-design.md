@@ -78,7 +78,8 @@ each, so the use cases can reference it:
   register pair; self-driven streams (a
   register with no source); the every-cycle-crosses-a-register
   productivity rule.
-- **First-class ports** (`first-class-ports-design.md`): per-kind port
+- **First-class ports** (the first-class-ports round, retired — see
+  `core-model.md` and `src/ARCHITECTURE.md`): per-kind port
   inventories, mixed-kind ports on one node, the DelayRead/DelayWrite
   pair, the program as a node set.
 - **Designed-ahead vocabulary** (now the topic docs `functions-design.md`,
@@ -814,7 +815,7 @@ family. Genuinely primitive (no lowering), like list iteration.
 The whole FFI story — processes, sockets, listeners, device sources;
 stream-*input* ports as the universal output-to-the-world (no sink
 construct — struck from the list). Demanded by: every use case; enabled by
-`first-class-ports-design.md` as-is.
+the ports representation (`core-model.md`; migration landed) as-is.
 
 ### 7. Custom protocol flows
 
@@ -926,9 +927,10 @@ where this document's motivating programs actually had their bugs.
    retention question shaped like the event-source one).
 7. **What is a "program" for a server?** A served flow never ends; the
    program of record is a standing composition, not an expression with a
-   result. The node-set consequence from first-class-ports ("the program
-   is a node set, not a root expression") was derived from Delay
-   write-halves; long-running compositions are its second, larger client.
+   result. The node-set consequence — "the program is a node set, not a
+   root expression" (`core-model.md`; `src/ARCHITECTURE.md`, "Node set
+   from day one") — was derived from Delay write-halves; long-running
+   compositions are its second, larger client.
    What does `compileToBody` mean for a program whose value is its ongoing
    behaviour?
    *Largely dissolved in `served-flow-design.md`:* a server program is a
@@ -1054,8 +1056,9 @@ reference twice, fan out at a junction. So permanence of a wire is simply
 the demand that it **not fan out** — exactly one consumer — a graph check
 of the same species as no-time-travel and provenance. And the design
 record already contains one instance of it: the one-write-per-DelayRead
-rule in `first-class-ports-design.md` is a linearity check on the
-register's back-edge, arrived at independently.
+rule from the (retired) first-class-ports round (see `src/Program.res`
+and `src/ARCHITECTURE.md`) is a linearity check on the register's
+back-edge, arrived at independently.
 
 Three worked glimpses of what the theme does to blocks:
 

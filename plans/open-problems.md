@@ -1233,7 +1233,8 @@ this doc tracks the representation, so most of its debt clears as other
 areas land. The owed-spellings list is concrete
 (`translation-exercise.md`): the late-wired-operand generalization of
 the write half (`boundary of`, `value of` beside `step of` — jointly
-owned with `first-class-ports-design.md`); the discharge readout's
+owned with `src/ARCHITECTURE.md`'s decision record, the retired
+first-class-ports round); the discharge readout's
 binder convention and terminator-only form; the collect family's
 spellings — now drafted (`collect-family-design.md`'s consolidated
 strawman table: named reduce-closes, `collect by <op>`, the keyed forms

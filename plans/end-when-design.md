@@ -310,7 +310,7 @@ alt, and the drawing consists of almost nothing else, faithful to
 what the loop is.
 
 One genuine subtlety: the register's **final readout** (the write
-half's output, `first-class-ports-design.md`) is anchored to a
+half's output — `src/Program.res`'s `DelayWrite`) is anchored to a
 flow's completed extent. When a shortened flow sits between the
 register's flow and every collect, demand never crosses the cut,
 so operationally the final value is the state at the cut. But the
@@ -531,8 +531,8 @@ interrupt.
 ## By kind, and the compile
 
 Sketches only — this is design; nothing here touches
-`src/Compile.res`, and implementation would land after the
-first-class-ports migration like the other new nodes. ("Lowering"
+`src/Compile.res`, and implementation would land alongside the other
+new nodes now that the ports migration has landed. ("Lowering"
 below means the translation to a more concrete form — the code a
 construct compiles down to.)
 
@@ -1282,5 +1282,6 @@ needs the linearization round's orientation before it means
 anything, so anchor-over-a-product rides that residue
 (`product-linearization-design.md`). If adopted:
 `iteration-with-state-design.md`'s "final on self-driven streams"
-bullet closes, and `first-class-ports-design.md`'s Delay-row note
-gains the anchored reading.
+bullet closes, and the Delay-row note from the (retired)
+first-class-ports round (see `src/ARCHITECTURE.md`) gains the
+anchored reading.

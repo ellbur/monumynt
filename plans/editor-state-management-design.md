@@ -117,8 +117,8 @@ payoffs is real, and each needs its own account of where it comes
 from instead.
 
 **The program has no depth to bury a cursor in.** The ports
-migration (`first-class-ports-design.md`, implemented in
-`Program.res`) made the program a **node set** with distinguished
+migration (landed — see `src/ARCHITECTURE.md`; implemented in
+`src/Program.res`) made the program a **node set** with distinguished
 outputs — a flat collection, not a root expression. There is no
 containment: no node is "inside" another, and the cursor
 (`OnNode`/`AtPort`/`InSlot`, all keyed by node identity) addresses

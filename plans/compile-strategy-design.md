@@ -21,8 +21,9 @@ Companion documents:
   hosts (see "A node reached in two contexts").
 - `transformation-levels-design.md` — what the front half of this pipeline
   is.
-- `first-class-ports-design.md` — the representation this compiler
-  consumes.
+- `core-model.md` — the representation this compiler consumes (ports-
+  first; see `src/ARCHITECTURE.md` for the decision record of the now-
+  retired first-class-ports round).
 
 Terminology: **uncollect/collect** in the design vocabulary; the code
 still says Open/Close.
@@ -443,8 +444,8 @@ Concretely:
   them through.
 - **The entry point is a node set with distinguished outputs**, not a root
   expression — forced by register write halves being root-unreachable and
-  wanted anyway for multi-output diagrams (`first-class-ports-design.md`,
-  "the program is a node set"). The interim spelling
+  wanted anyway for multi-output diagrams (`core-model.md`;
+  `src/ARCHITECTURE.md`, "Node set from day one"). The interim spelling
   `compileToBody(root, ~writes)` is acceptable scaffolding; the rebuild
   should take the honest signature — outputs plus node set — from the
   start, since the pipeline's passes (write index, per-chain completion)
@@ -468,8 +469,9 @@ job is dispatch. The inventory, with the compile species annotate assigns:
   incomparable-context miss.
 - **Join / Commute nodes** — no runtime residue of their own; they steer
   the collect's chain walk and output construction (operand walk per
-  `first-class-ports-design.md`; any-list rule per the join law; commuted
-  output construction per `lazy-stream-commute-design.md`).
+  `src/Program.res`'s Join node — the retired first-class-ports round,
+  decision record in `src/ARCHITECTURE.md`; any-list rule per the join
+  law; commuted output construction per `lazy-stream-commute-design.md`).
 - **Stream-kind flows** — fully compositional: every node one memoised
   `Delayed` cell built from its inputs' cells; collects/joins/commutes are
   output construction over the pull interface (`zipStream` folds,

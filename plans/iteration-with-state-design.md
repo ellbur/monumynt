@@ -1151,8 +1151,8 @@ no "second act on an existing node" without mutation, a tie-the-knot,
 or symbolic indirection. This section works out a fourth escape the
 list didn't name — **move the edge, not the node**. It is a fact about
 the Expr representation, but both candidates above rest on it, so it
-lives here; `first-class-ports-design.md`, whose migration it
-presupposes, keeps a pointer.
+lives here; the ports migration (landed — `src/Program.res` is
+ports-first) presupposed it, recorded now in `src/ARCHITECTURE.md`.
 
 ### The three named escapes fail for cause
 
@@ -1390,8 +1390,9 @@ three-anchor contraction — contains everything the thread draws.
 
 ### Effect on the ports migration
 
-None on `first-class-ports-design.md`'s steps 1–4; the pair lands with
-the iteration-state round, not with that migration. It presupposes
+None on the ports migration's steps 1–4 (now landed — `src/Program.res`
+is ports-first); the pair lands with the iteration-state round, not
+with that migration. It presupposes
 step 1's `valueRef` (the write's `step`, everyone's reads of `prev`
 and `final`) and nothing else.
 

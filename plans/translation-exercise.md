@@ -756,8 +756,9 @@ are small construct candidates with new pressure.
    (`value of`) — every on-cycle operand wants it. One rule ("a node may
    be minted with an on-cycle operand unwired; a later statement wires
    it as `<port> of <name>`") covers all three and keeps P4 intact.
-   Owner: the textual round, jointly with `first-class-ports-design.md`
-   (which already owns the write-half-is-a-node idea).
+   Owner: the textual round (the first-class-ports round that jointly
+   owned the write-half-is-a-node idea is retired, migration complete —
+   see `src/ARCHITECTURE.md`).
 5. **The discharge readout spelling** (B1, B2, C2). The (prefix,
    terminator) collect's binder convention, a terminator-only form (or a
    discard binder), the inclusive/exclusive bit's word, and possibly

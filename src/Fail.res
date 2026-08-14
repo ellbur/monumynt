@@ -1,28 +1,32 @@
-// Failure payloads — the fail node, the endings inventory, the JS edge
-// stance, and the discharge barrier — ARCHITECTURE STUB.
+// Failure payloads — the endings inventory, the JS edge stance, and the
+// discharge barrier — ARCHITECTURE STUB.
 //
-// Design: plans/failure-payloads-design.md — ADOPTED (2026-07-23): the fail
-// node (with the ontology note and the commute-completion ruling), the edge
-// stance with the background-super-flow amendment, and the inventory
-// account. Plus plans/barrier-value-crossing-design.md corner 4 (resolved):
-// the one-closer discharge MINTS OUTCOME CELLS directly.
-// RESIDUE owing a worked round: tag identity across reuse boundaries
-// (leaning: a tag is scoped to its minting diagram unless deliberately
-// shared through a signature).
+// Design: plans/failure-payloads-design.md — ADOPTED (2026-07-23), then
+// REVISED (2026-08-04, the revision notes govern): **the fail node is
+// DISSOLVED** — its programs draw as split + inferred short-circuit commute
+// + collect (short-circuit vs accumulate carried by where the alt's collect
+// sits); automatically failable values rejected — failure travels a drawn
+// flow wire; terminators carry only the REASON a flow ended, never data
+// (payloads travel value wires — end-when-design.md, Reason 1). What
+// survives and is staged here: the endings inventory, the edge stance with
+// the background super flow, and the discharge barrier
+// (plans/barrier-value-crossing-design.md corner 4: the one-closer
+// discharge MINTS OUTCOME CELLS directly; extended 2026-08-04 with the
+// scoop). RESIDUE with a worked round of its own (the referent rule,
+// exploration, unadopted): tag identity across reuse boundaries — a lane's
+// identity is a drawn identification of minting sites, never a string.
 //
-// The three-verb table this node completes (all binary flow operations with
-// asymmetric (subject, alt-flow) operands):
+// The three-verb table below is SUPERSEDED and kept as history (fail
+// dissolved 2026-08-04; end-when fused into collect-until the same day):
 //
 //   join (filter) | firings where the alt fires
-//   end-when      | firings before the first alt firing; ends Stopped(v)
-//   fail          | firings before the first alt firing; ends Fail(e)
+//   end-when      | firings before the first alt firing; ends Stopped
+//   fail          | firings before the first alt firing; ends Fail
 //
-// fail is a SIBLING node of end-when, not a tag parameter on it: it has NO
-// inclusive/exclusive bit (the cut is always exclusive — a failing firing
-// has no value to keep), and its everyday reading differs (a fail's collect
-// usually binds nothing and propagates). Ontology: fail is the MINTING half
-// of the applicative sequence, whose commute half is the propagating
-// whole-flow close. In a once-firing context it derives the failable value.
+// What the table's fail row taught survives in the drawn form: the
+// short-circuit is the inferred commute over the error split, and the
+// once-firing derivation of a failable value is that drawing in a
+// once-firing context.
 //
 // Integration points:
 //   - Program.res: `kind` gains Fail below; the discharging Collect grows
@@ -37,8 +41,8 @@
 //     collecting the background super flow is drawn and compiles to a
 //     try/catch around the collected region.
 
-type plannedFail =
-  | FailOp({subject: Program.flowRef, bad: Program.flowRef})
+// (No plannedFail type: the FailOp node staged here until 2026-08-12 was
+// dissolved by the 2026-08-04 revision — no Fail node kind may be added.)
 
 // --- The endings inventory (a DERIVED analysis, not a node) ---------------
 //
@@ -51,18 +55,23 @@ type plannedFail =
 // The fixpoint is finite, including over a divide-flow link cycle (monotone
 // over the powerset of the finitely many drawn sites). A flow is failable
 // iff its derived inventory is nonempty. Every lane carries its WITNESS —
-// a walkable path back to its minting sites. Payload shapes ride the lanes;
-// where one tag's sites disagree on shape, the shape property is simply
-// absent. Payload mapping is drawn where meaning changes (discharge,
-// transform, re-fail).
+// a walkable path back to its minting sites. (Revised 2026-08-04:
+// terminators carry only the reason — payloads travel value wires, so
+// payload shapes ride the drawn error wires, not the lanes. Payload
+// mapping is drawn where meaning changes: discharge, transform, re-fail.)
 type mintingSite =
-  | FailSite({nodeId: int})
-  | EndWhenSite({nodeId: int}) // Stopped + payload
-  | InterruptSite({nodeId: int}) // Interrupted(e)
+  | FailSite({nodeId: int}) // re-read post-dissolution: the drawn error
+  // split whose alt the inferred short-circuit commute exits through
+  | EndWhenSite({nodeId: int}) // Stopped — reason only (2026-08-04)
+  | InterruptSite({nodeId: int}) // Interrupted — reason only
   | CatalogRowSite({rowName: string}) // a declared-throw / failable row
   | StrandSite // Cancelled — the one non-drawn site; no payload
   | BareEnd // Nil / RanOut — the subject's own end
 
+// The `tag: string` field is the interim spelling: the referent-rule round
+// (worked 2026-08-04, exploration, unadopted) holds that a lane's identity
+// is a drawn identification of minting sites, never a string — if adopted,
+// the string demotes to a display name.
 type lane = {tag: string, sites: array<mintingSite>}
 
 let inventory: (Program.program, Program.flowRef) => array<lane> = (_p, _f) =>
@@ -70,7 +79,8 @@ let inventory: (Program.program, Program.flowRef) => array<lane> = (_p, _f) =>
 
 // --- The JS edge stance + the background super flow -----------------------
 //
-// Bodies are total; program raises are DRAWN (one Fail node per raise
+// Bodies are total; program raises are DRAWN (post-dissolution: the error
+// split + inferred short-circuit commute, one drawn split per raise
 // site). Declared throws convert by catalog row. An UNDECLARED throw is an
 // edge breach, quarantined (not excluded): it lands on the BACKGROUND SUPER
 // FLOW — distinguished, runtime-owned; silently commutes out of everything

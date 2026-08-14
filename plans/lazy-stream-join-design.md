@@ -447,12 +447,12 @@ The language hasn't settled these yet:
    two flow inputs, and a collect references exactly one flow.
    Whether the unary spelling survives as sugar (the outer operand
    is derivable from adjacency) or is dropped (the sugar is what hid
-   the missing termination) is an ergonomics choice. Taken up in
-   `first-class-ports-design.md`: a `Join({outer, inner})` node with
-   one flow output, inside a general per-kind port-inventory model
-   that also dissolves Branch and `Filtered`; it stages the
-   migration and records the unary-sugar question as its migration
-   step 3's exit decision.
+   the missing termination) is an ergonomics choice. Taken up in the
+   (retired) first-class-ports round: a `Join({outer, inner})` node
+   with one flow output, inside a general per-kind port-inventory
+   model that also dissolved Branch and `Filtered` — now the shape in
+   `src/Program.res`; the migration recorded the unary-sugar question
+   as its step 3's exit decision.
 
 4. **Naming — all that remains of J vs F.** The law fixes the
    meaning of every operand-kind pair; what's left is whether
