@@ -487,7 +487,13 @@ case/option are implemented; the rest are designed:
   error arm's prefix question pinned. Tag identity across reuse
   boundaries — the residue — carries a worked round of its own (the
   referent rule: a lane's identity is a drawn identification of
-  minting sites, never a string; exploration, unadopted).*
+  minting sites, never a string; exploration, unadopted). The
+  revision's owed re-founding of the inventory is now worked in
+  place too ("The inventory re-founded as alt-reach", 2026-08-14:
+  one question splits into two — endings reason-only and nearly
+  content-free, failure data the existing case-alt property over
+  drawn wires and completed commutes, no failure-specific checker
+  machinery; exploration, unadopted).*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

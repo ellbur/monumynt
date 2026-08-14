@@ -645,8 +645,10 @@ don't re-propose terminator payloads without new evidence.)
 - **Payload composition.** Owned by the failure round: the
   inventory of a flow's possible endings and lanes derives by
   propagation, and its re-founding as ordinary alt-reach property
-  propagation is a recorded direction with details owed
-  (`failure-payloads-design.md`, revision notes).
+  propagation is now worked (`failure-payloads-design.md`, "The
+  inventory re-founded as alt-reach" — unadopted: reasons and
+  failure data split into two derived questions, the failure side
+  the ordinary case-alt property read off the completed form).
 - **Do bodies raise?** Adopted (2026-07-23,
   `failure-payloads-design.md`) and untouched by the revision:
   bodies are total; declared throws enter by catalog row — now

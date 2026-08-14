@@ -22,7 +22,12 @@ alt matching, re-tagging drawn only where meaning changes, and
 the `Cancelled` / subset-merge / divide-link riders as cashed).
 None of it is implemented. The open questions below remain open
 where marked — tag identity across reuse boundaries now carries
-its worked round (the last section below), unadopted. Its scope is the two
+its worked round (below), unadopted. Update (2026-08-14): the
+revision's owed re-founding of the inventory as **alt-reach
+property propagation** now carries its worked round too (the final
+section, "The inventory re-founded as alt-reach"), unadopted —
+written after the async and speculation re-foundings fixed the
+vocabulary it lands in. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 its failability section — since re-founded 2026-08-14 as "Failure:
 arrivals and endings"): **"do bodies raise?"** and
@@ -933,7 +938,10 @@ intermediate ports itself.
   case bundles rather than terminator lanes (a throwable JS call
   as a node whose output is an Ok/Err split); the terminator
   inventory re-founds as ordinary alt-reach property propagation
-  (`types-design.md`). Details owed when those rounds reopen.
+  (`types-design.md`). Both are now worked — "The inventory
+  re-founded as alt-reach", the final section below (the
+  catalog schema's own re-founding of its lane rows still rides
+  that round, with the section as its stated input).
 
 **Pinned, deliberately.** What the commuted error arm contains —
 payload alone (classical sequence discards the prefix) versus
@@ -1284,3 +1292,302 @@ conversation confirms the referent rule, the summary-artifact
 leaning in open question 2 is subsumed rather than contradicted —
 the pinned set was always the visible face of lane referents on a
 signature.
+
+## The inventory re-founded as alt-reach (revision-notes direction, worked)
+
+Status: worked with leanings, **not adopted** — prepared for its
+design conversation. This section cashes the direction the
+revision notes recorded and owed ("the terminator inventory
+re-founds as ordinary alt-reach property propagation — details
+owed when those rounds reopen"), after the 2026-08-14
+re-foundings of `async-flow-design.md` and `speculation-design.md`
+fixed the vocabulary it must land in: rejection as an *arrival*
+carrying an Ok/Err case bundle, endings reason-only, payloads on
+drawn value wires, the short-circuit as the inferred commute
+(first-Err, drawn faint). Read the adopted inventory body above
+as the record of the superseded shape; this section is its
+successor candidate.
+
+### One question becomes two
+
+The adopted account answered one reader's question — *can this
+walk abort, and with what?* — with one derived object: the set of
+terminator lanes reaching a consumer. The revision split the
+cargo (reasons on terminators, data on wires), so the question
+splits with it:
+
+- **How can this flow end?** Endings carry only reasons. The
+  answer is the flow's **reason inventory**: the reason tags its
+  drawn terminator writers can write (collect-until's `Stopped`,
+  an interrupt's tag), the kind's own bare end (`RanOut`/`Nil`
+  where the kind has one — and the checker still knows a
+  self-driven flow has none), and the runtime's two non-drawn
+  contributions (`Cancelled`, the super flow's one lane).
+- **What failure data can arrive here, and from where?** Failure
+  data is a case alt — minted at a drawn split or a row's
+  declared bundle, travelling drawn wires. The answer is
+  **alt-reach**: the set of minting splits whose error alts can
+  reach a given wire.
+
+The first question's answer has gone nearly content-free, and
+that is the revision working as intended. Reasons come from a
+closed per-construct vocabulary; no payload rides them, so there
+is nothing to compose — the discharge readout's split over `term`
+is checked exhaustive against a small finite set read off the
+drawn writers on the subject, the union along a stack coming
+verbatim from end-when's stacking rules. The old account's
+"payload shapes ride the lanes" has no referent on this side
+anymore; what shape agreement used to govern now governs the
+scooped stop-pair value wire, ordinarily. (Whether a
+failure-flavoured stop deserves its own reason tag is naming,
+filed where it arose — `async-flow-design.md`.)
+
+The second question is where the old account's content re-lands,
+and the claim of this round is that it re-lands on machinery the
+checker already has.
+
+### Alt-reach is not new machinery
+
+> **The failure side of the old inventory is the existing
+> case-alt property, propagated by the existing rules.** A wire
+> that can carry failure data is an ordinary wire; what can
+> arrive on it is an ordinary derived property (the
+> alternative-set the case machinery already tracks, each alt
+> identified by its minting split); the checker needs no
+> failure-specific channel, because the program no longer has
+> one.
+
+What made the old account need machinery of its own was the
+terminator channel — a second conduit beside the value wires,
+with its own propagation regime, its own union rule, its own
+witness discipline. The revision removed the channel from the
+program; this round removes its shadow from the property layer.
+The three composition sites re-derive as ordinary propagation:
+
+- **Stacking** re-draws as several splits on one walk. Where the
+  old account unioned lanes along a stack of terminator writers,
+  the completed program has several error alts commuting out at
+  one close: the close's result is a case bundle whose error side
+  is the union of the commuted alts — `{Ok, HttpFailed,
+  BadStatus}` for the poll loop, with the union now a fact about
+  one bundle rather than about a channel. Union where flows meet
+  is how the alternative-set property already behaves.
+- **Nesting** re-draws as routing. An inner walk's error arm
+  reaches the outer level by a drawn wire — joined into an error
+  flow, or the inner close's commuted arm feeding the outer
+  computation — and transport along drawn wires is the
+  substrate's ordinary forward propagation
+  (`types-design.md`).
+- **Chained closes** — the silent-propagation case — no longer
+  exist as a distinct phenomenon. A consumer that says nothing
+  receives nothing; failure moves only over drawn wires and
+  completed commutes, and those are exactly where the property
+  propagates.
+
+And the four results the old account proved re-derive as
+instances of general ones:
+
+- **Witnesses.** Each alt in a derived set walks back to its
+  minting split along the wires the property travelled — the
+  substrate's own discipline ("provenance is not a diagnostic
+  afterthought; it is the propagation itself"). Nothing
+  failure-specific remains to state.
+- **Exhaustiveness.** At any split over an error bundle, the
+  required alts are the derived alternative-set — the language's
+  oldest check (a case collect covers its uncollect's alts),
+  applied verbatim rather than "re-aimed" as the old account had
+  it. Dead-lane advisories (handling an alt no split can send)
+  come with it.
+- **The finite fixpoint.** Alt propagation around a site's cycle
+  is monotone over the powerset of the program's drawn splits —
+  an instance of the general property fixpoint the checking round
+  already states for Delay transport. The divide-link result
+  transfers with its statement unchanged: convergence is tame,
+  and Zig's recursion warning still does not transfer.
+- **Payload shapes.** An alt's payload shape is the ordinary
+  value-shape property of its payload wire; where identified
+  alts' shapes disagree, the property is absent, with the same
+  gentle pressure toward distinct alts. The old shape-agreement
+  rule was the general substrate wearing terminator clothes.
+
+### The property reads off the completed form
+
+One statement in this round is genuinely load-bearing rather
+than a reduction, and it is a consequence of the
+commute-completion ruling rather than a new rule: *which alts
+commute out at a close* is a fact of the **completed** form. The
+authored keystrokes may show only the Ok-side collect; the
+inferred short-circuit commute is what routes the error alts
+outward, so alt-reach derives from the completion — licensed
+exactly because the completion is required to be viewable (the
+implied commute "must be inferred by published rule and available
+for the author to see"). This gives the ruling a second job: the
+faint commute is not only the at-a-glance abort marker, it is the
+thing the derived failure surface is *read off of*.
+
+The implemented pipeline already has this shape — completion runs
+before checking (`Pipeline.res`: derive → complete → check), so
+"properties derive from the completed program" is the order the
+code executes today, not a new architectural demand.
+
+The adopted account's slogan survives with its nouns replaced:
+"a flow is failable iff its inventory is nonempty" becomes **a
+close's result is a case bundle iff some alt commutes out at
+it** — a derived, faint-displayable fact, never an annotation.
+Zig's `!T` remains the comparison: text needs the declaration;
+here the completed wiring is the declaration, and the summary
+level that shows it is chosen at display time.
+
+### Joined error flows are for handling together, not routing apart
+
+The deliberate global error flow — errors the author doesn't
+care to distinguish, joined into one flow and handled in one
+place — is ordinary vocabulary under the revision, and alt-reach
+gives its derived content: the joined flow's alternative-set is
+the union of the joined alts. But one reading of that union is
+barred, and it is worth saying plainly: **the join's inputs are
+not a discriminator.** Nothing downstream may branch on which
+input a firing arrived by, because provenance is never semantic
+(`end-when-design.md`, revision notes, reason 2 — flow control is
+controlled by the wiring of flow wires alone, and a value wire
+behaves as an ordinary value). A program that must route two
+failures apart keeps their wires apart — the no-bottleneck
+principle was never suspended for errors — or packs the
+distinction as data deliberately, on purpose, at a drawn place.
+The derived alternative-set on a joined flow serves legibility
+and exhaustiveness ("what can arrive here"), never dispatch.
+
+### The clients, re-cashed — briefly
+
+Most clients have been re-founded by their own rounds since the
+revision; what remains is to note that alt-reach agrees with each.
+
+- **`Cancelled`** carries no payload — now by law (reasons carry
+  no data), where the old cashing argued it structurally. The
+  structural argument survives as the reason the law costs
+  nothing here: there was never a wire whose value it could
+  carry.
+- **The subset-merge**: settled-elsewhere is a reason; the
+  winner's value scoops through the winning pair
+  (`race-barrier-design.md`). Aligned by the same law.
+- **Speculation**: re-founded 2026-08-14 — contender forks as
+  case alts, per-contender pairs, diagnoses by wire. The
+  aggregate stays ordinary data construction, now over alt
+  payloads in hand at the barrier; *which* aggregate remains
+  open question 3's catalog design.
+- **The divide link**: boundary summaries transfer — a cut's
+  surfaced error wires are ports, their alternative-sets belong
+  to the principal property signature, and pinning stays a
+  documentation choice checked both ways, as adopted. The
+  fixpoint above carries the well-foundedness half unchanged.
+- **The served flow**: the response arrival carries the row's
+  declared Ok/Err bundle (`async-flow-design.md`, "Failure:
+  arrivals and endings"); the fault-injecting double mints the
+  facet's Err alt — tag identity, next.
+- **End-when's merged stops**: consumed above, on the reason
+  side — the payload left the terminator entirely.
+
+### Tag identity transfers, and gets simpler
+
+The tag-identity round (above) was worked in lane vocabulary;
+the referent rule transfers verbatim, and the substrate beneath
+it gets thinner. An error alt already *is* a referent: an alt of
+a drawn split, identified by the drawing that contains it — the
+implementation's own per-alt port discipline (strings below,
+identities above) one level up. The rule's content re-reads with
+nothing lost: two alts are one meaning iff a drawn
+identification says so, in one of the same three homes — the
+caller-local identification at the handling site, the facet's
+declared alt (every provider bound to the facet mints *the
+facet's* Err alt, which is what keeps retry middleware and the
+test double writable), and the catalog-level referent that rows
+reference. Sameness of display name across
+independently-authored boundaries identifies nothing, exactly as
+before. What disappears is the need for a lane species distinct
+from the case machinery: "lane" was the terminator channel's
+shadow of the alt, and with the channel gone the shadow goes
+with it.
+
+### The edge, re-directed — and the catalog demand re-filed
+
+A registered throwable or rejectable operation enters as a node
+whose output is the row's declared Ok/Err case bundle — a
+promise that rejects resolves into the Err alt; a declared throw
+converts the same way (`async-flow-design.md`). The row is the
+minting split, and its Err alt is a referent the catalog
+supplies — the third home above, with the tag-identity round's
+schema demand re-filed under the new noun: **bundle rows carry
+alt referents, not strings.** `catalog-schema-design.md`'s
+standing note ("the lane / minting-site vocabulary needs
+re-founding on alt-reach when this round runs") consumes this
+section as its input; the schema round itself is not re-run
+here. Undeclared throws land on the background super flow,
+unchanged in every particular — its case never had a wire to
+show, so the revision never touched it, and its filed edges
+(the collect anchor, the async face, `Cancelled` siblinghood,
+naming) stand where they were filed.
+
+The discharge-barrier direction (above, 2026-07-23) reads in
+hindsight as this section anticipated: "fail as an uncollect of
+an error flow, the error wires as drawn arrows to failure
+points" *is* the Bad alt's flow port, which the split already
+provides — every failure now has the independent upstream wire
+the direction's contest of the crossing round's corner 4 argued
+from. That contest's disposition belongs to the crossing row's
+spec-side reconciliation, which should now read corner 4 through
+the revised account (the discharging close is collect-until,
+endings reason-only — `async-flow-design.md`, "Port structure").
+
+### Dead ends
+
+1. **A failure-property species in the checker.** You might
+   wonder whether the checker should track failure as its own
+   property family — a second channel beside shapes, mirroring
+   the old terminator channel, so failure surfaces stay easy to
+   query. It turns out that rebuilds in the property layer
+   exactly what the revision removed from the program layer: the
+   alternative-set and the payload shape are ordinary properties
+   of ordinary wires, a parallel family would drift from them
+   while saying nothing they don't, and the query ("what can
+   arrive here?") is a display concern over the one derivation,
+   not a second derivation. (Settled within this proposal —
+   don't re-propose without new evidence.)
+
+2. **Routing a joined error flow by join input.** You might
+   wonder whether a handler over the global error flow could
+   branch on which input a firing arrived by — the lanes seem
+   right there in the drawing. It turns out this is
+   provenance-as-semantics, rejected on principle by the
+   revision this round rides (`end-when-design.md`, revision
+   notes, reason 2). Route apart by keeping wires apart, or
+   carry the distinction as drawn data. (Settled — don't
+   re-propose without new evidence.)
+
+3. **An ambient default handler for the commuted arm.** You
+   might wonder where a commuted error arm goes when the author
+   draws nothing — surely to some ambient handler,
+   unhandled-rejection style. It turns out that is
+   propagate-by-default's ghost: an undischarged arm reaching
+   the root is an honest failable output (the root's result is a
+   case bundle), and making it anything else re-imports the
+   silent behavior the revision rejected. Whether that state
+   deserves an advisory is open question 4's existing business,
+   sharpened: nothing is silent anymore, so the advisory would
+   be flagging honesty, not danger. (Settled — don't re-propose
+   without new evidence.)
+
+### What this leaves
+
+The design conversation (jointly with the revision notes it
+cashes; if it confirms, the status header's adopted-then-revised
+bookkeeping can settle and the superseded inventory body above
+keeps its role as the record of the dissolved shape). The pinned
+question stays pinned — what the commuted arm contains, payload
+alone vs prefix reachable, is deliberately untouched here, and
+alt-reach does not depend on its answer. The catalog schema
+round's re-founding of its lane rows onto bundle rows is that
+round's own work, with this section as its stated input. The
+reason-tag naming residue and the alt-reach name itself go to
+the naming sweep. And the faint markers' rendering — the
+completed commute, the failable-close mark, the witness walk —
+is layout-side, out of scope in this repo.
