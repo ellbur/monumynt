@@ -794,12 +794,12 @@ remains genuinely open, and what has since been resolved:
 5. **Barrier representation in the Expr graph.** Race needs
    per-contender flow and value output ports on one construct — more
    port structure than any current node kind carries (Branch is the
-   nearest precedent). This is largely worked:
-   `first-class-ports-design.md` gives the Expr-level representation
-   (per-kind port inventories, `ValuePort`/`FlowPort` refs), with the
-   race barrier in its pressure inventory as a client — per-contender
-   value + flow output pairs fit directly, no Branch-style satellite
-   nodes. `barrier-value-crossing-design.md` works the port/crossing
+   nearest precedent). This is largely worked: the (retired)
+   first-class-ports round gives the Expr-level representation
+   (per-kind port inventories, `ValuePort`/`FlowPort` refs — see
+   `core-model.md` and `src/ARCHITECTURE.md`), with the race barrier
+   in its pressure inventory as a client — per-contender value + flow
+   output pairs fit directly, no Branch-style satellite nodes. `barrier-value-crossing-design.md` works the port/crossing
    corner (values-in, minted per-contender pairs, derived from the
    co-location criterion). The barrier's own semantics round exists
    as `race-barrier-design.md`: the barrier's law with drawn-order

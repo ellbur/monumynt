@@ -1,10 +1,17 @@
 # Partial Collects — using only some of a split's branches
 
-Status: exploration — this chapter teaches a worked proposal with
-stated leanings. It has not been adopted, and none of it is
-implemented; read it as "here is a candidate and the case for it."
-It lands after the `first-class-ports-design.md` migration's step 2
-(per-alt ports), which the design builds on.
+Status: mixed — **2026-08-12 update**: the core construct is
+implemented. Cell sets, the law of the merged flow, merged-context
+computation, covering cell-set collects, nested cell merges, and
+non-trailing partial levels all compile end to end (`Context.res`,
+`Check.res`, `Codegen.res`'s `emitCellChain`/`buildChain` — see
+`src/ARCHITECTURE.md`'s "What runs today"). What remains exploration
+is what this chapter itself still leaves open below — naming (the
+`Bundle`/`Unbundle` question), the OptionIter question, and multi-row
+value correspondence — plus the named-collect spellings and the
+partition surface; read those as "here is a candidate and the case for
+it," not as settled. It builds on the ports migration's step 2
+(per-alt ports), now landed (`src/Program.res`).
 
 When you split a value into cases, exactly one case fires per firing
 of the parent flow, and often you go on to handle every case. Just
@@ -445,8 +452,8 @@ pairwise-disjoint branch cell sets; covering ⇒ `valueOutputs:
 {value}, flowOutputs: {flow}`. Per-configuration port inventories
 are already spec practice.
 
-**Expr level.** Lands after `first-class-ports-design.md` migration
-step 2, since branches reference alt flow ports:
+**Expr level.** Builds on the ports migration's step 2 (now landed),
+since branches reference alt flow ports:
 
 ```rescript
 | CollectCase({branches: array<{value: valueRef, flow: flowRef}>})
@@ -550,8 +557,8 @@ where one exists.
    severable, decide at implementation.
 3. **Multi-row value correspondence.** k branches × m corresponding
    value rows, outputs one value per row — the full barrier shape
-   (race has it per contender; `first-class-ports-design.md`'s open
-   question 3 asks the same of Join's value ports). With m = 1 as
+   (race has it per contender; the retired first-class-ports round's
+   open question 3 asked the same of Join's value ports). With m = 1 as
    designed here, a second value crossing the same merge takes a
    second partial collect over the same cells. The flatten join, the
    concurrent join, race, and the partial collect should agree on
@@ -565,8 +572,10 @@ where one exists.
    as a drawn/recognized view. Leanings, not adopted.
 4. **Merged-flow identity.** Two partial collects over the same
    cells with the same values: distinct flows (node-identity) or the
-   same flow (structural)? The same question as first-class-ports'
-   open question 2 for Join nodes, with the same interim answer —
+   same flow (structural)? The same question as the retired
+   first-class-ports round's open question 2 for Join nodes (now in
+   `src/ARCHITECTURE.md`'s decision record), with the same interim
+   answer —
    bind once and reuse, like any shared node; decide for real when
    something observable (stream chain sharing) keys off flow
    identity.

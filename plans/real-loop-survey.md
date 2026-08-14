@@ -1887,8 +1887,8 @@ queue and a one-shot event. The comment marks a real bug class:
 asyncio holds tasks weakly, so a spawned task referenced by nothing
 gets **garbage-collected mid-flight**. A complete program whose
 parts hang off no root expression — the "program is a node set, not
-a root expression" consequence (`first-class-ports-design.md`) with
-a production incident number attached.
+a root expression" consequence (`core-model.md`; `src/ARCHITECTURE.md`,
+"Node set from day one") with a production incident number attached.
 
 **aiohttp 3** — `aiohttp/worker.py:63`
 
@@ -2252,9 +2252,9 @@ dodge a startup race, documented in a four-line comment
 production bug class — asyncio's weakly-held tasks are
 garbage-collected mid-flight when nothing references them —
 which is the "program is a node set, not a root expression"
-consequence (`first-class-ports-design.md`) observed as a real
-incident: a complete program whose parts are unreachable from any
-root. The spawn/registration/retention triple is where this code's
+consequence (`core-model.md`; `src/ARCHITECTURE.md`, "Node set from
+day one") observed as a real incident: a complete program whose
+parts are unreachable from any root. The spawn/registration/retention triple is where this code's
 subtlety concentrates, not in the per-firing bodies.
 
 ### 3.5 `bounded(n)` is a resource — confirmed three ways

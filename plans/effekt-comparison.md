@@ -302,6 +302,9 @@ weakest discoverability moment; see example 2). Also arrives with a +1
 ladder to check: first-success → all-results → bounded search →
 heuristic order.
 
+**Update (2026-08-12).** The round now exists (`speculation-design.md`,
+exploration), built partly on this finding's evidence.
+
 **Finding 4 — demand-driven keyed computation.** The build system =
 served flow + recursive provider + keyed cache. Two demands handed to
 existing rows (served flow's round, on the concurrency row; incremental
@@ -348,7 +351,9 @@ fails, and each capability needs its own inside-out form.
 - **New Tier-2 row**: speculation — ordered alternatives with rollback
   (finding 3). I 4 (a demand, pieces named, leaning sketched, nothing
   worked), W 3 (breadth obligation: parsing and search are rare-but-
-  breaking; two corpus sightings + breadth item 6).
+  breaking; two corpus sightings + breadth item 6). Now worked in
+  `speculation-design.md` (exploration); see open-problems.md for the
+  re-scored row.
 - **Functions, reuse, and facets**: W 3 → 4 (findings 1–2: the test
   double makes the row everyday; four of nine case studies rest on the
   capability). The row's remaining list gains late-bound operations and

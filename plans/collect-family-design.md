@@ -10,8 +10,12 @@ dead ends were confirmed as rejections at adoption: the empty
 collect never runtime-errors (the Dyalog pole), and the catalog
 never blesses `-∞`/`+∞` as fake identities. The rest of the
 chapter — the named-collect spellings, the keyed collect, the
-partition surface — remains exploration; nothing is implemented
-(the compiler knows only the list/case/option/filter closes).
+partition surface — remains exploration; none of that is implemented.
+(**2026-08-12**: the implemented repertoire has grown well past what
+an earlier version of this line claimed — partial/cell-set collects,
+registers with running views, and the whole-table Cross traversal all
+compile; see `src/ARCHITECTURE.md`'s "What runs today" for the current
+list rather than an enumeration here, which would go stale again.)
 Read the unadopted constructs as candidates with the case for
 them.
 

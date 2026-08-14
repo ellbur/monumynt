@@ -41,8 +41,11 @@ a loser).
 Everything else hinges on these two:
 
 - **[`language-design-philosophy.md`](language-design-philosophy.md)** —
-  the seven principles every new construct is judged against, and the
-  standing method (sample real code) that keeps the design honest.
+  the seven principles every new construct is judged against, the
+  standing method (sample real code) that keeps the design honest,
+  the ontology lens, and the visual-leap constraint (thinking about
+  visual representations is in scope even though building them is
+  not).
 - **[`core-model.md`](core-model.md)** — the core in current vocabulary:
   value wires vs flow wires, uncollect/collect, (no) time travel
   (programs that leave ordering unstated are authorable, but are always
@@ -118,7 +121,10 @@ they change how everything else is read.
   served rounds had written. *The rest exploration — the linearization
   residue's evidence is delivered (survey 4) and the value-in-context
   model's everyday-`prev` check too (survey 5); both conversations
-  remain unheld.*
+  remain unheld. A 2026-08-12 working round rides in the doc ("The
+  frame menu"): the owned-order table read as offers — a thread
+  names a frame kind, resolved from its anchors' provenance, with
+  pins mandatory where ambiguous; exploration.*
 - [`product-linearization-design.md`](product-linearization-design.md)
   — the doc above's one hard residue, worked: which order an
   order-sensitive register (or a spanning effect) walks a multi-axis
@@ -133,15 +139,11 @@ they change how everything else is read.
 
 ## Representation and checking
 
-- [`first-class-ports-design.md`](first-class-ports-design.md) — a
-  staged migration, first on the implementation path: every wire should
-  name a *port* of a node, not a whole node. Making ports first-class
-  dissolves the Branch node and the flowRef wrapper stack. Also: "the
-  program is a node set" (not a root expression). Ports are meant to
-  become a basic, assumed aspect of the language rather than a topic of
-  their own — as the other docs come to assume them, this doc's content
-  should be absorbed into theirs and the doc retired with the migration
-  it stages.
+- *(The first-class-ports doc was retired 2026-08-12, per its own
+  plan: the migration it staged is complete — ports and the node
+  set are basic, assumed aspects now — and its surviving content
+  lives in `core-model.md` ("Where to go next", ports entry) and
+  `src/ARCHITECTURE.md`'s decision record.)*
 - [`barrier-value-crossing-design.md`](barrier-value-crossing-design.md)
   — one place to answer how values cross barriers (joins, races, partial
   collects), a question several docs had deferred to each other. Two
@@ -290,15 +292,27 @@ consumes, and whether it needs an input list at all:
   tree exists only as call structure (mergesort's splits, a parser's
   descent, a quadtree build): write one level concretely, then *link*
   the sub-problems back to the problem — the register's link
-  transformation, tree-shaped. Termination is a three-species measure
-  discipline (structural shrink, cursor progress, drawn fuel); the
-  left-recursion parser bug falls out as the progress measure's
-  violation. *Adopted (2026-07-23, in the joint adoption, under the
-  anchor-is-identity constraint); the link's spelling remains open;
-  mutual recursion's fine print now worked (unadopted): the joint
-  measure's unit is the link graph's strongly connected group —
-  one measure per group, cycles owe the decrease, the all-neutral
-  cycle the witness (indirect left recursion generalized).*
+  transformation, tree-shaped. *Adopted (2026-07-23, in the joint
+  adoption, under the anchor-is-identity constraint). Revised
+  (2026-08-12, the doc's revision notes): the link's spelling lands
+  as the **site** — an out-port/in-port pair joined by the abstract
+  wire, threads anchored at the page's own fed and read wires (feed
+  the child where you are fed, read it where you are read) — with
+  the **hypothetical** ("what would y be if x were v?") as the
+  primary ontology and a substitution law for nested frames; mutual
+  recursion re-founded by inlining (only a group's back edges are
+  sites; level labels dissolve; the reuse residue is two remembered
+  cuts over one node set); the termination/measure discipline
+  **retired** (no termination or soundness checking); the cyclic
+  back-edge surface worked and **rejected** (clockless latch,
+  crossing observability, branching collision). The frame-source
+  question is answered by dissolution (frames are hypothetical
+  assignments indexed by the tree of askings), and a follow-on
+  exploration rides in the doc: the **frame flow** — the call
+  tree as a tappable flow (thread-named, rooted at the current
+  frame, firings = askings, unowned order), making whole-tree
+  aggregation an ordinary collect; unadopted. Still open: final
+  spellings; the wound (tree-structured) form.*
 - [`speculation-design.md`](speculation-design.md) — try-in-order choice
   with rollback: several alternatives drawn in order, each of which may
   fail; the first success wins, and the world is restored between
@@ -380,15 +394,17 @@ consumes, and whether it needs an input list at all:
   rule, and reusability is a derived check with a drawable witness.
   Functions per se are about *reuse* (sameness across sites — the
   honest form exactly where a manufactured shared flow would be a
-  lie); the divide flow's link shares the cut's substrate while
-  staying its own anonymous construct (recursion never routes through
-  a named function — settled in the round's first design
-  conversation), with the measure guarding reference cycles of any
-  species. Partial cuts give local functions (uncut wires are free
-  wires; the prefix rule derives the validity region; linear values
-  force port-ification); the spec's slot dissolves into the op pair;
-  function, level, provider, and the top-level program share one
-  substrate under four bindings. Extended (2026-08-04): the cut
+  lie); the divide flow's link stays its own anonymous construct
+  (recursion never routes through a named function — settled in the
+  round's first design conversation). Partial cuts give local
+  functions (uncut wires are free wires; the prefix rule derives
+  the validity region; linear values force port-ification); the
+  spec's slot dissolves into the op pair; function, provider, and
+  the top-level program share one substrate under three bindings
+  (the level binding removed 2026-08-12 — recursion rides the
+  port-pair substrate, not the cut; level labels and the measure
+  references retired with it; see the divide flow's revision
+  notes). Extended (2026-08-04): the cut
   re-founded as a node set with per-wire cut-or-environment
   decisions (the closed curve was topologically incoherent);
   copy-paste instance semantics, no context memory; flow ports as
@@ -442,8 +458,10 @@ case/option are implemented; the rest are designed:
   over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
   their shape discipline are what remain.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
-  values that arrive later, racing as a barrier, failure as a terminator
-  payload.
+  values that arrive later, racing as a barrier, failure as
+  terminators. *Exploration; the doc carries its own "needs
+  updating" banner (2026-08-04) — its failability sections predate
+  the reason-only-terminators revision.*
 - [`failure-payloads-design.md`](failure-payloads-design.md) — the
   failability dimension's two flagged residues, worked: lightweight
   failure (`fail`, the raise as a drawn node — bodies never throw; the
@@ -490,14 +508,22 @@ case/option are implemented; the rest are designed:
   rest exploration.*
 - [`incremental-flow-design.md`](incremental-flow-design.md) — the
   incremental flow (reactive vars): hold/changes, cutoff, and pushing
-  values into a "necessity frontier."
+  values into a "necessity frontier." *Exploration.*
 
 ## Compile
 
 - [`lazy-compile-design.md`](lazy-compile-design.md) — the
-  **implemented** runtime-lazy strategy in `src/Compile.res`.
+  runtime-lazy strategy of the earlier compiler (`src/Compile.res`,
+  since deleted with the bridge migration); its semantics — runtime
+  laziness, per-node memoisation, self-contained collect thunks —
+  survive in `Codegen.res`. *Historical.*
 - [`compile-strategy-design.md`](compile-strategy-design.md) — the
-  planned rebuild: a pipeline of pure passes, same semantics.
+  compiler as a pipeline of pure passes. *Implemented in shape
+  (derive → complete → check → annotate → codegen, `Pipeline.res` —
+  the doc's "planned rebuild" happened); its remaining aspirational
+  pieces (full multi-level derive, the deferred
+  placement/strictness passes) are tracked in
+  `src/ARCHITECTURE.md`.*
 - [`lazy-stream-placement-design.md`](lazy-stream-placement-design.md) —
   how stream (pull-based, on-demand) flows compile. The committed
   baseline is per-node memoised streams, with the compiler deciding
@@ -580,11 +606,12 @@ what must **not** be imported and why:
 
 ## Sequencing
 
-- [`implementation-strategy.md`](implementation-strategy.md) — the map
-  from the whole design record to code — not just the compiler: five
-  workstreams (representation, compile pipeline, runtime, checking, text
-  surface), what blocks what, and a proposed sequencing. The
-  compiler-specific half of the map is `compile-strategy-design.md`.
+- [`implementation-strategy.md`](implementation-strategy.md) — the
+  original map from the design record to code. *Retired
+  (2026-08-12): most of its phases are implemented, and its role is
+  carried by `src/ARCHITECTURE.md` (the live record of how the code
+  is shaped and what remains); the compiler-specific half of the
+  map remains `compile-strategy-design.md`.*
 
 ## Layout (out of scope in this repo)
 

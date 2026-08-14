@@ -182,9 +182,10 @@ an error — termination of interest costs nothing and says nothing
 (the brace-rejection argument in the text doc), and the program being
 a **node set with distinguished outputs** means root-unreachable and
 not-yet-consumed structure is representable by construction
-(`first-class-ports-design.md`; `visual-language-spec.md` notes the
-explicit node set "accommodates partially constructed diagrams during
-editing" — this is that payoff). Forward building — the postfix,
+(`core-model.md`; `src/ARCHITECTURE.md`, "Node set from day one";
+`visual-language-spec.md` notes the explicit node set "accommodates
+partially constructed diagrams during editing" — this is that
+payoff). Forward building — the postfix,
 producers-first direction the whole textual design favors — therefore
 never needs any partiality construct at all: at every keystroke the
 frontier is a dangling output, and dangling outputs are valid. The

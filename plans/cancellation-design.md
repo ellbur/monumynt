@@ -383,8 +383,9 @@ Three parts, no region, no scope — the lifecycle segment
 - **Use** is the ops strung along the thread, exactly as the effects
   chapter has them.
 - **Release** is a **late-wired body on the acquiring node** — the
-  same two-phase shape as the register's write half (`step of`,
-  `first-class-ports-design.md`), spelled provisionally `release of`.
+  same two-phase shape as the register's write half (`step of`; the
+  retired first-class-ports round — see `src/ARCHITECTURE.md`),
+  spelled provisionally `release of`.
 
 **The law.** *Every acquired handle reaches exactly one release, and
 the release runs on whichever way the handle's segment ends — normal
@@ -654,15 +655,16 @@ stated as a leaning, not a decision.
    (which consumer abandoned) — jointly with failability's
    payload-composition residue and the subset-merge payload question.
    *The joint round now exists* (`failure-payloads-design.md`,
-   exploration): the bare-fact lean is confirmed structurally — a
-   lane's payload is data its minting site had in hand, and strand
-   delivery's minting site has no input wire; the abandoning party
-   engaged nothing a value could arrive through.
+   adopted 2026-07-23, revised 2026-08-04): the bare-fact lean is
+   confirmed structurally — a lane's payload is data its minting site
+   had in hand, and strand delivery's minting site has no input wire;
+   the abandoning party engaged nothing a value could arrive through.
 3. **The release spelling.** `release of <handle>` as the late-wired
    form; whether per-lane release is one body with a split (as drawn
    above) or per-lane bodies; how the release-completion cell is
-   named. Jointly owned with `textual-representation-design.md` and
-   `first-class-ports-design.md`.
+   named. Jointly owned with `textual-representation-design.md` (the
+   first-class-ports round that jointly owned it is retired,
+   migration complete).
 4. **The cancel-translation schema.** What an external catalog block
    declares about its foreign cancellation (idempotence, promptness,
    whether the foreign op reports post-cancel state) — the checking

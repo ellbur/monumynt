@@ -1,12 +1,20 @@
 # Runtime-Lazy Compile
 
-Status: **implemented** — this is the strategy in `src/Compile.res`
-today. This document records the reasoning behind it; the mechanics
-live as comments in the source. Its companion is
+Status: **historical** — **2026-08-12 update**: this document describes
+the pre-retirement compiler, `src/Compile.res`, a single mutating
+depth-first walk. That module was deleted in the 2026-07 bridge
+retirement; `compile-strategy-design.md`'s pipeline of pure passes
+(`Derive` → `Complete` → `Check` → `Annotate` → `Codegen.res`,
+orchestrated by `Pipeline.res`) is the implemented compiler now (see
+`src/ARCHITECTURE.md`, "The single engine"). The reasoning below is
+kept for the record, and the *semantics* it describes did not die with
+`Compile.res`: the same runtime-lazy stance — one memoised lazy
+binding per node, self-contained collect thunks, the any-list rule —
+survives in `Codegen.res`, reproduced there deliberately
+(`compile-strategy-design.md`, "What survives"). Its companion is
 `placement-algorithm-notes.md`, which preserves the compile-time
 placement algorithm this strategy replaced (a deferred optimisation,
-not a rejected one). The planned rebuild — same semantics, a pipeline
-of pure passes — is `compile-strategy-design.md`.
+not a rejected one).
 
 (The code and this document say Open/Close/close throughout, matching
 `Expr.res`. At the language-design level these are *uncollect* and

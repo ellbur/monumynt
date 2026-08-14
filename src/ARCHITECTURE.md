@@ -5,9 +5,12 @@ types, working building blocks, and the passes. Design questions stay
 in `plans/`; this file records how the *code* is shaped and which
 decisions it took.
 
-It follows the sequencing of `plans/implementation-strategy.md`:
-representation first (ports, node set), text surface early (test
-leverage), the compiler as pure passes against that representation.
+It followed the sequencing of the now-retired
+`plans/implementation-strategy.md` (representation first — ports,
+node set; text surface early for test leverage; the compiler as
+pure passes against that representation) and has since absorbed
+that doc's role: this file is the live record of what is built and
+what remains.
 
 ## Module map
 
@@ -286,10 +289,19 @@ Representation and surface (from the first scaffolding round):
   expression anywhere. Forced by write halves; also the honest signature
   for multi-output diagrams.
 - **Port-name scheme**: strings at the representation level; bare alt
-  names on both sides, disambiguated by ref sort. (Ports doc open q.1 /
-  text doc open q.6 — provisional.)
-- **Join is flow-only** at the Expr level (confirmed lean, ports doc
-  open q.3). Value crossings stay derived.
+  names on both sides, disambiguated by ref sort. (Carried from the
+  retired first-class-ports round's open q.1 / text doc open q.6 —
+  provisional.)
+- **Join is flow-only** at the Expr level (the lean confirmed and
+  since adopted — `barrier-value-crossing-design.md`, the
+  availability law). Value crossings stay derived.
+- **Join/Commute node identity is site identity.** A Join node has an
+  id, so two syntactically identical joins of the same operands are
+  two distinct combined flows; the convention is bind once and reuse,
+  like any shared node. If stream chain sharing (Shape C) ever keys
+  off flow identity, revisit — "bind the join once" vs "each collect
+  mints its own" becomes observable in chain count. (Carried from the
+  retired first-class-ports round's open q.2.)
 - **App fn and case discriminator are wires** (usually to `Lit` externs),
   not embedded JsAst — functions are values. The bridge requires them to
   resolve to Lits; Codegen does not (it forces the fn wire at the call).
@@ -1217,12 +1229,12 @@ exploration; a mere thought gets a comment, not a module.
 | `Stream.res` | compile strategy **committed** (Shape C, per-node memoised streams); **steps 1-3 LANDED**, so this is no longer a pure stub | What LANDED and where (`Program.flowKind`'s `Stream` row, `Runtime.streamPreludeStmts`, `Annotate`'s `StreamCell`, `Codegen.emitStreamCollect`, and step 3's `Codegen.emitSequenceCommute`), and what is still staged: the two commute *operations* stay named distinctly (`SequenceCommute` vs `TransposeCommute` — both now have an implementation, and they share no code, which is the distinction cashed); the STACKED stages and their stack-discipline check; the `zip` primitive (universal under Shape C, unreached under step 2's one-fold-per-collect); Shape C PROPER, i.e. per-node cells and the cross-collect sharing they buy; the source-opener riders (`SelfOpen`, `PullSource`). The consumer-set lattice stays deferred-not-rejected. |
 | `Async.res` | exploration; race's pairs-in shape **adopted** (2026-07-23) | The terminator-tag vocabulary; the async cell (`__asyncCell__`/`__startAsync__`, start-is-synchronous); the async uncollect/collect; the race barrier (per-contender (flow, payload) pairs in, per-cell (value, flow) mints out, one node) with the pair-coherence check; the settle node (completions flow, settlement order); `Paced`; cancellation's `ReleaseHalf` (the bracket's late-wired half, DelayWrite-shaped). |
 | `Incremental.res` | exploration | The `Var` flowKind row; the pull-baseline cells + generation word; `Hold`/`Changes` kind-crossing nodes; switch-join as a Join variant, not a new species; cutoff left open; the push region deferred behind the same cell interface. |
-| `Cut.res` | **adopted** (2026-07-23): end-when + the node-bit, exclusive default; the cut root | `EndWhen` with the three-valued `cutDestination` at the root (end-when's bit is its projection); split-when staged as the *iterated cut* (derived, no node kind); the stop-operand admissibility check; the final-readout anchor left an explicit TODO. |
-| `Fail.res` | **adopted** (2026-07-23): fail node, edge stance + super flow, inventory account | `FailOp` (end-when's sibling, no bit); the derived endings inventory (lanes = sets of minting sites, monotone fixpoint, witnesses); the background super flow; the discharge barrier minting outcome cells directly (the `(prefix, term)` pair demoted to a lowering) with its exhaustiveness check. Residue flagged: tag identity across reuse boundaries. |
+| `Cut.res` | adopted (2026-07-23), **revised** (2026-08-04): fused into **collect-until** — no first-class shortened-flow wire, terminators carry reason only | `CollectUntil` (the pre-fusion operand shape, kept as the record) with the three-valued `cutDestination` at the root; split-when staged as the *iterated cut* (derived, no node kind); the stop-operand admissibility check (survives the fusion); the final-readout anchor left an explicit TODO. |
+| `Fail.res` | adopted (2026-07-23), **revised** (2026-08-04): the fail node **dissolved** — failure draws as split + inferred short-circuit commute + collect | No planned node kind. What survives, staged: the derived endings inventory (lanes = sets of minting sites, monotone fixpoint, witnesses; terminators reason-only, payloads on value wires); the background super flow; the discharge barrier minting outcome cells directly with its exhaustiveness check. Residue: tag identity across reuse boundaries (the referent rule — worked, unadopted). |
 | `CollectFamily.res` | ladder **adopted** (2026-07-23); keyed collect exploration | The `availability` ladder (monoid → total, semigroup → option-shaped, non-associative → augment-only) classified off the catalog row; the keyed partition with its four readouts. |
 | `Property.res` | exploration (its step 1, alignment, is already live in Check) | The 10-row property inventory; demands/offers; the **catalog row** several rounds converge on (identity witness, throw lanes, cancel translation, coalescing); monotone no-choice-points propagation; the boundary projection / principal property signature; the schematic source. |
 | `OrderDemand.res` | per-kind half **adopted** (2026-07-23); **no longer a stub** | The owned-order criterion as a five-way `orderClass` (owned / none / incidental / degenerate / surplus) and order provenance (inherited / minted / ambient) as staged types; `orderOf` is now IMPLEMENTED — the kinds table as a structural provenance walk over the flow constructors that exist today (list ⇒ owned, option / case alt ⇒ degenerate, Join ⇒ its operands' orders composed lexicographically, Cross ⇒ surplus, Commute ⇒ the transposed operand's, a partial collect's merged flow ⇒ the parent's restricted). The rule that reads it lives in `Check.res` (`checkOrderDemand`), beside the other witness rules and mirroring how `checkCross` reads `Annotate.crossViolation`. The rows for kinds that do not exist yet (stream, async, incremental, sever→settle bodies, divide-flow siblings, saturation members) stay recorded as comments; the hold identification is still a note. The product (surplus) cell is *located*, not resolved — `product-linearization-design.md` still owns which order a whole-product register would walk, and the commutative-monoid exception waits on `CollectFamily.res`. |
-| `Boundary.res` | **jointly adopted** (2026-07-23), anchor-is-identity constraint; served two-ends core adopted | The remembered cut (one directed sorted crossing list, six sorts including the op pair); `Call` vs `Link` on one substrate; the four bindings (function / level / provider / program — `{nodes, outputs}` is the degenerate cut); the measure discipline (3 species × 3 rungs); facet / binding / middleware-splice; derived membership, reusability, signature. Config scopes recorded as dissolved into the op pair. |
+| `Boundary.res` | **jointly adopted** (2026-07-23), anchor-is-identity constraint; served two-ends core adopted; **amended** (2026-08-12): the level binding removed, measures retired | The remembered cut (one directed sorted crossing list, six sorts including the op pair); `Call` references (the link left this substrate — it is the **site**, an out-port/in-port pair with threads, `divide-flow-design.md` revision notes); three bindings (function / provider / program — `{nodes, outputs}` is the degenerate cut); facet / binding / middleware-splice; derived membership, reusability, signature. Config scopes recorded as dissolved into the op pair; the measure discipline deleted (no termination checking). |
 | `Effects.res` | exploration with a recorded direction (2026-07-23): IO as a flow | The `IO` flowKind row; ops as uncollects joining into one global IO flow; join's asymmetry as the sequencing; the handle derived; the joins-back check. Within-firing effects deliberately contribute only the coalescing catalog-row bit (on `Property.catalogRow`). |
 | `FocusedUpdate.res` | exploration | The getter→setter mirror table as `pathStage`/`setterStage` with the derived `mirror`; the identity-branch-never-filter rule. |
 | `Saturation.res` | exploration, blocked on four presumed constructs | The flow back-edge as a `SaturateRead`/`SaturateFeed` pair mirroring the Delay pair; the dedup-collect parameter (set vs keyed-merge); naive/semi-naive as compiler-chosen lowerings. |

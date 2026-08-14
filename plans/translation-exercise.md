@@ -18,6 +18,14 @@ them is deliberate** — chosen to span the survey classes and the breadth
 set from trivial to hardest. No frequency claims are made here;
 frequency lives in the survey document.
 
+Update (2026-08-04): the end-when transcriptions below (B1, B2, C1, C2)
+and the provisional-spellings table's `~F, ~stop ~> end-when => ~W`
+entry predate end-when's fusion with its collect into collect-until (no
+first-class shortened-flow wire; terminators carry reason only, payloads
+travel value wires) — see `end-when-design.md`'s revision notes. They
+stand as evidence of shape, not current spelling, and are left
+unrewritten.
+
 ## Why transcription, not classification
 
 The surveys sampled sixty loops and thirty orchestration sites and
@@ -756,8 +764,9 @@ are small construct candidates with new pressure.
    (`value of`) — every on-cycle operand wants it. One rule ("a node may
    be minted with an on-cycle operand unwired; a later statement wires
    it as `<port> of <name>`") covers all three and keeps P4 intact.
-   Owner: the textual round, jointly with `first-class-ports-design.md`
-   (which already owns the write-half-is-a-node idea).
+   Owner: the textual round (the first-class-ports round that jointly
+   owned the write-half-is-a-node idea is retired, migration complete —
+   see `src/ARCHITECTURE.md`).
 5. **The discharge readout spelling** (B1, B2, C2). The (prefix,
    terminator) collect's binder convention, a terminator-only form (or a
    discard binder), the inclusive/exclusive bit's word, and possibly

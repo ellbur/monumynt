@@ -48,7 +48,8 @@
 //
 // Stubbed with signatures (each names its design doc):
 //   - productivity    every cycle crosses a register pairing
-//                     (first-class-ports-design.md, the pair section).
+//                     (iteration-with-state-design.md, "Ruling out
+//                     non-productive cycles structurally").
 //                     Unreachable today: the object graph is a DAG by
 //                     construction and the only cycle is the register
 //                     pairing itself, so every buildable program is
@@ -372,9 +373,10 @@ let checkAlignment = (p: program): array<witness> => {
 // exhaustiveness against the derived
 // endings inventory), Cut.res (stop-operand admissibility), Stream.res
 // (stack well-formedness), Async.res (race pair coherence; no register in
-// the sever->settle interior), Boundary.res (reusability; the measure
-// discipline), Effects.res (IO flows join back), Property.res (the
-// demand/offer propagation these rules generalise into).
+// the sever->settle interior), Boundary.res (reusability — the measure
+// discipline was retired 2026-08-12, no termination checking), Effects.res
+// (IO flows join back), Property.res (the demand/offer propagation these
+// rules generalise into).
 
 // Join/Commute operands must be nesting-adjacent: the inner flow's exterior
 // must end exactly at the outer flow (lazy-stream-join-design.md). This is
@@ -566,7 +568,7 @@ let checkOrderDemand = (p: program): array<witness> => {
 }
 
 let checkProductivity = (_p: program): array<witness> => {
-  // TODO(first-class-ports-design.md): every cycle in the value graph +
+  // TODO(iteration-with-state-design.md, productivity): every cycle in the value graph +
   // write→read pairing edges crosses a pairing edge. Requires the write
   // index (Annotate) — the pipeline lets check consume annotate's facts or
   // recompute them; keep the outputs distinct either way.

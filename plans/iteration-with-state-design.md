@@ -17,7 +17,11 @@ provisional), **no flow operand on the register** (the frame is
 *derived* from the thread's anchors' contexts, with an `in ~flow`
 annotation for the residue), anchors as ports, and the exit as a
 scoop of the read port at a closer. See "The ergonomics round,
-opened (2026-08-04)" below.
+opened (2026-08-04)" below. (A follow-on working round —
+`delay-ontology-design.md`, "The frame menu", 2026-08-12 —
+generalizes the residue annotation: the thread names a frame
+*kind* resolved against the anchors' provenance, with pins
+mandatory exactly where resolution is ambiguous; exploration.)
 Nothing is implemented. The chapter below is kept as the record of
 how the decision was reached; read pre-decision passages ("the
 language has not yet chosen") in that light.
@@ -786,6 +790,20 @@ definition. The check rejects exactly the ill-formed programs:
 so wiring it from a per-iteration value is already ill-formed under
 the scoping rules (the "no time travel" family).
 
+**A clockless cyclic surface was explored and rejected
+(2026-08-12).** A raw back-edge notation — feed a value into an
+earlier wire with no register, the base case inferred as the
+non-cycling source — was worked for tail loops and for recursion,
+and rejected: the two-source merge is a latch with no clock (the
+register's driving flow is the clock that makes "write-at-n−1 else
+init" well-defined; the raw cycle has no flow), and with two
+carried values the simultaneity of the updates is unstated — the
+dynamic hazard, at the very first +1 step. Full record and the two
+other kill reasons: `divide-flow-design.md`, revision notes
+2026-08-12. A synchronizing flow-uncollect on the fed wire, which
+would give the cycle a lawful clock, is deferred there — not
+rejected.
+
 The check is a **quotient constraint** — a property of the assembled
 graph, not of any single link. It cannot be made by-construction
 without reintroducing the declare-upfront framing the link avoids
@@ -1133,8 +1151,8 @@ no "second act on an existing node" without mutation, a tie-the-knot,
 or symbolic indirection. This section works out a fourth escape the
 list didn't name — **move the edge, not the node**. It is a fact about
 the Expr representation, but both candidates above rest on it, so it
-lives here; `first-class-ports-design.md`, whose migration it
-presupposes, keeps a pointer.
+lives here; the ports migration (landed — `src/Program.res` is
+ports-first) presupposed it, recorded now in `src/ARCHITECTURE.md`.
 
 ### The three named escapes fail for cause
 
@@ -1372,8 +1390,9 @@ three-anchor contraction — contains everything the thread draws.
 
 ### Effect on the ports migration
 
-None on `first-class-ports-design.md`'s steps 1–4; the pair lands with
-the iteration-state round, not with that migration. It presupposes
+None on the ports migration's steps 1–4 (now landed — `src/Program.res`
+is ports-first); the pair lands with the iteration-state round, not
+with that migration. It presupposes
 step 1's `valueRef` (the write's `step`, everyone's reads of `prev`
 and `final`) and nothing else.
 

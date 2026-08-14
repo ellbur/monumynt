@@ -1,10 +1,19 @@
 # Compile Strategy: The Functional Rebuild
 
-Status: planned — a strategy document. Nothing here is implemented. It
-lays out the compiler that will replace the current `src/Compile.res`,
-whose *semantics* it keeps but whose *architecture* it discards. The
-current implementation is described in `lazy-compile-design.md`; this
-document is the planned successor, contrasted with it throughout.
+Status: implemented — **2026-08-12 update**: the five-pass pipeline
+this document lays out (derive → complete → check → annotate →
+codegen) is the compiler that runs today, orchestrated by
+`Pipeline.res`. `src/Compile.res`, the mutating walk this document set
+out to replace, no longer exists — it was deleted in the 2026-07
+bridge retirement (`src/ARCHITECTURE.md`, "The single engine"). The
+prose below still narrates the rebuild as a plan being contrasted with
+`lazy-compile-design.md`'s "current implementation"; read that framing
+as historical scene-setting, not a live status. `lazy-compile-design.md`
+now documents the retired architecture, not the current one. What
+remains aspirational here is not the pipeline shape but pieces within
+it — full multi-level derive, the deferred placement/strictness
+passes, and the other gaps `src/ARCHITECTURE.md` tracks as a live
+worklist.
 
 The plan in one line: stop extending a single mutating depth-first walk,
 and rebuild the compiler as a **pipeline of pure passes** — a recursive,
@@ -13,16 +22,18 @@ dependencies.
 
 Companion documents:
 
-- `lazy-compile-design.md` — the current implementation's semantics, which
-  largely survive.
+- `lazy-compile-design.md` — the retired implementation's semantics
+  (historical as of the 2026-07 bridge retirement), which largely
+  survive in `Codegen.res`.
 - `placement-algorithm-notes.md` — the retired mutating placement pass,
   whose failure mode is this document's cautionary tale.
 - `time-travel-programs-design.md` — the completion pass this pipeline
   hosts (see "A node reached in two contexts").
 - `transformation-levels-design.md` — what the front half of this pipeline
   is.
-- `first-class-ports-design.md` — the representation this compiler
-  consumes.
+- `core-model.md` — the representation this compiler consumes (ports-
+  first; see `src/ARCHITECTURE.md` for the decision record of the now-
+  retired first-class-ports round).
 
 Terminology: **uncollect/collect** in the design vocabulary; the code
 still says Open/Close.
@@ -443,8 +454,8 @@ Concretely:
   them through.
 - **The entry point is a node set with distinguished outputs**, not a root
   expression — forced by register write halves being root-unreachable and
-  wanted anyway for multi-output diagrams (`first-class-ports-design.md`,
-  "the program is a node set"). The interim spelling
+  wanted anyway for multi-output diagrams (`core-model.md`;
+  `src/ARCHITECTURE.md`, "Node set from day one"). The interim spelling
   `compileToBody(root, ~writes)` is acceptable scaffolding; the rebuild
   should take the honest signature — outputs plus node set — from the
   start, since the pipeline's passes (write index, per-chain completion)
@@ -468,8 +479,9 @@ job is dispatch. The inventory, with the compile species annotate assigns:
   incomparable-context miss.
 - **Join / Commute nodes** — no runtime residue of their own; they steer
   the collect's chain walk and output construction (operand walk per
-  `first-class-ports-design.md`; any-list rule per the join law; commuted
-  output construction per `lazy-stream-commute-design.md`).
+  `src/Program.res`'s Join node — the retired first-class-ports round,
+  decision record in `src/ARCHITECTURE.md`; any-list rule per the join
+  law; commuted output construction per `lazy-stream-commute-design.md`).
 - **Stream-kind flows** — fully compositional: every node one memoised
   `Delayed` cell built from its inputs' cells; collects/joins/commutes are
   output construction over the pull interface (`zipStream` folds,

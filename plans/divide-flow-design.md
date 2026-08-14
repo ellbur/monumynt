@@ -3,11 +3,21 @@
 Status: **adopted** (design conversation, 2026-07-23 — the joint
 adoption with the function-boundary round): the link
 transformation tree-shaped, per-instance membership derived,
-leaves as linkless alts, the three-species measure discipline
-with warned trust as the floor, and sibling-instances-have-no-time
+leaves as linkless alts, and sibling-instances-have-no-time
 — under the recorded anchor constraint (open question 1: the
 anchor is an identity, never a value wire; the link's
-correspondences are thread-species identifications). The open
+correspondences are thread-species identifications).
+**Revised (design conversation series, 2026-08-12)** — see
+"Revision notes (2026-08-12)" at the end of this doc, which
+govern where the body differs: the link's spelling lands as the
+**site** (an out-port/in-port pair joined by the abstract wire,
+bound by threads to the page's own fed and read wires), with the
+**hypothetical** ("what would y be if x were v?") as the primary
+ontology and a substitution law for nested frames; mutual
+recursion is re-founded by inlining (level labels dissolve); the
+**termination/measure discipline is retired** (no termination or
+soundness checking); and the cyclic back-edge surface is worked
+and **rejected**. The open
 questions keep their own status where marked; nothing is
 implemented. This is the round the
 recursion row (`open-problems.md`) owed: the divide flow was proposed
@@ -146,8 +156,10 @@ collect demands one lane per instance — the lane the split chose —
 and only that lane's cone runs. A link fires only when its lane is
 demanded, so a Base instance never fires a link. The laziness the
 compile already lives by (`lazy-compile-design.md`) is the mechanism;
-the *guarantee* that the chain of demanded links is finite is the
-measure discipline below.
+there is no drawn guarantee that the chain of demanded links is
+finite — the measure discipline that once stood here is retired
+(Revision notes, 2026-08-12), and a program whose demanded chain
+never bottoms out diverges, as it would in any host language.
 
 Provenance extends without new machinery: a link crossing appends a
 segment to the context path, so parent-child instance contexts nest
@@ -173,62 +185,20 @@ special structure, so nothing new has to be learned to read it.
 (This is a dissolution, not a construct — recorded so the two-role
 sketch isn't re-proposed as syntax.)
 
-## Termination: the measure discipline
+## Termination: retired
 
-The linear link's soundness condition was crisp: every cycle crosses
-a register, and productivity is checked structurally — no dependency
-analysis, no lazy fallback (`iteration-rails-design-notes.md`). The
-tree link needs its analog. "Sub-problems get smaller" is
-undecidable in general, and `tough-use-cases-design.md` (question 4)
-left a leaning — catalog divisions with a size-measure check, warned
-trust for user divisions — with the instruction to work a non-list
-example so the catalog doesn't come out list-shaped.
-
-Working the three clients of this round produced not one measure but
-**three measure species**, and that is the round's first result:
-
-- **Structural shrink.** The sub-problem is a strict part of the
-  parent's data. Catalog divisions carry this as a property with a
-  witness — `splitInHalf` yields two strictly shorter lists (given
-  length ≥ 2, which the split's discriminator establishes),
-  `tail` a strictly shorter list, "strict components of a value" a
-  structurally smaller value. This is the collect family's catalog
-  discipline reused: rows are properties carrying witnesses, minted
-  for user operations through the same trusted authoring surface
-  (`collect-family-design.md`; `types-design.md` question 4).
-- **Progress.** The sub-problem is the *same* data at a strictly
-  advanced position — parsing's species. The measure is "the cursor
-  moved": a link whose sub-problem position provably consumed at
-  least one token terminates over finite input. The classic
-  violation has a famous name: **left recursion** — a grammar that
-  recurses at the same position — and the fact that PEG tooling
-  rejects it is field confirmation that this check is real
-  vocabulary, not an invention (worked in the parsing section
-  below).
-- **Fuel.** The problem carries a counter the divide alt strictly
-  decreases, and an alt covers zero. The measure is *drawn*: the
-  decrement is on the page, the zero case is an ordinary alt of the
-  split. Quadtree's species (worked next), and the honest form of
-  what would otherwise be trust.
-
-The ladder, then, leaning as question 4 leaned but sharper:
-
-1. **Catalog division** — the shrink or progress property comes from
-   a catalog row, checked by construction.
-2. **Drawn measure** — no catalog row applies, so the author threads
-   a fuel counter; the check is structural (the decrement is a
-   catalog `minus1`-style row; the split covers the zero case).
-3. **Warned trust** — neither; the program is legal and flagged "may
-   diverge," the exact precedent of the derived-iteration soundness
-   check's documented fallback (`trees-and-recursion.md`).
-
-Flix's `@Terminates` is the prior art that termination is *declared,
-checked* vocabulary rather than an ambient hope
-(`flix-comparison.md`), and rung 3 matching the derived-iteration
-precedent keeps one policy across both recursion stories. Note what
-is absent: no dependency analysis anywhere. The only cross-instance
-edges are the drawn link (down) and its answer ports (up) — the
-register discipline's shape, one level up.
+This chapter carried a three-species measure discipline
+(structural shrink / cursor progress / drawn fuel, with warned
+trust as the floor), adopted 2026-07-23. **Retired (design
+conversation, 2026-08-12): the language does no termination or
+soundness-of-recursion checking.** The discipline was a
+distraction from the construct itself, and its floor was already
+warned trust — no program was ever blocked — so nothing semantic
+is lost; a diverging recursion diverges, exactly as in the host
+language. (Recorded so the discipline isn't re-derived: its best
+exhibit was reading left recursion — immediate and indirect — as
+a progress-measure violation; that diagnostic goes with it. See
+Revision notes, 2026-08-12.)
 
 ## Quadtree build: the non-list example
 
@@ -237,13 +207,13 @@ of points, a square region, and (we will discover why) a depth
 budget. Build the quadtree: a region with few points is a leaf;
 otherwise split the region into four quadrants and recurse.
 
-First, watch the obvious measure fail. "The sub-problem has fewer
-points" is *false*: if many points are coincident (or merely fall in
-one quadrant), one child can inherit every point of its parent.
-Point count does not decrease, and a divide flow trusting it would
-recurse forever on ten identical points. Field quadtrees know this:
-real implementations bound depth. So the problem honestly carries a
-budget, and the measure is fuel:
+First, watch the obvious "it gets smaller" intuition fail. "The
+sub-problem has fewer points" is *false*: if many points are
+coincident (or merely fall in one quadrant), one child can inherit
+every point of its parent. Point count does not decrease, and a
+divide flow trusting it would recurse forever on ten identical
+points. Field quadtrees know this: real implementations bound
+depth. So the problem honestly carries a budget:
 
 ```
 -- spelling provisional
@@ -267,10 +237,12 @@ end
 
 What the example was ordered to check, it delivers:
 
-- **The catalog isn't list-shaped.** Nothing here shrinks a list.
-  The division splits a *region*; the data (points) may not shrink
-  at all; termination rides the drawn `minus1` on the budget, with
-  `classify` covering zero. Rung 2 of the ladder, exercised.
+- **The budget is honest program data.** Nothing here shrinks a
+  list: the division splits a *region*, the data (points) may not
+  shrink at all, and real quadtrees bound depth — so the budget and
+  its drawn `minus1` are part of the program, not checking
+  apparatus. (The measure ladder that once read this as its rung 2
+  is retired.)
 - **The link is a barrier, not a bottleneck.** The problem is three
   wires — points, region, budget — and each link crossing carries
   three corresponding wires. No problem-struct is packed to cross
@@ -338,7 +310,7 @@ diagram parseNode
 end
 ```
 
-Three things this program demonstrates that the fixed-arity examples
+Two things this program demonstrates that the fixed-arity examples
 could not:
 
 **Variable arity dissolves into drawn structure.** A parenthesized
@@ -359,16 +331,6 @@ ended. That is a loop-carried position — the register threads it
 is the register's final readout (`=> pEnd`, the write-half binder).
 No part of "the children depend on each other" touched the link; the
 dependence lives in the walk, where the record already keeps it.
-
-**The progress measure is the left-recursion check.** The link's
-sub-problem is `cur`, and `cur` is provably past `p`: it descends
-from `consumeOpen`, which consumed a token. A grammar that recursed
-at the *same* position — `expr := expr '+' term`, transcribed
-naively — would hand the link a sub-problem with no consumption on
-its wire path, and the measure check would flag exactly that wire.
-Left recursion, the classic recursive-descent bug that PEG tooling
-detects and rejects, is the progress measure's violation witness.
-The check is not invented vocabulary; the field already performs it.
 
 Two honest notes. The walk leans on end-when's inclusive/exclusive
 bit (the Close firing must contribute no child) — that bit is
@@ -442,14 +404,12 @@ that round's seam predicted.
 
 And this client closes a conceptual gap between the record's two
 recursion stories. Here the division is over *data*: the
-sub-problems are the value's strict components, so the structural
-shrink measure holds by construction — rung 1 of the ladder, free.
-Recursion over data (`trees-and-recursion.md`'s ADT derivation) is
-the divide flow in the special case where the division is "take the
-strict components," which is why the ADT machinery could promise
-termination without asking: its measure was always structural. One
-construct, two measure sources; the derivation story and the divide
-flow stop being separate species.
+sub-problems are the value's strict components. Recursion over data
+(`trees-and-recursion.md`'s ADT derivation) is the divide flow in
+the special case where the division is "take the strict
+components" — the derivation story and the divide flow stop being
+separate species. (The measure commentary this paragraph once
+carried is retired with the discipline.)
 
 ## No order among siblings
 
@@ -517,8 +477,8 @@ diagram neighborhood
 end
 ```
 
-Fuel measure (the radius), a link inside a walk (one per neighbor —
-independent this time, no threading), and a set-union combine. The
+A drawn budget (the radius), a link inside a walk (one per neighbor
+— independent this time, no threading), and a set-union combine. The
 transcription also sharpens the saturation seam by one useful
 notch: mesa's dedup lives in the *value* (the union absorbs
 duplicates) while the *firing structure* is still a tree —
@@ -548,7 +508,7 @@ here:
 
 Every program in this round that the two-layer pattern would have
 verified is instead *structurally* sound: the only cross-instance
-edges are drawn, and the measure replaces the cycle check. The
+edges are drawn — drawn crossings, no dependency analysis. The
 leaning fed back to the trees row: the zipper's computed-value
 accesses want to be re-read as divide-flow wiring (answers, problem
 components, walk registers), retiring dependency analysis and the
@@ -628,7 +588,9 @@ re-proposed.
    an admissible derived view; the divide flow is primitive the way
    list iteration is. (Settled: "no lowering" from
    `tough-use-cases-design.md`, sharpened to "no admissible
-   lowering.")
+   lowering." The 2026-08-12 cyclic exploration adds an independent
+   confirmation from the representational side — see Revision
+   notes, "The cyclic surface, worked and rejected.")
 4. **Traversal-order modes.** Pre/in/post-order as configuration on
    the walk — dissolved above ("No order among siblings"): order is
    the combine's drawing. (Settled dissolution.)
@@ -725,40 +687,36 @@ The language hasn't decided any of these.
    round; the examples above stand as the record of the design,
    their `level of` lines to be read as the retired provisional
    form.
+
+   **Closed (design conversation series, 2026-08-12): the
+   replacement spelling exists — the site.** See "Revision notes
+   (2026-08-12)" below: the link is drawn as an out-port/in-port
+   pair joined by the abstract wire, its threads anchored at the
+   page's own fed and read wires. What remains owed is only the
+   textual catch-up's final glyphs (provisional, as all spellings
+   are).
 2. **Mutual recursion.** Expression/statement grammars link *two*
-   levels each into the other. Structurally nothing above forbids a
-   link naming a sibling level's boundary; the measure must then be
-   joint across the group (one measure decreasing around every
-   cycle of links), and Zig's inference warning bites hardest here.
-   *Now worked below* ("Mutual recursion: the joint measure,
-   worked") — the two-grammar example, the joint measure rule
-   (the check's unit is the link graph's strongly connected group;
-   cycles owe the decrease, not edges), the
-   witnesses-don't-mix-species counterexample, and the violation
-   witness as the k-edge generalization of left recursion. Not
-   adopted.
-3. **The measure catalog's exact form.** Shrink and progress as
-   catalog-row properties carrying witnesses — whose schema is
-   `types-design.md` question 4's; the fuel check's precise
-   structural statement (drawn decrement + covered zero); what the
-   rung-3 warning says and where it surfaces. Decide jointly with
-   the checking row. (The schema round has since been worked —
-   `catalog-schema-design.md`, exploration: measures are a fact
-   family of their own — species, decrease claim, precondition,
-   with the precondition discharged by the drawing — and the drawn
-   fuel measure is confirmed on the drawn side of that round's
-   admission rule, never registered. The species' contents and the
-   rung-3 wording stay owned here.)
+   levels each into the other. **Re-founded (2026-08-12 — see
+   Revision notes below): mutual recursion reduces by inlining.**
+   In the no-boundary world a single-use "call" is just wiring, so
+   within a strongly connected reference group only the back edges
+   are sites, and most mutual recursion is single recursion plus
+   organization; the reuse residue (both members named and reused
+   from outside) is two remembered cuts over one node set. The
+   joint-measure account that previously occupied this question's
+   worked section is deleted with the measure discipline.
+3. **The measure catalog's exact form.** Retired with the measure
+   discipline (2026-08-12) — no termination checking, so no measure
+   catalog. (The catalog-schema round's general admission rule is
+   unaffected; it simply has no measure family to admit.)
 4. **Whole-tree collects and linearization.** The commutative case
    is free (the product-round law); whether the non-commutative
    case gets an explicit linearization vocabulary or stays
    ill-formed is the same residue the product and effects rounds
    share (`delay-ontology-design.md`), and lands here whenever it
    lands there.
-5. **Diagnostics for measure violations.** The left-recursion case
-   shows the check can name the offending wire; what the failure
-   witness looks like for shrink and fuel violations (and how it
-   composes with speculation's diagnosis payloads) is undesigned.
+5. **Diagnostics for measure violations.** Retired with the
+   measure discipline (2026-08-12).
 6. **The zipper seam.** Whether the trees row re-reads
    computed-value zipper accesses as divide-flow wiring and retires
    its verifier — that row's decision; this round's leaning is
@@ -791,203 +749,421 @@ The language hasn't decided any of these.
   depth vs CPS for deep trees is decide-in-code
   (`compile-strategy-design.md`).
 
-## Mutual recursion: the joint measure, worked (open question 2)
+## Revision notes (2026-08-12): the site, the hypothetical, and the retirements
 
-Status: worked, **not adopted** — the two-grammar example the
-question asked for, and the joint measure rule it predicted,
-prepared for a design conversation. It consumes the boundary
-round's level labels (`function-boundary-design.md` — page-local
-identities, the loop-label precedent) and the adopted measure
-discipline above; it decides nothing.
+A design conversation series worked the link's surface to a
+landing. Where the body above differs, these notes govern.
 
-### The example: a value grammar and an object grammar, linked
-### into each other
+### The hypothetical is the ontology
 
-The everyday mutual pair is JSON-shaped: a *value* is a primitive
-or an object; an *object* is `{` key `:` value … `}`. Two levels,
-each linking the other. With page-local level labels (spelling
-provisional, per open question 1):
+A recursion frame is a **hypothetical**: *what would this wire be
+if that wire were something else?* The page's own reading of the
+link ("sortedA is what this page computes for `sorted`, when its
+`xs` is `subA`") was always this sentence; the revision makes it
+the primary framing. Frames are hypothetical value-assignments —
+not scopes, not regions; the earlier "realms" vocabulary survives
+as a synonym.
+
+### The site: the link's drawn form
+
+The link is drawn as a **site**: an **out-port** (the problem
+leaves the page) and an **in-port** (the answer arrives), joined
+by the **abstract wire** — the same dashed "this depends on that,
+through something not drawn here" annotation the late-bound round
+adopted (`out p ... in q`, `late-bound-operations-design.md`).
+One object, deliberately not a sibling glyph. The site's threads
+bind it to the page's own wires:
+
+- the **feed thread** ends at the out-port and starts at the wire
+  where the page itself is fed;
+- the **read thread** ends at the in-port and starts at the wire
+  where the page itself is read (the answer wire).
+
+`served-flow-design.md` had already identified this shape from
+the other end ("the recursive provider: the link, in exchange
+costume"); the site is that identification drawn. The link
+**stands on the port-pair substrate without becoming a call** —
+no name, no extraction, no boundary; the never-a-call stance and
+its recorded reasons are untouched.
+
+**Individuation.** A child is one dashed-connected group of
+ports: mergesort's two children are two disjoint groups; a
+3-in/1-out child is three out-ports dash-wired to one in-port.
+Minted port identity supplies what "no set of separate threads
+could state alone." An in-port with no dashed path from any
+out-port is a hypothetical whose answer doesn't depend on what's
+varied — witnessed, not guessed.
+
+**The anchor rule, and its reason.** *Feed the child where you
+are fed; read it where you are read.* Any other placement is an
+observably different program: moving the read point along the
+would-be return path slides which frames' pending side-reads sit
+on the consumer's demand path (worked with explicit unfoldings —
+the factorial variant whose read anchor sits one node later
+computes 0 where the intended program computes 6). The rule is
+forced by the ontology: the child is *this page, asked again*,
+and asking a page means reading its answer — the same answer the
+outer consumer reads. A drawing whose return read targets a
+different wire than the page's own consumers is witnessed
+(self-similarity violation), not reinterpreted.
+
+**Minimal delimitation.** The lambda calculus gets recursion from
+a bare cycle because application separates function from argument
+— Y has a delimited term to point at. Dataflow deliberately does
+not (no forced function boundaries), so recursion must *add*
+delimitation — and the minimum is exactly two wire identities:
+the fed wire and the read wire. Not a region, not a boundary.
+The derived "recursive function" is whatever is downstream of the
+fed anchors, exactly as a loop body is whatever is downstream of
+the uncollect.
+
+**Environment is derived from the hypothetical.** What varies in
+a child is the downstream cone of the fed anchors; everything
+else is shared from the minting frame. The per-wire
+freeze-vs-redo decision the boundary round records for reuse cuts
+does not arise for recursion — the hypothetical answers it.
+
+### Nested frames: the substitution law
+
+> **A site's child frame is the minting frame plus a substitution
+> at the fed anchors.** The varied part is the fed anchors'
+> downstream cone computed **with sites opaque** (a site
+> contributes one dependency edge, out-port to in-port, never the
+> child's wires); every wire outside the cone is shared from the
+> minting frame.
+
+Nested hypotheticals therefore compose like nested substitutions
+— deterministically, because instances form a tree with unique
+minting parents ("the instances form a runtime tree"). Checked
+against: nested same-anchor sites (the Ackermann shape),
+overlapping cones (two sites varying different inputs of one
+shared wire), and the alternating frame tree of mutual recursion.
+This is capture-avoiding substitution falling out of copy-paste,
+with no scope construct anywhere — inside-out holds.
+
+Two coherence witnesses come with the law:
+
+- **Read-downstream-of-feed.** The in-port must depend on the
+  out-ports through the page — the abstract wire's derivable
+  check.
+- **Fed anchors must be mutually independent.** Feeding both x
+  and a wire in x's cone over-determines the child (hypothetical
+  value vs recomputed value). The feed-side cousin of the
+  thread's overspecification rule; witnessed, not repaired.
+
+### Mutual recursion, re-founded
+
+Most mutual recursion is single recursion plus organization. In
+the no-boundary world a single-use "call" from A to B is just B's
+nodes on the page (copy-paste semantics), so within a strongly
+connected reference group everything except the back edges is
+plain wiring, and **the irreducible content of mutual recursion
+is: the group's back edges, each an ordinary site**. The V/O JSON
+grammar collapses to one page with one self-site anchored at the
+composite's interface.
+
+The reuse residue — both members named and reused from outside —
+lands on a waiting piece of `function-boundary-design.md`: "a
+file's node set carries any number of remembered cuts over it."
+One node set holds the mutual computation; cut-A and cut-B are
+two views of it. Recursion never routes through a named function;
+both names exist for reuse; unreached parts of a pasted composite
+stay dead under laziness.
+
+**Level labels dissolve.** A site's threads anchor at drawn wires
+— interface wires after inlining, interior anchor pairs in the
+residue case. Nothing needs a name that isn't a wire. (This
+retires the page-local label vocabulary, and with it the last
+reference to a "boundary substrate" for recursion.) Interior
+anchors are also exactly where inference would have had nothing
+to grab — no external consumer pins an interior answer wire —
+which is why the site's *drawn* (feed, read) pairing is
+load-bearing at mutuality, not decoration.
+
+The joint-measure rule a prior worked section built here (the
+strongly-connected-group unit, one quantity per group, the
+indirect-left-recursion witness) is deleted with the measure
+discipline below. Its structural observation — group-level
+properties are invisible to per-level inspection — survives as
+history; nothing checks them now.
+
+### Termination checking, retired
+
+Decision (2026-08-12): **the language does no termination or
+soundness-of-recursion checking.** The three-species discipline,
+the measure catalog, the joint measure, and the violation
+diagnostics are deleted as a distraction; the discipline's floor
+was already warned trust, so no program's legality changes. A
+diverging recursion diverges, as in any host language. (Recorded
+so the discipline isn't re-derived; its best exhibit was reading
+left recursion — immediate and indirect — as a progress-measure
+violation, and that diagnostic goes with it.) This retirement
+does **not** touch the register's productivity law
+(`iteration-with-state-design.md`, "every cycle crosses a Delay")
+— that is well-formedness, not termination: a within-firing
+self-dependence is meaningless, not merely non-terminating.
+
+### The cyclic surface, worked and rejected
+
+A back-edge (cyclic-graph) authoring surface for recursion — feed
+a value back into an earlier wire and rerun until a case stops
+cycling — was worked across several rounds and is **rejected**,
+for three independent reasons, recorded so it isn't re-tried:
+
+1. **The clockless latch.** A two-source merge is a stateful
+   update in a diagram that has no time ("within a firing there
+   is no time"); its lawfulness in the record always came from an
+   owned order — the register's driving flow is the clock that
+   clocks the latch. The raw cycle has no flow, and at the first
+   +1 step (a second carried variable — Fibonacci's swap) the
+   simultaneity of the updates is unstated: the dynamic-hazard
+   problem of an unclocked circuit. A notation that breaks at its
+   first +1 fails the building-blocks-must-build test. (The
+   dataflow tradition the cycle appeals to — Lustre, hardware —
+   requires the unit delay on every cycle for exactly this
+   reason.)
+2. **Crossing-placement observability.** For the non-tail double
+   cycle (descent edge plus return edge), where the crossings
+   fall is observable — the window-slide unfoldings behind the
+   anchor rule above (6 vs 0) — so a bare cyclic graph
+   under-determines the program; the disambiguating information
+   is precisely what the site draws.
+3. **The branching collision.** One copy of the wires cannot name
+   two children: mergesort's fed wire would need three sources
+   and its answer wire two readers with no pairing. (This
+   independently confirms dead end 3's verdict from the
+   representational side.)
+
+What the exploration salvaged: the anchor rule and the
+minimal-delimitation thesis, both worked *on* the cyclic form
+before the retreat. Where the cyclic programs land: tail-shaped
+loops were never recursion — they are the existing iteration
+vocabulary (`open self` + registers + collect-until, the flow
+supplying the owned order); a **linear non-tail** recursion's
+return phase dissolves into a fold over the descent flow (a
+descent loop plus a collect — the register-plus-sibling-collect
+shape the compiler already has); **branching with an order-free
+combine** is the drawn frontier (saturation's precedent: the
+worklist is the lowering of the flow back-edge); **structured
+combines** (mergesort's merge, per-child ASTs) are the site's
+home — the cyclic form could proceed only by packing frames into
+a stack, the bottleneck anti-pattern by name. Deferred, not
+rejected: a synchronizing flow-uncollect on the fed wire that
+would give the cycle a lawful clock — parked as a lot of work to
+get right, not disproven.
+
+### The recursion taxonomy
+
+Three species, one form each: **iteration** (tail-shaped, carried
+state — flow-driven, the flow owns the order); the **structural
+walk** (`trees-and-recursion.md` — structure that exists); **pure
+recursion** (pending work, the frame tree — the site and the
+hypothetical). "Is this program tail recursion?" is not a
+question here; a loop is drawn as a loop.
+
+### Still open after this round
+
+The **frame source**: answered by dissolution in a follow-on
+conversation — frames are hypothetical assignments indexed by the
+tree of askings, and the site is where indices extend; see "The
+frame flow" below, which records the answer and the construct
+proposal that fell out of it. The textual catch-up owes final
+glyphs for the site and its threads; every spelling in these
+notes is provisional.
+
+## The frame flow (exploration, 2026-08-12): collecting over the call tree
+
+Status: **exploration, unadopted** — a worked proposal from the
+same conversation series, judged worth pursuing as a language
+feature and needing its own development round. Nothing below is
+decided beyond the leanings marked.
+
+### Frames come from questions
+
+First, the frame-source ontology, settled by dissolution. "Where
+do frames come from" presupposes frames are *made* — copies
+minted, realms instantiated. The substitution law says otherwise:
+a child frame is the minting frame plus a substitution at the fed
+anchors, so nothing is ever copied. There is one node set, and a
+frame is a **hypothetical value-assignment over it, indexed by
+its path in the tree of askings**. The site does not manufacture
+a realm; it extends an index. Frames come from questions. (What
+remained of the "frame source" open edge is the tap below and its
+spelling — the minting machinery it seemed to owe does not
+exist.)
+
+### The baseline, in the site notation
+
+Mergesort in the thread/site spelling (the first full example in
+the record; all glyphs provisional):
 
 ```
--- spelling provisional; level labels per function-boundary-design.md
-diagram parseValue                        -- level label V
-  in p
-  p -> peek -> split kind of Prim, Open => s
-  ~s.Prim: p -> consumePrim => primAst, pPrim
-  ~s.Open: p -> level O of (p) => objAst, pObj   -- link to O: SAME position
-  ~s.Prim: primAst   ~s.Open: objAst
-  -~> collect => ast
-  ~s.Prim: pPrim     ~s.Open: pObj
-  -~> collect => pAfter
-  out ast, pAfter
-end
+in xs @xs                       -- @xs starts at the page's question wire
+xs -> split singleton? of Base, Divide => s
+s.Divide -> splitInHalf => subA, subB
 
-diagram parseObject                       -- level label O
-  in p
-  p -> consumeOpenBrace => p0             -- past '{'
-  open self => ~R
-  ~R ~> delay init p0 => cur              -- member-walk position register
-  cur -> peek -> split close? of Close, More => e
-  ~e.Close: -~> end-when
-  cur -> consumeKeyColon => pk            -- past key and ':'
-  pk -> level V of (p) => memberAst, pMember   -- link to V: ADVANCED position
-  pMember -> step of cur => pEnd
-  memberAst -~> collect => members
-  pEnd -> consumeClose => pObj
-  members -> objNode => objAst
-  out objAst, pObj
-end
+subA => qA @xs                  -- child A's question (the out-port)
+qA ... aA @sorted               -- child A's answer (the in-port)
+subB => qB @xs                  -- child B's question
+qB ... aB @sorted               -- child B's answer
+
+aA, aB -> mergeSorted => merged
+~s.Base:   s.Base
+~s.Divide: merged
+-~> collect => sorted @sorted   -- @sorted starts at the answer wire
+out sorted
 ```
 
-Nothing above the line about self-recursion had to change: a link
-may name a sibling level's label instead of its own, and
-instancing, membership, and answer ports read identically. What
-changes is where termination lives. Look at the two link edges the
-way the progress measure looks at one:
+### The motivating +1: whole-tree aggregation
 
-- **V → O is neutral.** `parseValue` dispatches on a peek and
-  hands `parseObject` the *same* position — no token consumed on
-  the wire path. Taken alone, at a sibling level, that is legal;
-  plenty of sound links pass a component untouched.
-- **O → V is advancing.** The position handed to `parseValue`
-  descends from `consumeOpenBrace` and `consumeKeyColon` — tokens
-  consumed, strictly advanced.
+Suppose `mergeSorted` also reports `nCompares`, and the author
+wants the total across every frame of the sort. Today there is
+one spelling: thread the total through the answers — each frame
+returns its own count plus its children's:
 
-The one cycle, V → O → V, carries one advancing edge, so the walk
-around it consumes at least one token per lap: sound. And here is
-the point the example was ordered to make: **no per-level
-inspection can see this.** V's neutral link is individually
-unobjectionable; O's advancing link is individually
-unobjectionable; soundness and its violation are properties of the
-*cycle*. The violation twin is one edit away — a grammar where the
-object level can reach a value without consuming (say a sugar rule
-`object := value` admitted before the brace check): now V → O → V
-is all-neutral, and the program re-derives the same position
-forever. The field knows this shape by name — **indirect left
-recursion** — and knows it is a cross-rule property: PEG tooling
-detects it by analyzing the grammar's rule graph, and ANTLR's
-celebrated left-recursion rewrite handles only the *immediate*
-(one-rule) case, erroring on the indirect one. The check being
-joint is not an invention of this record; the field already
-performs it jointly, and already fails when it doesn't.
+```
+subA => qA @xs
+qA ... aA @sorted
+qA ... tA @total                -- NEW: a second read of the same child
+subB => qB @xs
+qB ... aB @sorted
+qB ... tB @total                -- NEW
 
-### The rule: cycles owe the decrease; the unit is the group
+aA, aB -> mergeSorted => merged, nCompares
+~s.Base:   0                    -- NEW: the second answer, per frame
+~s.Divide: nCompares, tA, tB -> sum3
+-~> collect => total @total     -- NEW: a third thread, anchored here
+out sorted, total
+```
 
-The question's phrase — "one measure decreasing around every cycle
-of links" — was already the right shape. What the worked example
-adds is the check's unit, its decidable form, and which edges owe
-nothing:
+Legal, and needing nothing new — but the +1 cost is the tuple
+bottleneck's cousin: a new thread, a new dashed read per site
+(four on the quadtree), a new combining collect, a new output.
+The aggregate is entangled with the recursion's interface, and
+the k-th aggregate repeats all of it.
 
-> **The joint measure rule (candidate).** The unit of the
-> termination check is the **strongly connected group** of the
-> link graph — level labels as nodes, links as edges — not the
-> individual level. Within a group there is **one measure**: one
-> species, one measured quantity. Every edge of the group must be
-> non-increasing in it, each carrying its witness (a catalog row
-> or the drawn decrement, exactly the ladder above); and every
-> cycle must be strictly decreasing. An edge that lies on no cycle
-> — a link out of the group, or between groups — owes nothing
-> beyond what its target group owes itself. Self-recursion is the
-> one-level group, where this rule reads verbatim as the adopted
-> discipline.
+The proposal: the frames of the recursion are already structure
+of the diagram, so give them a flow and let the ordinary collect
+reach them:
 
-"Which edges must advance": none in particular. Cycles must —
-equivalently, every cycle contains at least one strictly
-decreasing edge and no edge that increases. The decidable form
-follows from that phrasing: mark each edge strict / neutral /
-unwitnessed; the group check is that **the neutral-edge subgraph
-within the group is acyclic**. Any all-neutral cycle is the
-violation, and the witness is that cycle *as its edge list* — the
-left-recursion witness generalized from the self-loop the parsing
-section named (one wire with no consumption) to a k-edge tour
-through k labeled levels. An unwitnessed edge (no row, no drawn
-decrement — or a retreat, which is the same thing: no witness
-exists) drops every cycle through it to rung 3, warned trust,
-exactly the ladder's floor.
+```
+~s.Base: 0
+~s.Divide: nCompares
+-~> collect => contrib          -- per-frame contribution, ordinary case collect
 
-Cycles sharing edges — the question's other half — is answered by
-the quantifier, not by bookkeeping. The rule is "every cycle,"
-decided by the acyclicity check; no edge is allocated to a cycle,
-so two cycles discharged by one shared advancing edge are both
-discharged, and two cycles sharing only neutral edges each need
-their own strict edge, which the check demands of each
-automatically. There is no double-counting question because
-nothing is counted.
+open frames along @xs => ~inst  -- PROVISIONAL: the frame-flow tap
+~inst: contrib -~> collect by + => total
+out sorted, total
+```
 
-### Why one quantity per group: the mixed-species counterexample
+Three added lines, no site touched — the multi-close courtesy (a
+loop's second output added beside the first, loop untouched)
+extended to recursion. The correctness anchor: the two spellings
+agree frame-by-frame — every frame's `total` in the tap form is
+its own subtree's total, which is exactly what the threaded form
+computes level by level.
 
-Now, you might wonder why the group must name *one* measured
-quantity — why each edge couldn't just carry a valid witness of
-its own species, cursor progress here, structural shrink there,
-and the cycle be sound because every edge is individually
-justified. It turns out per-edge witnesses of different species do
-not compose, and the counterexample is small. Let levels A and B
-each carry a list and a position, `(xs, i)`:
+### What names a call tree: the thread family, rooted
 
-- **A → B shrinks:** the sub-problem's list is `tail(xs)` — a
-  strict component, an impeccable shrink witness. The position
-  passes through.
-- **B → A advances:** the sub-problem's position is `i + 1` past a
-  consumed element — locally an impeccable progress witness. But
-  the list handed back is *rebuilt* (say, a recovered or
-  re-wrapped `xs`), restoring what the other edge shrank.
+In a language with named functions, "the frames of f" borrows f's
+boundary. This language has no boundary to borrow — a diagram can
+recurse one part, several parts, overlapping parts in different
+ways — so the tap must say *which* call tree, and the identity
+available is the one already load-bearing: **the anchors**. A
+recursion is its thread family: mergesort's two sites are one
+recursion because both end `@xs`/`@sorted`; two recursions
+varying different anchors are two families, however entangled
+their cones. And the tap is **rooted at the current frame** — the
+subtree of askings from here down — so a one-off hypothetical
+asked elsewhere in the diagram is a different root and never
+contaminates the total.
 
-Around the cycle, the list is restored and the position grows
-without bound against data that never gets smaller — divergence,
-with every edge witnessed. The diagnosis: a progress witness is a
-statement about position *within a fixed input*, and the shrink
-edge swapped the input out from under it; a shrink witness is a
-statement about one value's descent, and the rebuilding edge broke
-it while the progress species looked away. Each species' witness
-is only meaningful while the *other* edges preserve its frame —
-which is exactly what "one quantity, every edge non-increasing in
-it" demands and mixed species cannot supply.
+### The firings are askings, not frames
 
-Two consequences, stated as fine print rather than left implicit:
+Under the substitution law a frame assigns *every* wire, sharing
+unvaried values from its minting frame. A tap ranging over "all
+frames below" would therefore double-count: a frame minted by
+some unrelated asking (varying `z`, say) *contains* a `contrib`
+value — shared, unchanged, from its minting frame — and a collect
+over frames would count it again. The fix is to count at the
+minting: the flow's firings are **the askings of the named
+family** within the subtree, plus the current frame itself. Each
+`@xs`-asking mints exactly one new `contrib`; a z-asking mints
+none and contributes nothing; an `@xs`-asking made inside a
+z-frame is a genuine new asking and is counted. No double-count
+by construction — and the thread qualifier is thereby
+structurally necessary, not a convenience: without naming the
+family, "an asking" is not a defined event.
 
-- **A progress group's input must be group-invariant.** The
-  position is measured against something, and that something must
-  not cross any link in the group. The honest form — which the
-  worked programs already have — is the input never crossing a
-  link at all: the token list is prefix-shared context in both
-  parsers above, and only positions cross. Group-invariance is
-  then free by construction, and a grammar that hands a *modified*
-  token list down a link has left the progress species and must
-  find its measure elsewhere.
-- **The lexicographic composite is deferred, not rejected.** A
-  mixed group *can* be sound under a composite measure (the pair,
-  ordered), but a composite is itself one quantity with its own
-  witness obligations on every edge, and no worked program yet
-  demands the row. Until one does, a mixed group falls to rung 3
-  — warned trust — rather than the rule growing a lexicographic
-  clause on spec. (Leaning, recorded so the simple rule isn't
-  read as an oversight.)
+### Order class, and two rules that stop being bespoke
 
-### Zig's warning, relocated
+Sibling frames have no time (adopted above), so the frame flow's
+order is **unowned** under the owned-order criterion
+(`delay-ontology-design.md`). Two consequences arrive by existing
+rules rather than new clauses:
 
-The question flagged that Zig's inference warning "bites hardest
-here." Worked through, it lands somewhere more specific than
-feared. Payload-set inference across a mutual group is fine — the
-failability round already relocated that worry (the inventory
-fixpoint is monotone on a finite domain of drawn minting sites,
-and a mutual cycle changes nothing about that). And the measure
-has no inference to break: species and quantity are named things
-with witnesses, per edge, and the group only changes the *unit* at
-which they are checked. What the mutual case genuinely inflames is
-**diagnostics**: a violation witness now spans pages — a cycle
-through k labeled levels, no one of which is wrong — so the
-witness must present the whole edge list with each edge's
-neutrality visible, not point at one wire. That is a demand on
-open question 5's undesigned witness format, filed there; the
-self-loop case's "name the offending wire" was the k = 1
-degenerate of it.
+- a register over the frame flow is witnessed by `order-demand` —
+  the body's bespoke statement ("a register over the divide
+  flow's instances is ill-formed") becomes a consequence of the
+  general rule;
+- a whole-tree collect is lawful exactly when its operator
+  commutes — the same rule that governs collects over products;
+  the non-commutative case lands in the linearization residue by
+  the general mechanism, not by a special clause.
 
-### What this leaves
+### Frames are case-like, and the meet law's third instance
 
-Adoption (with the round's other unadopted pieces); the level
-labels' spelling (the textual catch-up, jointly with open question
-1's boundary substrate); the lexicographic row, deferred until a
-program demands it; the witness format's k-edge presentation
-(question 5); and the group-invariance statement's exact home —
-it reads like a catalog-row precondition on the progress species,
-which puts it in question 3's measure-catalog schema.
+Two structural facts, not analogies:
+
+- **Conditional existence.** An asking rides a lane (mergesort's
+  sites fire only on the Divide alt), so a frame's existence is
+  case-borne exactly as an alt payload's is; a Base frame's
+  subtree is just itself, and the machinery that handles an
+  absent option handles an unasked child.
+- **The lawful wide meet.** "Sibling instances are incomparable —
+  their values can meet only through their answers at the shared
+  parent" (the provenance note above). The frame flow is the
+  lawful *wide* combination across a subtree, precisely as
+  collect is for a flow's firings and the partial collect is for
+  cells: the same law, third instance. The context-path **asking
+  segment** (the owed provenance bookkeeping) is what would let
+  Check enforce it with existing machinery.
+
+### The wind-up: one tree-walking vocabulary, two doors
+
+The flat grant — extent plus unowned order, collect only — is the
+lean for the first step. The **wound** form (firings carrying
+their tree positions) is exactly what `trees-and-recursion.md`
+builds for *data* trees: the zipper walk exposing each node with
+its context. Winding the call tree makes the *virtual* tree
+walkable the same way — per-level aggregation, path-dependent
+reads, structure-respecting folds — so the construct family is
+one tree-walking vocabulary with two doors in: a tree that exists
+as data (the trees row) and a tree that exists as askings (this
+tap). This reframes the zipper seam (open question 6) once more,
+and order-*observing* consumption of the wound tree lands in the
+linearization residue, where the record already keeps that
+question.
+
+### Why this is possible here at all
+
+In a language where recursion routes through function boundaries,
+the call tree is trapped inside the call abstraction — you cannot
+wire a collect to another function's frames without
+metaprogramming. Because recursion here is threads over one
+diagram, the call tree is just more structure of the diagram, and
+the ordinary vocabulary reaches it. The boundaryless choice is
+what made whole-tree aggregation a three-line addition.
+
+### Open
+
+The wound (tree-structured) form and its exact relation to the
+zipper walk; whether one tap can name several families at once,
+and what that would mean; whatever mixed-path fine print the
+asking-count does not fully dissolve; spellings throughout
+(`open frames along @xs` is provisional). Deliberately not
+granted: join, cross, or commute over the frame flow — each would
+need its own argument. The frame-provenance surface — how a
+thread indicates which frame it accesses, structural or
+hypothetical — is worked in `delay-ontology-design.md`, "The
+frame menu" (2026-08-12).

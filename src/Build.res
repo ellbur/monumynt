@@ -1,5 +1,6 @@
 // Typed authoring layer over Program.res — "strings below, typed handles
-// above" (first-class-ports-design.md).
+// above" (the retired first-class-ports round; plans/core-model.md carries
+// the record).
 //
 // Two jobs:
 //

@@ -1,10 +1,10 @@
-// The boundary substrate — the remembered cut, the call and the link, the
-// op pair, and the served flow's two ends — ARCHITECTURE STUB.
+// The boundary substrate — the remembered cut, the call, the op pair, and
+// the served flow's two ends — ARCHITECTURE STUB.
 //
 // Design: plans/function-boundary-design.md + plans/divide-flow-design.md +
 // plans/late-bound-operations-design.md, jointly ADOPTED (2026-07-23),
-// under the ANCHOR-IS-IDENTITY constraint (a level/boundary is referenced
-// by identity — a label or the boundary object — NEVER by a value wire;
+// under the ANCHOR-IS-IDENTITY constraint (a boundary is referenced by
+// identity — a label or the boundary object — NEVER by a value wire;
 // selecting a wire survives only as an editing gesture that resolves to a
 // boundary identity at creation) and with a PROVISIONAL-CONFIDENCE marker
 // on exactly one piece: slots dissolve into op pairs (implement it, keep it
@@ -19,11 +19,9 @@
 // it. Ports come from the cut, never the cut from the ports (read off at
 // extraction; declaration is optional planning metadata only).
 //
-// ONE substrate, FOUR bindings (do not make four types — distinguish by how
-// a boundary is referenced/bound, never by shape):
+// ONE substrate, THREE bindings (do not make three types — distinguish by
+// how a boundary is referenced/bound, never by shape):
 //   function — named cut, ports bound at call sites; exists for reuse only.
-//   level    — the substrate's anonymous instantiation-only use, minted by
-//              drawing a link; labeled at most page-locally; no interface.
 //   provider — a boundary whose facing ports are the server ends of
 //              exchange pairs (the provider diagram and the function
 //              diagram were never different things).
@@ -32,6 +30,12 @@
 //              the distinguished outputs and whose in-ports are whatever
 //              the deployment binds. "Top level" is a binding fact, not a
 //              structural one.
+// (A fourth binding — the divide flow's LEVEL — stood here until
+// 2026-08-12. Removed: the recursive "function" is derived — whatever is
+// downstream of the link's fed anchors, like a loop body — and the link
+// rides the port-pair substrate as the SITE (out-port/in-port pair joined
+// by the abstract wire, bound by threads), not the cut.
+// plans/divide-flow-design.md, revision notes.)
 //
 // What is STORED: the boundary object (identity + the directed, sorted
 // crossing list) and the references to it. What is DERIVED (computed,
@@ -63,56 +67,38 @@ type crossing = {sort: crossingSort, ref_: string}
 
 type boundary = {
   boundaryId: int, // identity is the cut's, minted once
-  boundaryName: option<string>, // functions are named; levels at most
-  // page-locally labeled (the loop-label precedent); spelling owed
+  boundaryName: option<string>, // functions are named; an anonymous cut is
+  // legal (level labels were dissolved 2026-08-12 with the level binding)
   crossings: array<crossing>,
 }
 
-// --- The two reference species (one substrate, two constructs) ------------
+// --- The one reference species -------------------------------------------
 
 // A CALL has an interface, is checked against the signature, and renames
-// with the function. A LINK has none of these: page-local, anonymous or
-// level-labeled, its problem wires check against the level's own in-wires
-// (trivially the same wires). Recursion NEVER routes through a named
-// function — the link is its own construct on the shared substrate; a
-// caller cannot tell whether an implementation recurses.
-type boundaryRef =
-  | Call({target: int, site: int}) // boundary id, call-site node id
-  // The link, tree-shaped (the divide flow): input ports correspond
-  // pairwise to the problem wires, output ports pairwise to the level's
-  // answer wires; each firing mints an INSTANCE (the tree exists as
-  // instances of the drawing, not as a value). Like DelayWrite, the later
-  // linking act mints its own node; the object graph stays a DAG; the
-  // cycle is recovered from identity. A leaf is an alt with no links —
-  // NO base-case construct. There is NO TIME among sibling instances (a
-  // register over the divide flow's instances is ill-formed — see
-  // OrderDemand.res NoOrder), and no traversal-order modes (orders are
-  // combines, not configuration).
-  | Link({target: int, problems: array<Program.valueRef>})
+// with the function. Recursion NEVER routes through a named function, and
+// (2026-08-12) it no longer routes through this substrate at all: the
+// link's form is the SITE — an out-port/in-port pair joined by the
+// abstract wire, its threads anchored at the page's own fed and read
+// wires (plans/divide-flow-design.md, revision notes). What that round
+// kept from the old Link staging: instances form a tree minted per
+// firing, the object graph stays a DAG (crossings recovered from
+// identity), a leaf is an alt with no links (NO base-case construct),
+// there is NO TIME among sibling instances (OrderDemand.res NoOrder),
+// and no traversal-order modes (orders are combines, not configuration).
+type boundaryRef = Call({target: int, site: int}) // boundary id, call-site node id
 
-// --- The measure discipline (termination for reference cycles) ------------
+// --- The measure discipline: RETIRED (2026-08-12) -------------------------
 //
-// Every cycle crosses a guard (register / dedup-collect / measure). The
-// measure attaches to reference cycles of ANY species: a non-recursive call
-// needs none; a link cycle needs one; named mutual recursion between
-// reusable functions is legal, its call-graph cycle carrying the same JOINT
-// measure (fine print — which edges must advance, composition when cycles
-// share edges — is open q.6, unworked).
-type measureSpecies =
-  | StructuralShrink // sub-problem a strict part of the parent's data
-  | CursorProgress // same data, strictly advanced position; violation =
-  // left recursion, and the check NAMES the offending wire
-  | DrawnFuel // a drawn counter the divide alt strictly decreases, with an
-  // alt covering zero — the measure is on the page
-
-type measureRung =
-  | CatalogChecked // a catalog division — checked by construction
-  | DrawnMeasure // structural check (decrement is a catalog row; split
-  // covers zero)
-  | WarnedTrust // legal, flagged "may diverge" — the floor. No dependency
-  // analysis anywhere.
-
-type measure = {species: measureSpecies, rung: measureRung}
+// The three-species termination measure (shrink / progress / fuel, warned
+// trust as the floor) and the joint measure over reference-cycle groups
+// were deleted with the decision that the language does NO termination or
+// soundness-of-recursion checking (plans/divide-flow-design.md,
+// "Termination: retired"). Reference cycles are legal and unchecked. The
+// guards that survive are elsewhere and are well-formedness, not
+// termination: value-cycle productivity (every cycle crosses a Delay —
+// iteration-with-state-design.md) and flow-cycle convergence (every cycle
+// crosses a dedup collect — Saturation.res). Do not re-stage measure
+// types here.
 
 // --- Late-bound operations: the facet, the op pair, the binding -----------
 //
@@ -165,7 +151,7 @@ type binding = {
 // Still exploration (flag, don't harden): the exchange law's fine print,
 // the k-operation provider as a pre-split bundle (k static lanes, no
 // dispatch drawn because no union was packed), the recursive provider (the
-// link in exchange costume — measure applies verbatim), the keyed cache
+// link in exchange costume — a convergence the site made literal), the keyed cache
 // (partition + per-lane register middleware; cycle witness = the
 // provenance context path).
 
@@ -187,9 +173,8 @@ let membership: (Program.program, boundary) => array<Program.node> = (_p, _b) =>
 let checkReusable: (Program.program, boundary) => array<Check.witness> = (_p, _b) =>
   failwith("stub: reusability check with drawable witness — function-boundary-design.md")
 
-// The link's measure check (joint across a cycle group when links form one).
-let checkMeasure: Program.program => array<Check.witness> = _p =>
-  failwith("stub: measure discipline — divide-flow-design.md, 'Termination'")
+// (checkMeasure stood here until 2026-08-12 — removed with the measure
+// discipline's retirement; there is no termination checking.)
 
 // Settled rejections (a fill-in must not reintroduce): recursion routed
 // through a named function; anchor-by-value-wire in the stored program;

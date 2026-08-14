@@ -85,7 +85,7 @@ branch is a **cell**. The stack of flows a value lives under is its
 paths — plainly, whether one context sits inside another, which is
 what decides whose values are in reach. These are defined properly in
 `bundle-provenance-design.md`, `partial-collect-design.md`, and
-`first-class-ports-design.md`.
+`core-model.md` (absorbing the retired first-class-ports round).
 
 ## Where the question came up
 
@@ -95,7 +95,7 @@ others:
 
 | Home | The corner |
 |---|---|
-| `first-class-ports-design.md`, open question 3 | Does the binary Join carry the spec's corresponding value ports, or stay flow-only? "It would be odd for the flatten join and the concurrent join to disagree on port shape for no semantic reason." |
+| the (retired) first-class-ports round, open question 3 — now owned here | Does the binary Join carry the spec's corresponding value ports, or stay flow-only? "It would be odd for the flatten join and the concurrent join to disagree on port shape for no semantic reason." |
 | `async-flow-design.md`, "Racing is a barrier, not a value" | Race has per-contender value + flow output pairs — more port structure than any other node carries. |
 | `partial-collect-design.md`, open question 3 | k branches × m corresponding value rows: does the partial collect grow rows, or does a second value crossing the merge take a second node? |
 | `async-flow-design.md`, failability residuals | The discharging collect's port structure — `(prefix, terminator)` is more port structure than current collect nodes carry. |
@@ -270,9 +270,9 @@ derived from the two mechanisms and the criterion.
 
 ### 1. Join and the concurrent join: flow-only stands
 
-The lean in `first-class-ports-design.md` — a flow-only
-`Join({outer, inner})`, values meeting the join only at collects — is
-confirmed. Your first crossing is the flow-only spelling in the
+The lean in the (retired) first-class-ports round's open question
+3 — a flow-only `Join({outer, inner})`, values meeting the join only
+at collects — is confirmed, now owned here. Your first crossing is the flow-only spelling in the
 textual form; here it is again, now with the full story in hand:
 
 ```
@@ -778,8 +778,10 @@ the mistake this construct commits on purpose.
 
 The language hasn't decided these yet:
 
-1. **Adoption.** This round is prepared for the design conversation;
-   each home doc marks its corner as worked here, none as decided.
+1. **Adoption.** Done — all four corners adopted (2026-07-23),
+   extended (2026-08-04: the scoop, inferred scoops, the tunnel).
+   What remains is the spec-reconciliation bookkeeping, held at
+   item 2.
 2. **Spec reconciliation.** On adoption: revise the spec's Join
    signature (drop `values`, or mark the value rows as drawn
    availability), per its own status note; give the discharge pair
@@ -824,9 +826,9 @@ The language hasn't decided these yet:
   a barrier line is the layout side's question, out of scope in this
   repo; this round only says which of those wires are representation
   and which are derived view.
-- **Implementation.** Everything here lands on the first-class-ports
-  migration (the flow-only Join is its step 3; the discharge pair and
-  race arrive with the async work). No compiler change is proposed
+- **Implementation.** Everything here landed with the ports migration
+  (the flow-only Join was its step 3); the discharge pair and race
+  still arrive with the async work. No compiler change is proposed
   now.
 - **Whether end-when is adopted.** Its readout is *cited* as
   designed; confirming the discharge pair does not move that round's

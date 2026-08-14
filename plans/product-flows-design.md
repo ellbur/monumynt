@@ -2,9 +2,9 @@
 
 Status: exploration — this chapter teaches a worked proposal with a
 recorded lean, not an adopted feature. None of it is implemented. Read
-it as "here is a candidate and the case for it." It assumes the
-`first-class-ports-design.md` migration (Cross is a flow node with
-ports, like Join). The chapter supersedes part of
+it as "here is a candidate and the case for it." It assumes the ports
+migration (landed — `src/Program.res` is ports-first; Cross is a flow
+node with ports, like Join). The chapter supersedes part of
 `time-travel-programs-design.md`'s disposition 4 and closes that
 document's open question 4; correction notes are placed there.
 
@@ -423,8 +423,8 @@ the node's runtime. The essentials from the compile side:
   mutual independence by construction, pairwise-corresponding flows
   through a barrier, no packing. Whether the async concurrent join
   and Cross are two kinds' faces of one construct is worth asking
-  when the barriers get their Expr round (they share the
-  first-class-ports prerequisite).
+  when the barriers get their Expr round (they share the now-landed
+  ports representation — `src/ARCHITECTURE.md`).
 - **Not the list monad.** Now, you might wonder why the language
   doesn't just sequence the two lists the way a functional language's
   list monad would — nest one comprehension in the other and be done.
@@ -480,8 +480,8 @@ How does Cross measure against the language's design principles
 ## Smallest first step
 
 If Cross gets built, this is the order — each piece testable in
-`Main.res` style; assumes the first-class-ports migration (Cross is a
-flow node with ports, like Join).
+`Main.res` style; assumes the ports migration (landed — `src/Program.res`
+is ports-first; Cross is a flow node with ports, like Join).
 
 1. **The invariance fact.** Per-node flow-variable sets in the
    annotate pass (needed by the compile rebuild anyway); the
@@ -1048,7 +1048,7 @@ is uniform nesting plus laws, not a second iteration concept.
 ### Building it: smallest first step
 
 Ordered so each piece is testable in `Main.res` style; assumes the
-first-class-ports migration.
+ports migration (landed — `src/Program.res` is ports-first).
 
 1. **Same-provenance recognition.** The provenance/flow-variable fact
    already needed for Cross's invariance demand, run the other way:
@@ -1146,6 +1146,20 @@ versus `~y ~> delay …` (along each row, final an X-flow) versus the
 plain scan's `~L ~> delay` with no `~L` to infer — the `~?` the
 ontology round works from (`delay-ontology-design.md`, "The product
 sharpens both").
+
+*(Consistency pointer, added 2026-08-12: the `~x ~> delay` spelling
+above predates the thread ergonomics round
+(`iteration-with-state-design.md`, 2026-08-04) — the register has
+no flow operand; its frame is derived from the thread's anchors,
+with an annotation for the residue. The design question this
+section states — "saying which is the entire design question" — is
+unchanged and sharpened: the symmetric wiring is exactly the case
+where derivation is ambiguous, so the product is the flagship
+client of the **mandatory pin** — the thread names which axis's
+"next" it accesses (`delay-ontology-design.md`, "The frame menu";
+the product layer's fibering offer). Read `~x ~> delay init 0 =>
+run` as: a register whose thread is pinned to the X axis.
+Everything else in this section transfers verbatim.)*
 
 ### The finding: reduce along an axis, fibered over the rest
 
@@ -1456,8 +1470,9 @@ flow. Every rule this section states is readable off this program.
 
 The existing rule is implicit in the join round's adjacency demand
 and explicit only in code (`unwrapJoinedRef`/`walkOpenerChain` —
-the functions `first-class-ports-design.md` says "become the
-operand walk"). Stated once, so the extension has something to
+the functions the retired first-class-ports round said "become the
+operand walk" — see `src/ARCHITECTURE.md`). Stated once, so the
+extension has something to
 extend: **a join chain denotes a contiguous segment of the nesting
 chain, and adjacency between operands is checked between
 constituents** — the outer operand's *innermost* constituent must

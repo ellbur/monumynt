@@ -4,12 +4,16 @@
 
 Status: reference — this chapter is the settled specification of how
 programs are represented as data: the full diagram model, which runs
-ahead of the code. The implemented layer (`src/Expr.res`) covers a
-smaller fragment with representation debts of its own; a few sections
-below note where a schema is kept in an older form pending an adopted
-revision (Join's signature), and Delay's section records an open
-choice between two equivalent surfaces. Everything else here you can
-read as "this is what a program *is*."
+ahead of the code. **2026-08-12**: the implemented layer is
+`src/Program.res` — ports-first, and its migration (dissolving Branch
+and the `Joined`/`Filtered` wrappers into alt ports and binary Join
+nodes) is complete (see "Scope" below and `src/ARCHITECTURE.md`). It
+still covers a smaller fragment of this chapter's full diagram model,
+with representation debts of its own; a few sections below note where
+a schema is kept in an older form pending an adopted revision (Join's
+signature), and Delay's section records an open choice between two
+equivalent surfaces. Everything else here you can read as "this is
+what a program *is*."
 
 ## A program, as data
 
@@ -71,10 +75,12 @@ compact way to show what a construct looks like when written down.
 its flow*; you will meet it properly at Collect.)
 
 **Scope.** This spec describes the full diagram model. The
-implemented layer (`src/Expr.res`) is a smaller fragment with its own
-representation debts; its migration to first-class ports — dissolving
-Branch and the `Joined`/`Filtered` wrappers into alt ports and binary
-Join nodes — is worked out in `first-class-ports-design.md`. An
+implemented layer is `src/Program.res` (**2026-08-12**: the
+`src/Expr.res`/`src/Compile.res` pair this note used to cite was
+deleted in the 2026-07 bridge retirement) — a smaller fragment with
+its own representation debts; its migration to first-class ports —
+dissolving Branch and the `Joined`/`Filtered` wrappers into alt ports
+and binary Join nodes — has landed (see `src/ARCHITECTURE.md`). An
 earlier IterationRail / TapIn / TapOut machinery for loop-carried
 state has been removed (schemas remain in git history); why it died
 is recorded under Delay, and the still-usable rail ideas are kept in
@@ -129,8 +135,8 @@ nodes, but the explicit set accommodates partially constructed
 diagrams during editing. And it is load-bearing for complete programs
 too: a Delay's write half (you will meet Delay below) can be
 root-unreachable, so **the program of record is a node set, not a
-root expression** (`first-class-ports-design.md`, "the program is a
-node set").
+root expression** (`core-model.md`; `src/ARCHITECTURE.md`, "Node set
+from day one").
 
 **Slots** let a diagram have "cut-outs" where caller-supplied
 sub-diagrams are inserted. This enables configuration scopes and
@@ -359,7 +365,12 @@ CollectVariant:
 For `Iteration`, the inputs are the computed value and flow; the
 output is the collected result (e.g. a list). For `Case`, each branch
 supplies its computed value and flow; the output is the recombined
-alternative value. For `ConfigScope`, the inputs are what the slot
+alternative value. (**2026-08-12**: the implemented generalization of
+`Case` reads coverage off cell sets rather than one alt per branch — a
+branch may itself be a partial collect's merged flow spanning several
+alts, not only a single `AlternativeName` — see
+`partial-collect-design.md` and `src/ARCHITECTURE.md`'s `Program.res`
+row.) For `ConfigScope`, the inputs are what the slot
 produced plus the flow; the outputs are what the diagram produces.
 
 An iteration close, and a case close gathering its lanes:
@@ -435,16 +446,20 @@ operation with asymmetric operands, an outer and an inner
 (`lazy-stream-join-design.md`, "Join is a binary flow operation").
 Multi-level joins are *chains* of binary joins, not one node carrying
 several `innerFlows`. Whether the node keeps value pass-through ports
-at all is `first-class-ports-design.md` open question 3 — the
-language hasn't decided this yet. The lean is **flow-only**, with
+at all is the retired first-class-ports round's open question 3, now
+owned in `barrier-value-crossing-design.md` — the language hasn't
+decided this yet. The lean is **flow-only**, with
 values meeting the join only at collects, and the concurrent join is
 the case that could justify keeping the ports. The crossing analysis
 (`barrier-value-crossing-design.md`) leans flow-only for the flatten
 join and the concurrent join both — pass-through reduces to
 availability by provenance, and this signature's `values` rows
-re-read as the drawn form of that availability. The multi-flow
-signature above is the older form, kept as the record until the
-binary revision is adopted here.
+re-read as the drawn form of that availability. **Update (2026-08-12):
+the binary revision is adopted and implemented** — `Program.res`'s
+`Join({outer, inner})` is the representation the compiler runs on
+(`src/ARCHITECTURE.md`). The multi-flow `JoinVariant`/`innerFlows`
+signature above is the older form, kept only as the historical
+record.
 
 ---
 
@@ -840,6 +855,14 @@ Delay:
   flowOutputs: {}
 ```
 
+> *Update (2026-08-12).* The `flow` field above predates the thread
+> ergonomics round (`iteration-with-state-design.md`, 2026-08-04),
+> which removed the register's flow operand: a thread's frame is now
+> derived from the thread's own anchors, with a mandatory pin only
+> where that's genuinely ambiguous (`delay-ontology-design.md`, "The
+> frame menu"). This schema's explicit `flow` input stands as the
+> retired form — read it historically, not as the current wiring.
+
 > *Known gap in this inventory.* The one-node shape above has no home
 > for the register's **final value** (the total after the flow
 > completes), and the two-phase `step` wiring is not constructible on
@@ -929,8 +952,14 @@ writeback-up on the right (= `step`), and the initial value attached
 by a dotted line (= `init`). No diagonal, no multi-slot shapes, no
 ghost columns. See `iteration-rails-design-notes.md`.
 
-**Status — one of two live candidates.** Delay is one of two live
-candidate designs for iteration state. Both supersede the retired
+**Status — one of two live candidates.** *Update (2026-08-12): this
+passage predates the surface decision. The design conversation of
+2026-07-23 adopted the visible state thread as the primary framing,
+with the register pair below stored (the Delay quotient) and the
+thread rendered on top of it — see `iteration-with-state-design.md`,
+"The surface decision." Read what follows as the record of how the
+two candidates were weighed, not as an open choice.* Delay is one of
+two live candidate designs for iteration state. Both supersede the retired
 IterationRail / TapIn / TapOut trio (schemas in git history). You
 might wonder why the language doesn't keep that rail machinery — it
 looked like a natural home for carried state. It turns out it got
@@ -1206,7 +1235,7 @@ variable name stands for its binding — to break the cycle instead. It
 turns out that alternative died with the rail design (see the status
 note under Delay): resurrecting id-as-reference would make Delay the
 one place a reference is not a structural pointer
-(`first-class-ports-design.md`, "The three named escapes fail for
+(`iteration-with-state-design.md`, "The three named escapes fail for
 cause"). (This is a settled rejection — please don't re-propose it
 without new evidence.)
 

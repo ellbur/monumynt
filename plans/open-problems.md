@@ -53,7 +53,8 @@ owning docs over it.
 
 **Scope.** Design record only. Implementation sequencing —
 workstreams, phases, the cross-cutting ledger — is
-`implementation-strategy.md` and is deliberately not duplicated here;
+`src/ARCHITECTURE.md` (which absorbed the role of the retired
+`implementation-strategy.md`) and is deliberately not duplicated here;
 compile internals are `compile-strategy-design.md` ("decide in code"
 questions stay there); the graphical/layout side is out of scope in
 this repo entirely.
@@ -84,6 +85,29 @@ from the sweep: `async-flow-design.md`, `speculation-design.md`,
 `cancellation-design.md`, `within-firing-effects-design.md`,
 `catalog-schema-design.md`, `served-flow-design.md`,
 `tough-use-cases-design.md`, `delay-ontology-design.md`.
+
+**2026-08-12 revision sweep.** A second conversation series worked
+the recursion area to a landing and retired two standing pieces;
+the recursion and functions rows below carry the rewrites. Deltas
+to rows not individually rewritten: the **termination/measure
+discipline is retired everywhere** (no termination or soundness
+checking — stray measure references in other rows read as
+historical); the **cyclic back-edge surface is rejected**
+(`divide-flow-design.md`, revision notes — three independent
+reasons; one synchronizing-uncollect variant deferred, not
+rejected); the **visual-leap standing constraint** is recorded
+(`language-design-philosophy.md`: thinking about visual
+representability is in scope even though building it is not, and a
+textual form whose drawing would lie is wrong as text too); the
+**frame flow** and the **frame menu** open as new exploration
+pieces (the recursion and loop-carried-state rows point at them);
+`first-class-ports-design.md` was retired per its own plan
+(content absorbed into `core-model.md` and `src/ARCHITECTURE.md`)
+and `implementation-strategy.md` retired to a pointer stub; and a
+staleness sweep corrected status headers across the record — the
+implemented compiler is the five-pass pipeline, and partial
+collects, the sibling-opens completion, the provenance core, and
+stream flows are implemented; trust the owning docs' dated notes.
 
 ---
 
@@ -318,11 +342,19 @@ minority and mostly a companion read on register-carrying loops
 — 2/30 primary, 8/30 in any role; the position-0 boundary is
 always discharged by seed or construction, never tested per
 firing; `hold` drew zero). Both model conversations now have
-their evidence; neither is held.
+their evidence; neither is held. A 2026-08-12 working round rides
+the ontology doc (**"The frame menu"**, exploration): the
+owned-order table read as **offers** — a thread names a frame
+*kind*, resolved against its anchors' provenance, with pins
+mandatory exactly where resolution is ambiguous (the product being
+the flagship ambiguous case); its least-tested piece is the
+composition-along-provenance claim (a case layer gates, a product
+layer fibers, a jagged nesting blocks), unchecked for
+stream/async/incremental and the frame flow.
 
 W = 5: ~23% of sampled loops carry state, dominant in numerics; the
-substrate proposal in `implementation-strategy.md` is de-risked but
-still a flagged decision. Prior art: jq's `foreach (init; update;
+register substrate has since landed in code (`src/ARCHITECTURE.md`,
+registers and running views implemented). Prior art: jq's `foreach (init; update;
 extract)` is the running view shipped (XQuery's lack of a scan clause
 is the negative witness); Zig's `while` continue expression is the
 register step pulled out of the body so `continue` can't skip it (C's
@@ -433,7 +465,7 @@ block's catalog row — failure-out, cancel-in, admission); "served" is
 *not* a flow kind (pair content, not kind content); the k-operation
 provider is a **pre-split bundle** (no dispatch, because no union was
 packed); the recursive provider is **the link in exchange costume**
-(unmemoized = the divide flow's tree with its measure discipline);
+(unmemoized = the divide flow's tree);
 the keyed cache is a partition-plus-lane-register middleware that
 turns the tree into a DAG, with cycle detection as a provenance
 witness — left recursion's cousin; the server-program question
@@ -514,7 +546,8 @@ demands: the collect family's identity rows with value witnesses
 (adopted content, given its schema), the tag-identity round's
 lane-references-not-strings (unadopted — the dependency is stated),
 the Life round's extent/shape-preservation row, the divide flow's
-measure catalog, the cancellation and served rounds' edge
+measure catalog (that client since retired, 2026-08-12 — no
+measure family remains to admit), the cancellation and served rounds' edge
 translations (slots supplied; fine print stays with its owners),
 and the within-firing round's coalescing law. I stays 3: questions
 2 and 3 remain undesigned and question 4's round is unadopted.
@@ -573,18 +606,18 @@ shared verbatim), everything else the cone reads is prefix-shared
 meaning, not optimisation — what the Lit memoisation already does),
 and reusability is a derived check with a drawable witness (the
 offending per-context wire surfaces as a demanded port). Its two
-load-bearing moves: **the call and the divide flow's link share
-one substrate but stay two constructs** — instancing, membership,
-and the measure discipline are defined once over the boundary
-object, while the link remains a page-local anonymous gesture
+load-bearing moves, as adopted: the call and the divide flow's
+link sharing one substrate while staying two constructs
 (recursion never routes through a named function; the round's
 first design conversation settled this against its own first
 draft: the guard family's register symmetry, naming as a toll on
-recursion, and the extract-to-recurse cliff), the measure
-attaching to reference cycles of any species so mutual recursion
-is stateable (page-local *level labels*, the loop-label precedent)
-and "every cycle crosses a guard" — register / dedup collect /
-measure — lands as one family; and
+recursion, and the extract-to-recurse cliff) — **since revised
+(2026-08-12): the link left the substrate entirely** (it is the
+site, on the port-pair substrate — `divide-flow-design.md`,
+revision notes), level labels dissolved, and the measure
+discipline retired ("every cycle crosses a guard" survives as two
+guards of three — register productivity and dedup convergence);
+and
 **the slot dissolves into the op pair** (SlotSignature = facet,
 SlotInvocation = exchange, slotImplementations = binding — so the
 conditional-signature design, checking question 3, is owed once
@@ -593,9 +626,9 @@ boundary projection, flow skeleton = read-out 2's summary at a
 display-time collapse level, ordering residue and open op pairs
 project as ports — and with the link interior to the cone,
 **recursiveness is an implementation detail** a caller cannot see.
-Function, level, provider, and the top-level program share the one
-substrate under four bindings — the node-set consequence
-completed. The same conversation added the **use-case account**
+Function, provider, and the top-level program share the one
+substrate under three bindings (the level binding removed
+2026-08-12) — the node-set consequence completed. The same conversation added the **use-case account**
 (functions exist for reuse only: per-element work is flows,
 callbacks are served flows, behavior parameters are op pairs,
 organization is display-time collapse — a function is the honest
@@ -621,16 +654,16 @@ center: the cut's edit gestures (editing round); boundary
 identity across versions (transformation-levels;
 `time-travel-programs-design.md` question 5 rides along); the
 conditional signature (checking question 3, unblocked not
-advanced); level labels' spelling (with the divide row); whether
-termination surfaces on a signature as an offered property
-(`@Terminates` prior art); the uncut-read lint threshold; the
+advanced); the uncut-read lint threshold (level labels and the
+termination-on-interface question both closed 2026-08-12 — labels
+dissolved, no termination checking); the
 spec-side reconciliation of the Diagram record; and
 the function-unit sample (below, Evidence owed). The late-bound
 round's own residue: the spellings (`op`, `serve`,
-binding, splice), owed jointly with the level boundary — the divide
-flow's demand — and the textual catch-up (one decision, three
-clients; the shared referent is now proposed, so the catch-up is
-unblocked pending adoption); region-scoped rebinding (the cut
+binding, splice), owed with the textual catch-up (the level-boundary
+demand was withdrawn by the divide round's "no boundary at all"
+refinement; the boundary substrate is adopted for its surviving
+clients); region-scoped rebinding (the cut
 vocabulary suggests a shape — a region is an anonymous interior
 cut — but the facet-ordering interaction stays unworked); the
 serving provider's multi-lane
@@ -916,77 +949,67 @@ graph features); the frequency question stays on the evidence-owed list.
 See `saturation-design.md`, `flix-comparison.md`,
 `collect-family-design.md`, `effekt-comparison.md`.
 
-**Recursion: the divide flow and trees — I 2, W 3.**
-Recursion over virtual structure is now **adopted**
+**Recursion: the divide flow, the site, and trees — I 2, W 3.**
+Recursion over virtual structure is **adopted**
 (`divide-flow-design.md`, 2026-07-23, in the joint adoption with
-the function-boundary round; previously moved down from Tier 2 by
-this index's maintenance rule): the divide flow is **the link
-transformation, tree-shaped** — write one level concretely (an
-ordinary case split; a leaf is an alt with no links, dissolving the
-base-case construct), then link the sub-problem wires back to the
-problem wires. Each link firing mints an instance; per-instance
-membership is derived from dataflow (downstream of a problem wire —
-everything else is shared by the prefix rule); the link is a barrier
-(multi-wire problems cross pairwise); and the construct is honestly
-primitive — the defunctionalized stack encoding is ruled inadmissible
-as a derived view (frames are a packed sum). Termination is a
-**three-species measure discipline**: structural shrink (catalog rows
-with witnesses), cursor progress (whose violation witness is exactly
-the parser field's left-recursion check), and drawn fuel (the
-quadtree budget — the owed non-list example, worked; the catalog is
-confirmed not list-shaped), with warned trust as the fenced escape
-hatch (derived-iteration precedent; Flix `@Terminates` prior art).
-Recursive descent is worked as the first program — variable arity
-dissolves into a link inside a drawn walk, sequenced children are the
-register on that walk, two answers are two sibling collects — closing
-speculation's four-part parsing vocabulary; the `walk`-style deep
-rewrite lands as focused-update's unfold client and re-reads
-recursion-over-data as the strict-components division, unifying the
-ADT-derivation story with the divide flow. Sibling instances have no
-time: registers over instances are ill-formed (concurrent-collect
-precedent), traversal orders dissolve into combines, and whole-tree
-collects are order-free iff commutative (the product-round law). Five
-dead ends recorded.
+the function-boundary round) and was **revised through a 2026-08-12
+conversation series** — the doc's revision notes govern. Write one
+level concretely (an ordinary case split; a leaf is an alt with no
+links, dissolving the base-case construct), then link the
+sub-problem wires back — and the link's spelling has **landed as
+the site**: an out-port/in-port pair joined by the abstract wire
+(the late-bound round's own annotation — one object, not a sibling
+glyph), its threads anchored at the page's fed and read wires
+(*feed the child where you are fed, read it where you are read* —
+any other placement is an observably different program), with the
+**hypothetical** as the primary ontology ("what would y be if x
+were v?") and a substitution law for nested frames (child = the
+minting frame plus a substitution at the fed anchors, sites
+opaque; two coherence witnesses). Mutual recursion is **re-founded
+by inlining** — within a strongly connected reference group only
+the back edges are sites; level labels dissolve; the reuse residue
+is two remembered cuts over one node set. The
+**termination/measure discipline is retired** (no termination or
+soundness checking — the three-species ladder, the joint measure,
+and the left-recursion diagnostics are deleted, recorded so they
+aren't re-derived). The **cyclic back-edge surface is rejected**
+(clockless latch; crossing-placement observability; branching
+collision), tail-shaped programs landing in the existing iteration
+vocabulary — the taxonomy is three species, one form each
+(iteration / structural walk / pure recursion). Earlier results
+stand: per-instance membership derived from dataflow, multi-wire
+problems crossing pairwise, the construct honestly primitive (the
+stack encoding inadmissible), recursive descent and the quadtree
+worked, sibling instances without time, the dead ends recorded.
 
-Remaining (the adoption is done, under the recorded constraint —
-the anchor is an identity, a level label or boundary,
-never a value wire; the link's correspondences are thread-species
-identity assertions; wire-anchoring survives only as an editing
-gesture — see the doc's question 1): the link's spelling and anchor — the
-**level boundary**, the first construct-driven demand for the
-functions row's flow skeleton — now worked
-(`function-boundary-design.md`, revised in its first design
-conversation: the link stands on the cut substrate while staying
-its own anonymous construct — recursion never routes through a
-named function — with `level of` still the link's spelling and
-page-local *level labels* for mutual recursion; if adopted, the
-anchor question reduces to the labels' spelling in the textual
-catch-up); mutual recursion — the joint measure's fine print now
-**worked** (`divide-flow-design.md`, "Mutual recursion: the joint
-measure, worked", unadopted): the check's unit is the link graph's
-strongly connected group, one measure per group (the mixed-species
-counterexample is the reason), cycles owe the decrease rather than
-edges (decidable as neutral-subgraph acyclicity), the all-neutral
-cycle is the witness — indirect left recursion, the field's own
-cross-rule check — and Zig's inference warning relocates to the
-k-edge witness format (question 5's diagnostics); the measure catalog's schema (joint
-with the checking row's question 4); whole-tree linearization (rides
-the delay-ontology/product residue); and the **zipper seam** — now
-**decided** (2026-07-23, `trees-and-recursion.md`, on amended
-grounds: soundness set aside — lazy compile the honest baseline,
-warned trust the standing policy — with readability decisive via
-the `childSizes`-from-nowhere ruling; the verifier retires,
-computed-value zipper ports retire as stored surface and re-read
-as drawn crossings, input-structure reads stay, the compact form
-and the traversal-order word surviving as derived views). W = 3 as a breadth obligation: the three random
+Remaining, in rough order of bite: the **frame flow** (exploration,
+unadopted — `divide-flow-design.md`, "The frame flow"): the call
+tree as a tappable flow — thread-named, rooted at the current
+frame, firings = askings (the double-count argument), unowned
+order — making whole-tree aggregation an ordinary collect; its
+**wound** (tree-structured) form converges with the trees row's
+zipper walk (one tree-walking vocabulary, two doors — data tree
+and call tree), which reframes the zipper seam once more and is
+where a trees-row rework would now start; the **frame source**
+question is answered by dissolution (frames are hypothetical
+assignments indexed by the tree of askings; the site extends
+indices) with the tap's form the residue; the **frame menu**
+ripple (which frame a thread accesses — worked in
+`delay-ontology-design.md`; see the loop-carried-state row); the
+textual glyphs for the site, its threads, and the frame-flow tap
+(the catch-up row); and whole-tree linearization (rides the
+delay-ontology/product residue, unchanged). The **zipper seam**'s
+2026-07-23 decision stands (verifier retired, computed-value
+zipper ports re-read as drawn crossings, the compact form a
+derived view). W = 3 as a breadth obligation: the three random
 surveys produced one recursive draw (breadth item 9, survey 2 —
-transcribed in the round), but
-parsing supplies everyday demand from outside the sampled domains,
-and parsers/planners/tree algorithms are rare-but-breaking; the
-frequency question folds into the saturation row's owed domain
-sample. See `divide-flow-design.md`, `trees-and-recursion.md`,
-`tough-use-cases-design.md`, `raku-grammars-comparison.md`,
-`flix-comparison.md`.
+transcribed in the round), but parsing supplies everyday demand
+from outside the sampled domains, and parsers/planners/tree
+algorithms are rare-but-breaking; the frequency question folds
+into the saturation row's owed domain sample. See
+`divide-flow-design.md` (revision notes first),
+`trees-and-recursion.md`, `tough-use-cases-design.md`,
+`raku-grammars-comparison.md`, `flix-comparison.md`.
 
 **How values cross a barrier — I 2, W 4.**
 Worked (`barrier-value-crossing-design.md`), now partly **adopted**
@@ -1233,7 +1256,8 @@ this doc tracks the representation, so most of its debt clears as other
 areas land. The owed-spellings list is concrete
 (`translation-exercise.md`): the late-wired-operand generalization of
 the write half (`boundary of`, `value of` beside `step of` — jointly
-owned with `first-class-ports-design.md`); the discharge readout's
+owned with `src/ARCHITECTURE.md`'s decision record, the retired
+first-class-ports round); the discharge readout's
 binder convention and terminator-only form; the collect family's
 spellings — now drafted (`collect-family-design.md`'s consolidated
 strawman table: named reduce-closes, `collect by <op>`, the keyed forms
@@ -1251,6 +1275,14 @@ filed as a worked candidate (`textual-representation-design.md`,
 "Candidate: the inline barrier spelling"); and the abstract wire
 `out p ... in q` (`late-bound-operations-design.md`, revision
 notes).
+Added by the 2026-08-12 rounds: the **site**'s glyphs — the
+out-port/in-port pair, the dashed grouping, and the thread anchors
+(`divide-flow-design.md`, revision notes; this supersedes the
+`level of` respelling entry above); the thread's **frame-kind
+annotation and pin** (`delay-ontology-design.md`, "The frame
+menu" — generalizing the `in ~flow` annotation); and the
+**frame-flow tap**'s spelling (`open frames along @…`, provisional
+— `divide-flow-design.md`, "The frame flow").
 
 **Naming rounds — I 4, W 1.**
 Deferred everywhere by tradition, correctly: they gate user-facing text

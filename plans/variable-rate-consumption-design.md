@@ -592,8 +592,9 @@ chooser was the corecursive costume of a case split).
 
 ## By kind, and the compile
 
-Sketches only; nothing here touches `src/Compile.res`, and
-implementation would land after the first-class-ports migration.
+Sketches only; nothing here touches `src/Compile.res` — the ports
+migration these sketches assumed has since landed (`src/Program.res`
+is ports-first).
 
 - **List subject**: the lowering is the textwrap loop itself — an
   outer while over an inner while, the boundary check deciding the

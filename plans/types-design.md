@@ -643,10 +643,11 @@ and most of the inventory absent:
    the first types feature.
 2. **Shape propagation for the existing node kinds.** Lit shapes
    from payloads; App demands/offers from a small registry keyed by
-   the fn expression; transport through Open/Close/Branch (Branch
-   dissolves under ports-migration step 2; the transport role moves
-   to the alt ports). Enough to make "plus applied to a list" a
-   compile-time clash with a two-anchor witness in test output.
+   the fn expression; transport through Open/Close/Branch (**2026-08-12**:
+   Branch dissolved under the landed ports migration; the transport
+   role moved to the alt ports — `src/Program.res`). Enough to make
+   "plus applied to a list" a compile-time clash with a two-anchor
+   witness in test output.
 3. **A schematic source node kind** with declared offers, so
    placeholder-driven construction is exercisable in tests —
    including the interface-accumulation direction (assert on the

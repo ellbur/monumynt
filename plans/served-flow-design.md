@@ -553,9 +553,10 @@ diagram bound to the world's client end.
 What remains genuinely different is the compile target: a bound
 serving program's "result" is its ongoing behaviour, so the compiled
 form is a registration (install the exchange handler, subscribe the
-sources) rather than a value computation — the first-class-ports
-consequence ("the program is a node set, not a root expression")
-gaining its second, larger client exactly as predicted. The
+sources) rather than a value computation — the node-set consequence
+("the program is a node set, not a root expression" — `core-model.md`;
+`src/ARCHITECTURE.md`, "Node set from day one") gaining its second,
+larger client exactly as predicted. The
 compile-strategy doc owns the mechanics; nothing here changes them.
 
 The payoff is testing, and it comes free. Because "which one is the

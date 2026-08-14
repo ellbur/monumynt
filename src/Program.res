@@ -1,7 +1,8 @@
 // The program of record — the ports-first representation.
 //
-// Built to the shape of plans/first-class-ports-design.md, with migration
-// steps 2-3 (per-alt ports dissolving Branch, binary Join) already in place:
+// Built ports-first (the first-class-ports round, retired 2026-08-12 with
+// its migration complete — plans/core-model.md and ARCHITECTURE.md carry
+// the record), per-alt ports dissolving Branch, binary Join:
 //
 //   - Every wire names a *port* of a node: `ValuePort(node, name)` /
 //     `FlowPort(node, name)`. There is no Branch node (an alt's payload and
@@ -12,7 +13,7 @@
 //     rebuild").
 //   - A program is a NODE SET with distinguished outputs, not a root
 //     expression — forced by Delay write halves being root-unreachable
-//     (first-class-ports-design.md, "the program is a node set").
+//     (recorded in ARCHITECTURE.md, "Node set from day one").
 //   - The Delay pair (DelayRead / DelayWrite) is represented, as compiler
 //     substrate. Representing it does NOT choose between the two
 //     iteration-state surface candidates (iteration-with-state-design.md);
@@ -55,15 +56,21 @@
 // types, the adopted decisions, and the settled rejections, each citing its
 // design doc (see ARCHITECTURE.md, "Architecture stubs"). Planned `flowKind`
 // rows: Async (Async.res), Var (Incremental.res), IO
-// (Effects.res). Planned `kind` additions: EndWhen (Cut.res), Fail
-// (Fail.res), Race / Settle / Paced / ReleaseHalf (Async.res), SelfOpen /
+// (Effects.res). Planned `kind` additions: CollectUntil (Cut.res —
+// end-when fused with its collect, 2026-08-04; no standalone EndWhen node),
+// Race / Settle / Paced / ReleaseHalf (Async.res), SelfOpen /
 // PullSource (Stream.res), KeyedPartition (CollectFamily.res),
 // SaturateRead / SaturateFeed (Saturation.res), Hole (Edit.res),
-// SchematicSource (Property.res). Planned beside the node set: the boundary
-// substrate — the remembered cut, call/link references, the op pair
-// (Boundary.res; the {nodes, outputs} program is its degenerate top-level
-// cut). Each stays staged in its stub until its emitter/check round, so the
-// live matches here don't grow arms ahead of behaviour.
+// SchematicSource (Property.res). No Fail node — dissolved 2026-08-04
+// (failure draws as split + inferred short-circuit commute + collect;
+// Fail.res keeps the surviving inventory / super-flow / discharge
+// analyses). Planned beside the node set: the boundary substrate — the
+// remembered cut, call references, the op pair (Boundary.res; the
+// {nodes, outputs} program is its degenerate top-level cut; the divide
+// flow's link left this substrate 2026-08-12 — it is the site, an
+// out-port/in-port pair with threads, plans/divide-flow-design.md revision
+// notes). Each stays staged in its stub until its emitter/check round, so
+// the live matches here don't grow arms ahead of behaviour.
 
 type rec node = {id: int, kind: kind}
 

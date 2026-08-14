@@ -381,6 +381,23 @@ a mechanism. Still a leaning (whether one drawing would mislead more
 than it teaches is a visual question this repo doesn't decide), but
 the mechanical half of the test has its answer.
 
+*(Update 2026-08-12: the comparison above predates end-when's
+2026-08-04 revision — the fusion into collect-until, no first-class
+shortened-flow wire, terminators carrying reason only. Two clauses
+need re-reading; the verdict does not. "The two share the output
+type (a shortened flow, terminator with payload)" is stale on both
+counts: the shared ground is now terminators in the reason-only
+discipline, with payloads on value wires. And "its check is
+provenance" refers to the stop-operand admissibility check, which
+survives the revision — not the payload-read-by-provenance reading
+the revision rejected ("provenance is not semantic",
+`end-when-design.md`, Reason 2); the two provenance claims are
+different things. The siblings verdict itself comes out
+strengthened: the conjectured unification target no longer exists
+as a standalone terminator-writing node at all — end-when is a
+fused collect — so the "one node" reading is structurally moot,
+not merely disfavoured on the mechanical test.)*
+
 **Timeout is not a construct at all.** The survey's most common race
 guise (five of thirty sites) dissolves into the vocabulary three
 ways, by what carries the deadline:
@@ -571,11 +588,11 @@ The language hasn't decided any of these yet.
    the winning cell's index, or (dirtier) the winning value is open,
    and should be decided jointly with the terminator
    payload-composition residue (`async-flow-design.md`). *The joint
-   round now exists* (`failure-payloads-design.md`, exploration): the
-   bare fact is confirmed by lane integrity — the winner's value
-   belongs to the winner's lane, and a consumer that wants to know
-   which contender won should consume the bundle's cells, not fish it
-   from a loser's terminator.
+   round now exists* (`failure-payloads-design.md`, adopted
+   2026-07-23, revised 2026-08-04): the bare fact is confirmed by
+   lane integrity — the winner's value belongs to the winner's lane,
+   and a consumer that wants to know which contender won should
+   consume the bundle's cells, not fish it from a loser's terminator.
 4. **Cancellation interplay proper.** The lost-cell trigger is the
    recorded hook; the actual capability, delivery, and bracket
    ordering wait on the Tier-1 IO round. Race commits only to

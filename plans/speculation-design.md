@@ -15,7 +15,11 @@ terminators carry reason only, payloads by value wire
 "Contenders are failable by construction," commit + fail, and the
 diagnosis payload all need re-founding on the drawn-error-flow
 account; the ordered-alternatives core (try in order, rollback,
-first success wins) is untouched.
+first success wins) is untouched. The dissolution's own account is
+settled — the owed work is narrower than it reads: re-founding
+*this* chapter's failability sections on the drawn-error-flow
+account, not resolving the account itself. Open question 4
+(diagnosis payload) is already partially closed on that account.
 
 ## Trying things in order
 

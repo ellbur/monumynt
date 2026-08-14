@@ -1,10 +1,16 @@
 # Joining stream flows
 
-Status: stream flows are not implemented — nothing in this chapter
-runs today, and streams are not on the path to the first working
-version (commute on a single-output stream is the motivating stream
-operation, and it doesn't need join; see
-`lazy-stream-commute-design.md`). Read the stream-specific sections
+Status: **2026-08-12 update, narrowing an earlier claim** — stream
+flows themselves ARE implemented: the opener, the collect, and the
+sequence commute over a bare stream layer all run today
+(`src/ARCHITECTURE.md` worklist item 10; see
+`lazy-stream-commute-design.md`'s header, which now runs). What is
+NOT implemented is stream-JOIN specifically, this chapter's subject —
+nothing in the stream-join sections below runs today, and stream-join
+is still not on the path to the next working version (commute on a
+single-output stream was the motivating stream operation, and it
+doesn't need join; see `lazy-stream-commute-design.md`). Read the
+stream-specific sections
 as a worked proposal, written down so the design worked out in
 conversation isn't lost and can be picked up when stream-join
 becomes a concrete need. One part, though, is not provisional at
@@ -215,8 +221,10 @@ kind up.
 ```
 rows -> open stream -> open stream -> f -~> join -~> collect => flat
 ```
-Spelling provisional (stream opens/closes aren't implemented). Two
-stream levels flatten to one.
+Spelling provisional (2026-08-12: stream opens/closes now implement a
+bare stream level; what's provisional here is stream-JOIN, this
+chapter's subject, which is not implemented). Two stream levels
+flatten to one, in the design.
 
 Multi-level join generalises the same way: N chained joins flatten N
 levels of nesting. In the wrapper era this was a nested
@@ -447,12 +455,12 @@ The language hasn't settled these yet:
    two flow inputs, and a collect references exactly one flow.
    Whether the unary spelling survives as sugar (the outer operand
    is derivable from adjacency) or is dropped (the sugar is what hid
-   the missing termination) is an ergonomics choice. Taken up in
-   `first-class-ports-design.md`: a `Join({outer, inner})` node with
-   one flow output, inside a general per-kind port-inventory model
-   that also dissolves Branch and `Filtered`; it stages the
-   migration and records the unary-sugar question as its migration
-   step 3's exit decision.
+   the missing termination) is an ergonomics choice. Taken up in the
+   (retired) first-class-ports round: a `Join({outer, inner})` node
+   with one flow output, inside a general per-kind port-inventory
+   model that also dissolved Branch and `Filtered` — now the shape in
+   `src/Program.res`; the migration recorded the unary-sugar question
+   as its step 3's exit decision.
 
 4. **Naming — all that remains of J vs F.** The law fixes the
    meaning of every operand-kind pair; what's left is whether

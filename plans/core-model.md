@@ -320,8 +320,17 @@ that can carry a payload — not a per-kind bolt-on
   `bundle-provenance-design.md`.
 - Loop-carried state (running sums, accumulators): 
   `iteration-with-state-design.md` — the biggest open area.
-- Ports as first-class, and the program as a node set:
-  `first-class-ports-design.md`.
+- Ports as first-class, and the program as a node set: now basic,
+  assumed aspects rather than a topic — every wire names a
+  `(node, port)` pair, each node kind carries its port inventory
+  (a case split has per-alt value and flow ports, no satellite
+  Branch node), and a program is a **node set with distinguished
+  outputs**, not a root expression. Authoring never spells a port
+  string ("strings below, typed handles above" —
+  `src/Build.res`). The representation is `src/Program.res`;
+  `src/ARCHITECTURE.md` records the decisions. (The staging doc,
+  `first-class-ports-design.md`, was retired 2026-08-12 with its
+  migration complete, per its own retirement plan.)
 - Editing and history as computation:
   `transformation-levels-design.md`.
 - Real-system pressure testing: `tough-use-cases-design.md`.
