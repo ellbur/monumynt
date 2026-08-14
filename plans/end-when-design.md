@@ -118,7 +118,9 @@ bare boolean.
 **Terminators exist and carry payloads.** Every flow kind has a
 termination event, and failability — a terminator carrying a
 payload — is a uniform dimension, not a per-kind bolt-on
-(`async-flow-design.md`, "Failure as terminator payload"). A
+(the failability design as it then stood — `async-flow-design.md`,
+since re-founded 2026-08-14 as "Failure: arrivals and endings";
+the revision notes below reverse this paragraph's payload half). A
 consumer that says nothing about the terminator propagates it. At
 a whole-flow collect the terminator is *discharged*: it lands in
 hand as a settled tagged value, which can then be case-split. A

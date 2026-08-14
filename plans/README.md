@@ -319,7 +319,9 @@ consumes, and whether it needs an input list at all:
   attempts — the shape parsers and backtracking search need. It is
   race's *sequential* sibling, and restoration comes from the structure
   (every alternative reads the same input wire) rather than from a
-  save/restore operation. *Exploration.*
+  save/restore operation. *Exploration; failability substrate
+  re-founded 2026-08-14 onto the revised failure account (contender
+  forks as case alts, per-contender pairs, diagnoses by wire).*
 - [`focused-update-design.md`](focused-update-design.md) — transform
   selected loci of a nested value, preserving the rest (increment every
   post's likes, redact one field): a structural selection read as a round
@@ -458,10 +460,12 @@ case/option are implemented; the rest are designed:
   over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
   their shape discipline are what remain.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
-  values that arrive later, racing as a barrier, failure as
-  terminators. *Exploration; the doc carries its own "needs
-  updating" banner (2026-08-04) — its failability sections predate
-  the reason-only-terminators revision.*
+  values that arrive later, racing as a barrier, and failure on the
+  revised account — rejection as an *arrival* carrying an Ok/Err
+  case bundle, stream endings reason-only with diagnoses on value
+  wires. *Exploration; its failability sections were re-founded
+  2026-08-14 onto the 2026-08-04 revisions (the superseded
+  terminator-payload account is recorded in place).*
 - [`failure-payloads-design.md`](failure-payloads-design.md) — the
   failability dimension's two flagged residues, worked: lightweight
   failure (`fail`, the raise as a drawn node — bodies never throw; the
