@@ -155,7 +155,11 @@ no inference path at all. The open core is the ontology: whether a
 case alt consumed as an exit is a flow at all or a **co-flow**
 (polarity of kind vs polarity of use vs co-flow as the wire species
 presenting the cut's stop lane), under the standing anti-flag and
-visual constraints. W = 5: it decides what commute means, what a
+visual constraints. The resolution posture is recorded (same
+conversation): **drawn, not algebraic** — no law set deciding how
+flows interact; a small inventory of at-a-glance-distinct drawings,
+one per interaction, with laws as validity witnesses only ("laws may
+veto; only the drawing elects"). W = 5: it decides what commute means, what a
 case flow is, and how early termination — the surveys' biggest
 everyday demand — is drawn; the failure account's "short-circuit
 commute" and the scoop ride on the answer. I = 4: the narrow

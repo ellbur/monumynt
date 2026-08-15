@@ -407,6 +407,72 @@ Where the record already touches this:
   underneath — is the current lean for the everyday case, with the
   kind-level question left genuinely open for options and errors.
 
+## Drawn, not algebraic: the resolution posture
+
+A closing thought from the recording conversation, kept here because
+it should shape how question 1 gets resolved. There is a
+recognizable **theme** running through this language — not a
+numbered principle, but a recurring move: where other languages
+build clever constructs that *automatically decide* how control-flow
+interactions resolve (Koka's algebraic effects are the sharp
+example), this language gives that up on purpose. If it is drawn so
+the user can see it, it does not have to be as algebraically pretty;
+so long as the user can see what is going on, that is enough.
+
+The record already contains instances of the move, made
+independently:
+
+- **Legibility over enforcement** — the IO round's recorded stance:
+  external ordering is made *readable* rather than governed by rules
+  (`effects-design.md`, "The IO-as-flow direction").
+- **Middleware stack order drawn as nesting** — handler-land's
+  invisible stack-order hazard dissolved not by an algebra of
+  handler commutation but by making the stack a drawing
+  (`late-bound-operations-design.md`).
+- **The termination tie** — where conventional code resolves
+  priority-vs-first silently by statement order, here the choice is
+  visible structure; "the language merely refuses to let the tie be
+  an accident" (`end-when-design.md`).
+- **Completion shown faint** — the inferred parts of a time-travel
+  program are displayed, not silently assumed
+  (`time-travel-programs-design.md`).
+
+Applied to this problem: the resolution should not be an algebra of
+flow/co-flow interaction — a law set from which the system derives
+which polarity or which coordination applies. It should be a
+**drawing inventory**: distinct, at-a-glance-discriminable gestures
+for each interaction this round identified — the layer swap
+(sequence commute), the exit (the escape / stop lane), the junction
+of independent closes, the series nesting (priority), and the
+single coordinating node (time-ordered disjunction). The user
+chooses the interaction by drawing it; nothing chooses for them.
+The use-to-variant inference already obeys this posture on the
+time-travel side: its inputs are visible consumption shapes (the
+enumerated alternativeness-demanding consumers of question 5), and
+its output is inserted visible structure, shown like any
+completion.
+
+Two riders recorded with the thought:
+
+- **Laws may veto; only the drawing elects.** Giving up algebraic
+  prettiness does not give up laws. The law of the shortened flow,
+  the disjointness demand, and the no-time-travel law all still
+  hold — but their job is *validity* (witnessing ill-formed
+  combinations; guaranteeing a drawing means what it looks like),
+  never *selection* among meanings. The identity test that cracked
+  this problem is algebra used exactly that way — a designer's
+  diagnostic instrument, not machinery in the language.
+- **The theme's countervailing duty.** If every interaction is a
+  distinct drawing, the interaction inventory must stay small and
+  the drawings discriminable — two interactions that draw nearly
+  alike would be strictly *worse* than an algebra, because the
+  drawing would carry a distinction the eye cannot. That is the
+  acceptance test the visual-leap constraint imposes on any
+  resolution of question 1: escape, swap, junction, series, and the
+  multi-stop node must each answer "how would this draw?" with
+  answers a reader cannot confuse. The theme replaces the algebraic
+  burden with a legibility burden; it does not remove the burden.
+
 ## Open questions
 
 1. **The ontology.** Flow vs co-flow: polarity of kind, polarity of
