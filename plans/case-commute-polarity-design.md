@@ -15,6 +15,17 @@ consumed as an exit is a flow at all, or something dual — a
 **co-flow**. `open-problems.md` carries the ranked row; this
 document owns the content.
 
+A **second conversation** (same day, 2026-08-15) is appended from
+"The wire-order geometry" on: a visual convention that makes flow
+context positional, under which the polarity distinction becomes
+*derivable from wire order* — the sequence commute is an adjacent
+transposition the convention draws soundly, the escape is a gesture
+it refuses to draw as a crossing, and the co-flow question sharpens
+into a payload-*side* question. Two candidate paths are worked:
+complement flows (rejected on arity) and payload-left (whose
+per-use "both ports" form is the sharpened current lean). Still
+exploratory; still nothing adopted.
+
 The conversation this records ran from a narrower starting question
 (multiple alternative early terminations from one case split) and
 the narrow results are recorded first, because the general
@@ -473,12 +484,256 @@ Two riders recorded with the thought:
   answers a reader cannot confuse. The theme replaces the algebraic
   burden with a legibility burden; it does not remove the burden.
 
+## The wire-order geometry (second conversation, 2026-08-15)
+
+A same-day continuation went below the construct inventory to the
+drawing conventions themselves, and found that the polarity
+distinction can be made *positional* — read off wire order rather
+than legislated. Everything in this section is exploratory: one
+path is rejected structurally, the other is the current lean in
+one of its two forms, and nothing is adopted.
+
+### The deferral intuition, and where None lives
+
+The seed intuition: for an option or error flow, the flow wire is
+a handy way of saying "I'm not dealing with this now — save it
+for later." In some sense the flow wire *represents the None case*
+(the error case, for an error flow). Sharpened: the wire does not
+represent None by firing — its firings are the defined elements.
+None lives in the wire's **silence**, and while the wire is open
+the silence is ambiguous: *not yet* or *never*. The discharge —
+silence becoming a definite None — happens where the wire
+terminates: at a collect, or, after commuting, at the walk level.
+Deferral is outward motion of the discharge point. (This is the
+failure round's "failure rides endings" arrived at from the other
+direction: the error case is the ending-side of the wire, and
+holding the wire is holding the ending open.)
+
+The picture gives the option flow wire an intrinsic **grain**:
+firings continue, silence breaks. Sequence polarity runs with the
+grain; escape runs against it — which is *why* escape strands the
+value (below). That puts some weight back on the kind side of the
+scale after the first conversation's polarity-of-use lean; the two
+may yet be compatible (a grain on the wire, a gesture chosen at
+the consumer), but the tension is recorded.
+
+A corollary sharpening open question 6: **the duality commutes the
+flows but never the payload.** Give OptionIter a None flow port
+and try to rescue find as a commute by commuting out the *None*
+side: the flow structure reads coherently ("the whole walk was
+all-None"), but the value wire strands identically, because the
+found payload lives on the pole that was broken on. Whichever
+spelling is chosen, the payload sides with the exit.
+Escape-equals-sequence-of-complement is exact for flow structure
+and inexact for value delivery; a None port makes the two
+spellings interconvertible as flows and still cannot deliver
+find's payload by crossing wires. The payload is what forces the
+cut.
+
+### The convention that spatializes context
+
+Take the visual convention: data flows from the top of the page to
+the bottom; an uncollect's flow output is to the left of its value
+output; value wires sit to the right of the flow wires they depend
+on. Then left-to-right order *is* the flow context —
+`Context.res`'s ordered path drawn as position, outermost
+leftmost. Two consequences fall out:
+
+- **A commute is an adjacent transposition.** Uncollect a list,
+  then an option on its element: `[~L, ~O, v]`. The sequence
+  commute is the two flow wires crossing — an X — with the value
+  wire untouched: `[~O, ~L, v]`. "Commute" becomes true in its
+  plainest algebraic sense. And the transposition is *sound*:
+  every position in the result reads truthfully — `~O` leftmost
+  because definedness is now a fact about the whole computation,
+  not any particular element; `v` still adjacent to `~L` because
+  within the surviving list every element was defined, so the
+  commuted list is the complete firing set of the value wire.
+
+- **The convention refuses to draw break-on-defined.** Try the
+  escape reading as a transposition and both ends break at once:
+  the value wire is stranded — still drawn in the shortened list,
+  but its firing set there is empty, since the surviving prefix
+  is exactly the elements where it never fired — and the thing
+  that exits leftmost is not a flow over the computation at all;
+  it fires at most once, a discharge, not a layer, with no
+  legitimate slot in the left-to-right order. The stranded wire
+  is Check's flow-borne witness made visible. So the convention
+  does more than disambiguate the polarities: it *refuses to
+  draw* one of them as a crossing — the drawn-not-algebraic
+  posture delivering the swap/exit discrimination for free.
+
+### The payload-side discovery
+
+Now give the error case a payload. The error flow has one flow
+wire (firing on success — the success payload rides it) and the
+error case in its ending. To carry an error payload, divide the
+wire in two: `~Error` and `~Success`, error payload in the
+`~Error` flow, success payload in `~Success`. Under the standard
+convention this lays out, left to right — `~Error` outer, because
+the error is discharged where `~Success`'s silence resolves, one
+frame out:
+
+```
+~Error   e   ~Success   s
+```
+
+And notice what happened. The `~Success` flow is what we used to
+*call* the error flow — it is the wire the success payload lives
+in. The error payload is not in the old "error flow" at all: it
+sits to the old error flow's **left**, while the success payload
+sits to its right. The relationship between a flow wire and the
+case it represents is *flipped* for case flows relative to other
+flows — the origin of the **co-flow** temptation. And it puts the
+first conversation's identity-test duality in the mirror: escape =
+sequence-of-complement is drawn as left-right reflection.
+Negation is the mirror.
+
+### Path (A): complement flows — structurally unavailable
+
+First path considered: turn case flows back into regular flows by
+making the flow wire represent the case *complement* — wires named
+`~Success` and `~Error` with the error payload in the `~Success`
+flow and vice versa. Rejected in-conversation, and not on
+confusion alone (though the names lie): **the complement of an alt
+is not an alt.** For {A, B, C}, the wire representing A's
+complement fires on B-or-C, and its payload is a packed sum of B's
+and C's payloads — the partial-collect merge as a mandatory
+bottleneck at every case split, before anything is even consumed.
+Path (A) is only definable for two-cell bundles. Recorded as
+rejected on arity, not taste.
+
+### Path (B): payload to the left — the sandwich
+
+Second path: treat case flows as co-flows, and say that for a
+co-flow the payload sits to the *left* of its wire rather than the
+right. Open the list: `[~L, elem]`. Case-split the element:
+`[~L, a, ~A, b, ~B]`. The escape payload's position now says two
+things at once: `a` is right of `~L` — it depends on the element,
+it is made from list data — and left of `~A` — it is addressed
+*past* the alt wire, to the frame beyond. "Depends on the walk,
+delivered outside it" is what an escape payload is, said by
+position alone.
+
+Commute `~A` out and the mechanics follow instead of being
+legislated: `a` is sandwiched between `~L` and `~A` and may cross
+neither, so the transposition must carry it along:
+
+```
+[~L, a, ~A, b, ~B]   ~>   [a, ~A, ~L2, b, ~B]
+```
+
+The payload cannot strand: it is scooped, or abandoned, or the
+gesture is not drawn — it cannot continue being used in the list.
+Where the standard convention *refused* to draw escape as a
+crossing, this layout *draws it correctly*: stranding stops being
+an error a checker catches and becomes a position that cannot
+exist. And the exiting unit `[a, ~A]` is recognizably
+collect-until's **stop pair** — payload traveling *beside* the
+terminator, never inside it. The no-smuggling rule restated as
+geometry.
+
+### The fork inside (B): strong vs mixed
+
+The case split above laid *both* alts payload-left. But `b` is the
+continue alt — its payload feeds the walk's work, consumed
+per-firing *inside* the list, and that use wants the standard
+side: `[~B, b]`. So path (B) forks:
+
+- **(B-strong): case alts are uniformly co-flows**, payload always
+  left. Then ordinary dispatch — a collect folding both branches
+  per element, partial-collect territory — needs a story for
+  consuming a payload that sits outside its own wire. No story
+  seen yet; not rejected, but unoccupied.
+- **(B-mixed): the side is per-use, and one alt wire offers both
+  ports** — the conversation's own one-wire-two-payloads
+  observation about the error flow ("you wouldn't necessarily
+  need another flow wire — one flow wire with both a left
+  (co-flow) payload and a right (flow) payload"), generalized.
+  The right port is the payload in the **firing frame**:
+  per-occurrence data, for dispatch and filtering. The left port
+  is the payload in the **discharge frame**: delivered outward,
+  for escape.
+
+Under (B-mixed) the flow/co-flow question and the first
+conversation's polarity-of-use lean stop competing: there is no
+co-flow *kind*, there is a co-flow *side*, and which side the
+payload hangs off the wire *is* the polarity — not a hidden bit, a
+position. Multi-close survives: one consumer dispatches on A
+through the right port while another escapes on A through the left
+port, two distinct value wires, both visible. (B-mixed) is the
+current lean; unadopted.
+
+### Why options and errors: the two faces
+
+A frame for why the puzzle picked these constructs. For a one-shot
+computation, every alt fires at most once and every firing *is* an
+ending — the firing frame and the discharge frame coincide, so
+either payload side is coherent (`[e, ~Error, s, ~Success]` reads
+fine as a standalone error computation). The two sides pull apart
+only under repetition, where "per firing" and "at discharge" are
+different moments. A list is pure repetition-face; a one-shot case
+is pure ending-face; option and error are zero-or-one — a
+degenerate repetition *and* an alternative, on the fence between
+the faces. That is why nobody is ever confused about what a list
+flow wire means, and why the polarity puzzle lives exactly where
+it does.
+
+### Tying up the walk level
+
+What closes `[a, ~A, ~L2, b, ~B]` was left genuinely unclear in
+the conversation; two tentative readings were laid out, possibly
+two halves of one answer:
+
+- **Propagation is iterated transposition.** If the walk sits
+  inside another structure `~M`, the pair `[a, ~A]` keeps
+  commuting leftward: `[a, ~A, ~M, …]`. The geometry supports it
+  for free — the payload stays glued. Re-raising an error is the
+  escape commute applied again.
+- **Handling is the payload crossing its own wire.** Eventually
+  something consumes the outcome as data: a collect over the
+  walk-level case {A-fired, ran-out}. In the *handler's* frame,
+  `a` is per-firing data of `~A` — the right-side reading,
+  `[~A, a]`. So the one transposition the sandwich forbids in
+  flight — the payload crossing its own alt wire — is exactly
+  what happens at a handler, and only there. Control until the
+  flip; data after. Co-flows terminate by converting to flows at
+  a handler boundary — which matches how exceptions behave:
+  control until the catch, a value at the catch.
+
+### Worries kept on the table
+
+- **Leftward structure growth.** If escape payloads are themselves
+  structured (a case-split error payload), structure grows
+  leftward — mirrored nesting — and several escapes from several
+  depths interleave in the left region. Propagation stacking
+  suggests depth reads off position, which would be good; no nasty
+  example has been run.
+- **Series-parallel.** Left-right is total only along a series
+  chain; under `Poset`'s PARALLEL (Cross), "left of" must
+  generalize to "on the outward side of," per branch. The sandwich
+  argument should be re-run in series-parallel form before it is
+  trusted.
+- **Wire order becomes semantic.** If position carries meaning,
+  the eventual renderer is not free to reorder wires — the
+  language commits its drawing to an ordered discipline. Under the
+  visual-leap constraint that is arguably a feature ("how would
+  this draw?" answered by "it already is the drawing"), but it is
+  a commitment, and it is recorded as one.
+- **General geometric risk.** Having both flows and co-flows (or
+  both payload sides) could create geometric problems not yet
+  imagined; the worry was raised in-conversation and stands.
+
 ## Open questions
 
 1. **The ontology.** Flow vs co-flow: polarity of kind, polarity of
    use, or co-flow as a wire species presenting the cut family's
    stop lanes. The lean recorded above is polarity-of-use with the
-   species presentation; unadopted.
+   species presentation; unadopted. *(Second conversation: the
+   lean sharpens to (B-mixed) — no co-flow kind, a co-flow
+   **side**; the payload's position relative to its own wire is
+   the polarity, and the grain observation keeps a kind-flavored
+   residue in view. Still unadopted.)*
 2. **The vocabulary.** Does "commute" keep only sequence polarity?
    The identity test says the escape idiom should stop being called
    a commute; the failure round's "short-circuit commute" and the
@@ -500,10 +755,26 @@ Two riders recorded with the thought:
    `partial-collect-design.md`'s position 2 (give None a flow
    port): with it, sequence(`~Some`) and escape(`~None`) become
    interconvertible spellings and no idiom is forced by a missing
-   port.
+   port. *(Second conversation: interconvertible as **flow
+   structure only** — the duality commutes the flows but never the
+   payload, so a None port still cannot make find-with-its-value a
+   commute. The payload is what forces the cut.)*
 7. **The no-smuggling boundary.** If co-flows carry payloads, the
    terminators-carry-reason-only rule needs restating; joint with
-   `failure-payloads-design.md`.
+   `failure-payloads-design.md`. *(Second conversation: the
+   sandwich reads as no-smuggling kept — `[a, ~A]` is a stop pair,
+   payload beside the terminator, never inside it.)*
+8. **(B-strong) vs (B-mixed).** Run plain dispatch — a case split
+   fully consumed by one collect's branches, no escape anywhere —
+   under the both-ports account, and check that the right-port
+   story reduces exactly to today's partial-collect semantics with
+   nothing left over.
+9. **The ugly example.** Two escapes from different depths plus a
+   continue alt, all live at once: does the left region tie up or
+   tangle? (The leftward-growth worry, made concrete.)
+10. **The sandwich under Cross.** Re-derive the payload-carrying
+    transposition in series-parallel context (`Poset.res`), where
+    "left of" must mean "on the outward side of."
 
 ## What this touches
 
@@ -517,7 +788,13 @@ Two riders recorded with the thought:
   collect-until candidate and the fusion-line question land there
   if question 3 resolves that way.
 - `failure-payloads-design.md`, `barrier-value-crossing-design.md`
-  — the "short-circuit commute" naming and the scoop (question 2).
+  — the "short-circuit commute" naming and the scoop (question 2);
+  the second conversation's payload-side account (the error
+  payload as the left port of one wire, no second flow wire
+  needed) is a candidate re-founding of the failure payload.
+- `src/Context.res` / `src/Poset.res` — the left-to-right
+  convention is the ordered path spatialized; the Cross
+  generalization is question 10.
 - `partial-collect-design.md` — the OptionIter None port
   (question 6); the disjointness demand as the inference hook.
 - `core-model.md` — the commute paragraph eventually needs the
