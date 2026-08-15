@@ -11,6 +11,16 @@ chapter covers two things: how `commute` is expressed
 and compiled as a per-close output construction on stream flows, and
 the taxonomy of which flow-kind pairs get a commute variant at all.
 
+**2026-08-15 note:** a design conversation opened a Tier-1 problem
+about this chapter's *word*. The sequence commute here (break on the
+first *absence*) and the record's break-on-case escape idiom are
+opposite polarities of moving an option-kind flow out of a loop, and
+the escape direction fails a commute identity test — its collected
+value lands in the moved wire's *complement*, so no layers swap. The
+construct implemented here is unaffected; what is open is the
+vocabulary and the case-flow generalization. See
+`case-commute-polarity-design.md`.
+
 > **Reading notes.** This chapter says *close* (the older name for
 > *collect*, the operation that terminates a flow into a value). It
 > also writes join and commute in the older *wrapper-stack* notation
