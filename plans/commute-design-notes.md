@@ -26,6 +26,15 @@
 >
 > Terminology: this document says open/close (the older names for
 > uncollect/collect); the code still says `Open`/`Close`.
+>
+> **2026-08-15:** the meaning this document fixed — commute as
+> monadic sequence, break on the first absence — turns out to be one
+> of *two* polarities of moving an option-kind flow out of a loop,
+> and the other (break-on-case, the early-termination idiom) is not
+> a commute at all by the identity test recorded in
+> `case-commute-polarity-design.md` (Tier-1 open problem). This
+> document's analysis stands; it is about the sequence polarity
+> only.
 
 ## What "commute" means here
 

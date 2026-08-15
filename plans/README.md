@@ -459,6 +459,17 @@ case/option are implemented; the rest are designed:
   transpose over a Cross (the poset round) and the directed sequence
   over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
   their shape discipline are what remain.*
+- [`case-commute-polarity-design.md`](case-commute-polarity-design.md)
+  — the polarity of moving case flows out of a loop: the sequence
+  commute (break on the first *absence*) and the break-on-case escape
+  idiom are opposite polarities of one gesture, and only the first
+  actually commutes (the identity test: does the collected value land
+  inside the moved flow?). Also the conversation's firm results —
+  series commutes are priority termination only (the time-travel
+  argument), time-ordered disjunction needs one coordinating node,
+  junction commutes are two loops — and the open ontology: whether a
+  case alt used as an exit is a flow at all, or a **co-flow**.
+  *Open problem, Tier 1; nothing adopted.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   values that arrive later, racing as a barrier, and failure on the
   revised account — rejection as an *arrival* carrying an Ok/Err

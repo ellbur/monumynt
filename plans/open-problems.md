@@ -121,13 +121,53 @@ stream flows are implemented; trust the owning docs' dated notes.
 
 ## Tier 1 — the load-bearing gaps (I × W ≈ 20)
 
-*Empty as of the cancellation round (2026-07-17). The
-IO/effects/cancellation row held this tier alone; with both of its
-halves now carrying worked exploration rounds, its incompleteness
+*Emptied at the cancellation round (2026-07-17) and occupied again
+2026-08-15 by the commute-polarity row below. The
+IO/effects/cancellation row previously held this tier alone; with both
+of its halves carrying worked exploration rounds, its incompleteness
 dropped from 4 to 3 and the row moved to the head of Tier 2, per this
-index's own maintenance rule. Nothing there is adopted — the move
-records worked-vs-unworked, not settled. Citations across the record to
-"the Tier-1 IO round" name that row, not its current tier.*
+index's own maintenance rule. Citations across the record to "the
+Tier-1 IO round" name that row, not its current tier.*
+
+**The polarity of moving case flows out of a loop — commute vs
+escape, and the co-flow question — I 4, W 5.**
+Opened 2026-08-15 (`case-commute-polarity-design.md`, the owning
+doc). Two established intuitions turn out to be *opposite
+polarities* of one gesture: commuting an option flow out of a list
+universally means break-on-*undefined* (monadic sequence — the
+implemented commute), while a case flow moved out of a loop reads
+as break-on-*defined* (the early-termination idiom, payload scooped
+out with it) — and an identity test separates them: only the
+sequence polarity actually commutes (its collected value lands
+inside the moved flow; break-on-case's value lands in the moved
+wire's **complement**, so no layers swap — it is cut-family
+territory, not a commute). The conversation's firm-on-paper
+results: series commutes mean **priority** termination only (the
+time-travel argument — every node present, nothing left for
+inference to fill in; the monadic worked example confirms priority,
+not time order); time-ordered disjunction termination requires a
+single coordinating node (working name "barrier commute," probably
+a multi-stop collect-until); junction commutes are two independent
+loops; and the use-to-variant inference is binary — outcomes
+consumed as *alternatives* select the coordinating node, outcomes
+consumed as *independent facts* select junction, priority needing
+no inference path at all. The open core is the ontology: whether a
+case alt consumed as an exit is a flow at all or a **co-flow**
+(polarity of kind vs polarity of use vs co-flow as the wire species
+presenting the cut's stop lane), under the standing anti-flag and
+visual constraints. The resolution posture is recorded (same
+conversation): **drawn, not algebraic** — no law set deciding how
+flows interact; a small inventory of at-a-glance-distinct drawings,
+one per interaction, with laws as validity witnesses only ("laws may
+veto; only the drawing elects"). W = 5: it decides what commute means, what a
+case flow is, and how early termination — the surveys' biggest
+everyday demand — is drawn; the failure account's "short-circuit
+commute" and the scoop ride on the answer. I = 4: the narrow
+results are worked, the ontology undecided, nothing adopted.
+Touched: `lazy-stream-commute-design.md`, `commute-design-notes.md`,
+`end-when-design.md`, `failure-payloads-design.md`,
+`barrier-value-crossing-design.md`, `partial-collect-design.md`,
+`core-model.md`.
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
