@@ -1,35 +1,58 @@
-# The polarity of moving case flows out of a loop
+# The polarity of moving case cells out of a loop
 
-Status: **open problem, elevated to Tier 1** (design conversation,
+Status: **open problem, elevated to Tier 1** (design conversations,
 2026-08-15) — a worked conversation record, nothing adopted. The
-conversation produced three results that are firm on paper (series
-commutes mean priority termination only; time-ordered disjunction
-termination requires a single coordinating node; two junction
-commutes are two loops) and one discovery that reopens vocabulary
-the record already uses: **break-on-case is not a commute** — the
-established sequence commute and the record's break-on-case escape
-idiom are *opposite polarities* of moving an option-kind flow out
-of a loop, and only one of them actually commutes anything. The
-open problem proper is the ontology underneath: whether a case flow
-consumed as an exit is a flow at all, or something dual — a
-**co-flow**. `open-problems.md` carries the ranked row; this
-document owns the content.
+first conversation produced three results that remain firm on paper:
+series commutes mean priority termination, time-ordered disjunction
+termination requires a single coordinating operation, and two
+junction commutes are two loops. Later rounds retired the proposed
+**co-flow** distinction and then found the more important distinction
+it had been obscuring: a case cell is not a flow wire at all. It is
+written `(payload, %Cell)`. Focusing a cell as an option derives an
+ordinary flow wire for the cell's **complement**. Thus the full result
+bundle is `[(error, %Error), (success, %Success)]`, while its ordinary
+success projection is `[~Error, success]`: success is defined exactly
+where Error is absent.
 
-A **second conversation** (same day, 2026-08-15) is appended from
-"The wire-order geometry" on: a visual convention that makes flow
-context positional, under which the polarity distinction becomes
-*derivable from wire order* — the sequence commute is an adjacent
-transposition the convention draws soundly, the escape is a gesture
-it refuses to draw as a crossing, and the co-flow question sharpens
-into a payload-*side* question. Two candidate paths are worked:
-complement flows (rejected on arity) and payload-left (whose
-per-use "both ports" form is the sharpened current lean). Still
-exploratory; still nothing adopted.
+`%Cell` does support commuting, but case-cell commute is not bare wire
+motion. Moving `(payload, %Cell)` across an enclosing flow changes the
+scope of the case claim and transforms its evidence. Across a finite
+list, pointwise `A | B` becomes “at least one A, with a selected A
+witness” or “all B, with the list of B payloads.” This supersedes the
+record's interim claims that every cell owns a `(value, flow)` pair and
+that break-on-one-cell cannot be a commute. The open problem is now to
+specify the lifting laws supplied by each enclosing flow, their witness
+selection policies, and their optional preservation of a prefix. A
+first-witness commute can prefix any wire guaranteed to be valid in the
+cell's complement; this makes prefix retention orthogonal to commuting
+and reopens the exact boundary with collect-until. The other open task
+is the exact expansion from compact complement flows such as `~Error`
+to case-cell commutes.
+`open-problems.md` carries the ranked row; this document owns the
+content.
+
+An **intermediate conversation** (same day, 2026-08-15) is appended
+from “The wire-order geometry” on. It explores a visual convention that
+makes flow context positional and works two candidate paths:
+complement flows and payload-left. It originally rejected complement
+flows on arity and leaned toward per-use payload sides. Those ontology
+conclusions are superseded by `%Cell`: the arity objection resulted
+from requiring a derived complement flow to carry the complement's
+packed payload, while the current account keeps payloads on their
+individual cells. The positional and series-parallel observations are
+retained as design evidence; still nothing is adopted.
 
 The conversation this records ran from a narrower starting question
 (multiple alternative early terminations from one case split) and
 the narrow results are recorded first, because the general
 discovery falls out of them.
+
+The early sections retain the legacy notation `~A`, `~B`, and “case
+flow” because that is the notation in which the multi-termination
+problem was originally worked. Under the current model, those rails
+must be read as option/complement flows derived from `%A`, `%B`, and
+their bundle, not as the cells themselves. The section “Cells,
+projections, and flows” below owns the current vocabulary.
 
 ## The setting
 
@@ -201,10 +224,13 @@ Three lawful ways to move two case flows out of a list:
 
 ## Inferring the variant from use
 
-In the time-travel program the user does not draw commutes; they
-use or collect the case flows in ways that show the flows need
-commuting out, and inference picks the no-time-travel variant. The
-organizing principle the conversation reached:
+In the time-travel program the user does not have to draw every
+commute or join. They expose and route the case flows in ways that
+show which relationships are wanted, and inference elaborates the
+no-time-travel form. In the ordinary error facet this is deliberately
+formulaic: trace `~Error` outward; crossing an enclosing loop inserts
+sequence, and crossing error nesting inserts monadic join. The
+organizing principle the first conversation reached:
 
 > **What a time-travel program declares through its consumption
 > shapes is the alternativeness structure of the walk-level outcome
@@ -249,179 +275,414 @@ Fine print owed: the enumerable list of alternativeness-demanding
 consumers should be kept explicit — it is what keeps the deep
 inference predictable rather than spooky.
 
-## The conflation: option flows and case flows
+**Correction to the time-travel record.**
+`time-travel-programs-design.md` currently says completion inserts
+bookkeeping only, characterises its insertions by an identity-valued
+shadow, and excludes anything that changes firing structure. That is
+false of the canonical commute it already admits: sequencing an error
+flow out of a list short-circuits the list consumer. Cross supplies a
+second warning by assigning previously-unspecified multiplicity. No
+value ports does not mean no behavioural effect; these operations act
+on execution context rather than by applying a value function.
 
-Working the above exposed a conflation the record has been living
-with. An option flow is like one case where the alternatives are
-disregarded: a value wire in an option flow is the value *in the
-case the option is defined*; a value wire in a case flow is the
-value *in the case the alt is realized*. Structurally the two are
-the same object — option-kind relative to the parent, firing
-zero-or-one times per element. But the two idioms read "move it out
-of the loop" **oppositely**:
+The boundary this round now proposes instead:
 
-- **Commuting an option flow out** is monadic sequence: stop
-  iteration when the option is *undefined*. This has a
-  well-established analog in many languages
-  (`sequence :: [Maybe a] -> Maybe [a]`), where it universally
-  means break-on-undefined. This is the commute the record designed
-  and the compiler ships (`lazy-stream-commute-design.md`,
-  `Codegen.emitSequenceCommute`).
-- **Moving a case alt out** has been read as: stop iteration when
-  the case *is defined* — break on A. That is the monadic sequence
-  of the alt's *complement*: for `Left | Right`, moving Left out in
-  the break-on-Left sense is sequence of the Right-biased Either,
-  and vice versa. A user who sees a case flow crossing the loop
-  boundary will read break-on-defined — reinforced when a value is
-  *scooped* out with it.
+> **Completion may not invent a source, sink, observation, or handling
+> intent. It may elaborate an authored under-committed relationship
+> into the unique operational flow structure required by that
+> relationship and the language's published canonical policies.**
 
-The duality is exact — **escape-on-a-cell equals
-sequence-of-its-complement** — and for two-cell bundles the two
-readings even scoop the same payload: Haskell's
-`sequence :: [Either l r] -> Either l [r]` is simultaneously
-"sequence of the Right-biased monad" and "escape on Left, scooping
-its payload." That is why a whole design conversation could run in
-escape polarity while calling it commute.
+For errors, producing a declared Error cell, routing its visible error
+rail outward, and consuming the rail at a failure fact or handler are
+the authored intent. The inferred sequence and join nodes may change
+runtime demand and termination; they are lawful because that geometry
+has one published expansion, not because the nodes are semantically
+inert. They are shown faint like every other completion. The older
+identity-shadow boundary needs correction in its owning doc.
 
-But the polarity is genuine content, because both polarities
-applied to the *same* wire are different programs, both everyday:
-sequence(`~Some`) is traverse (all-or-nothing); escape(`~Some`) is
-*find* (first-match). So the polarity cannot be inferred from the
-operand, and defaulting it from the opener's kind (option opener vs
-case opener) would make structurally identical wires read
-oppositely by where they came from — the provenance-is-never-
-semantic principle violated in flow-wire form
-(`end-when-design.md`, revision notes, reason 2).
+## Cells, projections, and flows
 
-One framing was considered and rejected in the conversation: a
-one-bit polarity setting on the commute node. Rejected as a flag —
-the record's standing aversion, sharpened by this being a visual
-language: a hidden bit that flips a node's meaning is exactly what
-a drawing must not need. Whatever resolves this must be *visible
-structure*.
+The current account introduces a separate sigil for case cells:
 
-## Not a commute
+```
+a, %A
+```
 
-The sharper result, and the reason the "barrier commute" working
-name is probably wrong: **the break-on-case interpretation is not a
-commute at all.** The test is where the collected value lives
-relative to the moved wire:
+`%A` says that `a` is the payload/evidence of the selected A cell. It
+is not an ordinary flow wire. `~F` remains the notation for a dynamic
+flow, including option flows on which undefinedness, commute, and join
+operate. The distinction is semantic, not just typographic:
 
-- Uncollect a list flow; case split into A and B; move the A wire
-  out in the **break-on-A** sense; collect the list flow. The
-  resulting collected value is *not* in the A flow — it exists
-  exactly when no A ever fired, i.e. it is in **A's complement**
-  (which for the two-cell split could even be called B). The flow
-  collect order has *not* been commuted; what appeared at the walk
-  level is a freshly minted termination structure, not the A layer
-  relocated.
-- Move the A wire out in the **continue-only-on-A** sense (break on
-  the first non-A) and collect: now the resulting value *is* inside
-  the commuted-out A flow — outer "A held every time" alternative,
-  inner list of A payloads. `list ⋉ A` genuinely became
-  `A ⋉ list`. The collect order has in fact been commuted.
+- `%A` is a cell of a sum, carrying evidence that A was selected;
+- `~F` is an execution or absence rail whose firings can be transformed
+  by flow operations.
 
-So the identity test — *does the collected value land inside the
-moved flow?* — separates the two polarities into two different
-operations, only one of which is a commute. Three consequences:
+A three-way case bundle is therefore written
 
-1. **The two polarities belong to two construct families the
-   record already has.** Sequence polarity is commute (a layer
-   swap; the value in the moved flow; conditional remainder).
-   Escape polarity is the **cut family** — end-when/collect-until —
-   whose derived output is an unconditional prefix plus a
-   discharged terminator; escape(`~Some`) and collect-until's
-   first-match are the same program. The time-ordered "barrier
-   commute" of the inventory above then reads naturally as the
-   **multi-stop collect-until**: collect-until's discipline is
-   already "outputs correspond to input pairs, arity read off the
-   node's own wiring," so two stop pairs give prefix plus per-stop
-   lanes — payloads unpacked, coordination at exactly one node.
-2. **An earlier finding becomes a corollary.** The conversation had
-   observed that stacked cuts are time-ordered (end-when's
-   regime-1 theorem: over one bundle every stacking equals the
-   merged form) while stacked commutes are priority-ordered, and
-   conjectured the rule "constructs whose derived output is an
-   unconditional prefix can be time-ordered lawfully; constructs
-   whose output is a conditional remainder can only be priority."
-   Under the identity test this is no longer a coincidence to
-   explain: the two stacking behaviors belong to two different
-   operations. A cut's which-stopped alternativeness lives at the
-   single discharge (no upstream sibling wires to retro-shrink — no
-   time travel); a commute's completed alternative *is* the walk
-   that ruled the abort out (nesting, hence priority).
-3. **The collision is live in the record, not hypothetical.** The
-   failure round's 2026-08-04 revision draws failure programs as
-   "split + inferred **short-circuit commute** + collect"
-   (`failure-payloads-design.md`), and the scoop generalizes to it
-   (`barrier-value-crossing-design.md`). That construct is escape
-   polarity under a commute name — by the identity test, the
-   collected value of the success path lands in the error alt's
-   complement. Whether those passages need renaming or re-founding
-   on the cut family is part of this problem.
+```
+[(a, %A), (b, %B), (c, %C)]
+```
 
-## The co-flow question
+and not as three `(value, flow)` pairs. Focusing one cell as an option
+produces a partial projection. The option is undefined on the focused
+cell's complement:
 
-Underneath the vocabulary question is the ontological one — the
-record's "what does it mean?" lens. The escape use of a case wire
-is not consumed the way flows are consumed: a flow wire says "here
-is when, and how often, this happens" and its consumers fold or
-transform those firings; an exit wire says "here is where the walk
-goes to die" — it is a *destination*, control rather than data. In
-the polarity vocabulary of logic: a sum analyzed by cases is used
-positively; a sum used as an exit is used at its negative polarity,
-like a continuation. Hence the conjecture: **maybe case flows —
-or maybe options and errors specifically — are not flows but
-co-flows.**
+```
+getA : A(a) | B(b) | C(c) -> Option<a>
 
-Where the record already touches this:
+[(a, %A), (b, %B), (c, %C)]
+    |- [~BC, a]
+    |- [~AC, b]
+    |- [~AB, c]
+```
 
-- **The terminator is the existing near-concept.** Every flow has a
-  termination event; the cut family writes terminators from data;
-  interrupt writes them from outside; the re-founded failure
-  account distinguishes *arrivals* from *endings*. "Errors are
-  co-flows" rhymes with "failure rides endings" — and collides with
-  the same no-smuggling rule (terminators carry *reason*, never
-  data; payloads travel value wires — `end-when-design.md`,
-  revision reason 1). If a co-flow is a wire whose firing ends
-  enclosing structure *and carries a payload to a handler*, the
-  no-smuggling line has to be re-drawn or the payload has to keep
-  its separate value wire, as collect-until's stop pairs do.
-- **Two candidate homes for the polarity**, both recordable now:
-  - **Polarity of kind**: option/error bundles are minted as
-    co-flows; data case splits as flows; conversion explicit. Risk:
-    same-shaped wires reading oppositely by their opener — the
-    provenance worry again — and multi-close freedom suffers (one
-    consumer filters on A while another exits on A; a kind-level
-    choice forecloses one of them or needs conversion nodes).
-  - **Polarity of use**: cells are neutral; the *consuming
-    construct* sets polarity — a wire into a join filters, into a
-    collect branch dispatches, into a stop lane exits. No flag
-    anywhere: the "bit" is which construct the wire enters, which
-    is visible structure, and the same alt can serve both polarities
-    for different consumers (multi-close preserved). The ontology
-    question then relocates: an option's None *is* neither data nor
-    ending intrinsically; programs that keep it (optional field,
-    matched late) use it positively, programs that abort on it
-    (lookup miss) use it negatively — and the language makes the
-    choice visible instead of baking it into the type, which is
-    precisely what the Maybe monad does *not* do.
-- **The drawing** (thinking about it is in scope; building it is
-  not): the escape gesture programmers already draw on whiteboards
-  is an arrow out the side of the loop box — a wire leaving against
-  the nesting direction, carrying a payload to a handler outside.
-  If co-flow becomes a wire species, its species could *be* that
-  visual direction — which would make the co-flow reading the
-  natural drawing of collect-until's stop lane rather than a new
-  semantic object. That reconciliation — co-flow as the
-  presentation of the cut's stop pair, cut-family semantics
-  underneath — is the current lean for the everyday case, with the
-  kind-level question left genuinely open for options and errors.
+The invariant is: **the flow immediately left of an option value names
+the condition under which that value is absent**. `~BC, a` does not
+mean that a is carried by a BC cell; it means that the projection to a
+is undefined when B or C was selected.
+
+These three option flows are correlated views of one discriminator,
+not independent Boolean sources. On an A occurrence, `a` exists,
+`~BC` does not fire, and both `~AC` and `~AB` do fire. An elaboration
+must retain the originating bundle so that separately routed
+complement flows cannot be recombined as though their occurrences were
+unrelated.
+
+The binary case hid this rule because each complement is itself one
+cell. For Error/Success, the structural bundle is
+
+```
+[(error, %Error), (success, %Success)]
+```
+
+and its two option projections are
+
+```
+[~Success, error]
+[~Error, success]
+```
+
+The older row
+
+```
+error, ~Error, success, ~Success
+```
+
+accidentally put the right items next to one another but paired them
+incorrectly. Read cyclically, its actual option pairs were
+`(~Success, error)` and `(~Error, success)`. The new `%` sigil removes
+that ambiguity.
+
+## Case-cell commute changes scope
+
+`%A` is not a flow, but it does support commuting. The operand is the
+cell together with its payload/evidence, `(a, %A)`, and crossing an
+enclosing flow changes the scope over which the case claim is made.
+
+Open a finite list and split every element into A or B:
+
+```
+~List, a, %A, b, %B
+```
+
+Commuting `(a, %A)` outward gives
+
+```
+a, %A, ~List, b, %B
+```
+
+At this point `%B` is pointwise trivial inside the surviving list. If
+the list flow is reached, A did not occur, so every surviving element
+is guaranteed to be B. Collecting the list transports that trivial
+pointwise fact into an aggregate fact:
+
+```
+a, %A, listB, %B
+```
+
+The type-level operation is
+
+```
+List (A + B) -> A + List B
+```
+
+and its logical reading is
+
+```
+(there exists an A) | (all elements are B)
+```
+
+Thus the spelling of each cell stays fixed while its scope changes:
+
+- before commute, `%A` means “this occurrence is A”;
+- after commute, `%A` means “at least one occurrence was A,” and `a`
+  is the selected existential witness;
+- before collect, `%B` means “this surviving occurrence is B” and is
+  locally guaranteed;
+- after collect, `%B` means “all occurrences were B,” with `listB` as
+  the aggregate evidence.
+
+The empty list selects `([], %B)`: “all elements were B” is vacuously
+true. For an ordered list, the canonical sequence policy selects the
+first A as the witness and short-circuits later traversal. This policy
+is part of the commute law, not derivable from the type alone. Other
+lawful operations could select the last A, join A payloads, or collect
+all As, but they are different programs and need different visible
+structure.
+
+This is finite constructive De Morgan duality made operational:
+
+```
+not (exists A) = forall (not A) = forall B
+```
+
+Case-cell commute is therefore better understood as **scope lifting**
+or **quantification across a flow**, rather than as a physical cell
+marker sliding unchanged past a wire.
+
+## A case-cell commute may preserve the complement prefix
+
+The minimal type-level operation above discards the B payloads visited
+before the first A:
+
+```
+List (A + B) -> A + List B
+```
+
+That information loss is optional. A first-witness commute may also
+retain the traversed complement prefix:
+
+```
+List (A + B) -> (List B × A) + List B
+```
+
+The two result cells mean:
+
+```
+%A: first A occurred; return the preceding B prefix and the A witness
+%B: no A occurred; return the complete B list
+```
+
+Because both cells contain the same kind of B prefix, the result
+factors as
+
+```
+List B × Option A
+```
+
+where the prefix is the entire list when A never occurs. The
+prefix-discarding sequence is a projection of this richer operation:
+it forgets `List B` in the `%A` cell.
+
+The capability is more general than retaining B's designated payload.
+Let `x` be any wire whose availability is guaranteed throughout A's
+complement:
+
+```
+not A => x is defined
+```
+
+Then the commute can expose `prefixX`:
+
+- in the `%A` cell, it contains x from every occurrence before the
+  selected first A;
+- in the all-complement cell, it contains x from every occurrence;
+- the selected A occurrence is normally outside the prefix;
+- later occurrences are not demanded by a short-circuiting commute.
+
+Several complement-valid wires may be prefixed together. A wire valid
+in only *part* of A's complement cannot become a plain dense prefix;
+its own case/option structure must remain in the collected prefix.
+Likewise, a value that depends on the A occurrence is not a prefix
+value merely because it is geometrically nearby. This availability
+test is the no-smuggling boundary for prefix outputs.
+
+The geometry is awkward for a real semantic reason. `%A` determines
+where the prefix ends, but every value in the prefix comes from
+`%A`'s complement. The prefix therefore does not naturally live
+inside `%A`, even though it is returned alongside the A witness. Two
+candidate presentations are:
+
+```
+prefixX, [(a, %A), (allRemainder, %AllNotA)]
+```
+
+with `prefixX` factored outside the aggregate bundle; or an explicit
+shortened **before-A flow** minted by the commute, on which any
+complement-valid wires may be collected. In the latter account the
+values do not cross through `%A`; `%A` determines the shortened flow's
+termination point.
+
+Prefix is meaningful here because the enclosing flow is ordered and
+the lifting law selects the first A. Last-witness, all-witness,
+unordered, and parallel commute laws require different context outputs
+or have no useful prefix at all. Prefix preservation therefore belongs
+to a particular case-cell lifting law, not to `%A` in isolation.
+
+## Several cells: priority follows nesting
+
+For a three-way bundle, commuting A first performs
+
+```
+List (A + B + C) -> A + List (B + C)
+```
+
+meaning “some A occurred, otherwise every element was B or C.” If B
+is then commuted from the residual list, the result is nested:
+
+```
+A + (B + List C)
+```
+
+A therefore has global priority over B, even when a B appeared earlier
+in traversal order. This is the cell account of the monadic worked
+example above and preserves the result that **series commutes encode
+priority order**. Reversing the commutes reverses the priority.
+
+Stopping on whichever of A or B appears first in time is not the same
+composition. It needs one operation that considers the two exit cells
+together and selects the first matching occurrence while preserving
+their separate payloads. Whether that operation is best presented as
+a multi-cell commute or as multi-stop collect-until remains open; it
+cannot be inferred by pretending two independently commuted cells were
+one temporal race.
+
+## Related operations and presentations
+
+The revised vocabulary separates operations that earlier sections
+partly conflated:
+
+1. **Flow commute** transforms an ordinary `~F` rail across another
+   flow according to the two flow kinds' published law.
+2. **Case-cell commute** moves `(payload, %Cell)` across a flow. It
+   lifts a pointwise alternative into an aggregate alternative and
+   transforms the payload into evidence at the wider scope. Its
+   remainder is conditional: `List B` exists only when no A occurred.
+3. **Prefix retention** exposes context accumulated while the commute
+   remains in the selected cell's complement. It is an optional output
+   of a suitable first-witness lifting law, not evidence that no
+   commute occurred.
+4. **Cut / collect-until** stops a flow and exposes a prefix beside the
+   terminating outcome. For a case-derived first stop, it may be the
+   fused drawing of case-cell commute plus collection of the shortened
+   before-cell flow. Cuts from external terminators or with different
+   discharge structure may still need a broader construct family.
+
+The old identity test is therefore too strong in two ways. Its
+conclusion “break-on-one-cell is not a commute” treated a cell as a
+flow layer that had to move unchanged, and its later distinction
+“conditional remainder means commute; unconditional prefix means cut”
+treated information retention as an operation boundary. `%A` rejects
+the first premise, while the prefix-preserving transformation rejects
+the second. Both
+
+```
+A + List B
+```
+
+and
+
+```
+(List B × A) + List B
+```
+
+can result from a case-cell scope lift. The remaining cut/commute
+distinction, if any, must be stated in terms of authored stopping
+structure, fusion, and output correlation rather than the mere
+presence of a prefix.
+
+## The error facet under the cell model
+
+The ordinary failure drawing remains intentionally asymmetric:
+
+```
+[~Error, success]
+```
+
+It is not the Error cell with its payload hidden. It is the option
+projection onto the Success cell of
+
+```
+[(error, %Error), (success, %Success)]
+```
+
+and `~Error` is the projection's undefined flow. The static and dynamic
+error forms identify the same selected occurrences from different
+perspectives:
+
+- `(error, %Error)` is the structural Error alternative and its
+  payload/evidence;
+- `~Error` is the dynamic failure rail on which the success projection
+  is undefined.
+
+This relationship explains why error handling can be authored almost
+entirely in the compact view. Errors are often an afterthought rather
+than the computation's subject; tracing thin `~Error` rails outward,
+sequencing them at loop boundaries, and joining their nesting occupies
+less visual space and makes formulaic plumbing derivable by the editor.
+But every compact edit owes an expansion into the cell model.
+
+For list sequence, the expansion is
+
+```
+List (Error error + Success success)
+    -> Error firstError + Success (List success)
+```
+
+or graphically
+
+```
+~List, error, %Error, success, %Success
+    -> error, %Error, successes, %Success
+```
+
+The expanded operation commutes `(error, %Error)` to existential
+scope; its complementary `%Success` cell becomes the all-success case.
+The compact `~Error` commute and the expanded case-cell commute are two
+facets of this one program.
+
+The richer error commute may also preserve any wire guaranteed on the
+Success complement before the first Error. Preserving `success` itself
+gives
+
+```
+List (Error error + Success success)
+    -> (List success × Error error) + List success
+```
+
+or, factored, a successful prefix beside an optional first Error. The
+ordinary all-or-nothing error facet projects this prefix away on the
+Error cell; a debugging, progress, or partial-results facet may expose
+it. The error rail determines where the prefix ends, while every
+prefixed value comes from the no-Error region.
+
+The compact facet is safe only where an edit has a unique expansion,
+or one selected by a published canonical rule. If `project` maps a
+cell bundle to its complement-flow view, every supported operation
+owes the commuting square
+
+```
+project(expand(operation)) = operation(project(program))
+```
+
+with `expand(operation)` uniquely determined. Sequence needs a witness
+policy (first error for an ordered list). Join must retain the
+contributing `%Error` cells and their payload associations so that a
+later expanded view can recover distinct handlers. A terminal “Did
+this code fail?” consumer may explicitly forget those identities and
+payloads; structural join may not.
+
+No-smuggling still applies to demanded payloads. If a program asks
+only whether failure occurred, no error value wire need leave its
+minting split. If a later handler uses `error`, that use authors the
+value connection and the editor derives its route through the already
+selected `(error, %Error)` witness. Inference routes evidence selected
+by the case-cell commute; it does not invent a value or a selection.
 
 ## Drawn, not algebraic: the resolution posture
 
 A closing thought from the recording conversation, kept here because
-it should shape how question 1 gets resolved. There is a
+it should shape how the remaining design gets resolved. There is a
 recognizable **theme** running through this language — not a
 numbered principle, but a recurring move: where other languages
 build clever constructs that *automatically decide* how control-flow
@@ -448,50 +709,66 @@ independently:
   program are displayed, not silently assumed
   (`time-travel-programs-design.md`).
 
-Applied to this problem: the resolution should not be an algebra of
-flow/co-flow interaction — a law set from which the system derives
-which polarity or which coordination applies. It should be a
+Applied to this problem: the resolution should not be an algebra that
+silently chooses which interaction the author meant. It should be a
 **drawing inventory**: distinct, at-a-glance-discriminable gestures
 for each interaction this round identified — the layer swap
-(sequence commute), the exit (the escape / stop lane), the junction
-of independent closes, the series nesting (priority), and the
-single coordinating node (time-ordered disjunction). The user
-chooses the interaction by drawing it; nothing chooses for them.
-The use-to-variant inference already obeys this posture on the
-time-travel side: its inputs are visible consumption shapes (the
-enumerated alternativeness-demanding consumers of question 5), and
-its output is inserted visible structure, shown like any
-completion.
+(flow sequence), the case-cell scope lift, the exit (the escape / stop
+lane), the junction
+of independent closes, the series nesting (priority), and the single
+coordinating node (time-ordered disjunction). The error facet adds an
+important economy to that posture: the author may draw the
+under-committed **route** — a `~Error` rail heading out across loops
+and error layers — while the editor derives the formulaic sequence
+and join nodes that make the route operational. The user's geometry
+elects the relationship; published expansion rules fill its crossings
+and show them faint. The user need not perform clerical effect
+plumbing by hand, but the completed reading remains visible.
 
 Two riders recorded with the thought:
 
-- **Laws may veto; only the drawing elects.** Giving up algebraic
-  prettiness does not give up laws. The law of the shortened flow,
-  the disjointness demand, and the no-time-travel law all still
-  hold — but their job is *validity* (witnessing ill-formed
-  combinations; guaranteeing a drawing means what it looks like),
-  never *selection* among meanings. The identity test that cracked
-  this problem is algebra used exactly that way — a designer's
-  diagnostic instrument, not machinery in the language.
+- **Laws may veto and expand; only the drawing elects.** Giving up
+  algebraic prettiness does not give up laws. The law of the shortened
+  flow, the disjointness demand, and the expansion law all still hold.
+  Their jobs are validity and deterministic elaboration: witness
+  ill-formed combinations, guarantee that a compact drawing means
+  what it looks like, and expand a chosen route without asking the
+  author to spell its formulaic crossings. They do not choose an
+  Error rail, handler, or final failure observation the drawing did
+  not request. The identity test remains useful for describing output
+  correlation, but neither a conditional remainder nor an
+  unconditional prefix decides whether a case cell commuted; the error
+  facet's commuting square is the corresponding editor obligation.
 - **The theme's countervailing duty.** If every interaction is a
   distinct drawing, the interaction inventory must stay small and
   the drawings discriminable — two interactions that draw nearly
   alike would be strictly *worse* than an algebra, because the
   drawing would carry a distinction the eye cannot. That is the
   acceptance test the visual-leap constraint imposes on any
-  resolution of question 1: escape, swap, junction, series, and the
+  resolution: escape, swap, junction, series, and the
   multi-stop node must each answer "how would this draw?" with
   answers a reader cannot confuse. The theme replaces the algebraic
   burden with a legibility burden; it does not remove the burden.
 
-## The wire-order geometry (second conversation, 2026-08-15)
+## The wire-order geometry (intermediate conversation, 2026-08-15)
+
+This section records the intermediate geometry investigation that came
+after the co-flow conjecture but before the `%Cell` / complement-flow
+account above. Its wire-order, payload-position, and series-parallel
+observations remain useful. Its ontology does not: Path (A)'s claim
+that complement flows are structurally unavailable and Path (B-mixed)'s
+`[a, ~A]` lean both assumed that the case cell itself had to be an
+ordinary flow. The later `%A` distinction removes that assumption:
+`(a, %A)` is the cell, while `~notA` is a derived option projection.
+Read the section as a record of the pressure that motivated the new
+sigil, not as the current resolution.
 
 A same-day continuation went below the construct inventory to the
 drawing conventions themselves, and found that the polarity
 distinction can be made *positional* — read off wire order rather
 than legislated. Everything in this section is exploratory: one
-path is rejected structurally, the other is the current lean in
-one of its two forms, and nothing is adopted.
+path was rejected structurally, the other became the intermediate
+lean in one of its two forms, and nothing was adopted.
 
 ### The deferral intuition, and where None lives
 
@@ -589,7 +866,7 @@ first conversation's identity-test duality in the mirror: escape =
 sequence-of-complement is drawn as left-right reflection.
 Negation is the mirror.
 
-### Path (A): complement flows — structurally unavailable
+### Path (A): complement flows — the intermediate rejection
 
 First path considered: turn case flows back into regular flows by
 making the flow wire represent the case *complement* — wires named
@@ -600,8 +877,12 @@ is not an alt.** For {A, B, C}, the wire representing A's
 complement fires on B-or-C, and its payload is a packed sum of B's
 and C's payloads — the partial-collect merge as a mandatory
 bottleneck at every case split, before anything is even consumed.
-Path (A) is only definable for two-cell bundles. Recorded as
-rejected on arity, not taste.
+Under the old assumption that the complement flow itself must carry
+the complement payload, Path (A) is only definable for two-cell
+bundles without packing. The later `%Cell` account rejects that
+assumption: `~BC` is an absence rail derived from `%A`, not a carrier
+for B and C's payloads. The rejection is recorded as history, not as a
+current constraint.
 
 ### Path (B): payload to the left — the sandwich
 
@@ -661,8 +942,8 @@ co-flow *kind*, there is a co-flow *side*, and which side the
 payload hangs off the wire *is* the polarity — not a hidden bit, a
 position. Multi-close survives: one consumer dispatches on A
 through the right port while another escapes on A through the left
-port, two distinct value wires, both visible. (B-mixed) is the
-current lean; unadopted.
+port, two distinct value wires, both visible. (B-mixed) was the
+intermediate lean; it is superseded by the separate `%Cell` category.
 
 ### Why options and errors: the two faces
 
@@ -726,55 +1007,70 @@ two halves of one answer:
 
 ## Open questions
 
-1. **The ontology.** Flow vs co-flow: polarity of kind, polarity of
-   use, or co-flow as a wire species presenting the cut family's
-   stop lanes. The lean recorded above is polarity-of-use with the
-   species presentation; unadopted. *(Second conversation: the
-   lean sharpens to (B-mixed) — no co-flow kind, a co-flow
-   **side**; the payload's position relative to its own wire is
-   the polarity, and the grain observation keeps a kind-flavored
-   residue in view. Still unadopted.)*
-2. **The vocabulary.** Does "commute" keep only sequence polarity?
-   The identity test says the escape idiom should stop being called
-   a commute; the failure round's "short-circuit commute" and the
-   scoop passages are the live clients to re-read.
-3. **The barrier form's home.** Standalone node vs the multi-stop
+1. **Adoption and propagation.** The `%Cell` / complement-flow account
+   is worked here, not yet propagated through the owning docs or
+   adopted as a repository-wide decision. `open-problems.md`, the core
+   model, the failure round, the crossing round, and the time-travel
+   completion boundary all need reconciliation. The earlier
+   symmetric `(value, flow)` bundle account is superseded.
+2. **The lifting-law inventory.** Define which enclosing flow kinds
+   support case-cell commute and the evidence transformation each one
+   supplies. Finite ordered List has first-witness-or-all-remainder
+   and may retain complement-valid prefix wires. Specify whether each
+   law discards, exposes, or can optionally expose that context.
+   Stream cannot generally establish the universal remainder;
+   unordered, parallel, async, and incremental flows each need an
+   explicit selection, aggregation, and context-retention policy.
+3. **The exact compact-facet expansions.** Sequence and monadic error
+   join have candidate lifts above. Enumerate every edit the compact
+   error facet offers and prove its `%Cell` expansion unique (or name
+   the published canonical choice), including several independent
+   error sources, several continuation cells, joins across products,
+   and a payload requested only after several joined layers.
+4. **Prefix geometry and the cut boundary.** Decide whether commute
+   mints an explicit before-cell flow, factors collected prefix wires
+   outside the aggregate bundle, or uses another readable geometry.
+   Determine whether case-derived collect-until is exactly the fused
+   prefix-preserving commute, while retaining a broader cut family for
+   external terminators, or whether another semantic distinction
+   remains.
+5. **The multi-cell form's home.** Standalone node vs the multi-stop
    collect-until. The fusion line (`end-when-design.md`: a cut
    fuses into its collect exactly when it mints no new flow) is the
    knife: does the disjunction exit ever need walk-level outcome
    *flows* with consumers beyond one collect, or is the discharge
    value's downstream case split always enough?
-4. **Series commutes collected out of order.** What construct pulls
+6. **Series commutes collected out of order.** What construct pulls
    the nested outcomes apart into independent closes, if anything.
    Deliberately unworked — priority termination is rare.
-5. **The inference fine print.** The explicit list of
+7. **The inference fine print.** The explicit list of
    alternativeness-demanding consumers (collect branches,
    partial-collect operands, …) that licenses the barrier
-   elaboration.
-6. **OptionIter's None port.** This round adds weight to
-   `partial-collect-design.md`'s position 2 (give None a flow
-   port): with it, sequence(`~Some`) and escape(`~None`) become
-   interconvertible spellings and no idiom is forced by a missing
-   port. *(Second conversation: interconvertible as **flow
-   structure only** — the duality commutes the flows but never the
-   payload, so a None port still cannot make find-with-its-value a
-   commute. The payload is what forces the cut.)*
-7. **The no-smuggling boundary.** If co-flows carry payloads, the
-   terminators-carry-reason-only rule needs restating; joint with
-   `failure-payloads-design.md`. *(Second conversation: the
-   sandwich reads as no-smuggling kept — `[a, ~A]` is a stop pair,
-   payload beside the terminator, never inside it.)*
-8. **(B-strong) vs (B-mixed).** Run plain dispatch — a case split
-   fully consumed by one collect's branches, no escape anywhere —
-   under the both-ports account, and check that the right-port
-   story reduces exactly to today's partial-collect semantics with
-   nothing left over.
-9. **The ugly example.** Two escapes from different depths plus a
-   continue alt, all live at once: does the left region tie up or
-   tangle? (The leftward-growth worry, made concrete.)
-10. **The sandwich under Cross.** Re-derive the payload-carrying
-    transposition in series-parallel context (`Poset.res`), where
-    "left of" must mean "on the outward side of."
+   elaboration; plus the precise boundary between a route the author
+   elected and a source, sink, observation, or handling intent the
+   editor would be inventing.
+8. **OptionIter representation.** The structural option bundle is
+   `[(unit, %None), (value, %Some)]`; its projections are
+   `[~Some, unit]` and `[~None, value]`. Revisit
+   `partial-collect-design.md`'s proposed None flow port in these
+   terms: is it displaying `%None`, the complement flow `~None`, or a
+   derived projection? The new sigil makes that distinction mandatory.
+9. **Joined payload preservation.** Specify the hidden representation
+   of a compact joined `~Error` rail. It must retain enough cell
+   identity and value association for a later facet expansion to
+   recover the distinct handlers, while the explicit final DidFail
+   consumer remains free to forget all of them.
+10. **The multi-depth example.** Draw two commuted cells from different
+    nesting depths plus a continuation cell, with complement-prefix
+    wires live at both levels. Check that outward cell placement,
+    witness payloads, and before-cell flows remain readable rather than
+    tangling. This preserves the intermediate conversation's concrete
+    leftward-growth test under the current ontology.
+11. **Case-cell geometry under Cross.** Re-derive cell commute and
+    complement-prefix retention in series-parallel context
+    (`Poset.res`). “Left of” must generalize to “on the outward side
+    of” independently per branch; no semantic rule should depend on an
+    arbitrary total ordering of parallel wires.
 
 ## What this touches
 
@@ -784,21 +1080,30 @@ two halves of one answer:
 - `commute-design-notes.md` — the historical options survey;
   polarity note added to its status.
 - `end-when-design.md` / `variable-rate-consumption-design.md` —
-  the cut family gains the escape idiom as a client; the multi-stop
-  collect-until candidate and the fusion-line question land there
-  if question 3 resolves that way.
+  revisit the old unconditional-prefix/conditional-remainder boundary.
+  A first-witness case-cell commute may preserve an unconditional
+  complement prefix, so case-derived collect-until may be its fused
+  presentation. External terminators may still require a broader cut
+  family. The multi-stop candidate remains joint work.
 - `failure-payloads-design.md`, `barrier-value-crossing-design.md`
-  — the "short-circuit commute" naming and the scoop (question 2);
-  the second conversation's payload-side account (the error
-  payload as the left port of one wire, no second flow wire
-  needed) is a candidate re-founding of the failure payload.
-- `src/Context.res` / `src/Poset.res` — the left-to-right
-  convention is the ordered path spatialized; the Cross
-  generalization is question 10.
+  — re-found the "short-circuit commute" as the compact projection of
+  a case-cell scope lift. A selected Error payload pairs with
+  `%Error`; `~Error` is the complement flow of the Success projection.
+  Re-state the scoop as expansion/routing of the selected `%Error`
+  witness.
+- `src/Context.res` / `src/Poset.res` — the left-to-right convention
+  spatializes an ordered path; open question 11 asks how the case-cell
+  and before-cell-flow geometry generalizes under Cross without making
+  an arbitrary total wire order semantic.
 - `partial-collect-design.md` — the OptionIter None port
-  (question 6); the disjointness demand as the inference hook.
+  (question 8); the disjointness demand as the inference hook.
 - `core-model.md` — the commute paragraph eventually needs the
-  polarity distinction once decided.
-- `time-travel-programs-design.md` — the design-method statement of
-  the two program classes and the two laws (recorded above) is a
-  candidate for promotion into that doc.
+  `%Cell` category, complement projections, case-cell scope lifting,
+  complement-prefix retention, and the error-facet presentation once
+  decided.
+- `facets-design-notes.md` — the error facet is the first concrete
+  client with an edit-and-expand law, not only a view toggle.
+- `time-travel-programs-design.md` — correct the false
+  identity-shadow/bookkeeping-only boundary. Inferred sequence changes
+  demand and termination; completion is licensed by authored intent
+  plus a unique published expansion, not behavioural neutrality.
