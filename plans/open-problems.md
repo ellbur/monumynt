@@ -193,7 +193,11 @@ ontology lens). The open core is
 now the **lifting-law inventory** (which enclosing flow kinds
 support case-cell commute, each law's witness policy, prefix
 retention, and shortening bit — the bit now also arms the election
-rule's trigger), the exact compact-facet expansions
+rule's trigger; a drafted table now sits in the owning doc —
+2026-08-16, exploration, unadopted — whose central proposal is that
+witness selection is an order demand licensed by the owned-order
+criterion of `delay-ontology-design.md`, awaiting its
+conversation), the exact compact-facet expansions
 (the error facet's commuting square), the prefix/cut geometry, the
 election's concrete form, the sibling join's expansion against
 `Complete`'s Cross, and the inference fine print. A correction

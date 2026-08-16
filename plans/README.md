@@ -492,8 +492,14 @@ case/option are implemented; the rest are designed:
   (shortening commutes displace the flow wire) and **node-local cells**
   leans, and the **drawn, not algebraic** resolution posture. The
   interim co-flow ontology and the identity test as an operation
-  boundary are superseded in place.
-  *Open problem, Tier 1; nothing adopted.*
+  boundary are superseded in place. A fourth conversation
+  (2026-08-16) adopted the round's first results — the election
+  rule, the stream-lean retirement, and the barrier as a fused
+  join → commute → split — and a **drafted lifting-law inventory**
+  (2026-08-16, exploration) is appended, proposing witness
+  selection as an order demand under the owned-order criterion.
+  *Open problem, Tier 1; the election rule and barrier expansion
+  adopted, the rest unadopted.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   values that arrive later, racing as a barrier, and failure on the
   revised account — rejection as an *arrival* carrying an Ok/Err
