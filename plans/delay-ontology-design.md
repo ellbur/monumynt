@@ -1123,7 +1123,13 @@ several rounds now draw or bar registers over non-list flows, each
 writing a check this document had not cashed, and their checks do
 not obviously agree with the record's firmest prior boundary
 statement. This section reconciles them, and the reconciliation
-lands on a criterion none of them quite stated.
+lands on a criterion none of them quite stated. (A proposed second
+client was filed 2026-08-16, unadopted: the case-cell lifting-law
+inventory's licensing claim — a first-witness commute's "first" is
+the same species of order read as the Delay's "previous", so
+witness selection is licensed by this criterion —
+`case-commute-polarity-design.md`, "The lifting-law inventory: a
+drafted table".)
 
 ### The clients, and the statement they strain
 

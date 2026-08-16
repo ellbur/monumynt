@@ -30,7 +30,12 @@ first-witness commute can prefix any wire guaranteed to be valid in the
 cell's complement; this makes prefix retention orthogonal to commuting
 and reopens the exact boundary with collect-until. The other open task
 is the exact expansion from compact complement flows such as `~Error`
-to case-cell commutes.
+to case-cell commutes. A **drafted table for the lifting-law
+inventory** (open question 2) is appended (2026-08-16, "The
+lifting-law inventory: a drafted table") — exploration, unadopted,
+prepared for that question's conversation; its central proposal is
+that witness selection is an order demand licensed by the
+owned-order criterion.
 `open-problems.md` carries the ranked row; this document owns the
 content.
 
@@ -1469,6 +1474,284 @@ under which that claim holds. "A valid program, not the door"
 stays true: the author never draws the pack; the expansion spells
 it.
 
+## The lifting-law inventory: a drafted table (2026-08-16)
+
+Status of this section: **exploration, nothing adopted.** This is a
+drafted answer to open question 2, prepared for that question's
+design conversation — not a conversation record. Everything in it is
+derived from results the record already carries (the owned-order
+criterion, the serializer taxonomy, the collect family's
+availability ladder, the drain law, the election rule), and the one
+genuinely new move — the licensing claim — is a candidate for the
+conversation to accept, amend, or reject. Where the derivation
+strains, the strain is flagged rather than smoothed.
+
+### What a law must state: the entry schema
+
+Question 2 asks per enclosing flow kind: does it support case-cell
+commute, with what witness policy, what context retention, and what
+shortening bit. Working the List law backwards gives the schema an
+entry must fill. A lifting law mints **one cell pair and up to two
+flows**:
+
+1. **The lifted cell pair.** The selected cell at the wider scope
+   (`%A` now meaning "at least one occurrence was A") with its
+   witness payload, and the complement cell (`%B` now meaning "all
+   occurrences were B").
+2. **The survivor flow** — the complement-conditional remainder the
+   complement cell's evidence is collected off (`~L2` for the List
+   law: exists only if no A occurred; its order inherited from the
+   enclosing flow). The aggregate evidence itself is *not* part of
+   the law: the author collects the survivor flow with ordinary
+   collect vocabulary, so the whole-flow "all B" fact is the kind's
+   plain collect and richer readouts follow the collect family. The
+   **empty-flow question** resolves the same way: every law selects
+   the complement cell vacuously on an empty flow, and what evidence
+   exists there follows the availability ladder of whatever collect
+   is wired (a list collect has its identity `[]`; a semigroup
+   reduce is option-shaped — `collect-family-design.md`).
+3. **The before-cell flow** (optional) — the retention output: the
+   shortened flow of complement-valid context traversed before the
+   selected occurrence, if the law can mint one.
+
+Plus two declared bits per **policy** (not per construct): the
+**shortening bit** — may the survivor flow's firing set be a proper
+subset of the input's — which the jog reads and which arms the
+election rule's trigger; and the **selection policy** itself (which
+occurrence supplies the witness), with one policy canonical per kind
+and the others drawn as different programs.
+
+### The licensing claim: witness selection is an order demand
+
+The proposal this draft is organized around:
+
+> **A first-witness (or last-witness) lifting law is available
+> exactly where the enclosing flow's firings carry an owned total
+> order** — the owned-order criterion of
+> `delay-ontology-design.md`, acquiring its second client.
+
+"First A" is an order read, the same species of read as the Delay's
+"previous firing": both demand that some construct *drew* a total
+order on the flow's firings, not merely that one happens at run
+time. The incidental-order argument transfers verbatim: selecting a
+first witness by an unowned order would let a program observe the
+scheduler (concurrent bodies before settle), the lowering
+(saturation's member walk — naive and semi-naive would become
+different programs), or the runtime's cutoff schedule (the var's
+recomputations). A register is a reader of order; so is a
+first-witness commute. One criterion, two clients — and the kinds
+table cashed there transfers row for row, which is what keeps this
+inventory derived rather than legislated.
+
+The claim decomposes a lifting law into three separately-discharged
+demands:
+
+- **Selection** needs an owned total order (first/last). All-witness
+  selection needs no order at all — there is no selection — and an
+  **elected witness** substitutes drawn structure for order (below).
+- **Aggregation** (the complement cell's evidence, and all-witness's
+  gathered As) needs only the kind's own collect vocabulary —
+  ordered kinds collect into sequences, unordered kinds into
+  sets/keyed lanes, and no order demand enters that the wired
+  collect doesn't itself impose.
+- **Retention** (the before-cell flow) needs the order *and* the
+  availability guarantee: a prefix is an order notion — "traversed
+  before the selected occurrence" — so a kind without owned order
+  has no before-cell flow to mint, not merely an inconvenient one.
+
+One observation the List law conceals, recorded because the
+completions row forces it: **selection order and presentation order
+can differ.** The List law reads one order (walk order) for both;
+the completions flow selects in settlement order, while the familiar
+field shape (results delivered in subject order — `Promise.all`)
+re-presents completions by their subject correlation. The
+re-presentation is drawn downstream off the completion's carried
+subject identity; it is not part of the law. An entry names the
+flow's *own* owned order and nothing else.
+
+### The table
+
+Rows follow `delay-ontology-design.md`'s kinds table; "witness"
+abbreviates first/last-witness availability. Canonical policy per
+supporting kind is first-witness; last-witness, join-of-witnesses,
+and all-witness are lawful drawn variants (different programs, per
+the scope-lifting section).
+
+| enclosing kind | order | witness | before-cell flow | shortening (canonical) |
+|---|---|---|---|---|
+| finite list walk | owned (walk) | yes | yes | yes |
+| segment / filtered sub-flow | owned (inherited) | yes | yes | yes |
+| stream (pulled) | owned (walk, on demand) | yes | yes (a stream) | yes |
+| async stream | owned (arrival) | yes | yes | yes |
+| event stream (`changes`) | owned (arrival) | yes | yes | yes |
+| completions flow | owned (settlement, minted) | yes | yes (settlement order) | yes — ceases demand on in-flight work |
+| case / option, bare; async value; race settlement | degenerate (≤1) | degenerate | none (no traversal) | n/a — the crossing is the join |
+| var (recomputations) | incidental | **no** | no | — |
+| concurrent bodies (pre-settle); sibling instances; saturation members; unordered exchanges; the frame flow | none | **no** — all-witness or elected only | no | off (all-witness) |
+| product {X, Y} | surplus | **no** as spanning — per-axis fibered instead | per axis | per axis |
+| IO / effect handle | a wire, not a flow | — | — | — (the IO *flow*'s sequencing commute is firing-set-preserving: bit off, never arms the election) |
+
+Per-family notes, in table order.
+
+**The ordered iterated kinds** (list, segment/filtered, stream,
+async stream, `changes`) share one law family — the worked List law.
+The policy menu: first-witness (canonical; shortens; jogs; arms the
+election trigger), last-witness and join/collect-all-witness
+(traverse fully; bit off — establishing "last" or "all" demands
+exhaustion, so nothing shortens). The distinction between the eager
+and on-demand rows is **not** a law difference: `Stream` is
+structurally `List` pulled on demand, and whether the universal
+remainder ("all B") is ever established over a particular unbounded
+flow is a termination fact about that flow, invisible to
+well-formedness — the fourth conversation's adopted retirement of
+the stream lean, which this table therefore never mentions again.
+The first-witness law over a stream is partly *implemented*: the
+sequence commute (`Codegen.emitSequenceCommute`,
+`stream<option<X>> → option<stream<X>>`, short-circuiting at the
+first absence) is this law's compact option projection, with the
+complement evidence delivered as a stream and an absent option
+abandoning the rest — a working model for what the before-cell flow
+of an on-demand kind looks like (it is itself a stream). For
+`changes` and the async stream the order is arrival; endings are
+reason-only per the async round, so the complement cell's evidence
+collects exactly as the eager twin's does when the flow ends.
+
+**The completions flow** is the family's most instructive row
+because settle *minted* its order — the serializer taxonomy's
+paradigm. First-witness there is first-failure-in-settlement-order:
+the field's fail-fast gather (`Promise.all`). The shortening bit is
+set, and its operational content is kind-specific while the bit
+stays the same: shortening an eager walk stops traversing;
+shortening a completions flow **ceases demand on in-flight bodies
+and never starts the unstarted** — delivered as `Cancelled` over the
+necessity frontier, exactly `cancellation-design.md`'s account, with
+the bounded drain governing what the survivor flow still fires. The
+complement cell's evidence ("all bodies settled Ok") exists at the
+drain, per the drain law. The before-cell flow is real and useful —
+the completions that settled before the first failure, in settlement
+order: the partial-results readout. Subject-order presentation is
+the drawn re-indexing noted above, not law content.
+
+**The degenerate kinds** (bare case/option, the async value, a
+race's settlement) have at most one firing, so first = last = all
+and there is no quantifier to apply: **the crossing operation for a
+degenerate layer is the join**, the fourth conversation's
+disjoint-union, provenance-keeping
+`Either A (Either B c) ≅ Either (A+B) c`. This row is where the
+error facet's formulaic rule — "crossing an enclosing loop inserts
+sequence, and crossing error nesting inserts monadic join" — turns
+out to be the inventory read at its two poles: iterated kinds supply
+quantifying lifts, degenerate kinds supply the join, and the
+formulaic rule is the two families named in facet shorthand. Join is
+firing-set-merging, so this row never arms the election rule —
+consonant with the barrier expansion containing exactly one
+shortening. For the async value specifically, the revised failure
+account already places the Ok/Err bundle *on the arrival*, so there
+is nothing further for a lift to do that the arrival's own case
+bundle doesn't already say.
+
+**The incidental-order row** (the var flow proper) supports no lift
+for the register's own sharper reason: quantifying "did any
+recomputation produce A" would make the cutoff schedule observable.
+The lift belongs on `changes`, which is the same relocation the
+incremental round already performed for its register — the criterion
+predicting, not merely permitting, where the construct lives.
+
+**The unordered kinds** (concurrent bodies before settle, sibling
+divide-flow instances, a saturation round's members, an unordered
+facet's exchanges, the frame flow) get no first-witness law — that
+is the licensing claim doing its work. What remains is real,
+though:
+
+- **The all-witness lift** is available, because it makes no
+  selection: `%A` at the wider scope means "at least one member was
+  A" with *all* the A evidence aggregated by an unordered collect
+  (set, keyed lane, commutative reduce). Structurally this is the
+  junction filter pair re-presented as a case bundle keyed on
+  emptiness — which is why it costs no order. Its bit is off:
+  establishing the complement means exhausting the members
+  (saturation: the round completing; concurrent bodies: the drain
+  after settle mints order anyway, see next).
+- **The elected witness** substitutes drawn structure for owned
+  order: mint the order first, then lift downstream of the mint.
+  Settle is the paradigm — "first failure" over concurrent bodies is
+  not drawn on the body flow at all but on the completions flow,
+  downstream of the serializer. The remedy string for a first-witness
+  demand on an unordered flow is therefore the serializer taxonomy's:
+  **draw the order-minting construct, then commute** — the same
+  shape as order-demand's "fold one axis, or Join first," and the
+  same rule as "a register is legal exactly downstream of the point
+  where order becomes owned."
+
+**The product** is the surplus cell here exactly as it is for the
+register: a lift spanning the whole grid demands *one* order and
+every axis order is real with none privileged. Per-axis lifting is
+ordinary and fibered — commuting a cell out of one axis yields the
+List law per fiber of the others (a flow of lifted case bundles over
+the surviving axes) — and a genuinely spanning lift rides the
+linearization residue's orientation-pinning, owned by
+`product-linearization-design.md`. Nothing new is legislated: the
+row inherits the surplus classification and its remedies.
+
+**The IO handle** is not a flow, so it takes no lift; the row exists
+to keep one prior result adjacent: the IO *flow*'s sequencing
+commute out of a list is a flow commute with the shortening bit off
+(firing-set-preserving, draws straight through) — the fourth
+conversation already used exactly this fact to show series IO
+commutes compose innocently. Where an op's *outcome* case-splits,
+that is failure vocabulary on the op, and the lifting question
+re-enters through whichever iterated kind encloses the op — not
+through the handle.
+
+### The election trigger, read off the table
+
+The adopted election rule wanted the shortening bit "readable off
+the lifting-law inventory." Read off this draft: the bit is set
+exactly on the **first-witness rows of the owned-order kinds** (list
+and its restrictions, stream, async stream, `changes`, completions),
+and on nothing else — all-witness variants, the degenerate join, IO
+sequencing, and unordered all-witness lifts all leave it off. The
+election signature is any two bit-set laws stacked in series on one
+wire, uniformly across kinds, which is the rule's one clause with no
+per-kind severity — the table adds nothing to the rule, it just
+makes its trigger enumerable.
+
+### Open edges of this draft
+
+Named for the conversation, in rough order of bite:
+
+1. **The licensing claim itself.** Adopting it makes the owned-order
+   criterion load-bearing for a second construct family. The
+   alternative — a per-kind legislature that happens to agree with
+   the criterion today — should be explicitly considered and, if the
+   claim is right, rejected for the usual reason (two tables drift;
+   one criterion cannot).
+2. **The witness-free short-circuiting existential.** Over an
+   unordered kind, "stop as soon as any A appears, payload
+   undemanded" observes no order in its *result* — but the work
+   performed becomes schedule-dependent, observable through effects.
+   The lean consistent with the record: ceasing work once the fact
+   is established is demand structure (laziness/cancellation
+   territory), not law content — the law's bit stays off, and any
+   *demanded* witness payload re-imposes order-or-election. Not
+   worked; flagged.
+3. **Retention's fine print per kind.** The before-cell flow's
+   geometry is open question 4 for the List law already; this table
+   adds that for on-demand kinds it is itself a stream (the
+   implemented sequence commute models it) and for the completions
+   flow it is in settlement order. Whether one geometry serves all
+   owned-order rows or the eager and on-demand presentations differ
+   belongs to question 4's resolution.
+4. **Last-witness has no client.** No program in the record demands
+   it; it is listed because it is lawful, not because it earns a
+   drawing. Candidate for dropping from the canonical menu until a
+   client files — the inventory's countervailing duty is to stay
+   small.
+5. **The elected witness's concrete form.** Settle-then-lift is one
+   election; whether an unordered kind admits a lighter drawn
+   election (an operand-order pick at a node, like the tie policy)
+   without re-importing the incidental-order accident is unexamined.
+
 ## Open questions
 
 1. **Adoption and propagation.** The `%Cell` / complement-flow account
@@ -1492,7 +1775,13 @@ it.
    per-construct. (2026-08-16: the shortening bit also arms the
    election rule's trigger; and a law's inability to establish the
    universal remainder — Stream — is a termination fact about the
-   particular flow, not ill-formedness.)
+   particular flow, not ill-formedness.) *A drafted table now exists
+   (§"The lifting-law inventory: a drafted table" — exploration,
+   unadopted): entry schema (cell pair, survivor flow, before-cell
+   flow, per-policy shortening bit), the licensing claim (witness
+   selection is an order demand — the owned-order criterion's second
+   client), the per-kind rows, and five named open edges. The
+   question stays open until that draft's conversation.*
 3. **The exact compact-facet expansions.** Sequence and monadic error
    join have candidate lifts above. Enumerate every edit the compact
    error facet offers and prove its `%Cell` expansion unique (or name
