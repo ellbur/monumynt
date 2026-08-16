@@ -298,6 +298,17 @@ edge species; five dead ends recorded. Split-when gains its second
 everyday client; the conditional effect is an empty segment
 (concatenates as identity — no carry machinery).
 
+A fourth piece is now worked: *the case boundary*
+(`subordinate-flows-design.md`, exploration, 2026-08-16) — the IO
+thread's reconvergence after a case split is a **case collect
+selecting the flow** (the firing cell's continuation; the collect's
+verbatim law on a new wire sort), the list boundary keeping the
+never-drawn sequencing commute; the first program pushed through the
+IO-as-flow desugar confirmed the direction's no-bespoke-linearity
+claim on the page (two handle-spelling artifacts dissolved), and the
+doc opens the sequencing-membership agenda (which constructs put a
+flow's firings into a broader sequence, which keep them out).
+
 Residue keeping I at 3: the adoption conversation (one conversation for
 the row's halves — the release half consumes the handle after the loop,
 and the within-firing round's handle-granularity leaning joins it); the

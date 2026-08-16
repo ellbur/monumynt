@@ -18,6 +18,15 @@ compile; see `src/ARCHITECTURE.md`'s "What runs today" for the current
 list rather than an enumeration here, which would go stale again.)
 Read the unadopted constructs as candidates with the case for
 them.
+(**2026-08-16**: a new candidate joined the family from the IO
+conversation — the **case collect selecting flow wires**: lanes may
+offer a flow (an IO thread's per-cell continuation), and the collect
+passes the firing cell's verbatim, exactly as it does a value. The
+case collect can carry this because its law is selection, never
+construction; the list collect cannot, and the marker crossing at a
+list boundary stays the sequencing commute. Worked example, the
+per-boundary ruling, and the dissolved unified-law reading:
+`subordinate-flows-design.md`.)
 
 ## A first program, and the chapter's first question
 
