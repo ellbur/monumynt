@@ -1486,6 +1486,53 @@ genuinely new move — the licensing claim — is a candidate for the
 conversation to accept, amend, or reject. Where the derivation
 strains, the strain is flagged rather than smoothed.
 
+### The problem, in plain terms
+
+Picture the most ordinary error-handling pattern: loop over a list
+where each item either succeeds or fails, and ask for "the first
+failure — otherwise, all the successes." In this language that is
+done by moving the failure case out of the loop: a per-item fact
+("this item failed") becomes a whole-loop fact ("something in this
+loop failed"). The sections above work out exactly what that move
+means — but only for one kind of loop, a finite list walked in
+order.
+
+The language has many other kinds of loop: streams whose items are
+pulled on demand and may never end, events arriving over time, a
+batch of concurrent tasks finishing in whatever order they happen to
+finish, sets that grow in no order at all. For each of these, the
+same move raises questions with no recorded answer:
+
+- Does "the **first** failure" even mean anything here? First by
+  what order? A batch of concurrent tasks has no inherent order —
+  "first" would mean whatever the scheduler happened to do, and the
+  same program could answer differently on different runs.
+- Can the move stop early, or must everything be visited?
+- Can what was gathered before the failure be kept?
+- What does "nothing failed anywhere" look like if the loop might
+  never end?
+
+Until this is written down per kind of flow, the pattern is either
+unusable off lists or silently inconsistent. That is what open
+question 2 asks for, and this draft answers it in three moves:
+
+1. **A fixed checklist for what an answer must contain** (the entry
+   schema below) — including whether the move can cut the loop
+   short, which the adopted election rule needs made explicit.
+2. **One existing criterion instead of a new rulebook** (the
+   licensing claim below): "first" makes sense exactly where the
+   flow has a genuine, stated order to its firings — a test the
+   record already adopted to decide where "the previous iteration's
+   value" makes sense. Reusing it means the table is derived from
+   one principle rather than legislated kind by kind, and two
+   tables cannot drift apart.
+3. **The table itself**, with each kind's consequences worked out —
+   for instance: over concurrent tasks, "first failure" is
+   fail-fast in completion order, and stopping early concretely
+   means cancelling the still-running work; over a possibly-endless
+   stream, "nothing failed" may simply never get answered, which is
+   a fact about that particular stream, not an illegal program.
+
 ### What a law must state: the entry schema
 
 Question 2 asks per enclosing flow kind: does it support case-cell

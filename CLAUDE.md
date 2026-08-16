@@ -157,7 +157,8 @@ The user designs incrementally and likes to think out loud about a step before a
 - They prefer "baby steps" — one small, well-understood addition at a time. Don't bring in extra design dimensions ("multi-close at the same time as nested at the same time as join") in one round.
 - They have strong design taste — when they say something like "we don't need to walk the stack" or "join is a pure flow operation," it's worth taking literally and working out the implications, not paraphrasing or smoothing over.
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
-- Before declaring something done, run the test suite (`npm start`). It currently passes 348 checks; if a change drops that count, something regressed.
+- **Prefer simple English — in the design docs and in chat** (preference recorded 2026-08-16). Lead with the plain-language version: a doc section should open by saying what problem it addresses and how, in words that need none of the record's jargon and with a concrete example first; the dense, cross-referenced record prose follows rather than replaces it. Same in chat — explain in plain terms before (or instead of) the record's shorthand. A reader should never need the jargon to get the gist. (First instance: the "problem, in plain terms" opening of the lifting-law inventory section in `plans/case-commute-polarity-design.md`.)
+- Before declaring something done, run the test suite (`npm start`). It currently passes 352 checks; if a change drops that count, something regressed.
 
 ## Exploratory mindset
 
