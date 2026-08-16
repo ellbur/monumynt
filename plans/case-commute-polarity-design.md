@@ -1,7 +1,10 @@
 # The polarity of moving case cells out of a loop
 
 Status: **open problem, elevated to Tier 1** (design conversations,
-2026-08-15) — a worked conversation record, nothing adopted. The
+2026-08-15/16) — a worked conversation record; the fourth
+conversation (2026-08-16) adopted the round's first results (the
+election rule, the stream-lean retirement, the barrier's expansion —
+see the fourth-conversation paragraph below and its section). The
 first conversation produced three results that remain firm on paper:
 series commutes mean priority termination, time-ordered disjunction
 termination requires a single coordinating operation, and two
@@ -56,6 +59,29 @@ straight through. And a representation lean: cells may be node-local —
 per-alt value and cell ports on the split, complement flows as derived
 ports of the same node — rather than a third reference kind threaded
 through the model. All three are leans, nothing adopted.
+
+A **fourth conversation** (2026-08-16, appended from "The election
+rule and the barrier's expansion" on) produced this round's first
+**adopted** content. Adopted: the **election rule** — a flow wire
+representing an iteration, once shortened by a commute, cannot be
+shortened again by a commute without an explicit election (the
+commute being the only *implicit* shortener; drawn cuts such as
+end-when are their own election) — resolving open question 12(b)
+toward election; the **retirement of the stream ill-formedness
+lean** (a termination concern that crept into a polarity problem —
+the rule is uniform across flow kinds); and the **barrier's
+expansion** as fused join → commute → split with a disjoint-union,
+provenance-keeping join, resolving question 5 — the same-element
+tie policy is the join's outer/inner asymmetry, forced by dataflow
+for dependent exits and elected for siblings. The composition
+contains exactly one shortening, so the safe merged program is
+unmarked while the series form is elected, with no
+barrier-specific legislation. Remaining from the round: the
+election's concrete form (restriction-adapter node vs node bit)
+and the sibling join's expansion against `Complete`'s Cross. Two
+candidate restrictions on error flows — linearity on the IO
+analogy, and handling transmuting the error flow into a threaded
+control wire — were examined and rejected in place.
 
 The conversation this records ran from a narrower starting question
 (multiple alternative early terminations from one case split) and
@@ -115,7 +141,11 @@ built against `~L`'s elements but consulted on the derived subject
 `~L2`. This is the same admission `end-when-design.md`'s stacking
 section had to state — an ancestor-aligned, option-kind operand is
 consultable on a derived flow whose firings are a subset of the
-ancestor's. The series chain is a second client for that rule.)
+ancestor's. The series chain is a second client for that rule.
+2026-08-16: the adopted election rule conditions this client — the
+admission no longer holds for a shortening operand consulted on
+the survivor of another shortening commute unless the election is
+drawn; see "The election rule (adopted)" below.)
 
 ## What the series form means: the monadic worked example
 
@@ -234,6 +264,10 @@ Three lawful ways to move two case flows out of a list:
    firing, and the construct is deterministic where the async race
    is scheduler-decided. See "Not a commute" below for why the
    working name is probably wrong.)
+   *(Resolved 2026-08-16: not a new primitive — the fused
+   join → commute → split expansion, with the tie question for
+   unaligned exits answered by the join's outer/inner asymmetry.
+   See "The barrier is join → commute → split" below.)*
 3. **Junction commutes** — two loops with different terminations,
    independent outcomes (both can fire).
 
@@ -1078,7 +1112,10 @@ Two aggravations give the trap teeth:
   shortening commute whose subject is the survivor of another
   shortening commute *over an unbounded stream* as ill-formed
   outright. Legibility carries the finite case; the genuinely
-  dangerous case should simply not be a legal program.
+  dangerous case should simply not be a legal program. *(Lean
+  retired 2026-08-16: a termination concern, not ill-formedness —
+  see "The stream lean retired". The election rule covers the
+  signature uniformly instead.)*
 - **Independent exits can tie.** The barrier note above leans on the
   exits being cells of one bundle ("they can never tie at a
   firing"). Two error flows from two *different operations* can both
@@ -1117,6 +1154,10 @@ series chain is ill-formed — an election marker, so priority cannot
 be drawn without confirming it. Superseded in the same conversation
 by the jog below, which carries the same content geometrically and
 generalizes; recorded here so the arrow is not re-derived.
+*(2026-08-16: the arrow's election role returns — the fourth
+conversation adopted an election requirement for the flat series
+chain, with the restriction-adapter candidate as the arrow reborn
+as required structure; the jog remains the legibility carrier.)*
 
 ### The jog
 
@@ -1162,7 +1203,271 @@ reader can still miss a subtle offset. That is accepted for finite
 flows under the drawn-not-algebraic posture (legibility is the
 promise, not enforcement); the case where inattention is dangerous
 rather than surprising is the stream hang, and that is handled above
-by ill-formedness, not legibility.
+by ill-formedness, not legibility. *(Superseded 2026-08-16: the
+fourth conversation resolved 12(b) the other way — the flat
+unmarked series chain is ill-formed everywhere without an explicit
+election, uniformly across flow kinds, and the stream lean is
+retired as a termination concern.)*
+
+## The election rule and the barrier's expansion (fourth conversation, 2026-08-16)
+
+A fourth conversation asked how to make the series trap harder to
+draw, and ended with this round's first adopted content: an
+election rule for stacked shortening, the retirement of the stream
+ill-formedness lean, and an account of the coordinating node as a
+fused composition of existing vocabulary rather than a new
+primitive.
+
+### Why other languages do not have this trap
+
+Background established on the way in, kept because it locates the
+trap precisely. Exceptions, failure monads, and effect handlers
+(Koka, Effekt) all avoid the priority surprise by one shared
+property: propagation is an **event on a single shared execution
+clock**, interleaved with the iteration itself. Abort discards the
+rest of the computation, so at most one failure fact is ever
+observed per run — the "second" error never comes to exist, and
+"which channel wins" has a forced answer: whichever happened.
+Exceptions and failure monads additionally pack every error kind
+into one channel (the unwinding mechanism, discriminated by type
+at the catch; the monad's single error type) — the sum bottleneck
+this language refuses — so first-A-or-B is the only expressible
+thing. Koka and Effekt have genuinely unbundled per-effect
+channels, the closest neighbours to this language's wires, and
+still get time order, because `raise` is a control transfer at the
+moment of failure: handler nesting shapes the result type but
+never selects among errors, since the losing error's occurrence is
+simply never reached. Two abort-only monad-transformer layers are
+the same degeneracy — a single stacked traversal stops at the
+first failure of either kind, the layer order surfacing only in
+the result's nesting.
+
+What is different here: the commute is the **distributive law**
+(`sequence`), not `bind` — a whole-flow quantifier over a flow in
+which failures are latent data, not a control event during its
+traversal. Two commutes are two nested quantifiers; both
+whole-flow facts get to exist structurally, so something must
+choose between them, and composition order chooses silently.
+Haskell contains the same program (`fmap sequence . sequence` —
+the monadic worked example above) and avoids the trap only
+idiomatically: nobody propagates by distributive law there. Here
+the commute *is* the propagation primitive, so the priority form
+is the innocent-looking default. A single commute diverges from
+the other languages not at all — first-witness sequence of one
+error flow is exactly time-ordered. The divergence begins at two
+channels, which is where the others pack, and this language, by
+the no-bottleneck principle, cannot.
+
+### Two limitations examined and rejected
+
+The conversation first evaluated two candidate restrictions on how
+error flows may be used, both rejected — recorded in place,
+reason-focused.
+
+**Linearity (the IO analogy).** Rejected: wrong axis. The IO
+handle is linear because it names a single-threaded resource
+(`effects-design.md`), but that is not why series IO commutes are
+harmless — IO commutes are firing-set-preserving (the jog
+criterion: they draw straight through), so stacking them composes
+innocently. The trap is a property of *shortening*, and the
+consumption count points the wrong way: the series chain is the
+**linear** composition (`~L` consumed once, `~L2` once), while the
+legitimate junction form is the nonlinear one (`~L` consumed
+twice, as multi-close does). A linearity restriction on error
+flows would outlaw the correct program and leave the trap
+standing.
+
+**Handling mints a control wire.** The candidate: a handler does
+not discharge the error flow but transmutes it into a universal
+control-flow wire that, like IO, lacks collect and nonlinear
+consumers, so two independently commuted-and-handled errors leave
+two wires nothing can finish. Rejected on four grounds. (1) It
+acts at the handlers, downstream of where series and junction
+diverge, so it cannot discriminate them: with no combiner for two
+control wires the legitimate junction form dies too; with a
+"both completed" join (linear, hard to refuse) series completes
+again. (2) The common case pays for the rare trap: per-element
+result-or-default recovery — no commute anywhere — would mint a
+control wire per firing that must thread out of every enclosing
+loop. (3) It breaks graceful expansion: adding a fallback to one
+deep operation ripples a new threaded wire through every enclosing
+structure. (4) It fails the ontology lens: the IO handle earns its
+threading by *being* a single-threaded resource; a post-handling
+token whose only meaning is the restriction it imposes is a
+bureaucratic wire — and it erases the handled-means-gone property
+besides.
+
+### The election rule (adopted)
+
+> **A flow wire representing an iteration, once shortened by a
+> commute, cannot be shortened again by a commute without an
+> explicit election.**
+
+The rule carves at the joint the trap actually occupies: the
+commute is the only **implicit** shortener — the one construct
+whose shortening is a side effect of a node whose drawn job is
+transposition, which is why a wire through it reads as the same
+wire continuing. End-when's cut is a drawn node whose entire job
+is stopping; stacking end-whens is visibly two cuts, the election
+already on the page. So the rule is not "shortening may not
+stack": mixed chains stay free (an error commuted out of an
+end-when-shortened flow is the ordinary first-error-before-the-
+stop), firing-set-preserving commutes stack on survivors without
+restriction, and junction and single commutes are untouched. Only
+the survivor-of-a-shortening-commute, shortened-again-by-a-commute
+signature demands the election.
+
+The election's concrete form is the remaining open piece, with two
+candidates. The structural one: refuse the ancestor-aligned
+operand admission (the end-when stacking rule, whose second client
+the series form is — noted there) for a shortening operand
+consulted on a shortened survivor. Then `~B`, aligned to `~L`, is
+simply not a well-formed operand against `~L2`, and priority
+requires an explicit restriction node re-deriving the operand
+against the survivor — the third conversation's superseded
+subordination arrow reborn as required structure rather than
+decoration. The alternative is a bit on the second commute node:
+smaller drawing, but a bespoke `Check` rule. Checked against the
+formulaic error facet, the stricter alignment costs nothing: one
+error out of nested loops is exactly aligned at every step (after
+the inner commute the survivor outcome is per-outer-element), and
+the two-error junction form takes `~L`-aligned operands on `~L`
+itself — only the series chain trips the rule.
+
+This resolves open question 12(b) toward election: the jog remains
+the legibility carrier, but the flat unmarked series chain is
+ill-formed, not merely subtle.
+
+### The stream lean retired (adopted)
+
+The third conversation's lean — `Check` witnessing the series
+signature ill-formed outright over an unbounded stream — is
+retired as a termination concern that crept into a polarity
+problem. The unanswerable question there ("does the dominant error
+ever occur?") has the same character as a single full collect over
+an endless stream, or a find that never matches, and nobody
+proposed witnessing those; whether it resolves is a termination
+fact about the *particular* stream, invisible to well-formedness
+(streams can end — `Stream` is structurally `List` pulled on
+demand). With the election rule in place the case needs no special
+severity: an *elected* priority chain over a stream that never
+ends diverges the way any demanded-but-never-resolved program
+diverges. The rule is therefore **uniform across flow kinds** —
+one clause, no per-kind severity tiers. The lifting-law
+inventory's shortening bit is still owed per law: the jog reads
+off it, and now so does the election rule's trigger.
+
+### Ties: priority within a firing, not across the walk
+
+The barrier note's owed same-element tie policy (unaligned exits —
+two error flows from different operations can both fire on one
+element) resolved against the worry that any tie priority
+recreates the accident. The discrimination: series order sets
+priority **across the walk** — it reverses time, a B at element 2
+losing to an A at element 5, at the cost of silent extra
+traversal. A tie policy at the coordinating node sets priority
+**within one firing** — consulted only where temporal order has
+genuinely run out, with no traversal cost and no hidden nesting.
+And a selection is forced, not optional: the node's output must be
+a disjoint case bundle (alternativeness is what licensed the node
+in the first place), so some order must decide, and node-local
+operand order is the visible one — already content in this
+language (series order is content, subtraction's operand order is
+content), node-local like the jog so it survives Cross, and
+dormant for aligned exits (cells of one bundle cannot tie). Fine
+print, not an objection: operand order answers *who wins a tie*;
+*what counts as a tie* for exits from different nesting depths is
+a position-comparison question in series-parallel context, owned
+by `Poset.res`. The policy decomposes: tie predicate from the
+poset, winner from the order.
+
+### The barrier is join → commute → split
+
+The adopted account of the coordinating node: it is not a new
+primitive but the fused composition **join, then commute, then
+split**, where the join is the disjoint-union variant. For nested
+errors the operation is
+
+```
+Either A (Either B c)  ≅  Either (A+B) c
+```
+
+— a lossless isomorphism, monadic join control-flow-wise but
+stronger than Haskell's `join` in exactly the right direction:
+Haskell's conflates the two layers' errors when the types
+coincide; this one keeps provenance, which is what the downstream
+split needs to recover per-cell handlers, and is exactly what open
+question 9 already demands of structural join. The barrier's
+machinery and the compact joined-rail's machinery are the same
+machinery; question 9's identity-preservation requirement becomes
+load-bearing rather than speculative.
+
+The composition genuinely yields time-ordered disjunction, and it
+respects the first conversation's theorem: time-ordered
+disjunction is inexpressible by any composition of *commutes* —
+and join is not a commute. Merging first collapses two channels
+into one, so there is one quantifier and one first-witness cut, at
+the first firing of the union. The first conversation's demoted
+merge-before-commute ("a valid program, not the door") is hereby
+elected as the barrier's *expansion* — which also locates where
+the missing expressiveness always lived: in the pre-commute merge,
+not in any cleverness at the commute.
+
+**The dependent case falls out of the existing formula.** When the
+second failable operation consumes the first's output, `~B` is
+minted inside `~A`'s success context — the nesting exists in the
+dataflow before anyone decides anything, and the priority can only
+validly go one way, which join's outer/inner asymmetry transcribes
+rather than chooses (per element, at most one of the two can fire;
+there are no ties at all). Tracing both rails out, `~B` crosses
+`~A`'s error nesting (join inserted) and the joined rail crosses
+the loop (one sequence inserted): the compact facet's published
+expansion, applied mechanically, *is* the composition. The common
+case — sequenced failable operations, the monadic chain shape —
+was already correct under the existing rules.
+
+**The sibling case is where the election lives.** For two
+independent operations per element there is no dataflow nesting;
+wrapping B inside A's success is a fiction (B's operation ran even
+on A-failed elements), and choosing which cell is outer is an
+election — the tie policy above, now with an ontology: not a
+tie-break bit bolted onto a node but *which layer wraps which*,
+the asymmetry `Join({outer, inner})` already carries. Ties fold
+into the outer cell and the inner's payload on that element is
+dropped, forced by the output shape (`A+B` has no both-cell) and
+consistent with every exception system. An author who wants
+both-fail *observed* is writing a different program whose shape
+the record already owns: the sibling-opens Cross's both-fired
+cell. The residue of real design work is here: for siblings the
+joined rail is the complement of the both-success region that
+`Complete`'s Cross describes, so the sibling join's expansion must
+be stated against the Cross rather than against nesting.
+
+**Consonance with the election rule.** The composition contains
+exactly one shortening commute — join is firing-set-*merging*, not
+shortening; the split is downstream of the walk. So the barrier
+never triggers the election rule, while the series form always
+does, and with no barrier-specific legislation the two programs
+come out: *merge your channels, then shorten once* — unmarked,
+free, and time-ordered; *shorten twice in series* — marked,
+elected, and priority. The safe program is the unelected one and
+the trap is the elected one, purely as a consequence of counting
+shortenings. The jog agrees: one lateral displacement versus two.
+
+**The bottleneck reconciliation.** The first conversation demoted
+merge-before-commute partly because it packs — "the partial-collect
+merge packs a sum to pass a structural point and breaks the
+unbroken per-case wire from source to handler." The
+abstraction-is-source-of-truth principle answers the objection:
+the no-bottleneck principle governs the **author's wires**. The
+drawn barrier keeps per-cell wires in and per-cell wires out;
+join-commute-split is the derived lowering, shown faint like every
+completion, and the disjoint union exists only inside it. An
+information-preserving internal pack is an encoding, not a
+bottleneck — and the losslessness above is the exact condition
+under which that claim holds. "A valid program, not the door"
+stays true: the author never draws the pack; the expansion spells
+it.
 
 ## Open questions
 
@@ -1184,7 +1489,10 @@ by ill-formedness, not legibility.
    the output firing set be a proper subset of the input's — since
    the jog convention reads the drawing off it, and the bit is
    per-policy (first-witness shortens, all-witness does not), not
-   per-construct.
+   per-construct. (2026-08-16: the shortening bit also arms the
+   election rule's trigger; and a law's inability to establish the
+   universal remainder — Stream — is a termination fact about the
+   particular flow, not ill-formedness.)
 3. **The exact compact-facet expansions.** Sequence and monadic error
    join have candidate lifts above. Enumerate every edit the compact
    error facet offers and prove its `%Cell` expansion unique (or name
@@ -1198,17 +1506,15 @@ by ill-formedness, not legibility.
    prefix-preserving commute, while retaining a broader cut family for
    external terminators, or whether another semantic distinction
    remains.
-5. **The multi-cell form's home.** Standalone node vs the multi-stop
-   collect-until. The fusion line (`end-when-design.md`: a cut
-   fuses into its collect exactly when it mints no new flow) is the
-   knife: does the disjunction exit ever need walk-level outcome
-   *flows* with consumers beyond one collect, or is the discharge
-   value's downstream case split always enough? Added 2026-08-16:
-   the construct also needs a **same-element tie policy** for
-   unaligned exits — two error flows from different operations can
-   both fire on one element, unlike cells of one bundle — before it
-   can serve as the safe default gesture for the beginner's
-   two-error case.
+5. **The multi-cell form's home.** *Resolved (fourth conversation,
+   2026-08-16): neither a standalone primitive nor a collect-until
+   variant — the fused join → commute → split expansion (see its
+   section). The tie policy for unaligned exits is the join's
+   outer/inner asymmetry: forced by dataflow for dependent exits,
+   elected for siblings, with ties folding into the outer cell.
+   Residue: the sibling join's expansion stated against
+   `Complete`'s Cross, and the fused drawing itself (per-cell wires
+   in and out, the pack internal and shown faint).*
 6. **Series commutes collected out of order.** What construct pulls
    the nested outcomes apart into independent closes, if anything.
    Deliberately unworked — priority termination is rare. (Rarity
@@ -1220,7 +1526,11 @@ by ill-formedness, not legibility.
    partial-collect operands, …) that licenses the barrier
    elaboration; plus the precise boundary between a route the author
    elected and a source, sink, observation, or handling intent the
-   editor would be inventing.
+   editor would be inventing. (2026-08-16: the elaboration itself
+   shrank — the coordinating node is inserted as join + sequence,
+   existing insertion vocabulary; for dependent errors the
+   published formula already produces it, so the list is owed
+   chiefly for the sibling case.)
 8. **OptionIter representation.** The structural option bundle is
    `[(unit, %None), (value, %Some)]`; its projections are
    `[~Some, unit]` and `[~None, value]`. Revisit
@@ -1231,7 +1541,11 @@ by ill-formedness, not legibility.
    of a compact joined `~Error` rail. It must retain enough cell
    identity and value association for a later facet expansion to
    recover the distinct handlers, while the explicit final DidFail
-   consumer remains free to forget all of them.
+   consumer remains free to forget all of them. (2026-08-16: now
+   load-bearing — the barrier expansion routes both cells through
+   the disjoint-union join, and the downstream split's recovery of
+   per-cell handlers is exactly this requirement; the join is a
+   lossless isomorphism, `Either A (Either B c) ≅ Either (A+B) c`.)
 10. **The multi-depth example.** Draw two commuted cells from different
     nesting depths plus a continuation cell, with complement-prefix
     wires live at both levels. Check that outward cell placement,
@@ -1245,18 +1559,19 @@ by ill-formedness, not legibility.
     arbitrary total ordering of parallel wires. (The jog is one
     partial answer: being node-local, it needs no total order — but
     the re-derivation of the rest still stands.)
-12. **The accident boundary.** Two follow-ups from the third
-    conversation's trap result. (a) Specify the ill-formedness
-    witness for a shortening commute whose subject is the survivor of
-    another shortening commute over an unbounded stream — the series
-    form's "dominant exit never fires" is unanswerable there, so it
-    should be rejected, not drawn. Decide whether any other flow
-    kinds share the unanswerability. (b) Decide whether the jog's
-    legibility alone suffices for finite flows, or whether the flat
-    series chain additionally needs an explicit election (the
-    superseded arrow's role) — the drawn-not-algebraic posture says
-    legibility, but the posture has not yet been tested on a trap
-    whose wrong reading is silent extra traversal.
+12. **The accident boundary.** *Resolved (fourth conversation,
+    2026-08-16).* (a) Dissolved — the stream ill-formedness lean is
+    retired as a termination concern that crept into a polarity
+    problem: unanswerability is a fact about the particular stream
+    (a full collect of an endless stream has the same character and
+    is not witnessed), invisible to well-formedness. (b) Resolved
+    toward **election**: the flat unmarked series chain is
+    ill-formed everywhere — a flow shortened by a commute cannot be
+    shortened again by a commute without an explicit election,
+    uniformly across flow kinds. Remaining: the election's concrete
+    form — the restriction-adapter node (refusing the
+    ancestor-aligned operand admission on shortened survivors; the
+    subordination arrow as structure) vs a bit on the node.
 
 ## What this touches
 
@@ -1275,7 +1590,10 @@ by ill-formedness, not legibility.
   end-when's cut flows and the before-cell flow included — and
   end-when's refusal to let the termination tie be an accident is the
   precedent the third conversation's trap result extends to series
-  commutes.
+  commutes. The fourth conversation's election rule conditions the
+  stacking admission's commute client (a note is placed at
+  end-when's restriction rule); end-when's own stacking is
+  unaffected — its cuts are drawn elections.
 - `failure-payloads-design.md`, `barrier-value-crossing-design.md`
   — re-found the "short-circuit commute" as the compact projection of
   a case-cell scope lift. A selected Error payload pairs with
