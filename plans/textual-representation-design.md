@@ -789,8 +789,16 @@ only).
 Loop-carried state (`iteration-with-state-design.md`) appears in
 text as two statements — the read half and the write half — matching
 the register's two-phase construction (mint the read; wire the step
-later). The write-back reads forward — compute, then deposit into
-the register's step; the write node's output is the final value:
+later). (A design-level update, 2026-08-04: the thread ergonomics
+round made the **thread** the primary surface — a third connector
+species, provisional sigil `@`, whose frame is derived from its
+anchors — and retired the register's flow operand, so the `~L ~>`
+below reads as the thread's frame, now derived rather than wired.
+The two-statement spelling taught here remains the stored form and
+the record's example notation; the thread's own spelling is owed to
+this chapter's next round.) The write-back reads forward — compute,
+then deposit into the register's step; the write node's output is
+the final value:
 
 ```
 xs -> open list => a, ~L
@@ -1163,10 +1171,13 @@ lexically distinct: flow references carry a `~` sigil (`~L`,
 Confusing the sorts is a parse error, mirroring how `expr` vs
 `flowRef` catches misuse syntactically in `Expr.res`. The sigil is
 provisional and cheap to change; what is not negotiable is that the
-sorts are distinguishable without name resolution. (A third species
-may arrive if the visible state thread of
-`iteration-with-state-design.md` becomes a wire of its own kind;
-reserve room, don't design it now.)
+sorts are distinguishable without name resolution. (The third
+species has since arrived: the visible state thread of
+`iteration-with-state-design.md` was settled as its own connector
+species in the 2026-08-04 ergonomics round, with `@` as its
+provisional sigil. Its textual fine print — the anchor spellings,
+the `in ~flow` frame annotation — is owed to this round; see the
+note in "Registers" below.)
 
 **P3. No lexical scope.** There are no blocks and no delimited
 regions: "inside the loop" is a *derived* fact — a statement is
@@ -1500,8 +1511,11 @@ The language hasn't decided these yet.
    per glyph — `|` is only ever a junction) is the commitment. One
    reuse to record: `@` here is the id suffix (`sum@n42`), while the
    retired informal glyphs used `@` for collect (`core-model.md`) —
-   harmless since those are retired, but the naming sweep should
-   notice. Watch `-~>` vs `~>` legibility, and whether the
+   harmless since those are retired — and two live rounds have since
+   claimed `@` too: the thread's provisional sigil
+   (`iteration-with-state-design.md`, 2026-08-04) and the site's
+   thread anchors (`divide-flow-design.md`, 2026-08-12). Three live
+   claims on one glyph; the naming sweep owns the collision. Watch `-~>` vs `~>` legibility, and whether the
    prefix/suffix `~` mirror (`~y` the flow port, `y~` the value with
    its flow) is mnemonic or too subtle in practice — alternatives:
    `y&`, a headless `y -~`. New watch item: the value mark `^` shares

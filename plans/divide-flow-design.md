@@ -293,7 +293,9 @@ diagram parseNode
   open self => ~R                       -- source-openers-design.md
   ~R ~> delay init p0 => cur            -- position register
   cur -> peek -> split close? of Close, More => e
-  ~e.Close: -~> end-when                -- stop at ')' (end-when-design.md)
+  ~e.Close: -~> end-when                -- stop at ')' (now the fused
+                                        -- collect-until; end-when-design.md,
+                                        -- revision notes)
   cur -> level of p => childAst, pChild -- THE LINK: parse one child
   pChild -> step of cur => pEnd         -- child's end = next child's start
   childAst -~> collect => children      -- the children, in order

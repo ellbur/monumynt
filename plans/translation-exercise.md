@@ -24,7 +24,10 @@ entry predate end-when's fusion with its collect into collect-until (no
 first-class shortened-flow wire; terminators carry reason only, payloads
 travel value wires) — see `end-when-design.md`'s revision notes. They
 stand as evidence of shape, not current spelling, and are left
-unrewritten.
+unrewritten. The same goes for the provisional `-> fail` stage (B2,
+C2): the fail node was dissolved in the same revision round
+(`failure-payloads-design.md`, revision notes) — a may-fail step is
+a drawn case split, the abort an inferred short-circuit commute.
 
 ## Why transcription, not classification
 

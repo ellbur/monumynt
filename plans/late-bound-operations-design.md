@@ -17,7 +17,11 @@ The op pair's identification with the spec's slot machinery
 carries the function-boundary round's provisional-confidence
 marker (adopted as the working position, not yet fully engaged by
 the adopting conversation). Spellings and the other open questions
-stay open where marked; none of it is implemented. It is the round the functions/reuse/facets row
+stay open where marked; none of it is implemented. (One more
+spelling note: the register samples below use the pre-thread
+`~N ~> delay` / `step of` form — the thread ergonomics round,
+`iteration-with-state-design.md` 2026-08-04, has since retired the
+register's flow operand; read it as the thread's derived frame.) It is the round the functions/reuse/facets row
 of `open-problems.md` has owed since the Effekt comparison: the
 capability four independent languages put at their center of mass —
 write a program against named operations whose meaning is supplied

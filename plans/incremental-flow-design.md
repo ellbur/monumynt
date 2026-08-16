@@ -13,7 +13,11 @@ open questions.
 Throughout, "open" and "close" mean uncollect and collect
 (`core-model.md`). Code samples use the textual syntax of
 `textual-representation-design.md`; the spellings `hold`, `changes`,
-and `open var` are provisional.
+and `open var` are provisional. The register samples below use the
+pre-thread `~C ~> delay` / `step of` spelling; the thread ergonomics
+round (`iteration-with-state-design.md`, 2026-08-04) has since
+retired the register's flow operand — read a delay's flow operand as
+the thread's derived frame.
 
 ## Your first reactive program
 

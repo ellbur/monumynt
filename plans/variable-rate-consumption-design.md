@@ -489,7 +489,8 @@ compose.
     B:        split-when(bytes, done-alt), boundary element ends
               the current segment
     msgs:     per segment — the message bytes, with the header on
-              the segment terminator
+              the outer flow's value output (once per segment;
+              re-homed off the segment terminator, 2026-08-04)
 
 The genuinely-numeric count enters as *data* — the header's N feeds
 a register the boundary reads — not as a verdict of the construct.
@@ -835,8 +836,9 @@ How the two proposals square with the seven design principles
 - **No bottlenecks.** Segments pass elements through as themselves —
   the inner flow *is* the subject's firings, not a packed list per
   segment (collecting each segment into a list is a choice made at a
-  collect, downstream). The boundary payload rides the segment
-  terminator; nothing is tupled to cross the construct.
+  collect, downstream). The boundary payload is a value output on
+  the outer flow (re-homed there 2026-08-04 — terminators carry only
+  reasons); nothing is tupled to cross the construct.
 - **Abstraction is the source of truth.** Split-when's lowering is
   the nested-while program the survey drew; the running view's
   lowering is the in-place accumulator read. Both stay derived

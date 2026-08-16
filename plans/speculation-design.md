@@ -307,7 +307,9 @@ exactly like any value in a chain. This is the natural home of the
 rung `raku-grammars-comparison.md` §2 called "the record is
 missing" — it is not missing, it is the forward chain, once the
 cursor is a value. Speculation is the only genuinely new piece;
-commit sits on the chain; `fail` is failability's.
+commit sits on the chain; failure is failability's — a drawn Error
+alt of a case fork, since the `fail` node's dissolution
+(`failure-payloads-design.md`, revision notes, 2026-08-04).
 
 **Recursion — nested structure — is the divide flow's**, deferred
 here. Recursive descent (nested-delimiter parsing, `'(' ~ ')'
@@ -318,8 +320,9 @@ until it materializes. That is `trees-and-recursion.md`'s territory
 `tough-use-cases-design.md`, the mergesort limit). The parsing
 vocabulary is thus four parts — **speculation** (ordered choice),
 **position-threading** (concatenation, ordinary chaining), **commit
-+ fail** (commitment and diagnosis), and **the divide flow**
-(recursion) — of which only speculation is worked here. Recursive
++ failure** (commitment and diagnosis — drawn case forks and
+value-wire diagnoses, per the re-founding note), and **the divide
+flow** (recursion) — of which only speculation is worked here. Recursive
 descent is a candidate first program for the divide flow's round
 with field precedent (`open-problems.md`, the recursion row).
 

@@ -12,7 +12,13 @@ filed without design work: uncollect, `open self`, and the divide
 link now read as a frame-source family (data-driven,
 linear demand-minted, tree demand-minted) whose termination
 obligations evolved separately; whether one account should cover
-the family is noted, not worked.
+the family is noted, not worked. The same 2026-08-04 round also
+fused end-when into collect-until and dissolved the `fail` node —
+the explicit-binary `~R, ~c.Done ~> end-when => ~W` /
+`~W ~> discharge => term` and `-> fail` spellings below likewise
+stand as evidence of shape, not current spelling
+(`end-when-design.md` and `failure-payloads-design.md`, revision
+notes).
 
 Status: exploration — this chapter teaches leanings, not an adopted
 design; read every construct here as "a candidate and the case for

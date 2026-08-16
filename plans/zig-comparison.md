@@ -9,6 +9,14 @@ mechanisms to copy. A study of this genre **decides nothing on its own**: it
 reweights the agenda and hands demands to the docs that own each topic;
 design happens in the design conversations.
 
+Update (2026-08-16): the transcriptions below predate two 2026-08-04
+revisions — end-when's fusion into collect-until and the `fail`
+node's dissolution — so the `~> end-when => ~W` /
+`~W ~> discharge => term` spellings stand as evidence of shape, not
+current spelling (`end-when-design.md` and
+`failure-payloads-design.md`, revision notes; the
+translation-exercise note is the precedent). Left unrewritten.
+
 **Why Zig.** Zig is an imperative, C-lineage language whose designers
 **deliberately redesigned C's control flow**. Every change they made is a
 field-tested claim about where raw imperative control flow fails — a bug
@@ -380,6 +388,17 @@ field answer to the failability agenda's two open residues:
   bites. Their recursion incompatibility is a warning worth keeping: inference
   over a cyclic structure (the record's divide flow, feedback forms) is where
   inferred payload sets stop being well-founded.
+
+(Where this landed, 2026-08-04: the failability revision weighed
+this evidence and went the other way — the `fail` node dissolved
+into split + inferred short-circuit commute + collect,
+propagate-by-default was rejected in favor of drawn flow wires, and
+terminators carry reasons only, payloads on value wires
+(`failure-payloads-design.md`, revision notes). The demand this
+study filed — the everyday raise must not cost a seven-statement
+encoding — is met there by the inferred faint commute: one drawn
+split per failable step, the commute as the at-a-glance abort
+marker.)
 
 ### 8. Capabilities as parameters — Allocator, `Io`, and the test double
 

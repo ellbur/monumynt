@@ -20,7 +20,10 @@ Read it as "here is a candidate and the case for it." Code samples
 use the textual syntax of `textual-representation-design.md`; every
 construct-specific spelling below (`serve`, `op`, `with … = …`, the
 FFI serving blocks) is provisional and owed to the textual catch-up
-round.
+round, and the register samples use the pre-thread `~N ~> delay` /
+`step of` form — the thread ergonomics round
+(`iteration-with-state-design.md`, 2026-08-04) has since retired
+the register's flow operand; read it as the thread's derived frame.
 
 This is the round the concurrency row has owed since
 `tough-use-cases-design.md` named the served flow (use case 1), and
@@ -414,12 +417,16 @@ The consequences transfer wholesale from the divide flow:
 
 - **Unmemoized, the instance structure is a tree** — every `need`
   spawns a fresh build, sub-builds of a shared dependency repeat.
-  That is the divide flow exactly, and the divide flow's
-  **termination discipline** applies verbatim: the recursion is
-  admissible when a measure decreases across the link — here, that
-  the dependency relation on keys is well-founded. A build system
-  without a cycle check is trusting its keys the way a recursive
-  descent parser trusts its grammar.
+  That is the divide flow exactly. (This bullet used to add that the
+  divide flow's termination discipline "applies verbatim" — a
+  measure decreasing across the link, here well-foundedness of the
+  dependency relation on keys. That discipline was retired with the
+  divide flow's 2026-08-12 revision: the language does no
+  termination checking, there or here. What survives is the cycle
+  *witness* as a diagnostic idea — a dependency cycle among keys
+  reads off the provenance context path ("cycle: A → B → A") — and
+  a build system that wants cycle detection draws it, e.g. in the
+  memo middleware below; nothing is checked by the language.)
 - **Concurrent sub-builds are the collect species on the client
   side** — `Build` is an unordered facet precisely so that the
   `inputs` walk may settle its sub-needs overlapped. Scheduler
