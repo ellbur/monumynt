@@ -42,6 +42,21 @@ packed payload, while the current account keeps payloads on their
 individual cells. The positional and series-parallel observations are
 retained as design evidence; still nothing is adopted.
 
+A **third conversation** (2026-08-16, appended from “The accident
+boundary and the jog” on) produced three results. Series priority was
+reframed from a rarity to a trap: two shortening commutes drawn in
+series look innocent and mean priority, so the tie must not be
+electable by accident, whatever its frequency — and on an unbounded
+stream the series form is not merely surprising but unanswerable. The
+proposed visual carrier is the **jog**: a commute that may shorten the
+iteration visibly displaces the flow wire, under the criterion *jog
+iff the output flow's firing set may be a proper subset of the
+input's*; firing-set-preserving commutes (IO out of a list) draw
+straight through. And a representation lean: cells may be node-local —
+per-alt value and cell ports on the split, complement flows as derived
+ports of the same node — rather than a third reference kind threaded
+through the model. All three are leans, nothing adopted.
+
 The conversation this records ran from a narrower starting question
 (multiple alternative early terminations from one case split) and
 the narrow results are recorded first, because the general
@@ -1005,6 +1020,150 @@ two halves of one answer:
   both payload sides) could create geometric problems not yet
   imagined; the worry was raised in-conversation and stands.
 
+## The accident boundary and the jog (conversation, 2026-08-16)
+
+A third conversation took the series-priority result and asked what
+duty it imposes on the drawing, and along the way settled a lean on
+what `%Cell` costs the representation.
+
+### Cells as ports on the split (representation lean)
+
+The `%Cell` account may cost less structure than it first appears.
+The current `Program.res` Case uncollect already exposes a per-alt
+value port and a per-alt flow port; the cell account keeps that
+shape — per alt, a value port (the payload) and a **cell port**
+(`%A`) — and makes the complement option flows (`~BC`, `~AC`, `~AB`)
+*derived ports on the same node* rather than free wires. Under that
+reading the correlation constraint stated above ("an elaboration must
+retain the originating bundle so that separately routed complement
+flows cannot be recombined as though their occurrences were
+unrelated") is structural rather than enforced: every consumer of a
+complement flow traces to the one split node, which is exactly what
+the ports-first representation provides everywhere else. The open
+decision reduces to *who may consume a cell port*: if only cell-aware
+operations may (case-cell commute, collect branches), with everything
+flow-like passing through a derived complement port, then adoption
+costs a port-kind tag plus a Check rule — not a third reference
+category threaded through Context, Check, and Codegen. The
+alternative — `%A` travelling the graph as a genuinely new ref kind
+beside `ValuePort` and `FlowPort` — remains possible but should be
+taken only if the node-local reading fails somewhere concrete.
+
+### Series priority is a trap, not a rarity
+
+Earlier rounds deprioritized the series form on frequency ("priority
+termination is rare enough that it is not being optimized for"). This
+round reframed the question: frequency ranks what must be effortless;
+it never licenses an accident. Series priority is exactly the kind of
+tie `end-when-design.md` already refuses to let be an accident, and
+the duty holds however rare the deliberate use is.
+
+The beginner case does not even need case cells. A list computation
+in which two operations can fail gives two error flows; commuting
+both out of the list, one after the other, looks like the innocent
+way to "move both out," and a beginner will read it as *handle
+whichever error first causes the computation to fail*. The actual
+semantics is priority: even after the second error kind occurs, the
+loop keeps running to see whether the first kind ever occurs.
+
+Two aggravations give the trap teeth:
+
+- **The cost is not just the wrong winner.** The series form keeps
+  traversing past the first subordinate-error occurrence — extra
+  work and repeated side effects on an effectful walk. On an
+  unbounded stream it is a **hang**: the second commute needs "the
+  dominant error never occurs," a fact a stream can never establish.
+  The stream case is therefore not merely illegible but
+  unanswerable, and the lean is that `Check` should witness a
+  shortening commute whose subject is the survivor of another
+  shortening commute *over an unbounded stream* as ill-formed
+  outright. Legibility carries the finite case; the genuinely
+  dangerous case should simply not be a legal program.
+- **Independent exits can tie.** The barrier note above leans on the
+  exits being cells of one bundle ("they can never tie at a
+  firing"). Two error flows from two *different operations* can both
+  fire on the same element, so the coordinating node for the
+  beginner's actual program needs a same-element tie policy the
+  record has not yet specified. The barrier cannot be the safe
+  default gesture for unaligned exits until it has one.
+
+One comfort from the inference section stands: a beginner writing
+the *time-travel* form — routing both rails out and handling "the
+failure" — hits an alternativeness-demanding consumer and gets the
+barrier inferred. The trap is specifically the author who draws the
+two commutes explicitly, believing each is an innocent local step.
+
+### Where the illegibility actually lives
+
+Series and junction are already structurally distinct — the second
+series commute's subject is the first's survivor output (`~L2`), not
+`~L` — so no checker ambiguity exists. The illegibility is that **a
+wire passing through a node reads as the same wire continuing**,
+while `~L2` is a conditional flow: a stretch that exists only while
+the dominant exit stays silent. The priority meaning is invisible
+because the shortening is invisible.
+
+Nor can the nesting be drawn spatially: it lives in *outcome space*
+(the walk-level `A + (B + List C)`), and the loop's geometry has no
+region meaning "inside the no-A alternative." Wire order could carry
+it (outermost-leftmost), but only via the global semantic-wire-order
+commitment the intermediate conversation records as a worry. A local
+mark is the honest carrier.
+
+A **subordination arrow** was worked first: an arrow along the flow
+wire from the subordinate commute to the dominant one, read "unless
+that ever fires," required by `Check` so that the flat unmarked
+series chain is ill-formed — an election marker, so priority cannot
+be drawn without confirming it. Superseded in the same conversation
+by the jog below, which carries the same content geometrically and
+generalizes; recorded here so the arrow is not re-derived.
+
+### The jog
+
+The lean: **a commute that may shorten the iteration jogs the flow
+wire laterally at the commute node; a firing-set-preserving commute
+draws straight through.** Commuting IO out of a list reorders effect
+context but every element still runs — same firing set, same flow,
+straight wire. A first-witness case commute makes the survivor
+conditional — genuinely a different, shorter flow, and the jog is the
+honest drawing of that. The criterion is semantic, not stylistic:
+
+> **Jog iff the output flow's firing set may be a proper subset of
+> the input's.** Visually "same wire" must mean semantically "same
+> firing set."
+
+What the convention buys:
+
+- **Priority depth is cumulative displacement.** Two shortening
+  commutes in series leave the wire visibly two steps off the
+  original list line; the junction form draws one split point with
+  one jog per branch. Series and junction discriminate at a glance,
+  which is the countervailing duty's demand.
+- **One convention, several clients.** End-when's cut flows and the
+  prefix-preserving commute's before-cell flow have the same
+  character — wires that look like their ancestor but may stop
+  early. The same jog serves all of them; the arrow is not needed
+  and the gesture inventory stays small.
+- **It survives Cross.** The jog is local to a node — "offset from
+  what it was before this node" is meaningful per branch — so it
+  does not require the global total wire ordering that open
+  question 11 warns against.
+
+What the convention demands: the shortening bit must be readable off
+the lifting-law inventory (open question 2), and it is
+**per-policy, not per-construct** — a first-witness law shortens
+while an all-witness variant traverses fully — so each law's entry
+must declare it. That is useful pressure: the drawing forces the
+inventory to be explicit about short-circuiting.
+
+What the jog does not do: it is editor-drawn, so it makes the
+priority reading legible without being an *election* — an inattentive
+reader can still miss a subtle offset. That is accepted for finite
+flows under the drawn-not-algebraic posture (legibility is the
+promise, not enforcement); the case where inattention is dangerous
+rather than surprising is the stream hang, and that is handled above
+by ill-formedness, not legibility.
+
 ## Open questions
 
 1. **Adoption and propagation.** The `%Cell` / complement-flow account
@@ -1021,6 +1180,11 @@ two halves of one answer:
    Stream cannot generally establish the universal remainder;
    unordered, parallel, async, and incremental flows each need an
    explicit selection, aggregation, and context-retention policy.
+   Each law's entry must also declare its **shortening bit** — may
+   the output firing set be a proper subset of the input's — since
+   the jog convention reads the drawing off it, and the bit is
+   per-policy (first-witness shortens, all-witness does not), not
+   per-construct.
 3. **The exact compact-facet expansions.** Sequence and monadic error
    join have candidate lifts above. Enumerate every edit the compact
    error facet offers and prove its `%Cell` expansion unique (or name
@@ -1039,10 +1203,18 @@ two halves of one answer:
    fuses into its collect exactly when it mints no new flow) is the
    knife: does the disjunction exit ever need walk-level outcome
    *flows* with consumers beyond one collect, or is the discharge
-   value's downstream case split always enough?
+   value's downstream case split always enough? Added 2026-08-16:
+   the construct also needs a **same-element tie policy** for
+   unaligned exits — two error flows from different operations can
+   both fire on one element, unlike cells of one bundle — before it
+   can serve as the safe default gesture for the beginner's
+   two-error case.
 6. **Series commutes collected out of order.** What construct pulls
    the nested outcomes apart into independent closes, if anything.
-   Deliberately unworked — priority termination is rare.
+   Deliberately unworked — priority termination is rare. (Rarity
+   still defers this construct, but per the third conversation it no
+   longer carries the safety burden for series itself; the jog and
+   the stream witness do.)
 7. **The inference fine print.** The explicit list of
    alternativeness-demanding consumers (collect branches,
    partial-collect operands, …) that licenses the barrier
@@ -1070,7 +1242,21 @@ two halves of one answer:
     complement-prefix retention in series-parallel context
     (`Poset.res`). “Left of” must generalize to “on the outward side
     of” independently per branch; no semantic rule should depend on an
-    arbitrary total ordering of parallel wires.
+    arbitrary total ordering of parallel wires. (The jog is one
+    partial answer: being node-local, it needs no total order — but
+    the re-derivation of the rest still stands.)
+12. **The accident boundary.** Two follow-ups from the third
+    conversation's trap result. (a) Specify the ill-formedness
+    witness for a shortening commute whose subject is the survivor of
+    another shortening commute over an unbounded stream — the series
+    form's "dominant exit never fires" is unanswerable there, so it
+    should be rejected, not drawn. Decide whether any other flow
+    kinds share the unanswerability. (b) Decide whether the jog's
+    legibility alone suffices for finite flows, or whether the flat
+    series chain additionally needs an explicit election (the
+    superseded arrow's role) — the drawn-not-algebraic posture says
+    legibility, but the posture has not yet been tested on a trap
+    whose wrong reading is silent extra traversal.
 
 ## What this touches
 
@@ -1084,7 +1270,12 @@ two halves of one answer:
   A first-witness case-cell commute may preserve an unconditional
   complement prefix, so case-derived collect-until may be its fused
   presentation. External terminators may still require a broader cut
-  family. The multi-stop candidate remains joint work.
+  family. The multi-stop candidate remains joint work. The jog
+  convention proposes one visual identity for *all* shortened flows —
+  end-when's cut flows and the before-cell flow included — and
+  end-when's refusal to let the termination tie be an accident is the
+  precedent the third conversation's trap result extends to series
+  commutes.
 - `failure-payloads-design.md`, `barrier-value-crossing-design.md`
   — re-found the "short-circuit commute" as the compact projection of
   a case-cell scope lift. A selected Error payload pairs with
@@ -1097,10 +1288,13 @@ two halves of one answer:
   an arbitrary total wire order semantic.
 - `partial-collect-design.md` — the OptionIter None port
   (question 8); the disjointness demand as the inference hook.
-- `core-model.md` — the commute paragraph eventually needs the
-  `%Cell` category, complement projections, case-cell scope lifting,
-  complement-prefix retention, and the error-facet presentation once
-  decided.
+- `core-model.md` / `src/Program.res` — the commute paragraph
+  eventually needs the `%Cell` category, complement projections,
+  case-cell scope lifting, complement-prefix retention, and the
+  error-facet presentation once decided. The third conversation's
+  node-local lean would keep `Program.res`'s per-alt port shape (a
+  cell port beside the value port, complement flows as derived ports
+  of the split node) rather than adding a third reference kind.
 - `facets-design-notes.md` — the error facet is the first concrete
   client with an edit-and-expand law, not only a view toggle.
 - `time-travel-programs-design.md` — correct the false
