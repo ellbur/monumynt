@@ -69,6 +69,12 @@ And once oriented, keep this one at hand — it spans everything below:
   in: sorted arrows (`->`, `~>`, `-~>`), postfix chains, ports and
   projections, taps, marks, lanes, and registers. If you want to *read
   the code samples* in the rest of the record, skim this first.
+- [`language-cheat-sheet.md`](language-cheat-sheet.md) — every
+  construct on one page, each with a minimal example, in the most
+  up-to-date desired design (newer revisions win over older
+  spellings). A derived quick-reference, not part of the record — it
+  decides nothing, and each construct's own doc is authoritative;
+  status tags say what is implemented, adopted, or exploration.
 
 ## Two fundamentals-in-waiting
 
