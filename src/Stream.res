@@ -102,6 +102,17 @@ type commuteVariant =
 // given a fallback meaning (Joined(Commuted(..)) is the witness: its
 // imagined "flatten the Somes" meaning differs from the real filter on
 // [[2,4],[6,7],[8]] — the 6). This is a Check rule when streams land.
+//
+// A SECOND demand on the same rule, filed 2026-08-16 by the case-cell round
+// (case-commute-polarity-design.md, open question 12a; ARCHITECTURE worklist
+// item 11a): a SHORTENING commute whose subject is the SURVIVOR of another
+// shortening commute, over an UNBOUNDED STREAM, is ill-formed outright — the
+// series form's meaning ("the dominant exit never fires") is a fact a stream
+// can never establish, so the program is a hang, not a priority termination.
+// The finite/eager twin stays legal (legibility carries it — the jog is the
+// editor's job). Witness wording should name the remedy: the junction form,
+// or the coordinating node once one exists. Land this WITH the stacked
+// stages, since Commuted(Commuted(..)) is what makes the shape reachable.
 let checkStreamStack: Program.program => array<Check.witness> = _p =>
   failwith("stub: stream stack well-formedness — lazy-stream-commute-design.md, 'The shape discipline'")
 
