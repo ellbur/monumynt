@@ -365,6 +365,19 @@ consumes, and whether it needs an input list at all:
   join's asymmetry the sequencing, the handle derived; granularity
   dissolves into a fork/join readability program; external-world
   interaction filed as a facet. See the doc's IO-as-flow section.*
+- [`subordinate-flows-design.md`](subordinate-flows-design.md) — what
+  carries a flow's firings into a broader sequence, and what keeps
+  them out — worked through the smallest conditional-effect program
+  (if the line is "abc", print "yes"; otherwise nothing). The case
+  boundary gets its crossing: a **case collect selecting flow wires**
+  (the firing cell's continuation, the collect's verbatim law
+  extended to a new wire sort), while the list boundary keeps the
+  never-drawn sequencing commute; `in` is the incorporate, inferable
+  when unambiguous; the first program pushed through the IO-as-flow
+  desugar, dissolving two handle-spelling artifacts (mandatory
+  coverage on flow lanes, sibling linearity). Ends with the
+  membership table this agenda grows from. *Exploration
+  (2026-08-16).*
 - [`within-firing-effects-design.md`](within-firing-effects-design.md) —
   effect ordering *within* one firing, and the conditional-flush buffer:
   within a firing there is no time — the only intra-firing order is

@@ -11,6 +11,24 @@ bracket, within-firing effect ordering, or bodies-raise — each of
 those is fenced off near the end of this chapter, with the reason it
 waits.
 
+Update (2026-08-16): the **case boundary** got its crossing —
+`subordinate-flows-design.md` records the conversation. The
+reconvergence of the IO thread after a case split is a **case
+collect selecting the flow** (the firing cell's continuation —
+the case collect's verbatim law extended to flow wires), not a
+commute: this chapter's sequencing commute stays the *list*
+boundary's crossing, where the law is concatenation, and the
+mid-conversation attempt to fold both under one collect law is
+dissolved there (list collect's law is construction, which a
+marker crossing would break). Read this chapter's "collecting the
+handle at the end of the loop just does the job" as authoring
+convenience, not as a claim that the loop crossing is a collect.
+The same conversation put the first concrete program through the
+IO-as-flow desugar (below, 2026-07-23 direction) — the handle
+chain as the authored join spine, the identity lane as the empty
+contribution — with two handle-spelling artifacts (a covering
+demand on flow lanes, a sibling-linearity rule) dissolved by it.
+
 If you want the background first: `custom-flows.md` teaches the
 effect-handle lifecycle (the raw material this chapter builds from),
 `core-model.md` teaches value vs flow wires, and
