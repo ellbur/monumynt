@@ -159,6 +159,20 @@ The user designs incrementally and likes to think out loud about a step before a
 - When you see a non-obvious design tradeoff, surface it and let them choose. Multiple options laid out concretely > one chosen for them.
 - Before declaring something done, run the test suite (`npm start`). It currently passes 348 checks; if a change drops that count, something regressed.
 
+## Exploratory mindset
+
+This is a research sandbox, not a codebase with settled requirements. Docs
+under `plans/` and rules in this file capture *current* thinking, not
+fixed constraints — when a new idea is in tension with something written
+down, don't reach for the rule as the answer. Surface the tension, then
+explore the idea on its own merits.
+
+Check the record for a logged rejection of the idea — that's worth
+knowing, though the reasoning may no longer hold. Don't go looking for
+*support* — an idea needs none, and searching for precedent before
+taking it seriously just wastes time. The record is residue of the
+user's own live thinking, not an authority to satisfy.
+
 ## Honoured semantic limitations
 
 Two properties that used to be assumed-but-unchecked are now enforced by `Check` (witnesses returned as data, not crashes):
