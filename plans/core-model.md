@@ -214,6 +214,15 @@ bundle — terminations of a partially-used bundle are handled by the
 **partial collect** (`partial-collect-design.md`), of which the
 exhaustive case collect above is the fully-covering instance.
 
+(A standing pointer, 2026-08-15/16: what a case alt's per-alt output
+*is* — an ordinary flow wire, or a **cell** `(payload, %A)` whose
+option/complement flows are derived projections — is the Tier-1
+case-cell problem, `case-commute-polarity-design.md`. That round also
+works commuting a case cell out of an enclosing flow as **scope
+lifting** (`List (A + B) -> A + List B`), which this chapter's
+commute section predates. Nothing adopted; this chapter's vocabulary
+is unchanged until it is.)
+
 Positional filtering falls out of this. Collecting only some
 positions of a partitioned list flow yields a shorter list —
 differentiation, for instance, computes `current − previous` and

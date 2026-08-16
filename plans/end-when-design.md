@@ -22,7 +22,14 @@ node, exclusive the default reading. The adopting
 conversation's rationale and its standing notes (the continuation
 seam; the bit's textual direction) are in "Adoption notes" below.
 The open questions keep their own status: where one is marked open
-it is still open.
+it is still open. One boundary is **reopened** (2026-08-15/16): the
+case-cell account (`case-commute-polarity-design.md`, Tier-1) makes
+prefix retention orthogonal to commuting, so case-derived
+collect-until may be a fused prefix-preserving commute — see the
+dated note at the fusion line in "Adoption notes". This chapter's
+refusal to let the termination tie be an accident is also the
+precedent that round extends to series commutes (the trap result
+and the jog).
 
 You will often want a walk to stop early because of what it sees —
 the first match, a sentinel, a value within tolerance. In
@@ -832,6 +839,20 @@ stop-alt flow is explicitly consumed by the node.
   single cut mints nothing, so it fuses. A flow output exists
   where there is a need (`variable-rate-consumption-design.md`,
   the re-grounded fused-collect rejection).
+
+  (*2026-08-15/16: the cut/commute boundary is reopened.* The
+  case-cell account — `case-commute-polarity-design.md`, Tier-1,
+  nothing adopted — shows a first-witness **case-cell commute** may
+  retain the unconditional complement prefix
+  (`List (A + B) -> (List B × A) + List B`), so a case-derived
+  collect-until may be exactly the fused drawing of a
+  prefix-preserving commute plus collection of the shortened
+  before-cell flow. The fusion line stated here is that round's
+  knife for its multi-cell question, and end-when's shortened flows
+  are named clients of its **jog** convention (a shortening commute
+  visibly displaces the flow wire). Cuts from external terminators
+  may still need the broader family; the boundary is open, not
+  redrawn.)
 
 **Textual direction (into open question 6).** Two candidate
 spellings, both avoiding pairing-by-counting (`collect of a,

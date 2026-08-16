@@ -500,7 +500,11 @@ thing that arrived is the failure. A rejectable operation enters
 the language as a node whose arrived value is a **case bundle** —
 an Ok alt and an Err alt, each with its per-alt value and flow
 ports, the ordinary case-split shape the language already
-implements. This is the JS-edge direction the failure round records
+implements. (On the pairing vocabulary: the case-cell account —
+`case-commute-polarity-design.md`, Tier-1, nothing adopted — reads
+this bundle as `[(err, %Err), (ok, %Ok)]`, the per-alt "flow" port
+a cell port and the compact `~Err` rail a derived projection; the
+arrival-not-ending relocation here is unaffected.) This is the JS-edge direction the failure round records
 (`failure-payloads-design.md`, revision notes: declared throws and
 rejections as case bundles on the catalog row): at the FFI
 boundary, a promise that rejects resolves its cell into the Err alt
@@ -551,7 +555,9 @@ minting site) and travels value wires from there:
 - **Short-circuiting a surrounding walk**: collecting the Ok side
   alone outside the walk forces the case dimension to commute out
   first — the **inferred short-circuit commute**, first-Err, drawn
-  faint (`failure-payloads-design.md`, revision notes). The faint
+  faint (`failure-payloads-design.md`, revision notes; since
+  re-founded as the compact projection of a **case-cell scope
+  lift**, `case-commute-polarity-design.md`). The faint
   commute is the at-a-glance abort marker; the promise chain's
   `.then`-skipping behaviour survives exactly *where the drawing
   says it*, instead of everywhere by default.

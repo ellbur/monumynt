@@ -709,6 +709,25 @@ can find them:
 
 ## Revision notes (2026-08-04): scoops, inferred scoops, and the stow
 
+> **2026-08-15/16 rider.** The case-cell account
+> (`case-commute-polarity-design.md`, Tier-1 open problem, nothing
+> adopted) re-founds this section's newest instance: the
+> "short-circuit commute" is the compact projection of a **case-cell
+> scope lift** — the selected Error payload pairs with `%Error`, and
+> `~Error` is the complement flow of the Success projection — so the
+> scoop over it re-states as expansion/routing of the already-selected
+> `(error, %Error)` witness ("inference routes evidence selected by
+> the case-cell commute; it does not invent a value or a selection" —
+> the same route-never-select boundary stated below, arrived at from
+> the cell side). The crossings table's per-alt "(value, flow) pairs"
+> mint reads, under that account's node-local lean, as per-alt
+> (payload, cell-port) pairs with the option/complement flows derived
+> ports of the split; race's per-cell pairs are untouched (that round
+> cites the race barrier as *precedent* for its coordinating node).
+> Also reopened there: whether the commute may carry an unconditional
+> complement **prefix** beside the selected witness — which bears on
+> the scoop-vs-stow trade for payloads accumulated before the cut.
+
 A design conversation (the one that dissolved the fail node —
 `failure-payloads-design.md`, revision notes) worked the question
 "how does a value inside a flow get out *without* being hidden in

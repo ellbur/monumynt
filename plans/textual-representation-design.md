@@ -253,7 +253,14 @@ that the node's kind actually has that port. This is
 `src/Program.res` (`core-model.md`), spelled out. Notice there is no
 Branch construct anywhere in the text: a branch *is* a reference to
 one output port of the split, so projection replaces the satellite
-node.
+node. (A watch item, 2026-08-15/16: the case-cell account —
+`case-commute-polarity-design.md`, Tier-1, nothing adopted —
+distinguishes an alt's *cell* (`%A`, the case claim with its
+payload) from derived option/complement *flows* (`~BC`); if adopted
+under its node-local lean, `~cs.Just` would name a cell port rather
+than an ordinary flow, and complement projections would need a
+spelling. Filed as open question 12 below; the current syntax is
+unchanged until that problem resolves.)
 
 Port inventories are per-kind and irregular (Commute has no value
 ports; a register's read half has no flow outputs) — the syntax
@@ -1535,6 +1542,16 @@ The language hasn't decided these yet.
     `=> name` deferral — but the gather rule should say so
     explicitly); and whether stage-argument chains (`-> add(b ->
     sq)`) ever print canonically or stay input-only.
+12. **Case-cell notation.** Blocked on the Tier-1 case-cell problem
+    (`case-commute-polarity-design.md`): if its `%Cell` account is
+    adopted, the surface owes spellings for the cell sigil
+    (`(payload, %A)` distinct from `~`-flows), derived complement
+    projections (`~BC` off a three-way split), the case-cell commute
+    and its optional complement prefix, and the textual counterpart
+    of the jog (a shortening commute's visible displacement — which
+    may have no textual analogue beyond the node's name). Nothing to
+    do until that problem resolves; recorded so the glyph budget
+    (question 3) doesn't spend `%` meanwhile.
 
 ## Implementation path
 

@@ -27,14 +27,21 @@
 > Terminology: this document says open/close (the older names for
 > uncollect/collect); the code still says `Open`/`Close`.
 >
-> **2026-08-15:** the meaning this document fixed — commute as
-> monadic sequence, break on the first absence — turns out to be one
-> of *two* polarities of moving an option-kind flow out of a loop,
-> and the other (break-on-case, the early-termination idiom) is not
-> a commute at all by the identity test recorded in
-> `case-commute-polarity-design.md` (Tier-1 open problem). This
-> document's analysis stands; it is about the sequence polarity
-> only.
+> **2026-08-15, updated 2026-08-16:** the meaning this document
+> fixed — commute as monadic sequence, break on the first absence —
+> turns out to be one of *two* polarities of moving an option-kind
+> flow out of a loop. An earlier note here said the other polarity
+> (break-on-case, the early-termination idiom) "is not a commute at
+> all by the identity test"; the same conversation series then
+> retired that boundary. The current account
+> (`case-commute-polarity-design.md`, Tier-1 open problem, nothing
+> adopted): a case cell is `(payload, %Cell)`, not a flow wire, and
+> **case-cell commute exists** as scope lifting —
+> `List (A + B) -> A + List B`, with the witness policy part of the
+> law and an optional complement-prefix retention. The identity test
+> survives only as a description of output correlation, not as an
+> operation boundary. This document's analysis stands; it is about
+> the sequence polarity only.
 
 ## What "commute" means here
 

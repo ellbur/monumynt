@@ -45,6 +45,19 @@ while the single cut fused into collect-until). Part III's
 payload-as-terminator account is superseded on that point — see
 its status note.
 
+A further boundary note (2026-08-15/16): the cut/commute boundary
+this chapter's root decision sits on is **reopened** by the
+case-cell account (`case-commute-polarity-design.md`, Tier-1 open
+problem, nothing adopted). A first-witness case-cell commute may
+retain the unconditional complement prefix, so a *case-derived*
+first stop may be exactly the fused drawing of a prefix-preserving
+commute — the presence of a prefix no longer separates cut from
+commute. Cuts from external terminators (and the iterated cut,
+which mints the outer segment flow) are not implicated; the cut's
+shortened flows are, like end-when's, named clients of that round's
+**jog** convention. Nothing here is redrawn; the boundary question
+is owned there (its open question 4).
+
 Two everyday shapes of loop have, so far, no owning construct
 anywhere in this design record. The first is the loop that consumes
 its input *at a variable rate* — "consume while it fits," "read

@@ -428,6 +428,12 @@ branch. So there are three handlings, each a different program:
 differences over all readings); **(b) filter inside** (drop errors,
 differences over the Some-subsequence); **(c) keep positions**
 (Delay on the full `~L` with a stated hold-or-skip at each None).
+(2026-08-16: handling (a) is, in the case-cell account's vocabulary,
+a first-witness **case-cell scope lift** —
+`case-commute-polarity-design.md`, Tier-1, nothing adopted — and
+whether (a) may also keep the prefix of readings before the first
+error is exactly that round's prefix-retention question. The three
+handlings stand as three different programs either way.)
 
 **The well-formedness wrinkle, as predicted.** Route (b) makes the
 Delay's flow the **Some-subsequence**, so the register "only

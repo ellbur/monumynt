@@ -161,7 +161,11 @@ they change how everything else is read.
   short-circuit commute; inferred scoops (routing, never selection)
   upgrade the flow-borne witness to a three-way classification; the
   tunnel (stow/unstow) as the sanctioned packed transport,
-  exploration.*
+  exploration. Reopened in part (2026-08-15/16): the case-cell account
+  re-founds the short-circuit commute as the compact projection of a
+  case-cell scope lift and re-states the scoop as routing of the
+  selected `(error, %Error)` witness — see
+  `case-commute-polarity-design.md`; nothing adopted.*
 - [`types-design.md`](types-design.md) — validity without a type system:
   properties that propagate along wires, witnesses you can draw, no
   search.
@@ -460,15 +464,22 @@ case/option are implemented; the rest are designed:
   over a stream (`Codegen.emitSequenceCommute`); the stacked stages and
   their shape discipline are what remain.*
 - [`case-commute-polarity-design.md`](case-commute-polarity-design.md)
-  — the polarity of moving case flows out of a loop: the sequence
-  commute (break on the first *absence*) and the break-on-case escape
-  idiom are opposite polarities of one gesture, and only the first
-  actually commutes (the identity test: does the collected value land
-  inside the moved flow?). Also the conversation's firm results —
-  series commutes are priority termination only (the time-travel
-  argument), time-ordered disjunction needs one coordinating node,
-  junction commutes are two loops — and the open ontology: whether a
-  case alt used as an exit is a flow at all, or a **co-flow**.
+  — the polarity of moving case cells out of a loop, now carrying the
+  record's working account of what a case cell *is*: not a flow wire
+  but `(payload, %Cell)`, with the ordinary option/complement flows
+  (`~Error`, …) derived projections of the cell bundle. Case-cell
+  commute is **scope lifting** (`List (A+B) -> A + List B`, witness
+  policy part of the law), and a first-witness commute may retain the
+  complement prefix — so prefix retention is orthogonal to commuting,
+  reopening the boundary with collect-until. The firm results — series
+  commutes are priority termination only (and, per the third
+  conversation, a *trap*: unanswerable over an unbounded stream, with
+  an ill-formedness lean), time-ordered disjunction needs one
+  coordinating node, junction commutes are two loops — plus the **jog**
+  (shortening commutes displace the flow wire) and **node-local cells**
+  leans, and the **drawn, not algebraic** resolution posture. The
+  interim co-flow ontology and the identity test as an operation
+  boundary are superseded in place.
   *Open problem, Tier 1; nothing adopted.*
 - [`async-flow-design.md`](async-flow-design.md) — the async flow:
   values that arrive later, racing as a barrier, and failure on the
@@ -504,7 +515,12 @@ case/option are implemented; the rest are designed:
   one question splits into two — endings reason-only and nearly
   content-free, failure data the existing case-alt property over
   drawn wires and completed commutes, no failure-specific checker
-  machinery; exploration, unadopted).*
+  machinery; exploration, unadopted). The short-circuit commute
+  itself is re-founded again by the case-cell account (2026-08-15/16,
+  `case-commute-polarity-design.md`): the compact `~Error` rail is a
+  derived projection of the cell bundle, the commute a case-cell
+  scope lift with the error arm's pinned prefix question reopened as
+  prefix-retention-orthogonal-to-commuting; nothing adopted.*
 - [`race-barrier-design.md`](race-barrier-design.md) — the race
   barrier's own semantics: first-to-settle wins, ties by drawn order,
   merge/interrupt/timeout as derived vocabulary. *Exploration.*

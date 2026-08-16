@@ -11,15 +11,21 @@ chapter covers two things: how `commute` is expressed
 and compiled as a per-close output construction on stream flows, and
 the taxonomy of which flow-kind pairs get a commute variant at all.
 
-**2026-08-15 note:** a design conversation opened a Tier-1 problem
-about this chapter's *word*. The sequence commute here (break on the
-first *absence*) and the record's break-on-case escape idiom are
-opposite polarities of moving an option-kind flow out of a loop, and
-the escape direction fails a commute identity test — its collected
-value lands in the moved wire's *complement*, so no layers swap. The
-construct implemented here is unaffected; what is open is the
-vocabulary and the case-flow generalization. See
-`case-commute-polarity-design.md`.
+**2026-08-15 note, updated 2026-08-16:** a design conversation series
+opened a Tier-1 problem about this chapter's *word*. The first round
+framed the record's break-on-case escape idiom as failing a commute
+identity test; later rounds retired that boundary — the current
+account (`case-commute-polarity-design.md`, nothing adopted) is that a
+case cell is `(payload, %Cell)` rather than a flow wire, and moving
+one out of a loop is a lawful **case-cell commute** (scope lifting,
+`List (A + B) -> A + List B`, witness policy part of the law, optional
+complement-prefix retention). The construct implemented here is
+unaffected; what the problem owns is the taxonomy's word, its
+case-cell generalization, and one visual duty this chapter's commute
+inherits: the sequence commute may *shorten* its subject
+(short-circuit at the first absence), which is exactly the shape the
+new round's **jog** convention marks — same wire only if same firing
+set.
 
 > **Reading notes.** This chapter says *close* (the older name for
 > *collect*, the operation that terminates a flow into a value). It

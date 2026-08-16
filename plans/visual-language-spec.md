@@ -312,7 +312,16 @@ flow output is the iteration context. Case-specific payload fields
 are reached via `IterationPayload` after case-splitting.
 
 For `CaseSplit`, the input is a value of an alternative type; the
-outputs are the payload and flow for each alternative.
+outputs are the payload and flow for each alternative. (**2026-08-16
+watch item**: the Tier-1 case-cell problem —
+`case-commute-polarity-design.md`, nothing adopted — reads the
+per-alt "flow" output as a **cell port** (`%A`, the case claim with
+its payload) rather than an ordinary flow wire, with the
+option/complement flows *derived* ports of the same node. The port
+*shape* here survives under that account's node-local lean; what
+would change is the port's sort and the addition of derived
+complement ports. Recorded so this schema is read as predating that
+problem, not deciding it.)
 
 For `ConfigScope`, the inputs are whatever the diagram requires; the
 outputs are what the slot expects, plus an opaque flow representing

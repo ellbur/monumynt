@@ -54,7 +54,11 @@ revised failure vocabulary (`failure-payloads-design.md`, revision
 notes 2026-08-04) that fork is a drawn case alt, not a special
 terminator: a contender presents a success side and a decline side,
 each an ordinary (flow, value) pair, and a computation with both
-sides is called **failable**. `parseLet` reads the first token; if
+sides is called **failable**. (On the pairing vocabulary: the
+case-cell account — `case-commute-polarity-design.md`, Tier-1,
+nothing adopted — reads a case alt's pair as `(payload, %Cell)`
+with the compact rails derived projections; the contender fork as a
+drawn case alt is unaffected.) `parseLet` reads the first token; if
 it is not `let`, it fails cheaply — its decline side fires — and
 `parseApp` is tried against the *same* position.
 

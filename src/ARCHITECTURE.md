@@ -405,7 +405,9 @@ and kept as a build log (they record how each emitter landed — some of
 that history mentions the now-deleted bridge and its differential check,
 the harness that validated emitters against an earlier compiler as they
 were written; that migration is complete, see "The single engine"). The
-live work is item 8, the poset round.
+live work is item 8, the poset round; item 11 records the staged
+case-cell round (a Tier-1 open problem — nothing adopted, nothing to
+build yet).
 
 1. **Case collect emitter** — DONE (`Codegen.res`, `emitCaseCollect`,
    the `CaseFull` arm; spec: `Compile.emitCaseClose`). Pre-memoises the
@@ -1233,6 +1235,82 @@ live work is item 8, the poset round.
    species in `Annotate` + cells in `Runtime.res` + an emitter, not a
    restructuring.
 
+11. **The case-cell round** (`case-commute-polarity-design.md`,
+   Tier-1 open problem, 2026-08-15/16 — **nothing adopted**, so every
+   sub-item is STAGED: recorded here so the code plan exists and
+   nothing is built ahead of its design conversation; the gate for
+   starting any of them is the doc's own adoption question, open
+   question 1). The account in one line: a case cell is
+   `(payload, %Cell)`, not a flow wire; the option/complement flows
+   are derived projections; commuting a cell out of an enclosing flow
+   is scope lifting (`List (A + B) -> A + List B`) with the witness
+   policy part of the law and optional complement-prefix retention.
+   Open to-do items, in likely landing order:
+
+   *(a) The stream accident witness* — the one item with a lean
+   strong enough to act on as soon as its shape is reachable: `Check`
+   should witness **a shortening commute whose subject is the
+   survivor of another shortening commute over an unbounded stream**
+   as ill-formed (the series form's meaning needs "the dominant exit
+   never fires", which a stream can never establish — a hang, not a
+   program; doc open question 12a). Home: the stack-discipline check
+   staged in `Stream.res` (`checkStreamStack`) — the stacked stages
+   `Commuted(Commuted(…))` are exactly the shape that makes the
+   witness reachable, so the rule should land WITH the stacked-stages
+   step, not after it. The finite/eager twin stays legal (legibility
+   carries it; the jog is editor territory, out of scope here). The
+   witness message should name the remedy: the junction form, or the
+   coordinating node once one exists.
+
+   *(b) Node-local cell ports* — if adopted, `Program.res`'s Case
+   uncollect keeps its per-alt port *shape* and changes one port's
+   sort: per alt, a value port (payload) and a **cell port** (`%A`),
+   with the complement option flows (`~BC`, …) *derived* ports of the
+   same split node. Cost target per the doc's third conversation: a
+   port-kind tag plus one `Check` rule for who may consume a cell
+   port (cell-aware operations only — case-cell commute, collect
+   branches; everything flow-like passes through a derived complement
+   port) — NOT a third reference kind beside `ValuePort`/`FlowPort`
+   threaded through `Context`/`Check`/`Codegen`. The genuine third
+   ref kind is the fallback, to be taken only if the node-local
+   reading fails somewhere concrete.
+
+   *(c) The lifting-law inventory as catalog rows* — each
+   enclosing-flow-kind's case-cell commute law is a catalog entry
+   (`Property.res`'s catalog row, per `catalog-schema-design.md`'s
+   laws family): witness-selection policy (first-A for an ordered
+   list), prefix retention (discards / optionally exposes / exposes),
+   and the **shortening bit** (may the output firing set be a proper
+   subset of the input's — per-policy, not per-construct: a
+   first-witness law shortens, an all-witness variant does not). The
+   bit is what the editor's jog convention reads; the language's job
+   is only to carry it. Waits on doc open question 2.
+
+   *(d) `Complete.res` re-grounding* — a record change, no behavior
+   change: the recorded reason completion refuses to manufacture a
+   join ("inserts only operators whose value-level shadow is the
+   identity") is corrected per `time-travel-programs-design.md`'s
+   2026-08-16 correction block. The surviving statement: completion
+   may not invent a source, sink, observation, or handling intent —
+   the undrawn filtered-axis join stays a witness because the join is
+   an **unauthored route**, not because of shadow identity (the
+   admitted commute chains were never behaviourally inert). When the
+   error facet's expansions are specified (doc open question 3),
+   **error-route completion** — inferred sequence at each loop
+   crossing and monadic join at each error-nesting crossing along an
+   authored `~Error` rail, shown faint — becomes a named `Complete`
+   capability; until then it is a comment, not a stub.
+
+   *(e) OptionIter's None port* — `partial-collect-design.md`'s
+   position-2 lean must now answer *which* thing the port displays:
+   `%None` the cell, `~None` the complement flow, or a derived
+   projection (doc open question 8). Decide jointly with (b); the
+   sharpening is recorded in that doc's OptionIter note.
+
+   *(f) Text surface* — nothing to parse until adoption. `%` is
+   reserved in the glyph budget and the notation gap is filed as
+   `textual-representation-design.md` open question 12.
+
 ## Architecture stubs — where the design has moved ahead of the code
 
 A 2026-07 gap analysis compared the design record against the code and
@@ -1249,7 +1327,7 @@ exploration; a mere thought gets a comment, not a module.
 
 | module | design status | what it stages |
 |---|---|---|
-| `Stream.res` | compile strategy **committed** (Shape C, per-node memoised streams); **steps 1-3 LANDED**, plus the stream register, so this is no longer a pure stub | What LANDED and where (`Program.flowKind`'s `Stream` row, `Runtime.streamPreludeStmts`, `Annotate`'s `StreamCell`, `Codegen.emitStreamCollect`, step 3's `Codegen.emitSequenceCommute`, and the register over a stream, `Codegen.emitStreamRegister`), and what is still staged: the two commute *operations* stay named distinctly (`SequenceCommute` vs `TransposeCommute` — both now have an implementation, and they share no code, which is the distinction cashed); the STACKED stages and their stack-discipline check; the `zip` primitive (universal under Shape C, unreached under step 2's one-fold-per-collect); Shape C PROPER, i.e. per-node cells and the cross-collect sharing they buy; the source-opener riders (`SelfOpen`, `PullSource`). The consumer-set lattice stays deferred-not-rejected. |
+| `Stream.res` | compile strategy **committed** (Shape C, per-node memoised streams); **steps 1-3 LANDED**, plus the stream register, so this is no longer a pure stub | What LANDED and where (`Program.flowKind`'s `Stream` row, `Runtime.streamPreludeStmts`, `Annotate`'s `StreamCell`, `Codegen.emitStreamCollect`, step 3's `Codegen.emitSequenceCommute`, and the register over a stream, `Codegen.emitStreamRegister`), and what is still staged: the two commute *operations* stay named distinctly (`SequenceCommute` vs `TransposeCommute` — both now have an implementation, and they share no code, which is the distinction cashed); the STACKED stages and their stack-discipline check — which, when it lands, also owes the case-cell round's **stream accident witness** (a shortening commute over the survivor of another shortening commute over an unbounded stream is ill-formed; worklist item 11a); the `zip` primitive (universal under Shape C, unreached under step 2's one-fold-per-collect); Shape C PROPER, i.e. per-node cells and the cross-collect sharing they buy; the source-opener riders (`SelfOpen`, `PullSource`). The consumer-set lattice stays deferred-not-rejected. |
 | `Async.res` | exploration; race's pairs-in shape **adopted** (2026-07-23) | The terminator-tag vocabulary; the async cell (`__asyncCell__`/`__startAsync__`, start-is-synchronous); the async uncollect/collect; the race barrier (per-contender (flow, payload) pairs in, per-cell (value, flow) mints out, one node) with the pair-coherence check; the settle node (completions flow, settlement order); `Paced`; cancellation's `ReleaseHalf` (the bracket's late-wired half, DelayWrite-shaped). |
 | `Incremental.res` | exploration | The `Var` flowKind row; the pull-baseline cells + generation word; `Hold`/`Changes` kind-crossing nodes; switch-join as a Join variant, not a new species; cutoff left open; the push region deferred behind the same cell interface. |
 | `Cut.res` | adopted (2026-07-23), **revised** (2026-08-04): fused into **collect-until** — no first-class shortened-flow wire, terminators carry reason only | `CollectUntil` (the pre-fusion operand shape, kept as the record) with the three-valued `cutDestination` at the root; split-when staged as the *iterated cut* (derived, no node kind); the stop-operand admissibility check (survives the fusion); the final-readout anchor left an explicit TODO. |
