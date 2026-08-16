@@ -5315,6 +5315,68 @@ header("stream register: empty source yields init; the fold runs once per elemen
 }
 
 // ============================================================================
+// 17. Translation smoke: "read a line of text; if it is \"abc\", print
+//     \"yes\"; otherwise do nothing." The otherwise-nothing arm is not a
+//     branch that computes nothing — it is a branch that isn't there: split
+//     the line into Abc/Other and collect only the Abc cell (7c's partial
+//     collect at one covered cell of two). The print is an effectful extern
+//     applied to the Abc payload, so it is borne on the Abc cell and fires
+//     exactly when that cell does; the program's value is the option that
+//     fires iff the line was "abc". The line source and the print are stubbed
+//     through globalThis so both firings can be observed.
+// ============================================================================
+
+header("translation: if the line is \"abc\" print \"yes\", otherwise nothing")
+{
+  let src = `
+line = js "globalThis.__line"
+check = js "s => s === 'abc' ? {tag: 'Abc', value: s} : {tag: 'Other', value: s}"
+say = js "_line => { globalThis.__printed.push('yes'); return 'yes' }"
+line -> split check of Abc, Other => cs
+cs.Abc -> say => said
+~cs.Abc: said
+-~> collect => done, ~pf
+done -~> collect ~pf => out
+`
+  let p = TextResolve.parseProgram(src)
+  switch Pipeline.compileOne(p) {
+  | Ok(o) => {
+      Console.log("JS (out):")
+      Console.log(o.js)
+      // the line is "abc": the Abc cell fires, the print runs once, out = "yes"
+      let _: int = evalJs("(globalThis.__line = 'abc', globalThis.__printed = [], 0)")
+      let hit: string = jsonStringify(evalExpression(o.js))
+      let hitPrinted: string = evalJs("JSON.stringify(globalThis.__printed)")
+      if hit === "\"yes\"" && hitPrinted === "[\"yes\"]" {
+        pass("line \"abc\": out = \"yes\", printed once")
+      } else {
+        fail(
+          "line \"abc\": expected out \"yes\" printed [\"yes\"], got " ++
+          hit ++
+          " printed " ++
+          hitPrinted,
+        )
+      }
+      // any other line: the Abc cell never fires — no print, the option absent
+      let _: int = evalJs("(globalThis.__line = 'xyz', globalThis.__printed = [], 0)")
+      let missAbsent: bool = evalJs("(" ++ o.js ++ ") === undefined")
+      let missPrinted: string = evalJs("JSON.stringify(globalThis.__printed)")
+      if missAbsent && missPrinted === "[]" {
+        pass("line \"xyz\": nothing printed, out is the absent option")
+      } else {
+        fail("line \"xyz\": expected absent + no print, got printed " ++ missPrinted)
+      }
+    }
+  | Error(ws) =>
+    fail(
+      "abc translation failed check:\n  " ++
+      ws->Array.map(Check.witnessToString)->Array.join("\n  "),
+    )
+  }
+  expectRoundTrip(p)
+}
+
+// ============================================================================
 
 Console.log(
   "\n" ++
