@@ -1005,6 +1005,15 @@ If any form of this round is adopted, the rule needs a home in the
 provenance inventory — it is a new admission, not a consequence of
 the existing ones.
 
+*(2026-08-16, from the commute-polarity round: the series commute
+chain recorded there as this admission's second client is now
+conditioned — that round adopted an election rule under which a
+shortening commute's operand consulted on the survivor of another
+shortening commute requires an explicit election. End-when
+stacking itself is unaffected: each cut is a drawn node, the
+election already on the page. See
+`case-commute-polarity-design.md`, "The election rule (adopted)".)*
+
 ### Regime 1 — one bundle: they agree, and it is a recognition rule
 
 Let a and b be disjoint cell sets of one bundle in F's context,

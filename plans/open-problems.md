@@ -152,16 +152,15 @@ be a commute. The first conversation's firm-on-paper results
 stand: series commutes mean **priority** termination only (the
 time-travel argument; under cells, priority follows nesting —
 `A + (B + List C)`); time-ordered disjunction requires a single
-coordinating node (working name "barrier commute", name doubted —
-and it still owes a same-element tie policy for *unaligned* exits);
+coordinating operation (resolved 2026-08-16 — see below);
 junction commutes are two independent loops; the use-to-variant
 inference is binary — *alternatives* select the coordinating node,
 *independent facts* select junction, priority needing no inference
 path at all. The third conversation (2026-08-16) reframed series
 priority from a rarity to a **trap** (frequency never licenses an
 accident): over an unbounded stream the series form is
-unanswerable, and the lean is that `Check` should witness it
-ill-formed outright; the visual lean is the **jog** (a commute
+unanswerable (the ill-formedness lean there was later retired as a
+termination concern); the visual lean is the **jog** (a commute
 that may shorten the iteration displaces the flow wire — jog iff
 the output firing set may be a proper subset); and the
 representation lean is **node-local cells** (per-alt cell ports on
@@ -169,12 +168,35 @@ the split, complement flows as derived ports of the same node —
 not a third reference kind). The resolution posture is recorded:
 **drawn, not algebraic** — a small inventory of
 at-a-glance-distinct drawings, laws as veto-and-expand only ("laws
-may veto and expand; only the drawing elects"). The open core is
+may veto and expand; only the drawing elects"). A **fourth
+conversation** (2026-08-16) adopted the round's first results: the
+**election rule** — a flow shortened by a commute cannot be
+shortened again by a commute without explicit election (the
+commute being the only *implicit* shortener; drawn cuts elect on
+the page), uniform across flow kinds, resolving the accident
+boundary toward election with the restriction-adapter node vs a
+node bit as the remaining form question; and the **barrier's
+expansion** as fused join → commute → split with a disjoint-union,
+provenance-keeping join (`Either A (Either B c) ≅ Either (A+B) c`)
+— the tie policy for unaligned exits is the join's outer/inner
+asymmetry (forced by dataflow for dependent exits, elected for
+siblings), the composition contains exactly one shortening so the
+safe merged program is unmarked while series is elected, and the
+dependent case falls out of the already-published join+sequence
+formula. Rejected in place: linearity on the IO analogy (series is
+the *linear* composition, junction the nonlinear one; IO's
+series-safety is firing-set preservation, not linearity) and
+handling-mints-a-control-wire (acts downstream of where series and
+junction diverge, so it cannot discriminate them; taxes
+per-element recovery; breaks graceful expansion; fails the
+ontology lens). The open core is
 now the **lifting-law inventory** (which enclosing flow kinds
 support case-cell commute, each law's witness policy, prefix
-retention, and shortening bit), the exact compact-facet expansions
+retention, and shortening bit — the bit now also arms the election
+rule's trigger), the exact compact-facet expansions
 (the error facet's commuting square), the prefix/cut geometry, the
-multi-cell node's home, and the inference fine print. A correction
+election's concrete form, the sibling join's expansion against
+`Complete`'s Cross, and the inference fine print. A correction
 is owed to (and now recorded in) the completion boundary:
 completion inserts operations that *do* change demand and
 termination — it is licensed by authored intent plus a unique
@@ -183,8 +205,11 @@ decides what commute means, what a case cell is, and how early
 termination — the surveys' biggest everyday demand — is drawn; the
 failure account's "short-circuit commute" and the scoop ride on
 the answer (both re-founded as the compact projection of a
-case-cell scope lift). I = 4: the account is worked, nothing
-adopted; propagation through the owning docs is under way.
+case-cell scope lift). I = 4: the first results are adopted (the
+election rule, the barrier expansion, the stream-lean retirement)
+but the lifting-law inventory, the compact-facet expansions, the
+election's form, and the sibling join against Cross remain open;
+propagation through the owning docs is under way.
 Touched: `lazy-stream-commute-design.md`, `commute-design-notes.md`,
 `end-when-design.md`, `variable-rate-consumption-design.md`,
 `failure-payloads-design.md`, `barrier-value-crossing-design.md`,
