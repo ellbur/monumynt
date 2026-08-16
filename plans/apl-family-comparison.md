@@ -201,7 +201,9 @@ different code.
 **Our approach.** A mask is a *value-level photograph of a case flow*:
 which firings of some walk satisfy P. The record keeps that information
 *as* the flow — the case split's bundle (the mutually-exclusive per-alt
-flows), attached to its walk by provenance (the check tracking which walk
+flows; under the open case-cell account, cells with derived complement
+projections — `case-commute-polarity-design.md`), attached to its walk
+by provenance (the check tracking which walk
 each value came from), with no same-length invariant to maintain by
 discipline. (Nothing in APL checks that a mask belongs to the vector it
 filters; length agreement is the programmer's problem.) The

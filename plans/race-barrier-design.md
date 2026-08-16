@@ -39,6 +39,19 @@ of the async model (`async-flow-design.md`) are assumed throughout
 and explained where they first matter: "start is synchronous" and
 "abandonment is not cancellation."
 
+(A cross-reference, 2026-08-16: the Tier-1 case-cell round —
+`case-commute-polarity-design.md` — cites this barrier as the
+*precedent* for its proposed coordinating node for time-ordered
+disjunction termination: wires that must coordinate while keeping
+separate identity, minted per-cell outputs. Its node differs in
+being *aligned* — the exits are cells of one bundle, so it is
+deterministic where race is scheduler-decided — and its third
+conversation notes that for *unaligned* exits (two error flows from
+different operations) the coordinating node still owes a
+same-element tie policy, for which this chapter's drawn-order tie
+rule is the natural candidate. Nothing here changes; recorded so the
+two rounds find each other.)
+
 ## Your first race
 
 Here is a fetch guarded by a timeout:

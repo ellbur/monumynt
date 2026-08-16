@@ -129,45 +129,67 @@ dropped from 4 to 3 and the row moved to the head of Tier 2, per this
 index's own maintenance rule. Citations across the record to "the
 Tier-1 IO round" name that row, not its current tier.*
 
-**The polarity of moving case flows out of a loop — commute vs
-escape, and the co-flow question — I 4, W 5.**
-Opened 2026-08-15 (`case-commute-polarity-design.md`, the owning
-doc). Two established intuitions turn out to be *opposite
-polarities* of one gesture: commuting an option flow out of a list
-universally means break-on-*undefined* (monadic sequence — the
-implemented commute), while a case flow moved out of a loop reads
-as break-on-*defined* (the early-termination idiom, payload scooped
-out with it) — and an identity test separates them: only the
-sequence polarity actually commutes (its collected value lands
-inside the moved flow; break-on-case's value lands in the moved
-wire's **complement**, so no layers swap — it is cut-family
-territory, not a commute). The conversation's firm-on-paper
-results: series commutes mean **priority** termination only (the
-time-travel argument — every node present, nothing left for
-inference to fill in; the monadic worked example confirms priority,
-not time order); time-ordered disjunction termination requires a
-single coordinating node (working name "barrier commute," probably
-a multi-stop collect-until); junction commutes are two independent
-loops; and the use-to-variant inference is binary — outcomes
-consumed as *alternatives* select the coordinating node, outcomes
-consumed as *independent facts* select junction, priority needing
-no inference path at all. The open core is the ontology: whether a
-case alt consumed as an exit is a flow at all or a **co-flow**
-(polarity of kind vs polarity of use vs co-flow as the wire species
-presenting the cut's stop lane), under the standing anti-flag and
-visual constraints. The resolution posture is recorded (same
-conversation): **drawn, not algebraic** — no law set deciding how
-flows interact; a small inventory of at-a-glance-distinct drawings,
-one per interaction, with laws as validity witnesses only ("laws may
-veto; only the drawing elects"). W = 5: it decides what commute means, what a
-case flow is, and how early termination — the surveys' biggest
-everyday demand — is drawn; the failure account's "short-circuit
-commute" and the scoop ride on the answer. I = 4: the narrow
-results are worked, the ontology undecided, nothing adopted.
+**The polarity of moving case cells out of a loop — the `%Cell`
+account and its lifting laws — I 4, W 5.**
+Opened 2026-08-15, reworked through three conversations to
+2026-08-16 (`case-commute-polarity-design.md`, the owning doc).
+The ontology moved: the interim **co-flow** candidate and the
+**identity test** as an operation boundary are both retired. The
+current account: a case cell is not a flow wire at all — it is
+`(payload, %Cell)`, and the ordinary option/complement flows
+(`~Error`, `~BC`, …) are *derived projections* of the cell bundle
+(`[~Error, success]`: success defined exactly where Error is
+absent). `%Cell` does support commuting, but case-cell commute is
+**scope lifting** — `List (A + B) -> A + List B`, "some A, else
+all B" — with the witness-selection policy (first-A for an ordered
+list) part of the commute law; and a first-witness commute may
+retain the complement **prefix**
+(`List (A + B) -> (List B × A) + List B`), which makes prefix
+retention orthogonal to commuting and reopens the exact boundary
+with collect-until. This supersedes the earlier claims that every
+cell owns a `(value, flow)` pair and that break-on-one-cell cannot
+be a commute. The first conversation's firm-on-paper results
+stand: series commutes mean **priority** termination only (the
+time-travel argument; under cells, priority follows nesting —
+`A + (B + List C)`); time-ordered disjunction requires a single
+coordinating node (working name "barrier commute", name doubted —
+and it still owes a same-element tie policy for *unaligned* exits);
+junction commutes are two independent loops; the use-to-variant
+inference is binary — *alternatives* select the coordinating node,
+*independent facts* select junction, priority needing no inference
+path at all. The third conversation (2026-08-16) reframed series
+priority from a rarity to a **trap** (frequency never licenses an
+accident): over an unbounded stream the series form is
+unanswerable, and the lean is that `Check` should witness it
+ill-formed outright; the visual lean is the **jog** (a commute
+that may shorten the iteration displaces the flow wire — jog iff
+the output firing set may be a proper subset); and the
+representation lean is **node-local cells** (per-alt cell ports on
+the split, complement flows as derived ports of the same node —
+not a third reference kind). The resolution posture is recorded:
+**drawn, not algebraic** — a small inventory of
+at-a-glance-distinct drawings, laws as veto-and-expand only ("laws
+may veto and expand; only the drawing elects"). The open core is
+now the **lifting-law inventory** (which enclosing flow kinds
+support case-cell commute, each law's witness policy, prefix
+retention, and shortening bit), the exact compact-facet expansions
+(the error facet's commuting square), the prefix/cut geometry, the
+multi-cell node's home, and the inference fine print. A correction
+is owed to (and now recorded in) the completion boundary:
+completion inserts operations that *do* change demand and
+termination — it is licensed by authored intent plus a unique
+published expansion, not by behavioural neutrality. W = 5: it
+decides what commute means, what a case cell is, and how early
+termination — the surveys' biggest everyday demand — is drawn; the
+failure account's "short-circuit commute" and the scoop ride on
+the answer (both re-founded as the compact projection of a
+case-cell scope lift). I = 4: the account is worked, nothing
+adopted; propagation through the owning docs is under way.
 Touched: `lazy-stream-commute-design.md`, `commute-design-notes.md`,
-`end-when-design.md`, `failure-payloads-design.md`,
-`barrier-value-crossing-design.md`, `partial-collect-design.md`,
-`core-model.md`.
+`end-when-design.md`, `variable-rate-consumption-design.md`,
+`failure-payloads-design.md`, `barrier-value-crossing-design.md`,
+`partial-collect-design.md`, `core-model.md`,
+`facets-design-notes.md`, `time-travel-programs-design.md`.
 
 ## Tier 2 — big areas with partial designs (≈ 12–16)
 
@@ -902,7 +924,16 @@ The time-travel machinery is settled; its *contents* are thin by design
 — one canonical-table entry, one heuristic — and each addition needs a
 worked program behind it. Versioning (a heuristic change is a semantics
 change) and completion-diff UX are the sharp residue
-(`time-travel-programs-design.md` questions 1–3).
+(`time-travel-programs-design.md` questions 1–3). The machinery's
+*boundary statement* took a correction (2026-08-16, from the
+commute-polarity row's conversations): "bookkeeping only / identity
+shadow" was false of the inventory it already admits — the inferred
+sequence commute changes demand and termination; the proposed
+replacement (authored intent plus a unique published expansion, never
+an invented source, sink, observation, or handling intent) is recorded
+in `time-travel-programs-design.md`'s insertion-inventory correction
+block, and the error facet's derivable sequence/join plumbing is its
+first client.
 
 **Transformation-levels: the undesigned operations — I 3, W 3.**
 Cherry-pick replay, merge, and the content of an undo step are each

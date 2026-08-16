@@ -294,7 +294,10 @@ express these constraints.
 
 ### The one door: what collecting nodes demand
 
-A case Collect's branches map alts to (value, flow) pairs. Its
+A case Collect's branches map alts to (value, flow) pairs. (On the
+pairing vocabulary see the 2026-08-16 note at open question 3: the
+case-cell account reads the alt's flow ref as a cell port; the
+demands below are stated on paths and survive either reading.) Its
 demand, in path terms:
 
 - the branch flows are exactly the cells of one bundle, covering it
@@ -530,7 +533,14 @@ The language hasn't decided any of the following yet.
    participate (commuting a dispatch out of a loop?) — the
    wrapper-stack shape discipline likely already forbids it, but
    the interaction should be stated rather than assumed when stream
-   flows land.
+   flows land. (2026-08-16: this question now has an owner — the
+   Tier-1 case-cell problem, `case-commute-polarity-design.md`,
+   works exactly this as **case-cell commute**, a scope lift
+   `List (A + B) -> A + List B` whose operand is the cell with its
+   payload, not a path segment sliding unchanged; what a
+   provenance path records across one is part of that round's
+   adoption/propagation question. "Likely already forbids it" is no
+   longer the lean.)
 4. **Effect flows.** The spec lets effect flows be bundled and
    joined like other flows, in the organizational sense. If an
    effect construct ever produces a semantic family (branching on

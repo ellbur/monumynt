@@ -675,7 +675,13 @@ the proposal.
    order" must say more, and where the dissolved register reading
    might have answered differently — the divergence that would make
    the ontological choice observable. Jointly owned with
-   `lazy-stream-commute-design.md`.
+   `lazy-stream-commute-design.md`. (2026-08-16: the case-cell
+   round's lifting-law inventory — `case-commute-polarity-design.md`,
+   open question 2 — is where the short-circuiting bit of each
+   commute law gets declared, and its jog convention would mark the
+   option commute as shortening while the IO commute draws straight
+   through; this question's "segments before the short-circuit" is a
+   prefix-retention question in that vocabulary.)
 
 3. **The batched-effect construct.** Deferred above, but it owes its
    own round: what a plan-valued effect is, how it discharges at a

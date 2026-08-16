@@ -10,7 +10,11 @@ tests 10/10c/10e–10h; see `src/ARCHITECTURE.md`'s Complete row). The
 rest of the chapter remains design-only: the canonical-commute table
 (Worked Example 2) and the heuristic ordering (Worked Example 3) are
 not implemented — read those sections as "here is a candidate and the
-case for it." It takes up the old
+case for it." **Correction (2026-08-16)**: the insertion-inventory
+boundary ("flow bookkeeping only", the identity-shadow line) is
+corrected by `case-commute-polarity-design.md` — see the dated
+correction block in "The insertion inventory" below before relying on
+any "settled boundary" language in that section. It takes up the old
 `flow_language_design.md`'s Future Work #1 ("pull-based to explicit
 transformation") in current vocabulary; that doc is retired, its core
 now in `core-model.md`. Throughout, "uncollect" and "collect" name
@@ -243,6 +247,40 @@ discards `+` lines because they are re-derived, not stored.
 ## What completion inserts, and what forces it
 
 ### The insertion inventory
+
+> **Correction (2026-08-16, recorded from
+> `case-commute-polarity-design.md`).** The boundary this section
+> states — completion inserts "flow bookkeeping only", operations
+> "whose value-level shadow is the identity", nothing that changes
+> firing structure — is false of the inventory it already admits. The
+> canonical commute chains it inserts include the sequence commute,
+> and sequencing an error flow out of a list **short-circuits** the
+> list consumer — a change in runtime demand and termination; the
+> Cross "wrinkle" below (assigning a previously-unspecified
+> multiplicity) is a second instance, not an exception to be explained
+> away. No value ports does not mean no behavioural effect: these
+> operations act on execution context rather than by applying a value
+> function. The proposed replacement boundary (worked there, not yet
+> adopted):
+>
+> *Completion may not invent a source, sink, observation, or handling
+> intent. It may elaborate an authored under-committed relationship
+> into the unique operational flow structure required by that
+> relationship and the language's published canonical policies.*
+>
+> What survives unchanged: explicit structure preempts insertion;
+> completions are shown faint; completion never *overrides* an
+> authored meaning; terminations, handlers, and observations remain
+> authored; the implemented sibling-opens Cross is lawful under both
+> statements. What changes: the "never joins" non-family below is too
+> strong as stated — in the error facet, tracing an authored `~Error`
+> rail outward lawfully inserts sequence at each enclosing loop and
+> monadic join at each error nesting, because that authored geometry
+> has one published expansion — and the identity-shadow test retires
+> as the licensing criterion (it survives only as a description of
+> the value ports these operations lack). The "settled" markers below
+> are kept as the record of the earlier statement; read them through
+> this note.
 
 Completion inserts **flow bookkeeping only** — two families:
 
@@ -731,7 +769,10 @@ half of completion.
 **Completion is a level-1 catalog entry.** It passes the admission
 test verbatim: its content is a statement about level-0 programs (this
 incomplete one means that complete one), and its value shadow is the
-identity. Pattern: a time-travel program with a defined completion.
+identity. (On "value shadow is the identity" read the 2026-08-16
+correction block under "The insertion inventory": the phrase survives
+as a description of the value *ports* these operations lack, not as
+the licensing boundary.) Pattern: a time-travel program with a defined completion.
 Expansion: the completion. Port correspondence: identity on authored
 ports; inserted nodes are expansion-internal, with the inserted flows'
 ports (a commute-derived error flow, say) as principal derived ports

@@ -346,7 +346,9 @@ consumption (+1 an aggregation, +1 a filter on groups, +1 a nested
 report), where operator-merge is a single fused point. In drawn
 vocabulary the XQuery form is the natural one anyway: a keyed partition is
 a bundle whose cells are *data-determined* (contrast the case split's
-static alts), each cell a flow; every value wire entering the barrier
+static alts), each cell a flow (on what a static case *cell* is — an
+ordinary flow, or a `%Cell` with derived projections — see the open
+`case-commute-polarity-design.md`); every value wire entering the barrier
 corresponds, on the far side, to a per-group flow of its firings — which
 is precisely what "non-grouping variables become sequences" says, minus
 §1's constant-rebinding bug. The operator-merge form is then the fused

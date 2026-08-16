@@ -27,7 +27,11 @@ revision's owed re-founding of the inventory as **alt-reach
 property propagation** now carries its worked round too (the final
 section, "The inventory re-founded as alt-reach"), unadopted —
 written after the async and speculation re-foundings fixed the
-vocabulary it lands in. Its scope is the two
+vocabulary it lands in. Update (2026-08-15/16): the case-cell
+account (`case-commute-polarity-design.md`, Tier-1) re-founds the
+short-circuit commute as the compact projection of a case-cell
+scope lift and half-answers the pinned prefix question — dated
+notes ride in the revision-notes and alt-reach sections below. Its scope is the two
 flagged residues of the failability design (`async-flow-design.md`,
 its failability section — since re-founded 2026-08-14 as "Failure:
 arrivals and endings"): **"do bodies raise?"** and
@@ -951,6 +955,21 @@ question waits rather than being answered confidently. Payload
 transport across the commute is the scoop
 (`barrier-value-crossing-design.md`, revision notes).
 
+(*2026-08-15/16 update on the pin.* The case-cell account —
+`case-commute-polarity-design.md`, nothing adopted — half-answers
+it: a first-witness case-cell commute *may* retain the complement
+prefix (`List (Err + Ok) -> (List ok × Err) + List ok`), so prefix
+retention is orthogonal to commuting and the all-or-nothing error
+facet is the projection that forgets the prefix on the Error cell.
+What stays open is exactly the part this pin flagged — where the
+prefix goes in the drawing (a factored wire outside the aggregate
+bundle, or an explicit shortened before-cell flow), that round's
+open question 4. The same account re-founds this section's commute:
+the selection First-B is the ordered list's canonical **witness
+policy**, part of the commute law rather than an inference default
+layered on it, and the scoop re-states as routing of the selected
+`(error, %Error)` witness.)
+
 ## Open questions
 
 The language hasn't decided any of these yet; leanings are stated
@@ -1411,6 +1430,17 @@ instances of general ones:
   rule was the general substrate wearing terminator clothes.
 
 ### The property reads off the completed form
+
+(*2026-08-15/16:* the commute this section reads off is itself
+re-founded by `case-commute-polarity-design.md` — the compact
+`~Error` rail is a derived projection of the cell bundle and the
+short-circuit commute the compact projection of a **case-cell scope
+lift**, with every compact edit owing a unique expansion (the
+commuting square). Alt-reach as stated here is unaffected — it reads
+the completed form either way — but the completion it reads gains
+content: the inferred sequence/join plumbing along an authored error
+rail is the first client of the corrected completion boundary
+recorded in `time-travel-programs-design.md`.)
 
 One statement in this round is genuinely load-bearing rather
 than a reduction, and it is a consequence of the

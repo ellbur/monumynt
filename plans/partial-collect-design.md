@@ -208,6 +208,17 @@ Stated as a node:
 where the branch flows carry pairwise-disjoint cell sets of one
 bundle. It has one value output and one flow output.**
 
+(*2026-08-15/16 note on the operand phrasing.* The case-cell account
+— `case-commute-polarity-design.md`, Tier-1 open problem, nothing
+adopted — reads a case bundle as cells `(payload, %Cell)` rather than
+symmetric `(value, flow)` pairs, with option/complement flows as
+*derived* projections; under its node-local lean the branch flow ref
+here is the alt's cell port on the split. The law of the merged flow
+below is unaffected — what is open is the pairing vocabulary. That
+round also leans on this chapter's **disjointness demand** as one of
+the alternativeness-demanding consumers that license its coordinating
+node's inference.)
+
 Its meaning is one law, the companion to the law of the combined
 flow:
 
@@ -510,6 +521,15 @@ compiler that already emits both arms for case splits. But it is
 severable — nothing else here depends on it — so it is a decision to
 take at implementation time, not silently assumed.
 
+(*2026-08-16:* the case-cell account sharpens what position 2 must
+decide. Its structural option bundle is
+`[(unit, %None), (value, %Some)]`, with projections `[~Some, unit]`
+and `[~None, value]` — so "the None cell gets a flow port" must say
+*which* thing the port displays: the `%None` cell itself, the
+complement flow `~None`, or a derived projection. The new sigil makes
+that distinction mandatory; see `case-commute-polarity-design.md`,
+open question 8.)
+
 ## How this squares with the design philosophy
 
 - **Example first, then generalise.** The construct is read off the
@@ -589,7 +609,10 @@ where one exists.
    semantics keyed to "some engaged cell fired") — but the stream
    documents' wrapper-stack rows predate binary join and this
    construct, so check them when they are re-read as programs over
-   explicit nodes.
+   explicit nodes. (2026-08-16: the generalization now has an owner —
+   `case-commute-polarity-design.md` works commuting *case cells*
+   across enclosing flows as scope lifting, and its lifting-law
+   inventory is where "commute over a merged flow" must land.)
 7. **The visual form.** How a partial collect and its merged flow
    render belongs to the layout documents, out of scope here;
    flagged so it lands on their list.
