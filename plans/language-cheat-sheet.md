@@ -38,12 +38,17 @@ double = js "x => x * 2"
 ten = 10
 ```
 
+- **OH Comment**: We should have a way to use JS inline without having to define a name for it.
+- **OH Comment**: We should get rid of all uses of `double` from examples. It's just a sign that the language doesn't handle non-unary operators well.
+
 **Chain — forward application.** Write the value first, then what
 happens to it. `a -> double` means `double(a)`. *(implemented)*
 
 ```
 3 -> double => six
 ```
+
+- **OH Comment**: Same comment on the use of `double`. It should be removed from examples because it just suggests the language doesn't handle unary operators cleanly.
 
 **Naming a result.** `=> name` is the last stage of a chain, not a
 statement wrapped around it. A binder can name several output ports
