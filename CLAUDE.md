@@ -186,3 +186,4 @@ Two properties that used to be assumed-but-unchecked are now enforced by `Check`
 - `rescript.json` controls the compiler: ESM output, emits under `lib/es6/` (`in-source: false`), `.res.mjs` suffix.
 - `package.json` has `"type": "module"` — Node treats the emitted files as ESM.
 - `lib/` is gitignored; only `.res` sources are tracked.
+- **Reviewing a doc on the phone**: `tools/review-app/` splits a design doc into cards with comment boxes, publishes it as an Artifact page, and writes the comments back into the doc as `- **OH Comment**:` bullets. Its `README.md` has the steps.

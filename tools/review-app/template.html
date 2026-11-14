@@ -1,0 +1,377 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of example cards, sticky review bar on top; each card ends in its own comment box. */
+:root {
+  --bg: #f4f5f2;
+  --surface: #ffffff;
+  --ink: #1d2328;
+  --muted: #5d6a72;
+  --line: #d9ddd6;
+  --code-bg: #eceee9;
+  --accent: #2f5f8a;
+  --accent-soft: #e2ebf3;
+  --done: #2e7d4f;
+  --done-soft: #e1f0e6;
+  --note: #8a5a12;
+  --note-soft: #f6ecd9;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #13171b; --surface: #1b2026; --ink: #e3e7ea; --muted: #97a3ab; --line: #2c343c;
+  --code-bg: #232a31; --accent: #8fb8de; --accent-soft: #1f3142; --done: #7cc99a; --done-soft: #1b3326;
+  --note: #e0b56a; --note-soft: #33291a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #13171b; --surface: #1b2026; --ink: #e3e7ea; --muted: #97a3ab; --line: #2c343c;
+  --code-bg: #232a31; --accent: #8fb8de; --accent-soft: #1f3142; --done: #7cc99a; --done-soft: #1b3326;
+  --note: #e0b56a; --note-soft: #33291a; color-scheme: dark; }
+
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+header.bar .wrap { display: grid; gap: 8px; padding-block: 10px; }
+.toprow { display: flex; align-items: center; gap: 10px; }
+.toprow h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1; min-width: 0; letter-spacing: -0.01em; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.meter { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--done); width: 0; transition: width .3s; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+select, button { font: inherit; font-size: 14px; color: var(--ink); }
+select { flex: 1 1 160px; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 7px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.status { font-size: 13px; color: var(--muted); }
+.status.warn { color: var(--note); }
+
+main .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-block: 16px 48px; }
+h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 0; font-weight: 600; scroll-margin-top: 190px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 14px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; scroll-margin-top: 190px; }
+.card.has-comment { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.card.ok { border-color: color-mix(in srgb, var(--done) 45%, var(--line)); }
+.card-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.card-head h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.3; flex: 1 1 200px; min-width: 0; text-wrap: balance; }
+.pill { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 2px 7px; border-radius: 99px; background: var(--code-bg); color: var(--muted); white-space: nowrap; }
+.pill.implemented { background: var(--done-soft); color: var(--done); }
+.pill.adopted { background: var(--accent-soft); color: var(--accent); }
+.pill.exploration, .pill.draft { background: var(--note-soft); color: var(--note); }
+
+.body { min-width: 0; font-size: 15px; }
+.body p { margin: 0 0 8px; }
+.body > :last-child { margin-bottom: 0; }
+.body code { font-family: var(--mono); font-size: .9em; background: var(--code-bg); padding: 0 3px; border-radius: 3px; }
+.body pre { background: var(--code-bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 8px; }
+.body pre code { background: none; padding: 0; font-size: 13px; line-height: 1.45; white-space: pre; }
+.body ul { margin: 0 0 8px; padding-left: 20px; }
+.body .tbl { overflow-x: auto; margin: 0 0 8px; }
+.body table { border-collapse: collapse; font-size: 14px; }
+.body th, .body td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+
+.earlier { background: var(--note-soft); border-radius: 8px; padding: 8px 10px; font-size: 14px; display: grid; gap: 4px; }
+.earlier b { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--note); }
+.earlier p { margin: 0; }
+
+.comment { display: grid; gap: 6px; }
+textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; min-height: 44px; resize: vertical; width: 100%; box-sizing: border-box; field-sizing: content; max-height: 50vh; }
+textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.crow { display: flex; align-items: center; gap: 8px; }
+.saved { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; }
+.okbtn { background: none; border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.okbtn[aria-pressed="true"] { background: var(--done-soft); border-color: var(--done); color: var(--done); font-weight: 600; }
+
+.general { background: var(--accent-soft); border: 0; }
+.export { display: grid; gap: 8px; }
+.export button.primary { background: var(--accent); color: var(--surface); border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+.export textarea { font-family: var(--mono); font-size: 12px; min-height: 160px; }
+.empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 0; }
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="toprow"><h1>__TITLE__</h1><span class="count" id="count">0 of 0 commented</span></div>
+    <div class="meter"><i id="meter"></i></div>
+    <div class="controls">
+      <select id="jump" aria-label="Jump to section"></select>
+      <div class="seg" role="group" aria-label="Show">
+        <button id="f-all" aria-pressed="true">All</button>
+        <button id="f-todo" aria-pressed="false">To do</button>
+        <button id="f-done" aria-pressed="false">Noted</button>
+      </div>
+    </div>
+    <div class="status" id="status">Connecting to saved comments…</div>
+  </div>
+</header>
+
+<main><div class="wrap" id="list"></div></main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(() => {
+  const SOURCE = __SOURCE__;
+  const sections = JSON.parse(document.getElementById("data").textContent);
+  const entries = [];
+  for (const s of sections) for (const e of s.entries) { e.section = s.title; e.sectionId = s.id; entries.push(e); }
+  const GENERAL = { id: "general", title: "General comments", section: "(whole document)", sectionId: "general" };
+  const byId = Object.fromEntries(entries.map(e => [e.id, e]));
+  byId.general = GENERAL;
+
+  // state: id -> {text, ok}
+  const state = {};
+  const cards = {};
+  let filter = "all";
+  let db = null, coll = null;
+
+  const ls = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const DRAFT_KEY = "cs-review-drafts";
+  const drafts = ls.get(DRAFT_KEY) || {};
+
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function md(src) {
+    if (window.marked) {
+      const html = marked.parse(src, { gfm: true, breaks: false });
+      return html.replace(/<table>/g, '<div class="tbl"><table>').replace(/<\/table>/g, "</table></div>");
+    }
+    return "<pre><code>" + esc(src) + "</code></pre>";
+  }
+  const pillClass = st => (st.match(/^(implemented|adopted|exploration|draft)/) || [""])[0];
+
+  // ---------- render ----------
+  const list = document.getElementById("list");
+  const jump = document.getElementById("jump");
+  jump.innerHTML = '<option value="">Jump to section…</option><option value="top">General comments & export</option>' +
+    sections.map(s => `<option value="sec-${s.id}">${esc(s.title)} (${s.entries.length})</option>`).join("");
+
+  function commentBox(e) {
+    const wrap = document.createElement("div");
+    wrap.className = "comment";
+    const ta = document.createElement("textarea");
+    ta.id = "c-" + e.id;
+    ta.rows = 2;
+    ta.placeholder = "Your comment…";
+    ta.setAttribute("aria-label", "Comment on " + e.title);
+    const row = document.createElement("div");
+    row.className = "crow";
+    const saved = document.createElement("span");
+    saved.className = "saved";
+    row.append(saved);
+    let ok = null;
+    if (e.id !== "general") {
+      ok = document.createElement("button");
+      ok.className = "okbtn";
+      ok.type = "button";
+      ok.textContent = "Looks fine";
+      ok.setAttribute("aria-pressed", "false");
+      ok.addEventListener("click", () => {
+        const cur = state[e.id] || { text: "", ok: false };
+        setLocal(e.id, { text: cur.text, ok: !cur.ok });
+      });
+      row.append(ok);
+    }
+    wrap.append(ta, row);
+    let t = null;
+    ta.addEventListener("input", () => {
+      const cur = state[e.id] || { text: "", ok: false };
+      state[e.id] = { text: ta.value, ok: cur.ok };
+      drafts[e.id] = { text: ta.value, ok: cur.ok, at: Date.now() };
+      ls.set(DRAFT_KEY, drafts);
+      saved.textContent = "Typing…";
+      refreshCard(e.id); refreshCount();
+      clearTimeout(t);
+      t = setTimeout(() => queueWrite(e.id), 1200);
+    });
+    ta.addEventListener("blur", () => { clearTimeout(t); queueWrite(e.id); });
+    return { wrap, ta, saved, ok };
+  }
+
+  // top: general + export
+  {
+    const top = document.createElement("section");
+    top.id = "top";
+    top.className = "card general";
+    top.innerHTML = `<div class="card-head"><h3>General comments</h3></div>
+      <div class="body"><p>One card per entry from <code>${esc(SOURCE)}</code>. Type under any example; it saves as you go. Tap <b>Looks fine</b> to mark one reviewed with nothing to say. Earlier notes already in the file show in yellow.</p></div>`;
+    const cb = commentBox(GENERAL);
+    top.append(cb.wrap);
+    cards.general = { el: top, ...cb };
+    const ex = document.createElement("div");
+    ex.className = "export";
+    ex.innerHTML = `<button class="primary" type="button" id="exportBtn">Copy all comments for Claude</button>
+      <textarea id="exportOut" readonly hidden aria-label="Exported comments"></textarea>
+      <span class="saved" id="exportMsg">Comments also save to this page, so you can just tell Claude Code “read my review comments” and give it this page’s link.</span>`;
+    top.append(ex);
+    list.append(top);
+  }
+
+  for (const s of sections) {
+    const h = document.createElement("h2");
+    h.className = "sec"; h.id = "sec-" + s.id; h.textContent = s.title;
+    list.append(h);
+    for (const e of s.entries) {
+      const el = document.createElement("article");
+      el.className = "card"; el.id = "e-" + e.id;
+      const pc = pillClass(e.status);
+      el.innerHTML = `<div class="card-head"><h3>${md(e.title).replace(/^<p>|<\/p>\s*$/g, "")}</h3>${pc ? `<span class="pill ${pc}">${pc}</span>` : ""}</div>
+        <div class="body">${md(e.md)}</div>
+        ${e.oh.length ? `<div class="earlier"><b>Earlier notes in the file</b>${e.oh.map(o => `<p>${md(o).replace(/^<p>|<\/p>\s*$/g, "")}</p>`).join("")}</div>` : ""}`;
+      const cb = commentBox(e);
+      el.append(cb.wrap);
+      list.append(el);
+      cards[e.id] = { el, ...cb };
+    }
+  }
+  const emptyMsg = document.createElement("p");
+  emptyMsg.className = "empty"; emptyMsg.hidden = true; emptyMsg.textContent = "Nothing here with this filter.";
+  list.append(emptyMsg);
+
+  function refreshCard(id) {
+    const c = cards[id]; if (!c) return;
+    const st = state[id] || { text: "", ok: false };
+    if (document.activeElement !== c.ta && c.ta.value !== st.text) c.ta.value = st.text;
+    c.el.classList.toggle("has-comment", !!st.text.trim());
+    c.el.classList.toggle("ok", !!st.ok && !st.text.trim());
+    if (c.ok) c.ok.setAttribute("aria-pressed", st.ok ? "true" : "false");
+    applyFilter(id);
+  }
+  const isDone = id => { const st = state[id]; return !!st && (!!st.text.trim() || !!st.ok); };
+  function applyFilter(id) {
+    if (id === "general") return;
+    const c = cards[id];
+    c.el.hidden = filter === "todo" ? isDone(id) : filter === "done" ? !isDone(id) : false;
+  }
+  function refreshAllFilters() {
+    entries.forEach(e => applyFilter(e.id));
+    document.querySelectorAll("h2.sec").forEach(h => {
+      const sid = h.id.slice(4);
+      h.hidden = !entries.some(e => e.sectionId === sid && !cards[e.id].el.hidden);
+    });
+    emptyMsg.hidden = entries.some(e => !cards[e.id].el.hidden);
+  }
+  function refreshCount() {
+    const n = entries.filter(e => isDone(e.id)).length;
+    const c = entries.filter(e => (state[e.id]?.text || "").trim()).length;
+    document.getElementById("count").textContent = `${n} of ${entries.length} reviewed · ${c} with comments`;
+    document.getElementById("meter").style.width = (100 * n / entries.length) + "%";
+  }
+
+  for (const [k, b] of [["all", "f-all"], ["todo", "f-todo"], ["done", "f-done"]]) {
+    document.getElementById(b).addEventListener("click", () => {
+      filter = k;
+      for (const x of ["f-all", "f-todo", "f-done"]) document.getElementById(x).setAttribute("aria-pressed", x === b ? "true" : "false");
+      refreshAllFilters();
+    });
+  }
+  jump.addEventListener("change", () => {
+    const v = jump.value; jump.value = "";
+    if (!v) return;
+    if (v !== "top" && filter !== "all") document.getElementById("f-all").click();
+    document.getElementById(v)?.scrollIntoView({ block: "start" });
+  });
+
+  // ---------- saving ----------
+  const status = document.getElementById("status");
+  const writing = {}, pending = {}, lastSaved = {};
+  function setLocal(id, val) {
+    state[id] = val;
+    drafts[id] = { ...val, at: Date.now() };
+    ls.set(DRAFT_KEY, drafts);
+    refreshCard(id); refreshCount(); if (filter !== "all") refreshAllFilters();
+    queueWrite(id);
+  }
+  async function queueWrite(id) {
+    const c = cards[id];
+    const st = state[id] || { text: "", ok: false };
+    const key = JSON.stringify([st.text, !!st.ok]);
+    if (!coll) { c.saved.textContent = st.text || st.ok ? "Saved on this device only" : ""; return; }
+    if (lastSaved[id] === key) { c.saved.textContent = st.text || st.ok ? "Saved" : ""; return; }
+    if (writing[id]) { pending[id] = true; return; }
+    writing[id] = true;
+    c.saved.textContent = "Saving…";
+    try {
+      const e = byId[id];
+      await coll.doc(id).set({ entry: id, section: e.section, title: e.title, text: st.text, ok: !!st.ok, updatedAt: new Date().toISOString() });
+      lastSaved[id] = key;
+      delete drafts[id]; ls.set(DRAFT_KEY, drafts);
+      c.saved.textContent = st.text || st.ok ? "Saved" : "";
+    } catch (err) {
+      c.saved.textContent = err?.code === "invalid_argument" ? "You can read but not save here" : "Not saved yet — kept on this device, will retry";
+      if (err?.code === "unavailable") setTimeout(() => queueWrite(id), 1500 + Math.random() * 1500);
+    } finally {
+      writing[id] = false;
+      if (pending[id]) { pending[id] = false; queueWrite(id); }
+    }
+  }
+
+  // drafts from an earlier visit show first; the store fills the rest
+  for (const [id, d] of Object.entries(drafts)) if (byId[id]) { state[id] = { text: d.text || "", ok: !!d.ok }; }
+  Object.keys(cards).forEach(refreshCard); refreshCount();
+
+  (async () => {
+    const timer = setTimeout(() => { status.textContent = "Can't reach saved comments yet. What you type is kept on this device."; status.className = "status warn"; }, 10000);
+    db = window.claude?.use ? await window.claude.use("db") : null;
+    if (!db) {
+      clearTimeout(timer);
+      status.textContent = "Saved comments aren't available here. What you type is kept on this device; use “Copy all comments”.";
+      status.className = "status warn";
+      return;
+    }
+    coll = db.collection("comments");
+    let first = true;
+    coll.onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { clearTimeout(timer); status.textContent = "Comments save automatically."; status.className = "status"; }
+      for (const d of snap.docs) {
+        const v = d.data(); if (!v || !byId[d.id]) continue;
+        const remote = { text: v.text || "", ok: !!v.ok };
+        lastSaved[d.id] = JSON.stringify([remote.text, remote.ok]);
+        const draft = drafts[d.id];
+        const remoteAt = Date.parse(v.updatedAt || 0) || 0;
+        if (draft && draft.at > remoteAt) continue;          // local edit is newer; it will be written
+        if (document.activeElement === cards[d.id]?.ta) continue;
+        state[d.id] = remote;
+        refreshCard(d.id);
+      }
+      refreshCount(); if (filter !== "all") refreshAllFilters();
+      if (first && !snap.metadata.fromCache) {
+        first = false;
+        for (const id of Object.keys(drafts)) if (byId[id]) queueWrite(id);   // push unsynced drafts
+      }
+    }, err => {
+      clearTimeout(timer);
+      status.textContent = "Lost the connection to saved comments. Reload to reconnect; typing is kept on this device.";
+      status.className = "status warn";
+    });
+  })();
+
+  // ---------- export ----------
+  document.getElementById("exportBtn").addEventListener("click", async () => {
+    const out = document.getElementById("exportOut");
+    const msg = document.getElementById("exportMsg");
+    const lines = [`# Review comments: __TITLE__`, ``, `Source: ${SOURCE}`, ``];
+    const g = (state.general?.text || "").trim();
+    if (g) lines.push(`## General`, ``, g, ``);
+    for (const s of sections) {
+      const items = s.entries.filter(e => (state[e.id]?.text || "").trim());
+      if (!items.length) continue;
+      lines.push(`## ${s.title}`, ``);
+      for (const e of items) lines.push(`### ${e.title}`, `<!-- id: ${e.id} -->`, ``, state[e.id].text.trim(), ``);
+    }
+    const okd = entries.filter(e => state[e.id]?.ok && !(state[e.id]?.text || "").trim());
+    if (okd.length) lines.push(`## Marked "looks fine"`, ``, ...okd.map(e => `- ${e.section} › ${e.title}`), ``);
+    const text = lines.join("\n");
+    out.value = text; out.hidden = false;
+    try { await navigator.clipboard.writeText(text); msg.textContent = "Copied. Paste it into Claude Code."; }
+    catch { out.focus(); out.select(); msg.textContent = "Couldn't copy automatically — the text is selected below; copy it from there."; }
+  });
+})();
+</script>
