@@ -5,3 +5,4 @@ lib/
 *.res.mjs
 *.res.js
 .bsb.lock
+__pycache__/
