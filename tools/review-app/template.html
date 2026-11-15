@@ -30,22 +30,23 @@
   --note: #e0b56a; --note-soft: #33291a; color-scheme: dark; }
 
 html { -webkit-text-size-adjust: 100%; }
+html, body { overflow-x: clip; }
 body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.5; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
 .wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
 header.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
-header.bar .wrap { display: grid; gap: 8px; padding-block: 10px; }
-.toprow { display: flex; align-items: center; gap: 10px; }
-.toprow h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1; min-width: 0; letter-spacing: -0.01em; }
-.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+header.bar .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding-block: 10px; }
+.toprow { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; }
+.toprow h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1 1 auto; min-width: 0; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 0; }
 .meter { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--done); width: 0; transition: width .3s; }
 .controls { display: flex; gap: 8px; flex-wrap: wrap; }
 select, button { font: inherit; font-size: 14px; color: var(--ink); }
-select { flex: 1 1 160px; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; }
-.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { background: none; border: 0; padding: 7px 10px; cursor: pointer; }
+select { flex: 1 1 160px; min-width: 0; max-width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; }
+.seg { display: flex; flex: 1 1 auto; min-width: 0; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { flex: 1 1 auto; min-width: 0; background: none; border: 0; padding: 7px 8px; cursor: pointer; overflow-wrap: anywhere; }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .status { font-size: 13px; color: var(--muted); }
 .status.warn { color: var(--note); }
@@ -64,7 +65,7 @@ h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; colo
 .pill.exploration, .pill.draft { background: var(--note-soft); color: var(--note); }
 
 .body { min-width: 0; font-size: 15px; }
-.body p { margin: 0 0 8px; }
+.body p, .body li, .earlier p { margin: 0 0 8px; overflow-wrap: anywhere; }
 .body > :last-child { margin-bottom: 0; }
 .body code { font-family: var(--mono); font-size: .9em; background: var(--code-bg); padding: 0 3px; border-radius: 3px; }
 .body pre { background: var(--code-bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 8px; }
@@ -261,7 +262,7 @@ textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--ac
   function refreshCount() {
     const n = entries.filter(e => isDone(e.id)).length;
     const c = entries.filter(e => (state[e.id]?.text || "").trim()).length;
-    document.getElementById("count").textContent = `${n} of ${entries.length} reviewed · ${c} with comments`;
+    document.getElementById("count").textContent = `${n}/${entries.length} reviewed · ${c} commented`;
     document.getElementById("meter").style.width = (100 * n / entries.length) + "%";
   }
 
@@ -318,18 +319,18 @@ textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--ac
   Object.keys(cards).forEach(refreshCard); refreshCount();
 
   (async () => {
-    const timer = setTimeout(() => { status.textContent = "Can't reach saved comments yet. What you type is kept on this device."; status.className = "status warn"; }, 10000);
+    const timer = setTimeout(() => { status.textContent = "Can't reach saved comments yet. What you type is kept on this device."; status.className = "status warn"; status.hidden = false; }, 10000);
     db = window.claude?.use ? await window.claude.use("db") : null;
     if (!db) {
       clearTimeout(timer);
       status.textContent = "Saved comments aren't available here. What you type is kept on this device; use “Copy all comments”.";
-      status.className = "status warn";
+      status.className = "status warn"; status.hidden = false;
       return;
     }
     coll = db.collection("comments");
     let first = true;
     coll.onSnapshot(snap => {
-      if (!snap.metadata.fromCache) { clearTimeout(timer); status.textContent = "Comments save automatically."; status.className = "status"; }
+      if (!snap.metadata.fromCache) { clearTimeout(timer); status.textContent = ""; status.className = "status"; status.hidden = true; }
       for (const d of snap.docs) {
         const v = d.data(); if (!v || !byId[d.id]) continue;
         const remote = { text: v.text || "", ok: !!v.ok };
@@ -349,7 +350,7 @@ textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--ac
     }, err => {
       clearTimeout(timer);
       status.textContent = "Lost the connection to saved comments. Reload to reconnect; typing is kept on this device.";
-      status.className = "status warn";
+      status.className = "status warn"; status.hidden = false;
     });
   })();
 
